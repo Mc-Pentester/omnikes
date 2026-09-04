@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: omnikes-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: omnikes
+      POSTGRES_PASSWORD: omnikes_password
+      POSTGRES_DB: omnikes
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omnikes"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: Redis for future real-time features
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: omnikes-redis
+  #   restart: unless-stopped
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+
+volumes:
+  postgres_data:
+  # redis_data:

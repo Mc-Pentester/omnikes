@@ -1,0 +1,301 @@
+// OmniKès - Database Schema
+// Local-First POS with Cloud-Optional Architecture
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ORGANIZATION (Multi-tenant)
+// ============================================================
+
+model Organization {
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  country           String   // ISO country code
+  currency          String   @default("USD") // ISO currency code
+  locale            String   @default("en-US")
+  timezone          String   @default("UTC")
+  
+  // Configuration flags
+  cloudEnabled      Boolean  @default(false)
+  onlineStoreEnabled Boolean @default(false)
+  
+  // Fiscal configuration
+  taxConfigurationId String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  users             User[]
+  stores            Store[]
+  taxConfiguration  TaxConfiguration? @relation(fields: [taxConfigurationId], references: [id])
+  
+  @@index([slug])
+  @@map("organizations")
+}
+
+// ============================================================
+// STORE (Multi-store per organization)
+// ============================================================
+
+model Store {
+  id                String   @id @default(cuid())
+  organizationId    String
+  name              String
+  code              String   // Store code for identification
+  address           String?
+  city              String?
+  country           String?
+  phone             String?
+  email             String?
+  
+  isActive          Boolean  @default(true)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@index([organizationId])
+  @@index([code])
+  @@map("stores")
+}
+
+// ============================================================
+// USER (Multi-user with RBAC)
+// ============================================================
+
+model User {
+  id                String   @id @default(cuid())
+  organizationId    String
+  email             String   @unique
+  emailVerified     DateTime?
+  name              String?
+  password          String   // Hashed password
+  
+  isActive          Boolean  @default(true)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastLoginAt       DateTime?
+  
+  // Relations
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userRoles         UserRole[]
+  sessions          Session[]
+  auditLogs         AuditLog[]
+  
+  @@index([organizationId])
+  @@index([email])
+  @@map("users")
+}
+
+// ============================================================
+// ROLE (RBAC)
+// ============================================================
+
+model Role {
+  id                String   @id @default(cuid())
+  name              String   // ADMIN, MANAGER, CASHIER, etc.
+  description       String?
+  
+  // Scope
+  isGlobal          Boolean  @default(false) // If true, applies to all stores
+  storeId           String?  // If not global, scoped to specific store
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  userRoles         UserRole[]
+  rolePermissions   RolePermission[]
+  
+  @@index([storeId])
+  @@map("roles")
+}
+
+// ============================================================
+// USER_ROLE (Many-to-many User <-> Role)
+// ============================================================
+
+model UserRole {
+  id                String   @id @default(cuid())
+  userId            String
+  roleId            String
+  
+  createdAt         DateTime @default(now())
+  
+  // Relations
+  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role              Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+// ============================================================
+// PERMISSION (Granular permissions)
+// ============================================================
+
+model Permission {
+  id                String   @id @default(cuid())
+  code              String   @unique // organization.read, product.manage, etc.
+  description       String?
+  module            String   // organization, product, inventory, sales, etc.
+  
+  createdAt         DateTime @default(now())
+  
+  // Relations
+  rolePermissions   RolePermission[]
+  
+  @@index([module])
+  @@map("permissions")
+}
+
+// ============================================================
+// ROLE_PERMISSION (Many-to-many Role <-> Permission)
+// ============================================================
+
+model RolePermission {
+  id                String   @id @default(cuid())
+  roleId            String
+  permissionId      String
+  
+  createdAt         DateTime @default(now())
+  
+  // Relations
+  role              Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission        Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+// ============================================================
+// SESSION (Authentication sessions)
+// ============================================================
+
+model Session {
+  id                String   @id @default(cuid())
+  userId            String
+  token             String   @unique
+  expiresAt         DateTime
+  ipAddress         String?
+  userAgent         String?
+  
+  createdAt         DateTime @default(now())
+  
+  // Relations
+  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ============================================================
+// AUDIT_LOG (Audit trail)
+// ============================================================
+
+model AuditLog {
+  id                String   @id @default(cuid())
+  userId            String?
+  organizationId    String?
+  storeId           String?
+  
+  action            String   // USER_CREATED, PRODUCT_UPDATED, SALE_CREATED, etc.
+  module            String   // users, products, sales, etc.
+  entityId          String?  // ID of the affected entity
+  entityType        String?  // Type of the affected entity
+  
+  // Changes
+  oldValues         Json?
+  newValues         Json?
+  
+  metadata          Json?    // Additional context
+  
+  ipAddress         String?
+  createdAt         DateTime @default(now())
+  
+  // Relations
+  user              User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([userId])
+  @@index([organizationId])
+  @@index([storeId])
+  @@index([action])
+  @@index([entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================
+// TAX_CONFIGURATION (International tax support)
+// ============================================================
+
+model TaxConfiguration {
+  id                String   @id @default(cuid())
+  country           String   @unique
+  taxRate           Decimal  @db.Decimal(5, 4) // e.g., 0.1800 for 18%
+  taxRules          Json     // Country-specific tax rules
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  organizations     Organization[]
+  
+  @@map("tax_configurations")
+}
+
+// ============================================================
+// CURRENCY (Multi-currency support)
+// ============================================================
+
+model Currency {
+  id                String   @id @default(cuid())
+  code              String   @unique // USD, HTG, EUR, etc.
+  symbol            String   // $, G, €, etc.
+  name              String   // US Dollar, Haitian Gourde, etc.
+  decimalPlaces     Int      @default(2)
+  
+  isActive          Boolean  @default(true)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@map("currencies")
+}
+
+// ============================================================
+// LOCALE (Internationalization)
+// ============================================================
+
+model Locale {
+  id                String   @id @default(cuid())
+  code              String   @unique // en-US, fr-HT, es-DO, etc.
+  name              String   // English (US), French (Haiti), etc.
+  dateFormat        String   // MM/DD/YYYY, DD/MM/YYYY, etc.
+  numberFormat      String   // 1,234.56, 1 234,56, etc.
+  
+  isActive          Boolean  @default(true)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@map("locales")
+}

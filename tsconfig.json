@@ -19,7 +19,7 @@
       }
     ],
     "paths": {
-      "@seltech/*": ["./src/*"]
+      "@omnikes/*": ["./src/*"]
     }
   },
   "include": [

@@ -1,36 +1,172 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OmniKès
+
+A **Local-First** Point of Sale (POS) system with optional Cloud services and optional Online Store.
+
+## Vision
+
+OmniKès is designed to operate 100% locally without constant Internet dependency, with Cloud services and an Online Store as optional enhancements. The system supports multi-tenant, multi-store, multi-user operations with internationalization (multi-currency, configurable taxation).
+
+## Architecture Principles
+
+- **Local-First**: Core POS functions work without Internet
+- **Cloud-Optional**: Cloud services are add-ons, not requirements
+- **Online Store-Optional**: E-commerce is a separate module
+- **Modular**: Each business domain is isolated
+- **International**: Multi-country, multi-currency support
+- **Hardware-Abstracted**: Device independence
+- **Sync-Ready**: Prepared for offline/online synchronization
+
+## Tech Stack
+
+- **Frontend**: Next.js 16, React 19, TypeScript, TailwindCSS 4
+- **Backend**: Next.js API Routes, Prisma ORM
+- **Database**: PostgreSQL (via Docker)
+- **Validation**: Zod
+- **Testing**: Vitest (unit), Playwright (E2E)
+- **PWA**: next-pwa for offline capability
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Node.js 18+
+- Docker Desktop (for PostgreSQL)
+- npm, yarn, pnpm, or bun
+
+### Installation
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Copy environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+
+4. Start PostgreSQL with Docker:
+   ```bash
+   docker-compose up -d
+   ```
+
+5. Generate Prisma client:
+   ```bash
+   npx prisma generate
+   ```
+
+6. Run database migrations:
+   ```bash
+   npx prisma migrate dev
+   ```
+
+7. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+8. Open [http://localhost:3000](http://localhost:3000)
+
+## Project Structure
+
+```
+omnikes/
+├── prisma/              # Database schema and migrations
+├── src/
+│   ├── app/            # Next.js App Router
+│   │   ├── api/        # API routes
+│   │   └── (pages)     # UI pages
+│   ├── components/     # Reusable components
+│   │   └── ui/         # UI components (shadcn-style)
+│   ├── core/           # Core types and interfaces
+│   │   ├── types/      # TypeScript type definitions
+│   │   └── hardware/   # Hardware abstraction layer
+│   ├── lib/            # Utility libraries
+│   │   ├── prisma.ts   # Prisma client
+│   │   └── validation.ts # Zod schemas
+│   └── tests/          # Unit tests
+├── e2e/                # E2E tests (Playwright)
+├── docs/               # Documentation
+└── docker-compose.yml  # Docker services
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Available Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm start` - Start production server
+- `npm run lint` - Run ESLint
+- `npx prisma studio` - Open Prisma Studio
+- `npx prisma migrate dev` - Create and run migrations
+- `npx vitest` - Run unit tests
+- `npx playwright test` - Run E2E tests
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## API Endpoints
 
-## Learn More
+### Health Check
 
-To learn more about Next.js, take a look at the following resources:
+```
+GET /api/health
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Returns the system health status including database connectivity.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Database Schema
 
-## Deploy on Vercel
+The initial schema includes:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Organization**: Multi-tenant support
+- **Store**: Multi-store per organization
+- **User**: Multi-user with RBAC
+- **Role**: Role definitions
+- **Permission**: Granular permissions
+- **Session**: Authentication sessions
+- **AuditLog**: Audit trail
+- **TaxConfiguration**: International tax support
+- **Currency**: Multi-currency support
+- **Locale**: Internationalization
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See `prisma/schema.prisma` for the complete schema.
+
+## Phase Status
+
+**Current Phase**: Phase 0 - Foundation 
+
+Phase 0 establishes the technical foundation:
+- Project initialized with Next.js
+- TypeScript configured
+- Database schema designed
+- Modular structure created
+- Health check API implemented
+- Design system foundation
+- PWA configured
+- Hardware abstraction layer defined
+- Test infrastructure set up
+- Documentation created
+
+## Next Steps
+
+After Phase 0 completion, the following modules will be developed:
+
+1. **Module 0 - Foundation**: Authentication, authorization, session management
+2. **Module 1 - Organization**: Organization management
+3. **Module 2 - Stores**: Store management
+4. **Module 3 - Users/Roles/Permissions**: RBAC implementation
+5. **Module 4 - Products/ProductVariants**: Product catalog
+6. **Module 5 - Inventory**: Inventory management
+7. **Module 6 - Suppliers/Purchases**: Supply chain
+8. **Module 7 - Cash Management**: Cash operations
+9. **Module 8 - POS/Sales**: Point of Sale
+10. **Module 9 - Payments**: Payment processing
+11. **Module 10 - Customers**: Customer management
+12. **Module 11 - Online Store**: E-commerce (OPTIONAL)
+13. **Module 12 - Sync/Cloud**: Cloud synchronization (OPTIONAL)
+
+## License
+
+Proprietary - All rights reserved
+
+## Support
+
+For questions or issues, please refer to the project documentation in the `docs/` directory.
