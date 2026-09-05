@@ -97,6 +97,48 @@ export const inventoryMovementSchema = z.object({
 
 export const inventoryMovementUpdateSchema = inventoryMovementSchema.partial().omit({ inventoryId: true });
 
+// Sale validation
+export const saleSchema = z.object({
+  organizationId: z.string().cuid(),
+  storeId: z.string().cuid(),
+  orderNumber: z.string().min(1, 'Order number is required'),
+  customerId: z.string().cuid().optional(),
+  channel: z.string().default('POS'),
+  status: z.string().default('PENDING'),
+  subtotal: z.number().nonnegative('Subtotal must be non-negative'),
+  tax: z.number().nonnegative('Tax must be non-negative').default(0),
+  total: z.number().nonnegative('Total must be non-negative'),
+  discount: z.number().nonnegative('Discount must be non-negative').default(0),
+  notes: z.string().max(1000).optional(),
+});
+
+export const saleUpdateSchema = saleSchema.partial().omit({ organizationId: true, orderNumber: true });
+
+// SaleItem validation
+export const saleItemSchema = z.object({
+  saleId: z.string().cuid(),
+  variantId: z.string().cuid(),
+  quantity: z.int().positive('Quantity must be positive'),
+  unitPrice: z.number().nonnegative('Unit price must be non-negative'),
+  totalPrice: z.number().nonnegative('Total price must be non-negative'),
+  discount: z.number().nonnegative('Discount must be non-negative').default(0),
+});
+
+export const saleItemUpdateSchema = saleItemSchema.partial().omit({ saleId: true, variantId: true });
+
+// Payment validation
+export const paymentSchema = z.object({
+  saleId: z.string().cuid(),
+  method: z.enum(['CASH', 'CARD', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CHECK', 'CREDIT'], {
+    message: 'Invalid payment method',
+  }),
+  amount: z.number().positive('Amount must be positive'),
+  reference: z.string().max(200).optional(),
+  status: z.string().default('COMPLETED'),
+});
+
+export const paymentUpdateSchema = paymentSchema.partial().omit({ saleId: true });
+
 export type OrganizationInput = z.infer<typeof organizationSchema>;
 export type StoreInput = z.infer<typeof storeSchema>;
 export type UserInput = z.infer<typeof userSchema>;
@@ -110,3 +152,9 @@ export type InventoryInput = z.infer<typeof inventorySchema>;
 export type InventoryUpdateInput = z.infer<typeof inventoryUpdateSchema>;
 export type InventoryMovementInput = z.infer<typeof inventoryMovementSchema>;
 export type InventoryMovementUpdateInput = z.infer<typeof inventoryMovementUpdateSchema>;
+export type SaleInput = z.infer<typeof saleSchema>;
+export type SaleUpdateInput = z.infer<typeof saleUpdateSchema>;
+export type SaleItemInput = z.infer<typeof saleItemSchema>;
+export type SaleItemUpdateInput = z.infer<typeof saleItemUpdateSchema>;
+export type PaymentInput = z.infer<typeof paymentSchema>;
+export type PaymentUpdateInput = z.infer<typeof paymentUpdateSchema>;
