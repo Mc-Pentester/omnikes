@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+// Password validation
+export const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+  .regex(/[0-9]/, 'Password must contain at least one digit');
+
 // Organization validation
 export const organizationSchema = z.object({
   name: z.string().min(1, 'Organization name is required'),
@@ -30,7 +37,7 @@ export const userSchema = z.object({
   organizationId: z.string().cuid(),
   email: z.string().email('Invalid email address'),
   name: z.string().min(1, 'Name is required'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: passwordSchema,
   isActive: z.boolean().default(true),
 });
 
