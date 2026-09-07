@@ -194,7 +194,24 @@ export class SaleService {
 
     const subtotal = items.reduce((sum: number, item: any) => sum + Number(item.totalPrice), 0);
     const discount = items.reduce((sum: number, item: any) => sum + Number(item.discount), 0);
-    const tax = subtotal * 0.18; // TODO: Use actual tax rate from configuration
+    
+    // Get tax rate from organization's tax configuration
+    const sale = await prisma.sale.findUnique({
+      where: { id: saleId },
+      include: {
+        organization: {
+          include: {
+            taxConfiguration: true,
+          },
+        },
+      },
+    });
+
+    const taxRate = sale?.organization?.taxConfiguration?.taxRate 
+      ? Number(sale.organization.taxConfiguration.taxRate) 
+      : 0.18; // Fallback to 18% if no configuration
+    
+    const tax = subtotal * taxRate;
     const total = subtotal + tax - discount;
 
     await saleRepository.update(saleId, organizationId, {
@@ -216,7 +233,7 @@ export class SaleService {
     }
 
     return prisma.$transaction(async () => {
-      // Get sale with items
+      // Get sale with items and payments
       const sale = await prisma.sale.findUnique({
         where: { id: saleId },
         include: {
@@ -225,6 +242,7 @@ export class SaleService {
               variant: true,
             },
           },
+          payments: true,
         },
       });
 
@@ -234,6 +252,19 @@ export class SaleService {
 
       if (sale.status === 'COMPLETED') {
         throw new Error('Sale is already completed');
+      }
+
+      // Verify payment amount
+      const totalPaid = sale.payments
+        .filter(p => p.status === 'COMPLETED')
+        .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+
+      if (totalPaid < Number(sale.total)) {
+        // Allow CREDIT method as partial payment
+        const hasCreditPayment = sale.payments.some((p: any) => p.method === 'CREDIT');
+        if (!hasCreditPayment) {
+          throw new Error(`Insufficient payment. Required: ${sale.total}, Paid: ${totalPaid}`);
+        }
       }
 
       // Verify and lock inventory for each item

@@ -19,6 +19,7 @@ export function Logo({ size = 40, className = '', variant = 'default', alt = 'Om
         width={width}
         height={height}
         className="object-contain"
+        style={{ width: 'auto', height: 'auto' }}
         priority
       />
     </div>

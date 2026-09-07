@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { saleService } from '@omnikes/services/sale.service';
+import { proformaService } from '@omnikes/services/proforma.service';
 import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
 
 /**
- * GET /api/sales
- * List sales for an organization
+ * GET /api/proformas
+ * List proformas for an organization
  */
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const skip = parseInt(searchParams.get('skip') || '0');
     const take = parseInt(searchParams.get('take') || '50');
 
-    const result = await saleService.list(organizationId, {
+    const result = await proformaService.list(organizationId, {
       storeId,
       status,
       customerId,
@@ -38,24 +38,24 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    console.error('Error listing sales:', error);
+    console.error('Error listing proformas:', error);
     return NextResponse.json(
-      { error: 'Failed to list sales' },
+      { error: 'Failed to list proformas' },
       { status: 500 }
     );
   }
 }
 
 /**
- * POST /api/sales
- * Create a new sale
+ * POST /api/proformas
+ * Create a new proforma
  */
 export async function POST(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
     const body = await request.json();
 
-    const result = await saleService.create(organizationId, body);
+    const result = await proformaService.create(organizationId, body);
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
@@ -73,9 +73,9 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    console.error('Error creating sale:', error);
+    console.error('Error creating proforma:', error);
     return NextResponse.json(
-      { error: 'Failed to create sale' },
+      { error: 'Failed to create proforma' },
       { status: 500 }
     );
   }

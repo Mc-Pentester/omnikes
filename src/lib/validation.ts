@@ -139,6 +139,76 @@ export const paymentSchema = z.object({
 
 export const paymentUpdateSchema = paymentSchema.partial().omit({ saleId: true });
 
+// Proforma validation
+export const proformaSchema = z.object({
+  organizationId: z.string().cuid(),
+  storeId: z.string().cuid(),
+  proformaNumber: z.string().min(1, 'Proforma number is required'),
+  customerId: z.string().cuid().optional(),
+  status: z.string().default('DRAFT'),
+  subtotal: z.number().nonnegative('Subtotal must be non-negative'),
+  tax: z.number().nonnegative('Tax must be non-negative').default(0),
+  total: z.number().nonnegative('Total must be non-negative'),
+  discount: z.number().nonnegative('Discount must be non-negative').default(0),
+  validUntil: z.coerce.date().optional(),
+  notes: z.string().max(1000).optional(),
+});
+
+export const proformaUpdateSchema = proformaSchema.partial().omit({ organizationId: true, proformaNumber: true });
+
+// ProformaItem validation
+export const proformaItemSchema = z.object({
+  proformaId: z.string().cuid(),
+  variantId: z.string().cuid(),
+  quantity: z.int().positive('Quantity must be positive'),
+  unitPrice: z.number().nonnegative('Unit price must be non-negative'),
+  totalPrice: z.number().nonnegative('Total price must be non-negative'),
+  discount: z.number().nonnegative('Discount must be non-negative').default(0),
+});
+
+export const proformaItemUpdateSchema = proformaItemSchema.partial().omit({ proformaId: true, variantId: true });
+
+// Sales Report validation
+export const salesReportPeriodSchema = z.object({
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+  storeId: z.string().cuid().optional(),
+  granularity: z.enum(['day', 'week', 'month']),
+}).refine((data) => {
+  if (data.startDate && data.endDate && data.startDate > data.endDate) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'startDate must be before or equal to endDate',
+});
+
+export const salesReportProductSchema = z.object({
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+  storeId: z.string().cuid().optional(),
+  limit: z.number().int().positive().max(1000).default(50),
+}).refine((data) => {
+  if (data.startDate && data.endDate && data.startDate > data.endDate) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'startDate must be before or equal to endDate',
+});
+
+export const salesReportStoreSchema = z.object({
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+}).refine((data) => {
+  if (data.startDate && data.endDate && data.startDate > data.endDate) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'startDate must be before or equal to endDate',
+});
+
 export type OrganizationInput = z.infer<typeof organizationSchema>;
 export type StoreInput = z.infer<typeof storeSchema>;
 export type UserInput = z.infer<typeof userSchema>;
@@ -158,3 +228,7 @@ export type SaleItemInput = z.infer<typeof saleItemSchema>;
 export type SaleItemUpdateInput = z.infer<typeof saleItemUpdateSchema>;
 export type PaymentInput = z.infer<typeof paymentSchema>;
 export type PaymentUpdateInput = z.infer<typeof paymentUpdateSchema>;
+export type ProformaInput = z.infer<typeof proformaSchema>;
+export type ProformaUpdateInput = z.infer<typeof proformaUpdateSchema>;
+export type ProformaItemInput = z.infer<typeof proformaItemSchema>;
+export type ProformaItemUpdateInput = z.infer<typeof proformaItemUpdateSchema>;

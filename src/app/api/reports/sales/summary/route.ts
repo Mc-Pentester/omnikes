@@ -1,24 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { inventoryService } from '@omnikes/services/inventory.service';
+import { salesReportService } from '@omnikes/services/sales-report.service';
 import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
 
 /**
- * GET /api/inventory
- * List inventories for an organization
+ * GET /api/reports/sales/summary
+ * Get summary statistics for completed sales
  */
 export async function GET(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
     const { searchParams } = new URL(request.url);
     
+    const startDate = searchParams.get('startDate') ? new Date(searchParams.get('startDate')!) : undefined;
+    const endDate = searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : undefined;
     const storeId = searchParams.get('storeId') || undefined;
-    const skip = parseInt(searchParams.get('skip') || '0');
-    const take = parseInt(searchParams.get('take') || '50');
 
-    const result = await inventoryService.listByOrganization(organizationId, {
+    const result = await salesReportService.getSummary(organizationId, {
+      startDate,
+      endDate,
       storeId,
-      skip,
-      take,
     });
 
     return NextResponse.json(result);
@@ -30,9 +30,9 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    console.error('Error listing inventory:', error);
+    console.error('Error getting sales summary:', error);
     return NextResponse.json(
-      { error: 'Failed to list inventory' },
+      { error: 'Failed to get sales summary' },
       { status: 500 }
     );
   }
