@@ -1,6 +1,7 @@
 import { saleRepository } from '@omnikes/repositories/sale.repository';
 import { inventoryRepository } from '@omnikes/repositories/inventory.repository';
 import { productVariantRepository } from '@omnikes/repositories/product-variant.repository';
+import { storeService } from '@omnikes/services/store.service';
 import { saleSchema, saleUpdateSchema, saleItemSchema, paymentSchema, SaleInput, SaleUpdateInput, SaleItemInput, PaymentInput } from '@omnikes/lib/validation';
 import { prisma } from '@omnikes/lib/prisma';
 import { Prisma } from '@prisma/client';
@@ -14,6 +15,9 @@ export class SaleService {
       ...data,
       organizationId,
     });
+
+    // CRITICAL: Validate that the store belongs to the organization
+    await storeService.validateStoreBelongsToOrganization(validatedData.storeId, organizationId);
 
     // Generate order number if not provided
     const orderNumber = validatedData.orderNumber || this.generateOrderNumber();
@@ -69,6 +73,11 @@ export class SaleService {
     }
 
     const validatedData = saleUpdateSchema.parse(data);
+
+    // CRITICAL: If storeId is being updated, validate it belongs to the organization
+    if (validatedData.storeId) {
+      await storeService.validateStoreBelongsToOrganization(validatedData.storeId, organizationId);
+    }
 
     await saleRepository.update(id, organizationId, validatedData as Prisma.SaleUpdateInput);
     

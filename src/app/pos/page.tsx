@@ -7,6 +7,7 @@ import { Button } from '@omnikes/components/ui/button';
 import { Input } from '@omnikes/components/ui/input';
 import { Card } from '@omnikes/components/ui/card';
 import { useAuth } from '@omnikes/contexts/AuthContext';
+import { useCurrentStore } from '@omnikes/contexts/StoreContext';
 
 interface CartItem {
   variantId: string;
@@ -30,13 +31,26 @@ interface Product {
   }[];
 }
 
+interface Store {
+  id: string;
+  name: string;
+  code: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  phone?: string;
+  email?: string;
+  isActive: boolean;
+}
+
 export default function POSPage() {
   const router = useRouter();
   const { user, loading: authLoading, logout } = useAuth();
+  const { currentStore, currentStoreId, setCurrentStore, clearCurrentStore, loading: storeLoading } = useCurrentStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedStore, setSelectedStore] = useState('');
+  const [stores, setStores] = useState<Store[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [saleId, setSaleId] = useState<string | null>(null);
@@ -46,6 +60,45 @@ export default function POSPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [amountReceived, setAmountReceived] = useState('');
+
+  // Fetch stores from API
+  const fetchStores = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const response = await fetch('/api/stores?isActive=true');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch stores');
+      }
+      
+      const data = await response.json();
+      const fetchedStores = data.stores || [];
+      setStores(fetchedStores);
+
+      // Validate and restore current store from localStorage
+      if (currentStoreId) {
+        const isValidStore = fetchedStores.some((s: Store) => s.id === currentStoreId);
+        if (!isValidStore) {
+          // Store from localStorage is not valid for this organization
+          clearCurrentStore();
+        } else {
+          // Restore the full store object
+          const store = fetchedStores.find((s: Store) => s.id === currentStoreId);
+          if (store) {
+            setCurrentStore(store);
+          }
+        }
+      } else if (fetchedStores.length === 1) {
+        // Auto-select if only one store available
+        setCurrentStore(fetchedStores[0]);
+      }
+    } catch (err) {
+      console.error('Error fetching stores:', err);
+      setError('Impossible de charger les magasins');
+      setStores([]);
+    }
+  }, [user, currentStoreId, setCurrentStore, clearCurrentStore]);
 
   // Fetch real products from API
   const fetchProducts = useCallback(async () => {
@@ -73,11 +126,12 @@ export default function POSPage() {
 
   useEffect(() => {
     if (user) {
+      fetchStores();
       fetchProducts();
     }
-  }, [user, fetchProducts]);
+  }, [user, fetchStores, fetchProducts]);
 
-  if (authLoading) {
+  if (authLoading || storeLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <p className="text-gray-600">Chargement...</p>
@@ -88,6 +142,40 @@ export default function POSPage() {
   if (!user) {
     router.push('/login');
     return null;
+  }
+
+  if (stores.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 text-xl mb-4">Aucun magasin disponible</p>
+          <p className="text-gray-600">Veuillez contacter votre administrateur pour configurer un magasin.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentStore) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 text-xl mb-4">Veuillez sélectionner un magasin</p>
+          <select
+            value=""
+            onChange={(e) => {
+              const store = stores.find(s => s.id === e.target.value);
+              if (store) setCurrentStore(store);
+            }}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
+          >
+            <option value="">Sélectionner un magasin</option>
+            {stores.map(store => (
+              <option key={store.id} value={store.id}>{store.name} ({store.code})</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    );
   }
 
   const filteredProducts = products.filter(product =>
@@ -119,6 +207,10 @@ export default function POSPage() {
 
     // If no sale exists, create one
     if (!currentSaleId) {
+      if (!currentStoreId) {
+        console.error('No store selected');
+        return;
+      }
       try {
         const response = await fetch('/api/sales', {
           method: 'POST',
@@ -126,7 +218,7 @@ export default function POSPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            storeId: selectedStore || 'default-store', // TEMPORARY: requires store selection API
+            storeId: currentStoreId,
             orderNumber: `SALE-${Date.now()}`,
             channel: 'POS',
             customerId: selectedCustomer || undefined,
@@ -340,12 +432,17 @@ export default function POSPage() {
           
           <div className="flex items-center gap-4">
             <select
-              value={selectedStore}
-              onChange={(e) => setSelectedStore(e.target.value)}
+              value={currentStoreId || ''}
+              onChange={(e) => {
+                const store = stores.find(s => s.id === e.target.value);
+                if (store) setCurrentStore(store);
+              }}
               className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
-              disabled
             >
-              <option value="">Sélectionner un magasin (non disponible)</option>
+              <option value="">Sélectionner un magasin</option>
+              {stores.map(store => (
+                <option key={store.id} value={store.id}>{store.name} ({store.code})</option>
+              ))}
             </select>
             
             <select

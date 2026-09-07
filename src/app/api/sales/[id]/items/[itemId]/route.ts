@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saleService } from '@omnikes/services/sale.service';
-
-function getOrganizationId(request: NextRequest): string {
-  const orgId = request.headers.get('x-organization-id');
-  if (!orgId) {
-    throw new Error('Organization ID header is required');
-  }
-  return orgId;
-}
+import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
 
 /**
  * PATCH /api/sales/[id]/items/[itemId]
@@ -19,16 +12,16 @@ export async function PATCH(
 ) {
   try {
     const { id, itemId } = await params;
-    const organizationId = getOrganizationId(request);
+    const organizationId = await requireCurrentOrganizationId(request);
     const body = await request.json();
 
     const item = await saleService.updateItem(itemId, organizationId, body);
 
     return NextResponse.json(item);
   } catch (error) {
-    if (error instanceof Error && error.message === 'Organization ID header is required') {
+    if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
-        { error: 'Organization ID header is required' },
+        { error: 'Authentication required' },
         { status: 401 }
       );
     }
@@ -65,15 +58,15 @@ export async function DELETE(
 ) {
   try {
     const { id, itemId } = await params;
-    const organizationId = getOrganizationId(request);
+    const organizationId = await requireCurrentOrganizationId(request);
 
     await saleService.removeItem(itemId, organizationId);
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    if (error instanceof Error && error.message === 'Organization ID header is required') {
+    if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
-        { error: 'Organization ID header is required' },
+        { error: 'Authentication required' },
         { status: 401 }
       );
     }
