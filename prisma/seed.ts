@@ -15,6 +15,19 @@ async function main() {
   console.log('🌱 Starting OmniKès test data seed...');
 
   // ============================================================
+  // SECURITY: Get passwords from environment variables
+  // For production, these should be set in .env or secure secret management
+  // For local development, fallback to test passwords if not set
+  // ============================================================
+  const testPasswordA = process.env.SEED_PASSWORD_A || 'OmniKesTestA!2026';
+  const testPasswordCashierA = process.env.SEED_PASSWORD_CASHIER_A || 'OmniKesCashierA!2026';
+  const testPasswordB = process.env.SEED_PASSWORD_B || 'OmniKesTestB!2026';
+
+  const passwordHashA = await bcrypt.hash(testPasswordA, 10);
+  const passwordHashCashierA = await bcrypt.hash(testPasswordCashierA, 10);
+  const passwordHashB = await bcrypt.hash(testPasswordB, 10);
+
+  // ============================================================
   // ORGANIZATIONS
   // ============================================================
 
@@ -53,10 +66,6 @@ async function main() {
   // ============================================================
   // USERS
   // ============================================================
-
-  const passwordHashA = await bcrypt.hash('OmniKesTestA!2026', 10);
-  const passwordHashCashierA = await bcrypt.hash('OmniKesCashierA!2026', 10);
-  const passwordHashB = await bcrypt.hash('OmniKesTestB!2026', 10);
 
   const adminA = await prisma.user.upsert({
     where: { email: 'admin.a@omnikes.test' },
@@ -134,6 +143,46 @@ async function main() {
   });
 
   console.log('✅ Roles created');
+
+  // ============================================================
+  // PERMISSIONS
+  // ============================================================
+
+  const storeCreatePermission = await prisma.permission.upsert({
+    where: { code: 'store.create' },
+    update: {},
+    create: {
+      code: 'store.create',
+      description: 'Créer un magasin dans l\'organisation courante',
+      module: 'store',
+    },
+  });
+
+  console.log('✅ Permissions created');
+
+  // ============================================================
+  // ROLE PERMISSIONS
+  // ============================================================
+
+  await prisma.rolePermission.upsert({
+    where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: storeCreatePermission.id } },
+    update: {},
+    create: {
+      roleId: adminRoleA.id,
+      permissionId: storeCreatePermission.id,
+    },
+  });
+
+  await prisma.rolePermission.upsert({
+    where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: storeCreatePermission.id } },
+    update: {},
+    create: {
+      roleId: adminRoleB.id,
+      permissionId: storeCreatePermission.id,
+    },
+  });
+
+  console.log('✅ Role permissions assigned');
 
   // ============================================================
   // USER ROLES
