@@ -8,10 +8,13 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/tests/setup.ts'],
+    exclude: ['**/node_modules/**', '**/e2e/**', '**/dist/**'],
   },
   resolve: {
     alias: {
-      '@omnikes/*': path.resolve(__dirname, './src/*'),
+      '@omnikes/lib': path.resolve(__dirname, './src/lib'),
+      '@omnikes/repositories': path.resolve(__dirname, './src/repositories'),
+      '@omnikes/services': path.resolve(__dirname, './src/services'),
     },
   },
 });

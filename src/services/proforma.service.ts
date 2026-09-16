@@ -2,7 +2,7 @@ import { proformaRepository } from '@omnikes/repositories/proforma.repository';
 import { productVariantRepository } from '@omnikes/repositories/product-variant.repository';
 import { proformaSchema, proformaUpdateSchema, proformaItemSchema, ProformaInput, ProformaUpdateInput, ProformaItemInput } from '@omnikes/lib/validation';
 import { prisma } from '@omnikes/lib/prisma';
-import { Prisma } from '@prisma/client';
+import { Prisma, ProformaItem } from '@prisma/client';
 
 export class ProformaService {
   /**
@@ -121,11 +121,31 @@ export class ProformaService {
       throw new Error('Product variant not found or access denied');
     }
 
-    // Calculate total price
-    const totalPrice = (validatedData.unitPrice * validatedData.quantity) - validatedData.discount;
+    // INVARIANT: quantity must be > 0
+    if (validatedData.quantity <= 0) {
+      throw new Error('Quantity must be greater than 0');
+    }
+
+    // INVARIANT: Use server-side price, do not trust client
+    const serverPrice = Number(variant.price);
+    const quantity = validatedData.quantity;
+    const discount = validatedData.discount || 0;
+
+    // INVARIANT: discount cannot exceed gross amount
+    const grossAmount = serverPrice * quantity;
+    if (discount > grossAmount) {
+      throw new Error('Discount cannot exceed gross amount');
+    }
+
+    // INVARIANT: line total must never be negative
+    const totalPrice = grossAmount - discount;
+    if (totalPrice < 0) {
+      throw new Error('Line total cannot be negative');
+    }
 
     const item = await proformaRepository.createItem({
       ...validatedData,
+      unitPrice: serverPrice, // Use server-side price
       totalPrice,
       proforma: {
         connect: { id: proformaId },
@@ -153,6 +173,7 @@ export class ProformaService {
         where: { id: itemId },
         include: {
           proforma: true,
+          variant: true,
         },
       });
 
@@ -170,14 +191,33 @@ export class ProformaService {
         throw new Error('Only DRAFT proformas can be modified');
       }
 
+      // INVARIANT: quantity must be > 0
       const quantity = validatedData.quantity ?? item.quantity;
-      const unitPrice = validatedData.unitPrice ?? Number(item.unitPrice);
+      if (quantity <= 0) {
+        throw new Error('Quantity must be greater than 0');
+      }
+
+      // INVARIANT: Use server-side price from variant, do not trust client
+      const unitPrice = validatedData.unitPrice !== undefined 
+        ? Number(item.variant.price) // Always use server price if client tries to change it
+        : Number(item.unitPrice);
       const discount = validatedData.discount ?? Number(item.discount);
 
-      const totalPrice = (unitPrice * quantity) - discount;
+      // INVARIANT: discount cannot exceed gross amount
+      const grossAmount = unitPrice * quantity;
+      if (discount > grossAmount) {
+        throw new Error('Discount cannot exceed gross amount');
+      }
+
+      // INVARIANT: line total must never be negative
+      const totalPrice = grossAmount - discount;
+      if (totalPrice < 0) {
+        throw new Error('Line total cannot be negative');
+      }
 
       await proformaRepository.updateItem(itemId, organizationId, {
         ...validatedData,
+        unitPrice, // Force server-side price
         totalPrice,
       } as Prisma.ProformaItemUpdateInput);
 
@@ -234,13 +274,13 @@ export class ProformaService {
     const items = await proformaRepository.listItems(proformaId, organizationId);
 
     // Calculate gross subtotal (before discounts)
-    const grossSubtotal = items.reduce((sum: number, item: any) => {
+    const grossSubtotal = items.reduce((sum: number, item: ProformaItem) => {
       const grossLineTotal = Number(item.unitPrice) * item.quantity;
       return sum + grossLineTotal;
     }, 0);
 
     // Sum of all line discounts
-    const discount = items.reduce((sum: number, item: any) => sum + Number(item.discount), 0);
+    const discount = items.reduce((sum: number, item: ProformaItem) => sum + Number(item.discount), 0);
 
     // Subtotal after discounts
     const subtotal = grossSubtotal - discount;

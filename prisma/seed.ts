@@ -158,29 +158,80 @@ async function main() {
     },
   });
 
+  const storeReadPermission = await prisma.permission.upsert({
+    where: { code: 'store.read' },
+    update: {},
+    create: {
+      code: 'store.read',
+      description: 'Lire les détails d\'un magasin',
+      module: 'store',
+    },
+  });
+
+  const storeUpdatePermission = await prisma.permission.upsert({
+    where: { code: 'store.update' },
+    update: {},
+    create: {
+      code: 'store.update',
+      description: 'Modifier un magasin',
+      module: 'store',
+    },
+  });
+
+  const storeActivatePermission = await prisma.permission.upsert({
+    where: { code: 'store.activate' },
+    update: {},
+    create: {
+      code: 'store.activate',
+      description: 'Activer un magasin',
+      module: 'store',
+    },
+  });
+
+  const storeDeactivatePermission = await prisma.permission.upsert({
+    where: { code: 'store.deactivate' },
+    update: {},
+    create: {
+      code: 'store.deactivate',
+      description: 'Désactiver un magasin',
+      module: 'store',
+    },
+  });
+
   console.log('✅ Permissions created');
 
   // ============================================================
   // ROLE PERMISSIONS
   // ============================================================
 
-  await prisma.rolePermission.upsert({
-    where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: storeCreatePermission.id } },
-    update: {},
-    create: {
-      roleId: adminRoleA.id,
-      permissionId: storeCreatePermission.id,
-    },
-  });
+  // Assign all store permissions to ADMIN roles
+  const storePermissions = [
+    storeCreatePermission,
+    storeReadPermission,
+    storeUpdatePermission,
+    storeActivatePermission,
+    storeDeactivatePermission,
+  ];
 
-  await prisma.rolePermission.upsert({
-    where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: storeCreatePermission.id } },
-    update: {},
-    create: {
-      roleId: adminRoleB.id,
-      permissionId: storeCreatePermission.id,
-    },
-  });
+  for (const permission of storePermissions) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleA.id,
+        permissionId: permission.id,
+      },
+    });
+
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleB.id,
+        permissionId: permission.id,
+      },
+    });
+  }
 
   console.log('✅ Role permissions assigned');
 

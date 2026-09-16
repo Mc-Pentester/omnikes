@@ -1,7 +1,6 @@
 import { inventoryRepository } from '@omnikes/repositories/inventory.repository';
 import { inventoryMovementSchema, InventoryMovementInput } from '@omnikes/lib/validation';
 import { prisma } from '@omnikes/lib/prisma';
-import { Prisma } from '@prisma/client';
 
 export type MovementType = 'SALE' | 'PURCHASE' | 'ADJUSTMENT' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'RETURN';
 
@@ -76,6 +75,17 @@ export class InventoryService {
     // Validate input
     const validatedData = inventoryMovementSchema.parse(data);
 
+    // INVARIANT: quantity must not be zero
+    if (validatedData.quantity === 0) {
+      throw new Error('Movement quantity cannot be zero');
+    }
+
+    // INVARIANT: Validate movement type
+    const validTypes: MovementType[] = ['SALE', 'PURCHASE', 'ADJUSTMENT', 'TRANSFER_IN', 'TRANSFER_OUT', 'RETURN'];
+    if (!validTypes.includes(validatedData.type as MovementType)) {
+      throw new Error(`Invalid movement type: ${validatedData.type}`);
+    }
+
     // Check if inventory belongs to organization
     const belongs = await inventoryRepository.belongsToOrganization(inventoryId, organizationId);
     if (!belongs) {
@@ -85,12 +95,12 @@ export class InventoryService {
     // Use transaction for atomic operation
     return prisma.$transaction(async () => {
       // Get current inventory state with FOR UPDATE lock
-      const inventory = await prisma.$queryRaw`
-        SELECT "quantity", "reservedQuantity" 
-        FROM "inventories" 
+      const inventory = await prisma.$queryRaw<Array<{ quantity: number; reservedQuantity: number }>>`
+        SELECT "quantity", "reservedQuantity"
+        FROM "inventories"
         WHERE "id" = ${inventoryId}
         FOR UPDATE
-      ` as any;
+      `;
 
       if (!inventory || inventory.length === 0) {
         throw new Error('Inventory not found');
@@ -111,12 +121,16 @@ export class InventoryService {
         case 'SALE':
         case 'TRANSFER_OUT':
           newQuantity = currentInventory.quantity - Math.abs(quantity);
-          // Prevent negative stock
+          // INVARIANT: Prevent negative stock
           if (newQuantity < 0) {
             throw new Error('Insufficient stock for this operation');
           }
           break;
         case 'ADJUSTMENT':
+          // INVARIANT: Adjustment cannot result in negative quantity
+          if (quantity < 0) {
+            throw new Error('Adjustment quantity cannot be negative');
+          }
           newQuantity = quantity;
           break;
         default:
@@ -183,12 +197,12 @@ export class InventoryService {
     }
 
     return prisma.$transaction(async () => {
-      const inventory = await prisma.$queryRaw`
-        SELECT "quantity", "reservedQuantity" 
-        FROM "inventories" 
+      const inventory = await prisma.$queryRaw<Array<{ quantity: number; reservedQuantity: number }>>`
+        SELECT "quantity", "reservedQuantity"
+        FROM "inventories"
         WHERE "id" = ${inventoryId}
         FOR UPDATE
-      ` as any;
+      `;
 
       if (!inventory || inventory.length === 0) {
         throw new Error('Inventory not found');
@@ -220,12 +234,12 @@ export class InventoryService {
     }
 
     return prisma.$transaction(async () => {
-      const inventory = await prisma.$queryRaw`
-        SELECT "reservedQuantity" 
-        FROM "inventories" 
+      const inventory = await prisma.$queryRaw<Array<{ reservedQuantity: number }>>`
+        SELECT "reservedQuantity"
+        FROM "inventories"
         WHERE "id" = ${inventoryId}
         FOR UPDATE
-      ` as any;
+      `;
 
       if (!inventory || inventory.length === 0) {
         throw new Error('Inventory not found');
@@ -256,12 +270,12 @@ export class InventoryService {
     }
 
     return prisma.$transaction(async () => {
-      const inventory = await prisma.$queryRaw`
-        SELECT "quantity" 
-        FROM "inventories" 
+      const inventory = await prisma.$queryRaw<Array<{ quantity: number }>>`
+        SELECT "quantity"
+        FROM "inventories"
         WHERE "id" = ${inventoryId}
         FOR UPDATE
-      ` as any;
+      `;
 
       if (!inventory || inventory.length === 0) {
         throw new Error('Inventory not found');

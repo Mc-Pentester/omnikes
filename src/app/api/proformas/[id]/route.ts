@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proformaService } from '@omnikes/services/proforma.service';
-
-function getOrganizationId(request: NextRequest): string {
-  const orgId = request.headers.get('x-organization-id');
-  if (!orgId) {
-    throw new Error('Organization ID header is required');
-  }
-  return orgId;
-}
+import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
 
 /**
  * GET /api/proformas/[id]
@@ -19,14 +12,14 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const organizationId = getOrganizationId(request);
+    const organizationId = await requireCurrentOrganizationId(request);
     const proforma = await proformaService.getById(id, organizationId);
 
     return NextResponse.json(proforma);
   } catch (error) {
-    if (error instanceof Error && error.message === 'Organization ID header is required') {
+    if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
-        { error: 'Organization ID header is required' },
+        { error: 'Authentication required' },
         { status: 401 }
       );
     }
@@ -56,16 +49,16 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const organizationId = getOrganizationId(request);
+    const organizationId = await requireCurrentOrganizationId(request);
     const body = await request.json();
 
     const proforma = await proformaService.update(id, organizationId, body);
 
     return NextResponse.json(proforma);
   } catch (error) {
-    if (error instanceof Error && error.message === 'Organization ID header is required') {
+    if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
-        { error: 'Organization ID header is required' },
+        { error: 'Authentication required' },
         { status: 401 }
       );
     }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { GET, POST } from '@omnikes/app/api/stores/route';
+import { POST } from '@omnikes/app/api/stores/route';
 import { NextRequest } from 'next/server';
 
 // Mock dependencies

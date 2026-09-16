@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proformaService } from '@omnikes/services/proforma.service';
 import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { validatePagination } from '@omnikes/lib/pagination';
+import { parseDateRange } from '@omnikes/lib/date-validation';
 
 /**
  * GET /api/proformas
@@ -14,10 +16,16 @@ export async function GET(request: NextRequest) {
     const storeId = searchParams.get('storeId') || undefined;
     const status = searchParams.get('status') || undefined;
     const customerId = searchParams.get('customerId') || undefined;
-    const startDate = searchParams.get('startDate') ? new Date(searchParams.get('startDate')!) : undefined;
-    const endDate = searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : undefined;
-    const skip = parseInt(searchParams.get('skip') || '0');
-    const take = parseInt(searchParams.get('take') || '50');
+    
+    const { startDate, endDate } = parseDateRange(
+      searchParams.get('startDate'),
+      searchParams.get('endDate')
+    );
+    
+    const { skip, take } = validatePagination(
+      searchParams.get('skip'),
+      searchParams.get('take')
+    );
 
     const result = await proformaService.list(organizationId, {
       storeId,
@@ -31,11 +39,21 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
+    if (error instanceof Error) {
+      if (error.message === 'Authentication required' || error.message === 'Invalid or expired session') {
+        return NextResponse.json(
+          { error: 'Authentication required' },
+          { status: 401 }
+        );
+      }
+
+      if (error.message.includes('Invalid skip') || error.message.includes('Invalid take') || 
+          error.message.includes('Invalid date') || error.message.includes('Invalid date range')) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 400 }
+        );
+      }
     }
     
     console.error('Error listing proformas:', error);

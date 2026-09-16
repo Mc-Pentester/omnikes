@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { productService } from '@omnikes/services/product.service';
 import { productSchema } from '@omnikes/lib/validation';
 import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { validatePagination } from '@omnikes/lib/pagination';
 
 /**
  * GET /api/products
@@ -16,8 +17,11 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category') || undefined;
     const isActive = searchParams.get('isActive') === 'true' ? true : 
                      searchParams.get('isActive') === 'false' ? false : undefined;
-    const skip = parseInt(searchParams.get('skip') || '0');
-    const take = parseInt(searchParams.get('take') || '50');
+    
+    const { skip, take } = validatePagination(
+      searchParams.get('skip'),
+      searchParams.get('take')
+    );
 
     const result = await productService.list(organizationId, {
       search,
@@ -29,11 +33,20 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
+    if (error instanceof Error) {
+      if (error.message === 'Authentication required' || error.message === 'Invalid or expired session') {
+        return NextResponse.json(
+          { error: 'Authentication required' },
+          { status: 401 }
+        );
+      }
+
+      if (error.message.includes('Invalid skip') || error.message.includes('Invalid take')) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 400 }
+        );
+      }
     }
     
     console.error('Error listing products:', error);

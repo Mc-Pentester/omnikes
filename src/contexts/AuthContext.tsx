@@ -81,7 +81,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    refreshUser();
+    let isMounted = true;
+    const loadUser = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const userData = await response.json();
+          if (isMounted) {
+            setUser(userData.user);
+          }
+        }
+      } catch {
+        if (isMounted) {
+          setError('Failed to load user');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    loadUser();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (

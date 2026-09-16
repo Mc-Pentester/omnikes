@@ -1,10 +1,9 @@
 import { saleRepository } from '@omnikes/repositories/sale.repository';
-import { inventoryRepository } from '@omnikes/repositories/inventory.repository';
 import { productVariantRepository } from '@omnikes/repositories/product-variant.repository';
 import { storeService } from '@omnikes/services/store.service';
 import { saleSchema, saleUpdateSchema, saleItemSchema, paymentSchema, SaleInput, SaleUpdateInput, SaleItemInput, PaymentInput } from '@omnikes/lib/validation';
 import { prisma } from '@omnikes/lib/prisma';
-import { Prisma } from '@prisma/client';
+import { Prisma, SaleItem, Payment } from '@prisma/client';
 
 export class SaleService {
   /**
@@ -109,11 +108,31 @@ export class SaleService {
       throw new Error('Product variant not found or access denied');
     }
 
-    // Calculate total price
-    const totalPrice = (validatedData.unitPrice * validatedData.quantity) - validatedData.discount;
+    // INVARIANT: quantity must be > 0
+    if (validatedData.quantity <= 0) {
+      throw new Error('Quantity must be greater than 0');
+    }
+
+    // INVARIANT: Use server-side price, do not trust client
+    const serverPrice = Number(variant.price);
+    const quantity = validatedData.quantity;
+    const discount = validatedData.discount || 0;
+
+    // INVARIANT: discount cannot exceed gross amount
+    const grossAmount = serverPrice * quantity;
+    if (discount > grossAmount) {
+      throw new Error('Discount cannot exceed gross amount');
+    }
+
+    // INVARIANT: line total must never be negative
+    const totalPrice = grossAmount - discount;
+    if (totalPrice < 0) {
+      throw new Error('Line total cannot be negative');
+    }
 
     const item = await saleRepository.createItem({
       ...validatedData,
+      unitPrice: serverPrice, // Use server-side price
       totalPrice,
       sale: {
         connect: { id: saleId },
@@ -141,6 +160,7 @@ export class SaleService {
         where: { id: itemId },
         include: {
           sale: true,
+          variant: true,
         },
       });
 
@@ -148,14 +168,33 @@ export class SaleService {
         throw new Error('Sale item not found or access denied');
       }
 
+      // INVARIANT: quantity must be > 0
       const quantity = validatedData.quantity ?? item.quantity;
-      const unitPrice = validatedData.unitPrice ?? Number(item.unitPrice);
+      if (quantity <= 0) {
+        throw new Error('Quantity must be greater than 0');
+      }
+
+      // INVARIANT: Use server-side price from variant, do not trust client
+      const unitPrice = validatedData.unitPrice !== undefined 
+        ? Number(item.variant.price) // Always use server price if client tries to change it
+        : Number(item.unitPrice);
       const discount = validatedData.discount ?? Number(item.discount);
 
-      const totalPrice = (unitPrice * quantity) - discount;
+      // INVARIANT: discount cannot exceed gross amount
+      const grossAmount = unitPrice * quantity;
+      if (discount > grossAmount) {
+        throw new Error('Discount cannot exceed gross amount');
+      }
+
+      // INVARIANT: line total must never be negative
+      const totalPrice = grossAmount - discount;
+      if (totalPrice < 0) {
+        throw new Error('Line total cannot be negative');
+      }
 
       await saleRepository.updateItem(itemId, organizationId, {
         ...validatedData,
+        unitPrice, // Force server-side price
         totalPrice,
       } as Prisma.SaleItemUpdateInput);
 
@@ -201,8 +240,8 @@ export class SaleService {
   async recalculateTotals(saleId: string, organizationId: string) {
     const items = await saleRepository.listItems(saleId, organizationId);
 
-    const subtotal = items.reduce((sum: number, item: any) => sum + Number(item.totalPrice), 0);
-    const discount = items.reduce((sum: number, item: any) => sum + Number(item.discount), 0);
+    const subtotal = items.reduce((sum: number, item: SaleItem) => sum + Number(item.totalPrice), 0);
+    const discount = items.reduce((sum: number, item: SaleItem) => sum + Number(item.discount), 0);
     
     // Get tax rate from organization's tax configuration
     const sale = await prisma.sale.findUnique({
@@ -266,11 +305,11 @@ export class SaleService {
       // Verify payment amount
       const totalPaid = sale.payments
         .filter(p => p.status === 'COMPLETED')
-        .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+        .reduce((sum: number, p: Payment) => sum + Number(p.amount), 0);
 
       if (totalPaid < Number(sale.total)) {
         // Allow CREDIT method as partial payment
-        const hasCreditPayment = sale.payments.some((p: any) => p.method === 'CREDIT');
+        const hasCreditPayment = sale.payments.some((p: Payment) => p.method === 'CREDIT');
         if (!hasCreditPayment) {
           throw new Error(`Insufficient payment. Required: ${sale.total}, Paid: ${totalPaid}`);
         }
@@ -278,12 +317,12 @@ export class SaleService {
 
       // Verify and lock inventory for each item
       for (const item of sale.items) {
-        const inventory = await prisma.$queryRaw`
+        const inventory = await prisma.$queryRaw<Array<{ id: string; quantity: number; reservedQuantity: number }>>`
           SELECT id, quantity, reservedQuantity
           FROM inventories
           WHERE "storeId" = ${sale.storeId} AND "variantId" = ${item.variantId}
           FOR UPDATE
-        ` as any[];
+        `;
 
         if (!inventory || inventory.length === 0) {
           throw new Error(`Inventory not found for variant ${item.variant.sku}`);
@@ -360,12 +399,12 @@ export class SaleService {
       // If sale was completed, restore stock
       if (sale.status === 'COMPLETED') {
         for (const item of sale.items) {
-          const inventory = await prisma.$queryRaw`
+          const inventory = await prisma.$queryRaw<Array<{ id: string; quantity: number }>>`
             SELECT id, quantity
             FROM inventories
             WHERE "storeId" = ${sale.storeId} AND "variantId" = ${item.variantId}
             FOR UPDATE
-          ` as any[];
+          `;
 
           if (inventory && inventory.length > 0) {
             const currentInventory = inventory[0];
@@ -416,6 +455,25 @@ export class SaleService {
       ...data,
       saleId,
     });
+
+    // INVARIANT: payment amount must be positive
+    if (validatedData.amount <= 0) {
+      throw new Error('Payment amount must be positive');
+    }
+
+    // INVARIANT: Check payment doesn't exceed sale total (unless CREDIT method)
+    const sale = await saleRepository.findById(saleId, organizationId);
+    
+    if (!sale) {
+      throw new Error('Sale not found or access denied');
+    }
+    
+    const totalPaid = await saleRepository.getTotalPaid(saleId, organizationId);
+    const remainingAmount = Number(sale.total) - totalPaid;
+
+    if (validatedData.method !== 'CREDIT' && validatedData.amount > remainingAmount) {
+      throw new Error(`Payment amount exceeds remaining balance. Remaining: ${remainingAmount}, Attempted: ${validatedData.amount}`);
+    }
 
     const payment = await saleRepository.createPayment({
       ...validatedData,

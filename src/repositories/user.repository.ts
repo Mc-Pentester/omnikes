@@ -93,7 +93,19 @@ export class UserRepository {
   }
 
   /**
-   * Increment failed login attempts
+   * Revoke all sessions for a user (e.g., after password change)
+   */
+  async revokeAllSessions(id: string) {
+    return prisma.session.updateMany({
+      where: { userId: id },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * Increment failed login attempts (atomic operation)
    */
   async incrementFailedAttempts(id: string) {
     const user = await prisma.user.findUnique({
@@ -103,20 +115,21 @@ export class UserRepository {
 
     if (!user) return null;
 
-    const newAttempts = (user.failedLoginAttempts || 0) + 1;
-    const updateData: Prisma.UserUpdateInput = {
-      failedLoginAttempts: newAttempts,
-    };
-
-    // Lock account after 5 failed attempts
-    if (newAttempts >= 5) {
-      updateData.lockedUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-    }
-
-    return prisma.user.update({
+    // Use atomic increment to avoid race conditions
+    const updatedUser = await prisma.user.update({
       where: { id },
-      data: updateData,
+      data: {
+        failedLoginAttempts: {
+          increment: 1,
+        },
+        // Lock account after 5 failed attempts
+        lockedUntil: (user.failedLoginAttempts || 0) >= 4 
+          ? new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
+          : undefined,
+      },
     });
+
+    return updatedUser;
   }
 
   /**

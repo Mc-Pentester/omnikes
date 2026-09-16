@@ -83,6 +83,12 @@ export default function LoginPage() {
 
         <div className="mt-6 text-center text-sm text-gray-500">
           <p>Utilisez votre compte utilisateur existant.</p>
+          <p className="mt-2">
+            Pas encore de compte?{' '}
+            <a href="/register" className="text-blue-600 hover:text-blue-800">
+              Créer un compte
+            </a>
+          </p>
         </div>
       </Card>
     </div>

@@ -6,8 +6,9 @@ export class SaleRepository {
    * Create a new sale
    */
   async create(data: Prisma.SaleCreateInput) {
+    const { organizationId, storeId, ...createData } = data as any;
     return prisma.sale.create({
-      data,
+      data: createData,
       include: {
         store: true,
         customer: true,

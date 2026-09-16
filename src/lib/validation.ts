@@ -209,6 +209,18 @@ export const salesReportStoreSchema = z.object({
   message: 'startDate must be before or equal to endDate',
 });
 
+// Registration validation
+export const registrationSchema = z.object({
+  organizationName: z.string().min(1, 'Organization name is required').max(255, 'Organization name must be less than 255 characters'),
+  name: z.string().min(1, 'Name is required').max(255, 'Name must be less than 255 characters'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  confirmPassword: z.string().min(8, 'Password confirmation is required'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+});
+
 export type OrganizationInput = z.infer<typeof organizationSchema>;
 export type StoreInput = z.infer<typeof storeSchema>;
 export type UserInput = z.infer<typeof userSchema>;
@@ -232,3 +244,4 @@ export type ProformaInput = z.infer<typeof proformaSchema>;
 export type ProformaUpdateInput = z.infer<typeof proformaUpdateSchema>;
 export type ProformaItemInput = z.infer<typeof proformaItemSchema>;
 export type ProformaItemUpdateInput = z.infer<typeof proformaItemUpdateSchema>;
+export type RegistrationInput = z.infer<typeof registrationSchema>;

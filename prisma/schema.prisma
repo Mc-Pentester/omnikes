@@ -203,7 +203,8 @@ model RolePermission {
 model Session {
   id                String   @id @default(cuid())
   userId            String
-  token             String   @unique
+  token             String   @unique  // Deprecated: kept for backward compatibility during migration
+  tokenHash         String?  @unique  // HMAC-SHA-256 hash of the session token (new secure approach)
   expiresAt         DateTime
   ipAddress         String?
   userAgent         String?
@@ -219,6 +220,7 @@ model Session {
   
   @@index([userId])
   @@index([token])
+  @@index([tokenHash])
   @@index([expiresAt])
   @@map("sessions")
 }

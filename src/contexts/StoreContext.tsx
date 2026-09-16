@@ -32,17 +32,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Load store from localStorage on mount
   useEffect(() => {
+    let isMounted = true;
     try {
       const storedStoreId = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (storedStoreId) {
+      if (storedStoreId && isMounted) {
         // We only store the ID, the actual store validation happens in the component
-        setCurrentStoreState({ id: storedStoreId } as Store);
+        // Defer state update to avoid synchronous setState in effect
+        setTimeout(() => {
+          if (isMounted) {
+            setCurrentStoreState({ id: storedStoreId } as Store);
+          }
+        }, 0);
       }
     } catch (error) {
       console.error('Error loading store from localStorage:', error);
     } finally {
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     }
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const setCurrentStore = (store: Store | null) => {

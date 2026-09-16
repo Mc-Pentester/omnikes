@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { productVariantService } from '@omnikes/services/product-variant.service';
-
-// Helper function to get organizationId from request
-// TODO: Replace with proper authentication system
-function getOrganizationId(request: NextRequest): string {
-  const orgId = request.headers.get('x-organization-id');
-  if (!orgId) {
-    throw new Error('Organization ID header is required');
-  }
-  return orgId;
-}
+import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
 
 /**
  * GET /api/product-variants/[id]
@@ -21,14 +12,14 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const organizationId = getOrganizationId(request);
+    const organizationId = await requireCurrentOrganizationId(request);
     const variant = await productVariantService.getById(id, organizationId);
 
     return NextResponse.json(variant);
   } catch (error) {
-    if (error instanceof Error && error.message === 'Organization ID header is required') {
+    if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
-        { error: 'Organization ID header is required' },
+        { error: 'Authentication required' },
         { status: 401 }
       );
     }
@@ -58,16 +49,16 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const organizationId = getOrganizationId(request);
+    const organizationId = await requireCurrentOrganizationId(request);
     const body = await request.json();
 
     const variant = await productVariantService.update(id, organizationId, body);
 
     return NextResponse.json(variant);
   } catch (error) {
-    if (error instanceof Error && error.message === 'Organization ID header is required') {
+    if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
-        { error: 'Organization ID header is required' },
+        { error: 'Authentication required' },
         { status: 401 }
       );
     }
@@ -111,14 +102,14 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const organizationId = getOrganizationId(request);
+    const organizationId = await requireCurrentOrganizationId(request);
     const variant = await productVariantService.deactivate(id, organizationId);
 
     return NextResponse.json(variant);
   } catch (error) {
-    if (error instanceof Error && error.message === 'Organization ID header is required') {
+    if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
-        { error: 'Organization ID header is required' },
+        { error: 'Authentication required' },
         { status: 401 }
       );
     }
