@@ -241,11 +241,6 @@ export class InventoryRepository {
 
     const where: Prisma.InventoryMovementWhereInput = {
       inventoryId,
-      inventory: {
-        store: {
-          organizationId,
-        },
-      },
     };
 
     if (type) {
