@@ -13,7 +13,9 @@ export class ProductService {
       organizationId,
     });
 
-    return productRepository.create({
+    const variants = (data as any).variants;
+    
+    const productData: any = {
       name: validatedData.name,
       description: validatedData.description,
       category: validatedData.category,
@@ -21,7 +23,40 @@ export class ProductService {
       organization: {
         connect: { id: organizationId },
       },
-    });
+    };
+
+    // Add variants if provided
+    if (variants && Array.isArray(variants) && variants.length > 0) {
+      productData.variants = {
+        create: variants.map((v: any) => ({
+          sku: v.sku,
+          price: v.price,
+          cost: v.cost || 0,
+          barcode: v.barcode || null,
+          attributes: v.attributes || {},
+          isActive: true,
+        })),
+      };
+    }
+
+    const product = await productRepository.create(productData);
+
+    // Create inventory entries for all active stores
+    if (product.variants && product.variants.length > 0) {
+      const { inventoryRepository } = await import('@omnikes/repositories/inventory.repository');
+      const { storeRepository } = await import('@omnikes/repositories/store.repository');
+      
+      const storesResult = await storeRepository.listByOrganization(organizationId, { isActive: true });
+      const activeStores = storesResult.stores;
+      
+      for (const store of activeStores) {
+        for (const variant of product.variants) {
+          await inventoryRepository.findOrCreate(store.id, variant.id);
+        }
+      }
+    }
+
+    return product;
   }
 
   /**
