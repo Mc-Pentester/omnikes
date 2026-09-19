@@ -93,10 +93,12 @@ export class SaleService {
       throw new Error('Sale not found or access denied');
     }
 
-    const validatedData = saleItemSchema.parse({
-      ...data,
-      saleId,
-    });
+    let validatedData;
+    try {
+      validatedData = saleItemSchema.parse(data);
+    } catch (validationError) {
+      throw validationError;
+    }
 
     // Verify variant belongs to organization
     const variant = await productVariantRepository.findByIdWithOrganizationCheck(
@@ -129,11 +131,12 @@ export class SaleService {
     if (totalPrice < 0) {
       throw new Error('Line total cannot be negative');
     }
-
+    
     const item = await saleRepository.createItem({
-      ...validatedData,
+      quantity: validatedData.quantity,
       unitPrice: serverPrice, // Use server-side price
       totalPrice,
+      discount: validatedData.discount,
       sale: {
         connect: { id: saleId },
       },
@@ -255,12 +258,32 @@ export class SaleService {
       },
     });
 
-    const taxRate = sale?.organization?.taxConfiguration?.taxRate 
-      ? Number(sale.organization.taxConfiguration.taxRate) 
+    const configuredRate = sale?.organization?.taxConfiguration?.taxRate;
+    // Use nullish coalescing to allow configured 0 to remain 0
+    const taxRate = (configuredRate !== null && configuredRate !== undefined)
+      ? Number(configuredRate)
       : 0.18; // Fallback to 18% if no configuration
     
     const tax = subtotal * taxRate;
     const total = subtotal + tax - discount;
+
+    console.log('[TOTAL FORENSIC SERVER] Recalculation:', {
+      saleId,
+      numberOfItems: items.length,
+      subtotal,
+      discount,
+      configuredRate,
+      taxRate,
+      tax,
+      total,
+      items: items.map(item => ({
+        variantId: item.variantId,
+        quantity: item.quantity,
+        unitPrice: Number(item.unitPrice),
+        discount: Number(item.discount),
+        totalPrice: Number(item.totalPrice),
+      })),
+    });
 
     await saleRepository.update(saleId, organizationId, {
       subtotal,
@@ -318,7 +341,7 @@ export class SaleService {
       // Verify and lock inventory for each item
       for (const item of sale.items) {
         const inventory = await prisma.$queryRaw<Array<{ id: string; quantity: number; reservedQuantity: number }>>`
-          SELECT id, quantity, reservedQuantity
+          SELECT id, quantity, "reservedQuantity"
           FROM inventories
           WHERE "storeId" = ${sale.storeId} AND "variantId" = ${item.variantId}
           FOR UPDATE
@@ -451,10 +474,7 @@ export class SaleService {
       throw new Error('Sale not found or access denied');
     }
 
-    const validatedData = paymentSchema.parse({
-      ...data,
-      saleId,
-    });
+    const validatedData = paymentSchema.parse(data);
 
     // INVARIANT: payment amount must be positive
     if (validatedData.amount <= 0) {
@@ -476,7 +496,10 @@ export class SaleService {
     }
 
     const payment = await saleRepository.createPayment({
-      ...validatedData,
+      method: validatedData.method,
+      amount: validatedData.amount,
+      reference: validatedData.reference,
+      status: validatedData.status,
       sale: {
         connect: { id: saleId },
       },

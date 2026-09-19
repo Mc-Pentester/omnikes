@@ -13,7 +13,17 @@ export async function PATCH(
   try {
     const { id, itemId } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
-    const body = await request.json();
+    
+    // Protect against invalid JSON
+    let body;
+    try {
+      body = await request.json();
+    } catch (jsonError) {
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
 
     const item = await saleService.updateItem(itemId, organizationId, body);
 

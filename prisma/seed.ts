@@ -272,11 +272,8 @@ async function main() {
   // STORES
   // ============================================================
 
-  const storeA = await prisma.store.upsert({
-    where: { id: 'test-store-a' },
-    update: {},
-    create: {
-      id: 'test-store-a',
+  const storeA = await prisma.store.create({
+    data: {
       organizationId: orgA.id,
       name: 'OmniKès Test Store A',
       code: 'STORE-A',
@@ -289,11 +286,8 @@ async function main() {
     },
   });
 
-  const storeB = await prisma.store.upsert({
-    where: { id: 'test-store-b' },
-    update: {},
-    create: {
-      id: 'test-store-b',
+  const storeB = await prisma.store.create({
+    data: {
       organizationId: orgB.id,
       name: 'OmniKès Test Store B',
       code: 'STORE-B',

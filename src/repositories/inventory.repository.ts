@@ -4,6 +4,8 @@ import { Prisma } from '@prisma/client';
 export class InventoryRepository {
   /**
    * Create or get inventory for a store and variant
+   * Uses atomic upsert with the unique constraint (storeId, variantId)
+   * This prevents race conditions and duplicates
    */
   async findOrCreate(storeId: string, variantId: string) {
     return prisma.inventory.upsert({

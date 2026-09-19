@@ -14,7 +14,7 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { id: 'pos', label: 'Caisse', icon: '🛒', path: '/pos', available: true },
+  { id: 'dashboard', label: 'Dashboard', icon: '�', path: '/dashboard', available: true },
   { id: 'products', label: 'Produits', icon: '📦', path: '/products', available: true },
   { id: 'sales', label: 'Ventes', icon: '🧾', path: '/sales', available: false },
   { id: 'proformas', label: 'Proformas', icon: '📄', path: '/proformas', available: false },
@@ -28,12 +28,9 @@ const menuItems: MenuItem[] = [
 interface SidebarProps {
   compact?: boolean;
   onToggleCompact?: () => void;
-  onOpenProducts?: () => void;
-  onOpenInventory?: () => void;
-  onOpenStores?: () => void;
 }
 
-export function Sidebar({ compact = false, onToggleCompact, onOpenProducts, onOpenInventory, onOpenStores }: SidebarProps) {
+export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isCompact, setIsCompact] = useState(compact);
@@ -46,18 +43,8 @@ export function Sidebar({ compact = false, onToggleCompact, onOpenProducts, onOp
   const handleNavigate = (item: MenuItem) => {
     if (!item.available) return;
     
-    // Open modals instead of navigating
-    if (item.id === 'products' && onOpenProducts) {
-      onOpenProducts();
-    } else if (item.id === 'inventory' && onOpenInventory) {
-      onOpenInventory();
-    } else if (item.id === 'stores' && onOpenStores) {
-      onOpenStores();
-    } else if (item.id === 'pos') {
-      // POS is the main page, do nothing
-    } else {
-      router.push(item.path);
-    }
+    // Navigate to the page
+    router.push(item.path);
   };
 
   const availableItems = menuItems.filter(item => item.available);

@@ -7,7 +7,7 @@ interface LogoProps {
   alt?: string;
 }
 
-export function Logo({ size = 40, className = '', variant = 'default', alt = 'OmniKès' }: LogoProps) {
+export function Logo({ size = 60, className = '', variant = 'default', alt = 'OmniKès' }: LogoProps) {
   const width = variant === 'full' ? 200 : size;
   const height = variant === 'full' ? 60 : size;
 

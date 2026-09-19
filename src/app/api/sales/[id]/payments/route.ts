@@ -50,7 +50,17 @@ export async function POST(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
-    const body = await request.json();
+    
+    // Protect against invalid JSON
+    let body;
+    try {
+      body = await request.json();
+    } catch (jsonError) {
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
 
     const payment = await saleService.addPayment(id, organizationId, body);
 

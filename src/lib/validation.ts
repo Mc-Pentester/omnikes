@@ -116,11 +116,11 @@ export const saleUpdateSchema = saleSchema.partial().omit({ organizationId: true
 
 // SaleItem validation
 export const saleItemSchema = z.object({
-  saleId: z.string().cuid(),
+  saleId: z.string().cuid().optional(),
   variantId: z.string().cuid(),
   quantity: z.int().positive('Quantity must be positive'),
-  unitPrice: z.number().nonnegative('Unit price must be non-negative'),
-  totalPrice: z.number().nonnegative('Total price must be non-negative'),
+  unitPrice: z.number().nonnegative('Unit price must be non-negative').optional(),
+  totalPrice: z.number().nonnegative('Total price must be non-negative').optional(),
   discount: z.number().nonnegative('Discount must be non-negative').default(0),
 });
 
@@ -128,7 +128,7 @@ export const saleItemUpdateSchema = saleItemSchema.partial().omit({ saleId: true
 
 // Payment validation
 export const paymentSchema = z.object({
-  saleId: z.string().cuid(),
+  saleId: z.string().cuid().optional(),
   method: z.enum(['CASH', 'CARD', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CHECK', 'CREDIT'], {
     message: 'Invalid payment method',
   }),

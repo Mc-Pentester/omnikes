@@ -47,10 +47,20 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+  const organizationId = await requireCurrentOrganizationId(request);
+  
+  let body;
   try {
-    const { id } = await params;
-    const organizationId = await requireCurrentOrganizationId(request);
-    const body = await request.json();
+    // Protect against invalid JSON
+    try {
+      body = await request.json();
+    } catch (jsonError) {
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
 
     const item = await saleService.addItem(id, organizationId, body);
 
@@ -77,7 +87,16 @@ export async function POST(
       );
     }
 
-    if (error instanceof Error && error.message.includes('validation')) {
+    // Handle Zod validation errors
+    if (error && typeof error === 'object' && 'issues' in error) {
+      const validationError = error as { issues: Array<{ message: string; path: (string | number)[] }> };
+      return NextResponse.json(
+        { error: `Validation error: ${validationError.issues.map(i => i.message).join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    if (error instanceof Error && (error.message.includes('validation') || error.message.includes('must be'))) {
       return NextResponse.json(
         { error: error.message },
         { status: 400 }

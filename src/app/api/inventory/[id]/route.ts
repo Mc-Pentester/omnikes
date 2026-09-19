@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { inventoryService } from '@omnikes/services/inventory.service';
 import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
 
+// Simple CUID validation (basic format check)
+function isValidCuid(id: string): boolean {
+  return /^[a-z0-9]{24,}$/.test(id);
+}
+
 /**
  * GET /api/inventory/[id]
  * Get a single inventory record
@@ -12,6 +17,15 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    
+    // Validate CUID format
+    if (!isValidCuid(id)) {
+      return NextResponse.json(
+        { error: 'Invalid inventory ID format' },
+        { status: 400 }
+      );
+    }
+    
     const organizationId = await requireCurrentOrganizationId(request);
     const inventory = await inventoryService.getById(id, organizationId);
 

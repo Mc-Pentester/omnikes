@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@omnikes/components/ui/button';
 import { Input } from '@omnikes/components/ui/input';
 import { Card } from '@omnikes/components/ui/card';
-import { PageModal } from '@omnikes/components/ui/page-modal';
 import { useAuth } from '@omnikes/contexts/AuthContext';
 import { useCurrentStore } from '@omnikes/contexts/StoreContext';
 import { Sidebar } from '@omnikes/components/layout/Sidebar';
+import { Logo } from '@omnikes/components/branding/Logo';
 
 interface CartItem {
   variantId: string;
@@ -63,11 +63,7 @@ export default function HomePage() {
   const [isSidebarCompact, setIsSidebarCompact] = useState(false);
   const [taxRate, setTaxRate] = useState<number | null>(null);
   const [serverTotals, setServerTotals] = useState<{ subtotal: number; tax: number; total: number } | null>(null);
-  
-  // Modals
-  const [showProductsModal, setShowProductsModal] = useState(false);
-  const [showInventoryModal, setShowInventoryModal] = useState(false);
-  const [showStoresModal, setShowStoresModal] = useState(false);
+  const [storesValidated, setStoresValidated] = useState(false);
 
   const generateOrderNumber = useCallback(() => `SALE-${Date.now()}`, []);
   const generatePaymentReference = useCallback(() => `PAY-${Date.now()}`, []);
@@ -103,17 +99,14 @@ export default function HomePage() {
       if (e.key === 'Escape') {
         e.preventDefault();
         if (showPaymentModal) setShowPaymentModal(false);
-        else if (showProductsModal) setShowProductsModal(false);
-        else if (showInventoryModal) setShowInventoryModal(false);
-        else if (showStoresModal) setShowStoresModal(false);
       }
       if (e.key === 'Enter' && document.activeElement?.id === 'product-search') {
         const firstProduct = filteredProducts[0];
         if (firstProduct && firstProduct.variants[0]) {
           e.preventDefault();
           addToCart(
-            firstProduct.id,
             firstProduct.variants[0].id,
+            firstProduct.id,
             firstProduct.name,
             firstProduct.variants[0].name,
             firstProduct.variants[0].sku,
@@ -130,7 +123,7 @@ export default function HomePage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePayment, filteredProducts, showPaymentModal, showProductsModal, showInventoryModal, showStoresModal]);
+  }, [handlePayment, filteredProducts, showPaymentModal]);
 
   const fetchStores = useCallback(async () => {
     if (!user) return;
@@ -193,19 +186,25 @@ export default function HomePage() {
     if (stores.length === 0) return;
     if (stores.length === 1 && !currentStoreId) {
       setCurrentStore(stores[0]);
+      setStoresValidated(true);
       return;
     }
     if (currentStoreId) {
       const isValidStore = stores.some((s: Store) => s.id === currentStoreId);
       if (!isValidStore) {
+        console.log('[POS][STORE] Invalid storeId in localStorage, clearing:', currentStoreId);
         clearCurrentStore();
       } else {
         if (currentStore && (!currentStore.name || !currentStore.code)) {
           const store = stores.find((s: Store) => s.id === currentStoreId);
-          if (store) setCurrentStore(store);
+          if (store) {
+            console.log('[POS][STORE] Enriching store data for:', currentStoreId);
+            setCurrentStore(store);
+          }
         }
       }
     }
+    setStoresValidated(true);
   }, [stores, currentStoreId, currentStore, setCurrentStore, clearCurrentStore]);
 
   if (authLoading || storeLoading) {
@@ -252,6 +251,12 @@ export default function HomePage() {
   }
 
   const addToCart = async (variantId: string, productId: string, productName: string, variantName: string, sku: string, price: number) => {
+    // Prevent adding to cart before stores are validated
+    if (!storesValidated) {
+      console.log('[POS][STORE] Stores not yet validated, ignoring addToCart');
+      return;
+    }
+
     const numericPrice = parseFloat(String(price));
     const existingItem = cart.find(item => item.variantId === variantId);
     
@@ -280,6 +285,7 @@ export default function HomePage() {
         return;
       }
       try {
+        console.log('[POS][STORE] Creating sale with storeId:', currentStoreId);
         const response = await fetch('/api/sales', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -296,7 +302,11 @@ export default function HomePage() {
         });
         if (response.ok) {
           const sale = await response.json();
+          console.log('[POS][STORE] Sale created successfully:', sale.id);
           setCurrentSaleId(sale.id);
+        } else {
+          const errorText = await response.text();
+          console.error('[POS][STORE] Failed to create sale:', response.status, errorText);
         }
       } catch (err) {
         console.error('Error creating sale:', err);
@@ -325,39 +335,93 @@ export default function HomePage() {
   const displayTotal = serverTotals?.total ?? (taxRate !== null ? subtotal + displayTax : subtotal);
   const change = paymentMethod === 'CASH' ? (parseFloat(amountReceived) || 0) - displayTotal : 0;
 
+  // Temporary forensic logging
+  console.log('[TOTAL FORENSIC] Cart calculation:', {
+    cartLength: cart.length,
+    subtotal,
+    taxRate,
+    displayTax,
+    displayTotal,
+    serverTotals,
+  });
+
   const syncCartToSale = async () => {
     if (!currentSaleId) return;
     try {
+      console.log('[SYNC DEBUG] Starting sync for sale:', currentSaleId);
+      
       const itemsResponse = await fetch(`/api/sales/${currentSaleId}/items`);
+      console.log('[SYNC DEBUG] GET items response status:', itemsResponse.status);
+      
       if (itemsResponse.ok) {
         const existingItems = await itemsResponse.json();
+        console.log('[SYNC DEBUG] Existing items:', existingItems.length);
+        
         for (const item of existingItems) {
-          await fetch(`/api/sales/${currentSaleId}/items/${item.id}`, { method: 'DELETE' });
+          const deleteResponse = await fetch(`/api/sales/${currentSaleId}/items/${item.id}`, { method: 'DELETE' });
+          console.log('[SYNC DEBUG] DELETE item', item.id, 'status:', deleteResponse.status);
+          
+          if (!deleteResponse.ok) {
+            const errorText = await deleteResponse.text();
+            console.error('[SYNC DEBUG] DELETE item failed:', deleteResponse.status, errorText);
+            throw new Error(`Failed to delete item: ${deleteResponse.status} - ${errorText}`);
+          }
         }
+      } else {
+        const errorText = await itemsResponse.text();
+        console.error('[SYNC DEBUG] GET items failed:', itemsResponse.status, errorText);
+        throw new Error(`Failed to get existing items: ${itemsResponse.status} - ${errorText}`);
       }
-      for (const item of cart) {
-        await fetch(`/api/sales/${currentSaleId}/items`, {
+      
+        console.log('[SYNC DEBUG] Adding cart items:', cart.length);
+      for (let i = 0; i < cart.length; i++) {
+        const item = cart[i];
+        const payload = {
+          variantId: item.variantId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discount: 0,
+        };
+        
+        const itemResponse = await fetch(`/api/sales/${currentSaleId}/items`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            variantId: item.variantId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            discount: 0,
-          }),
+          body: JSON.stringify(payload),
         });
+        
+        if (!itemResponse.ok) {
+          const errorText = await itemResponse.text();
+          console.error(`[SYNC DEBUG] Cart item ${i + 1}/${cart.length} POST failed:`, itemResponse.status, errorText);
+          throw new Error(`Failed to add item ${i + 1}/${cart.length}: ${itemResponse.status} - ${errorText}`);
+        }
       }
+      
       const saleResponse = await fetch(`/api/sales/${currentSaleId}`);
+      console.log('[SYNC DEBUG] GET sale response status:', saleResponse.status);
+      
       if (saleResponse.ok) {
         const sale = await saleResponse.json();
-        setServerTotals({
+        const totals = {
           subtotal: Number(sale.subtotal),
           tax: Number(sale.tax),
           total: Number(sale.total),
+        };
+        console.log('[SYNC DEBUG] Server totals:', totals);
+        console.log('[TOTAL FORENSIC] Server calculation:', {
+          serverSubtotal: totals.subtotal,
+          serverTax: totals.tax,
+          serverTotal: totals.total,
         });
+        setServerTotals(totals);
+        return totals; // Return totals for immediate use
+      } else {
+        const errorText = await saleResponse.text();
+        console.error('[SYNC DEBUG] GET sale failed:', saleResponse.status, errorText);
+        throw new Error(`Failed to get sale totals: ${saleResponse.status} - ${errorText}`);
       }
     } catch (err) {
-      console.error('Error syncing cart:', err);
+      console.error('[SYNC DEBUG] Error syncing cart:', err);
+      throw err; // Re-throw to allow completeSale to catch and display the error
     }
   };
 
@@ -370,35 +434,76 @@ export default function HomePage() {
     }
     setIsProcessing(true);
     try {
-      await syncCartToSale();
+      // Sync cart to ensure server totals are up to date
+      const totals = await syncCartToSale();
+      
+      // Validate server totals
+      if (!totals || totals.total <= 0) {
+        throw new Error('Le total serveur de la vente est invalide. Veuillez réessayer.');
+      }
+      
+      console.log('[TOTAL FORENSIC] Payment amount:', {
+        displayTotal,
+        serverTotal: totals.total,
+        paymentAmount: totals.total,
+        paymentMethod,
+      });
+      
       const paymentResponse = await fetch(`/api/sales/${currentSaleId}/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           method: paymentMethod,
-          amount: displayTotal,
+          amount: totals.total,
           reference: generatePaymentReference(),
         }),
       });
-      if (!paymentResponse.ok) throw new Error('Failed to add payment');
-      const response = await fetch(`/api/sales/${currentSaleId}/complete`, { method: 'POST' });
-      if (response.ok) {
-        setCart([]);
-        setCurrentSaleId(null);
-        setShowPaymentModal(false);
-        setAmountReceived('');
-        setServerTotals(null);
-        alert('Vente complétée avec succès!');
-        setTimeout(() => {
-          const searchInput = document.getElementById('product-search') as HTMLInputElement;
-          searchInput?.focus();
-        }, 100);
-      } else {
-        throw new Error('Failed to complete sale');
+      
+      if (!paymentResponse.ok) {
+        let errorMessage = 'Échec du paiement';
+        try {
+          const data = await paymentResponse.json();
+          if (typeof data?.error === 'string') {
+            errorMessage = data.error;
+          } else if (typeof data?.message === 'string') {
+            errorMessage = data.message;
+          }
+        } catch {
+          // conserver le message générique
+        }
+        throw new Error(errorMessage);
       }
+      
+      const response = await fetch(`/api/sales/${currentSaleId}/complete`, { method: 'POST' });
+      
+      if (!response.ok) {
+        let errorMessage = 'Échec de la finalisation de la vente';
+        try {
+          const data = await response.json();
+          if (typeof data?.error === 'string') {
+            errorMessage = data.error;
+          } else if (typeof data?.message === 'string') {
+            errorMessage = data.message;
+          }
+        } catch {
+          // conserver le message générique
+        }
+        throw new Error(errorMessage);
+      }
+      
+      setCart([]);
+      setCurrentSaleId(null);
+      setShowPaymentModal(false);
+      setAmountReceived('');
+      setServerTotals(null);
+      alert('Vente complétée avec succès!');
+      setTimeout(() => {
+        const searchInput = document.getElementById('product-search') as HTMLInputElement;
+        searchInput?.focus();
+      }, 100);
     } catch (error) {
       console.error('Error completing sale:', error);
-      alert('Erreur lors de la validation de la vente');
+      alert(error instanceof Error ? error.message : 'Erreur lors de la validation de la vente');
     } finally {
       setIsProcessing(false);
     }
@@ -430,16 +535,16 @@ export default function HomePage() {
       <Sidebar 
         compact={isSidebarCompact} 
         onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)}
-        onOpenProducts={() => setShowProductsModal(true)}
-        onOpenInventory={() => setShowInventoryModal(true)}
-        onOpenStores={() => setShowStoresModal(true)}
       />
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-gray-900">OmniKès POS</h1>
-            <span className="text-sm text-gray-500">Point de Vente</span>
+            <Logo size={60} />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">OmniKès POS</h1>
+              <span className="text-sm text-gray-500">Point de Vente</span>
+            </div>
           </div>
           
           <div className="flex items-center gap-4">
@@ -492,21 +597,21 @@ export default function HomePage() {
                 product.variants.map(variant => (
                   <Card
                     key={variant.id}
-                    className="p-3 md:p-4 cursor-pointer hover:shadow-lg transition-all hover:scale-105 active:scale-95 min-h-[140px] md:min-h-[160px] flex flex-col justify-between"
-                    onClick={() => addToCart(
-                      product.id,
+                    className={`p-3 md:p-4 cursor-pointer hover:shadow-lg transition-all hover:scale-105 active:scale-95 min-h-[140px] md:min-h-[160px] flex flex-col justify-between ${!storesValidated ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={() => storesValidated && addToCart(
                       variant.id,
+                      product.id,
                       product.name,
                       variant.name,
                       variant.sku,
                       variant.price
                     )}
                     role="button"
-                    tabIndex={0}
+                    tabIndex={storesValidated ? 0 : -1}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
+                      if (storesValidated && (e.key === 'Enter' || e.key === ' ')) {
                         e.preventDefault();
-                        addToCart(product.id, variant.id, product.name, variant.name, variant.sku, variant.price);
+                        addToCart(variant.id, product.id, product.name, variant.name, variant.sku, variant.price);
                       }
                     }}
                     aria-label={`Ajouter ${product.name} - ${variant.name} au panier`}
@@ -620,7 +725,7 @@ export default function HomePage() {
             <div className="flex gap-2 md:gap-3 mt-4">
               <Button
                 onClick={clearCart}
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || !storesValidated}
                 variant="outline"
                 className="flex-1 h-12 md:h-14 text-base md:text-lg font-medium"
               >
@@ -628,7 +733,7 @@ export default function HomePage() {
               </Button>
               <Button
                 onClick={handlePayment}
-                disabled={cart.length === 0 || isProcessing}
+                disabled={cart.length === 0 || isProcessing || !storesValidated}
                 className="flex-1 h-12 md:h-14 text-base md:text-lg font-bold"
               >
                 💳 Payer (F12)
@@ -639,9 +744,38 @@ export default function HomePage() {
       </div>
 
       {showPaymentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="payment-modal-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowPaymentModal(false);
+            }
+          }}
+        >
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-2xl font-bold mb-2">Paiement</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 id="payment-modal-title" className="text-2xl font-bold">Paiement</h2>
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                aria-label="Fermer"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
             <p className="text-gray-600 mb-4">Total: {parseFloat(String(displayTotal)).toFixed(2)} HTG</p>
             
             <div className="space-y-3 mb-4">
@@ -660,11 +794,11 @@ export default function HomePage() {
                 💳 Carte
               </button>
               <button
-                onClick={() => setPaymentMethod('TRANSFER')}
-                className={`w-full p-4 border rounded-lg text-left text-lg font-medium transition-colors ${paymentMethod === 'TRANSFER' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:bg-gray-50'}`}
-                aria-pressed={paymentMethod === 'TRANSFER'}
+                onClick={() => setPaymentMethod('BANK_TRANSFER')}
+                className={`w-full p-4 border rounded-lg text-left text-lg font-medium transition-colors ${paymentMethod === 'BANK_TRANSFER' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:bg-gray-50'}`}
+                aria-pressed={paymentMethod === 'BANK_TRANSFER'}
               >
-                🏦 Virement
+                🏦 Virement bancaire
               </button>
             </div>
 
@@ -704,39 +838,6 @@ export default function HomePage() {
         </div>
       )}
       </div>
-
-      {/* Products Modal */}
-      <PageModal
-        isOpen={showProductsModal}
-        onClose={() => setShowProductsModal(false)}
-        title="Gestion des Produits"
-      >
-        <div className="p-6">
-          <p>Contenu de la page Products sera ici</p>
-        </div>
-      </PageModal>
-
-      {/* Inventory Modal */}
-      <PageModal
-        isOpen={showInventoryModal}
-        onClose={() => setShowInventoryModal(false)}
-        title="Gestion de l'Inventaire"
-      >
-        <div className="p-6">
-          <p>Contenu de la page Inventory sera ici</p>
-        </div>
-      </PageModal>
-
-      {/* Stores Modal */}
-      <PageModal
-        isOpen={showStoresModal}
-        onClose={() => setShowStoresModal(false)}
-        title="Gestion des Magasins"
-      >
-        <div className="p-6">
-          <p>Contenu de la page Stores sera ici</p>
-        </div>
-      </PageModal>
     </div>
   );
 }

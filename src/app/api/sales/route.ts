@@ -4,6 +4,11 @@ import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
 import { validatePagination } from '@omnikes/lib/pagination';
 import { parseDateRange } from '@omnikes/lib/date-validation';
 
+// Simple CUID validation (basic format check)
+function isValidCuid(id: string): boolean {
+  return /^[a-z0-9]{24,}$/.test(id);
+}
+
 /**
  * GET /api/sales
  * List sales for an organization
@@ -16,6 +21,21 @@ export async function GET(request: NextRequest) {
     const storeId = searchParams.get('storeId') || undefined;
     const status = searchParams.get('status') || undefined;
     const customerId = searchParams.get('customerId') || undefined;
+    
+    // Validate CUID format for optional parameters if provided
+    if (storeId && !isValidCuid(storeId)) {
+      return NextResponse.json(
+        { error: 'Invalid storeId format' },
+        { status: 400 }
+      );
+    }
+    
+    if (customerId && !isValidCuid(customerId)) {
+      return NextResponse.json(
+        { error: 'Invalid customerId format' },
+        { status: 400 }
+      );
+    }
     
     const { startDate, endDate } = parseDateRange(
       searchParams.get('startDate'),
@@ -71,7 +91,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
-    const body = await request.json();
+    
+    // Protect against invalid JSON
+    let body;
+    try {
+      body = await request.json();
+    } catch (jsonError) {
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
 
     const result = await saleService.create(organizationId, body);
 
