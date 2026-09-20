@@ -64,6 +64,7 @@ export default function HomePage() {
   const [taxRate, setTaxRate] = useState<number | null>(null);
   const [serverTotals, setServerTotals] = useState<{ subtotal: number; tax: number; total: number } | null>(null);
   const [storesValidated, setStoresValidated] = useState(false);
+  const [applyTax, setApplyTax] = useState(true);
 
   const generateOrderNumber = useCallback(() => `SALE-${Date.now()}`, []);
   const generatePaymentReference = useCallback(() => `PAY-${Date.now()}`, []);
@@ -298,6 +299,7 @@ export default function HomePage() {
             tax: 0,
             total: 0,
             discount: 0,
+            applyTax,
           }),
         });
         if (response.ok) {
@@ -331,8 +333,8 @@ export default function HomePage() {
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
-  const displayTax = serverTotals?.tax ?? (taxRate !== null ? subtotal * taxRate : 0);
-  const displayTotal = serverTotals?.total ?? (taxRate !== null ? subtotal + displayTax : subtotal);
+  const displayTax = serverTotals?.tax ?? (applyTax && taxRate !== null ? subtotal * taxRate : 0);
+  const displayTotal = serverTotals?.total ?? (applyTax ? subtotal + displayTax : subtotal);
   const change = paymentMethod === 'CASH' ? (parseFloat(amountReceived) || 0) - displayTotal : 0;
 
   // Temporary forensic logging
@@ -349,6 +351,13 @@ export default function HomePage() {
     if (!currentSaleId) return;
     try {
       console.log('[SYNC DEBUG] Starting sync for sale:', currentSaleId);
+      
+      // Update applyTax if changed
+      await fetch(`/api/sales/${currentSaleId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applyTax }),
+      });
       
       const itemsResponse = await fetch(`/api/sales/${currentSaleId}/items`);
       console.log('[SYNC DEBUG] GET items response status:', itemsResponse.status);
@@ -710,10 +719,22 @@ export default function HomePage() {
                 <span className="text-gray-600">Sous-total</span>
                 <span className="font-medium">{parseFloat(String(subtotal)).toFixed(2)} HTG</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">
-                  Taxe {taxRate !== null ? `(${parseFloat(String(taxRate * 100)).toFixed(0)}%)` : ''}
+              <div className="flex items-center justify-between text-sm">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={applyTax}
+                    onChange={(e) => setApplyTax(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded"
+                  />
+                  <span className="text-gray-600">Appliquer la taxe</span>
+                </label>
+                <span className="font-medium">
+                  {applyTax && taxRate !== null ? `(${parseFloat(String(taxRate * 100)).toFixed(0)}%)` : '(0%)'}
                 </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Taxe</span>
                 <span className="font-medium">{parseFloat(String(displayTax)).toFixed(2)} HTG</span>
               </div>
               <div className="flex justify-between text-base md:text-lg font-bold border-t border-gray-200 pt-2">

@@ -109,6 +109,7 @@ export const saleSchema = z.object({
   tax: z.number().nonnegative('Tax must be non-negative').default(0),
   total: z.number().nonnegative('Total must be non-negative'),
   discount: z.number().nonnegative('Discount must be non-negative').default(0),
+  applyTax: z.boolean().default(true),
   notes: z.string().max(1000).optional(),
 });
 

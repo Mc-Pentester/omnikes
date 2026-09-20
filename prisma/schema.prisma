@@ -492,8 +492,10 @@ model Sale {
   status            String   @default("PENDING") // PENDING, CONFIRMED, PROCESSING, COMPLETED, CANCELLED, REFUNDED
   subtotal          Decimal  @db.Decimal(12, 2)
   tax               Decimal  @db.Decimal(12, 2) @default(0)
+  taxRate           Decimal  @default(0) @db.Decimal(5, 4) // Effective tax rate applied to this sale (for historical tracking)
   total             Decimal  @db.Decimal(12, 2)
   discount          Decimal  @db.Decimal(12, 2) @default(0)
+  applyTax          Boolean  @default(true) // Whether tax was applied to this sale
   notes             String?
   
   createdAt         DateTime @default(now())

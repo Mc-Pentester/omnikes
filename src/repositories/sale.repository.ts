@@ -166,6 +166,26 @@ export class SaleRepository {
   }
 
   /**
+   * Update sale with tax rate tracking
+   */
+  async updateWithTaxRate(id: string, organizationId: string, data: {
+    subtotal?: number;
+    discount?: number;
+    tax?: number;
+    taxRate?: number;
+    total?: number;
+    applyTax?: boolean;
+  }) {
+    return prisma.sale.updateMany({
+      where: {
+        id,
+        organizationId,
+      },
+      data,
+    });
+  }
+
+  /**
    * Update sale status
    */
   async updateStatus(id: string, organizationId: string, status: string) {

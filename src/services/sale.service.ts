@@ -21,9 +21,26 @@ export class SaleService {
     // Generate order number if not provided
     const orderNumber = validatedData.orderNumber || this.generateOrderNumber();
 
+    // Get tax configuration for initial tax rate
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      include: { taxConfiguration: true },
+    });
+
+    const configuredRate = organization?.taxConfiguration?.taxRate;
+    const initialTaxRate = (validatedData.applyTax !== false && configuredRate !== null && configuredRate !== undefined)
+      ? Number(configuredRate)
+      : 0;
+
+    const initialTax = validatedData.subtotal * initialTaxRate;
+    const initialTotal = validatedData.subtotal + initialTax - validatedData.discount;
+
     return saleRepository.create({
       ...validatedData,
       orderNumber,
+      tax: initialTax,
+      taxRate: initialTaxRate,
+      total: initialTotal,
       organization: {
         connect: { id: organizationId },
       },
@@ -78,7 +95,14 @@ export class SaleService {
       await storeService.validateStoreBelongsToOrganization(validatedData.storeId, organizationId);
     }
 
+    // If applyTax is being updated, recalculate totals after the update
+    const shouldRecalculate = validatedData.applyTax !== undefined;
+
     await saleRepository.update(id, organizationId, validatedData as Prisma.SaleUpdateInput);
+    
+    if (shouldRecalculate) {
+      await this.recalculateTotals(id, organizationId);
+    }
     
     return saleRepository.findById(id, organizationId);
   }
@@ -259,12 +283,13 @@ export class SaleService {
     });
 
     const configuredRate = sale?.organization?.taxConfiguration?.taxRate;
-    // Use nullish coalescing to allow configured 0 to remain 0
-    const taxRate = (configuredRate !== null && configuredRate !== undefined)
-      ? Number(configuredRate)
-      : 0.18; // Fallback to 18% if no configuration
     
-    const tax = subtotal * taxRate;
+    // Determine effective tax rate based on applyTax flag
+    const effectiveRate = (sale?.applyTax !== false && configuredRate !== null && configuredRate !== undefined)
+      ? Number(configuredRate)
+      : 0;
+    
+    const tax = subtotal * effectiveRate;
     const total = subtotal + tax - discount;
 
     console.log('[TOTAL FORENSIC SERVER] Recalculation:', {
@@ -273,7 +298,8 @@ export class SaleService {
       subtotal,
       discount,
       configuredRate,
-      taxRate,
+      applyTax: sale?.applyTax,
+      effectiveRate,
       tax,
       total,
       items: items.map(item => ({
@@ -285,11 +311,13 @@ export class SaleService {
       })),
     });
 
-    await saleRepository.update(saleId, organizationId, {
+    await saleRepository.updateWithTaxRate(saleId, organizationId, {
       subtotal,
       discount,
       tax,
+      taxRate: effectiveRate,
       total,
+      applyTax: sale?.applyTax !== false,
     });
   }
 

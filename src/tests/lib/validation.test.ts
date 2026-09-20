@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { organizationSchema, userSchema } from '@omnikes/lib/validation';
+import { organizationSchema, userSchema, saleSchema } from '@omnikes/lib/validation';
 
 describe('Validation Schemas', () => {
   describe('organizationSchema', () => {
@@ -65,6 +65,59 @@ describe('Validation Schemas', () => {
         password: 'short',
       });
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe('saleSchema', () => {
+    it('should validate a valid sale with applyTax', () => {
+      const result = saleSchema.safeParse({
+        organizationId: 'cl1234567890ab',
+        storeId: 'cl1234567890ac',
+        orderNumber: 'SALE-001',
+        customerId: 'cl1234567890ad',
+        channel: 'POS',
+        status: 'PENDING',
+        subtotal: 100,
+        tax: 10,
+        total: 110,
+        discount: 0,
+        applyTax: true,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should validate a valid sale with applyTax false', () => {
+      const result = saleSchema.safeParse({
+        organizationId: 'cl1234567890ab',
+        storeId: 'cl1234567890ac',
+        orderNumber: 'SALE-001',
+        channel: 'POS',
+        status: 'PENDING',
+        subtotal: 100,
+        tax: 0,
+        total: 100,
+        discount: 0,
+        applyTax: false,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should default applyTax to true', () => {
+      const result = saleSchema.safeParse({
+        organizationId: 'cl1234567890ab',
+        storeId: 'cl1234567890ac',
+        orderNumber: 'SALE-001',
+        channel: 'POS',
+        status: 'PENDING',
+        subtotal: 100,
+        tax: 10,
+        total: 110,
+        discount: 0,
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.applyTax).toBe(true);
+      }
     });
   });
 });

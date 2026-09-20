@@ -299,7 +299,7 @@ export class ProformaService {
 
     const taxRate = proforma?.organization?.taxConfiguration?.taxRate 
       ? Number(proforma.organization.taxConfiguration.taxRate) 
-      : 0.18; // Fallback to 18% if no configuration
+      : 0; // No tax if no configuration
     
     const tax = subtotal * taxRate;
     const total = subtotal + tax;
