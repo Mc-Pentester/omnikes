@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@omnikes/components/ui/button';
 import { Logo } from '@omnikes/components/branding/Logo';
+import { useAuth } from '@omnikes/contexts/AuthContext';
 
 interface MenuItem {
   id: string;
@@ -33,6 +34,7 @@ interface SidebarProps {
 export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { logout } = useAuth();
   const [isCompact, setIsCompact] = useState(compact);
 
   const handleToggle = () => {
@@ -42,9 +44,14 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
 
   const handleNavigate = (item: MenuItem) => {
     if (!item.available) return;
-    
+
     // Navigate to the page
     router.push(item.path);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
   };
 
   const availableItems = menuItems.filter(item => item.available);
@@ -108,9 +115,9 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
         </ul>
       </nav>
 
-      {/* Footer - Toggle button in compact mode */}
-      {isCompact && (
-        <div className="p-2 border-t border-gray-200">
+      {/* Footer - Logout button */}
+      <div className="p-2 border-t border-gray-200">
+        {isCompact ? (
           <button
             onClick={handleToggle}
             className="w-full h-12 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
@@ -118,8 +125,17 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
           >
             <span className="text-xl">▶</span>
           </button>
-        </div>
-      )}
+        ) : (
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 p-3 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+            aria-label="Déconnexion"
+          >
+            <span className="text-2xl" aria-hidden="true">🚪</span>
+            <span className="text-sm font-medium">Déconnexion</span>
+          </button>
+        )}
+      </div>
     </aside>
   );
 }
