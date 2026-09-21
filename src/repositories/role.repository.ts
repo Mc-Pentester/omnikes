@@ -106,13 +106,36 @@ export class RoleRepository {
    * Check if user is authorized to access a specific store
    */
   async canAccessStore(userId: string, storeId: string): Promise<boolean> {
+    // FIRST: Verify tenant boundary (User.organizationId === Store.organizationId)
+    const [user, store] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { organizationId: true },
+      }),
+      prisma.store.findUnique({
+        where: { id: storeId },
+        select: { organizationId: true },
+      }),
+    ]);
+
+    // If user or store doesn't exist, deny access
+    if (!user || !store) {
+      return false;
+    }
+
+    // TENANT BOUNDARY CHECK: User and Store must belong to the same organization
+    if (user.organizationId !== store.organizationId) {
+      return false;
+    }
+
+    // THEN: Apply RBAC store scope check
     const authorizedStoreIds = await this.getAuthorizedStoreIds(userId);
-    
-    // null means global access to all stores
+
+    // null means global access to all stores in the user's organization
     if (authorizedStoreIds === null) {
       return true;
     }
-    
+
     return authorizedStoreIds.includes(storeId);
   }
 }
