@@ -278,7 +278,7 @@ export default function ProformasPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {proforma.total.toFixed(2)}
+                          {typeof proforma.total === 'number' ? proforma.total.toFixed(2) : Number(proforma.total).toFixed(2)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(proforma.createdAt).toLocaleDateString('fr-FR')}
