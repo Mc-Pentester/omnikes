@@ -298,6 +298,142 @@ async function main() {
     },
   });
 
+  // Sales permissions
+  const saleCreatePermission = await prisma.permission.upsert({
+    where: { code: 'sale.create' },
+    update: {},
+    create: {
+      code: 'sale.create',
+      description: 'Créer une vente',
+      module: 'sales',
+    },
+  });
+
+  const saleReadPermission = await prisma.permission.upsert({
+    where: { code: 'sale.read' },
+    update: {},
+    create: {
+      code: 'sale.read',
+      description: 'Consulter les ventes',
+      module: 'sales',
+    },
+  });
+
+  const saleUpdatePermission = await prisma.permission.upsert({
+    where: { code: 'sale.update' },
+    update: {},
+    create: {
+      code: 'sale.update',
+      description: 'Modifier une vente',
+      module: 'sales',
+    },
+  });
+
+  const saleCompletePermission = await prisma.permission.upsert({
+    where: { code: 'sale.complete' },
+    update: {},
+    create: {
+      code: 'sale.complete',
+      description: 'Finaliser une vente',
+      module: 'sales',
+    },
+  });
+
+  const saleCancelPermission = await prisma.permission.upsert({
+    where: { code: 'sale.cancel' },
+    update: {},
+    create: {
+      code: 'sale.cancel',
+      description: 'Annuler une vente',
+      module: 'sales',
+    },
+  });
+
+  // Payment permissions
+  const paymentCreatePermission = await prisma.permission.upsert({
+    where: { code: 'payment.create' },
+    update: {},
+    create: {
+      code: 'payment.create',
+      description: 'Créer un paiement',
+      module: 'sales',
+    },
+  });
+
+  const paymentReadPermission = await prisma.permission.upsert({
+    where: { code: 'payment.read' },
+    update: {},
+    create: {
+      code: 'payment.read',
+      description: 'Consulter les paiements',
+      module: 'sales',
+    },
+  });
+
+  // Inventory permissions
+  const inventoryReadPermission = await prisma.permission.upsert({
+    where: { code: 'inventory.read' },
+    update: {},
+    create: {
+      code: 'inventory.read',
+      description: 'Consulter le stock',
+      module: 'inventory',
+    },
+  });
+
+  const inventoryAdjustPermission = await prisma.permission.upsert({
+    where: { code: 'inventory.adjust' },
+    update: {},
+    create: {
+      code: 'inventory.adjust',
+      description: 'Effectuer un ajustement de stock',
+      module: 'inventory',
+    },
+  });
+
+  // Product permissions
+  const productManagePermission = await prisma.permission.upsert({
+    where: { code: 'product.manage' },
+    update: {},
+    create: {
+      code: 'product.manage',
+      description: 'Créer et modifier les produits',
+      module: 'product',
+    },
+  });
+
+  const productReadPermission = await prisma.permission.upsert({
+    where: { code: 'product.read' },
+    update: {},
+    create: {
+      code: 'product.read',
+      description: 'Consulter les produits',
+      module: 'product',
+    },
+  });
+
+  // Report permissions
+  const reportReadPermission = await prisma.permission.upsert({
+    where: { code: 'report.read' },
+    update: {},
+    create: {
+      code: 'report.read',
+      description: 'Consulter les rapports',
+      module: 'reports',
+    },
+  });
+
+  // Tax permissions
+  const taxManagePermission = await prisma.permission.upsert({
+    where: { code: 'tax.manage' },
+    update: {},
+    create: {
+      code: 'tax.manage',
+      description: 'Gérer la configuration fiscale',
+      module: 'tax',
+    },
+  });
+
   console.log('✅ Permissions created');
 
   // ============================================================
@@ -327,6 +463,34 @@ async function main() {
     customerReadPermission,
     customerUpdatePermission,
     customerDeletePermission,
+  ];
+
+  const salesPermissions = [
+    saleCreatePermission,
+    saleReadPermission,
+    saleUpdatePermission,
+    saleCompletePermission,
+    saleCancelPermission,
+    paymentCreatePermission,
+    paymentReadPermission,
+  ];
+
+  const inventoryPermissions = [
+    inventoryReadPermission,
+    inventoryAdjustPermission,
+  ];
+
+  const productPermissions = [
+    productManagePermission,
+    productReadPermission,
+  ];
+
+  const reportPermissions = [
+    reportReadPermission,
+  ];
+
+  const taxPermissions = [
+    taxManagePermission,
   ];
 
   for (const permission of storePermissions) {
@@ -384,6 +548,135 @@ async function main() {
       update: {},
       create: {
         roleId: adminRoleB.id,
+        permissionId: permission.id,
+      },
+    });
+  }
+
+  // Assign all sales permissions to ADMIN roles
+  for (const permission of salesPermissions) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleA.id,
+        permissionId: permission.id,
+      },
+    });
+
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleB.id,
+        permissionId: permission.id,
+      },
+    });
+  }
+
+  // Assign all inventory permissions to ADMIN roles
+  for (const permission of inventoryPermissions) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleA.id,
+        permissionId: permission.id,
+      },
+    });
+
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleB.id,
+        permissionId: permission.id,
+      },
+    });
+  }
+
+  // Assign all product permissions to ADMIN roles
+  for (const permission of productPermissions) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleA.id,
+        permissionId: permission.id,
+      },
+    });
+
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleB.id,
+        permissionId: permission.id,
+      },
+    });
+  }
+
+  // Assign all report permissions to ADMIN roles
+  for (const permission of reportPermissions) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleA.id,
+        permissionId: permission.id,
+      },
+    });
+
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleB.id,
+        permissionId: permission.id,
+      },
+    });
+  }
+
+  // Assign all tax permissions to ADMIN roles
+  for (const permission of taxPermissions) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleA.id,
+        permissionId: permission.id,
+      },
+    });
+
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleB.id,
+        permissionId: permission.id,
+      },
+    });
+  }
+
+  // Assign limited permissions to CASHIER role
+  const cashierPermissions = [
+    saleCreatePermission,
+    saleReadPermission,
+    saleUpdatePermission,
+    saleCompletePermission,
+    paymentCreatePermission,
+    paymentReadPermission,
+    inventoryReadPermission,
+    productReadPermission,
+    reportReadPermission,
+  ];
+
+  for (const permission of cashierPermissions) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: cashierRoleA.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: cashierRoleA.id,
         permissionId: permission.id,
       },
     });

@@ -161,7 +161,7 @@ export const proformaSchema = z.object({
   })).optional(),
 });
 
-export const proformaUpdateSchema = proformaSchema.partial().omit({ organizationId: true, proformaNumber: true });
+export const proformaUpdateSchema = proformaSchema.partial().omit({ organizationId: true, proformaNumber: true, status: true });
 
 // ProformaItem validation
 export const proformaItemSchema = z.object({

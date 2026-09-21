@@ -189,7 +189,7 @@ export class ProformaService {
    */
   async update(id: string, organizationId: string, data: ProformaUpdateInput) {
     const exists = await proformaRepository.belongsToOrganization(id, organizationId);
-    
+
     if (!exists) {
       throw new Error('Proforma not found or access denied');
     }
@@ -207,8 +207,21 @@ export class ProformaService {
 
     const validatedData = proformaUpdateSchema.parse(data);
 
-    await proformaRepository.update(id, organizationId, validatedData as Prisma.ProformaUpdateInput);
-    
+    // Explicitly exclude status from update data
+    const { customerId, validUntil, notes, subtotal, tax, taxRate, total, discount, applyTax } = validatedData;
+
+    await proformaRepository.update(id, organizationId, {
+      ...(customerId !== undefined && { customerId }),
+      ...(validUntil !== undefined && { validUntil }),
+      ...(notes !== undefined && { notes }),
+      ...(subtotal !== undefined && { subtotal }),
+      ...(tax !== undefined && { tax }),
+      ...(taxRate !== undefined && { taxRate }),
+      ...(total !== undefined && { total }),
+      ...(discount !== undefined && { discount }),
+      ...(applyTax !== undefined && { applyTax }),
+    } as Prisma.ProformaUpdateInput);
+
     return proformaRepository.findById(id, organizationId);
   }
 
