@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saleService } from '@omnikes/services/sale.service';
-import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
 
 /**
  * GET /api/sales/[id]/payments
@@ -13,6 +13,14 @@ export async function GET(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'payment.read');
+
+    // Get sale to verify store access
+    const sale = await saleService.getById(id, organizationId);
+    if (sale.storeId) {
+      await requireStoreAccess(request, sale.storeId);
+    }
+
     const payments = await saleService.getPayments(id, organizationId);
 
     return NextResponse.json(payments);
@@ -24,13 +32,27 @@ export async function GET(
       );
     }
 
+    if (error instanceof Error && (error.message === 'Permission required: payment.read' || error.message.startsWith('Permission required'))) {
+      return NextResponse.json(
+        { error: 'Permission required' },
+        { status: 403 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Not authorized to access this store') {
+      return NextResponse.json(
+        { error: 'Not authorized to access this store' },
+        { status: 403 }
+      );
+    }
+
     if (error instanceof Error && error.message === 'Sale not found or access denied') {
       return NextResponse.json(
         { error: 'Sale not found or access denied' },
         { status: 404 }
       );
     }
-    
+
     console.error('Error listing payments:', error);
     return NextResponse.json(
       { error: 'Failed to list payments' },
@@ -50,7 +72,14 @@ export async function POST(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
-    
+    await requirePermission(request, 'payment.create');
+
+    // Get sale to verify store access
+    const sale = await saleService.getById(id, organizationId);
+    if (sale.storeId) {
+      await requireStoreAccess(request, sale.storeId);
+    }
+
     // Protect against invalid JSON
     let body;
     try {
@@ -73,6 +102,20 @@ export async function POST(
       );
     }
 
+    if (error instanceof Error && (error.message === 'Permission required: payment.create' || error.message.startsWith('Permission required'))) {
+      return NextResponse.json(
+        { error: 'Permission required' },
+        { status: 403 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Not authorized to access this store') {
+      return NextResponse.json(
+        { error: 'Not authorized to access this store' },
+        { status: 403 }
+      );
+    }
+
     if (error instanceof Error && error.message === 'Sale not found or access denied') {
       return NextResponse.json(
         { error: 'Sale not found or access denied' },
@@ -86,7 +129,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     console.error('Error adding payment:', error);
     return NextResponse.json(
       { error: 'Failed to add payment' },

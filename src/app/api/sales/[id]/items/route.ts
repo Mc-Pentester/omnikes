@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saleService } from '@omnikes/services/sale.service';
-import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
 
 /**
  * GET /api/sales/[id]/items
@@ -13,14 +13,35 @@ export async function GET(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
-    const items = await saleService.getById(id, organizationId).then(sale => sale.items);
+    await requirePermission(request, 'sale.read');
 
-    return NextResponse.json(items);
+    const sale = await saleService.getById(id, organizationId);
+
+    // Verify store access
+    if (sale.storeId) {
+      await requireStoreAccess(request, sale.storeId);
+    }
+
+    return NextResponse.json(sale.items);
   } catch (error) {
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
+      );
+    }
+
+    if (error instanceof Error && (error.message === 'Permission required: sale.read' || error.message.startsWith('Permission required'))) {
+      return NextResponse.json(
+        { error: 'Permission required' },
+        { status: 403 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Not authorized to access this store') {
+      return NextResponse.json(
+        { error: 'Not authorized to access this store' },
+        { status: 403 }
       );
     }
 
@@ -30,7 +51,7 @@ export async function GET(
         { status: 404 }
       );
     }
-    
+
     console.error('Error listing items:', error);
     return NextResponse.json(
       { error: 'Failed to list items' },
@@ -47,11 +68,18 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const organizationId = await requireCurrentOrganizationId(request);
-  
-  let body;
   try {
+    const { id } = await params;
+    const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'sale.update');
+
+    // Get sale to verify store access before adding item
+    const sale = await saleService.getById(id, organizationId);
+    if (sale.storeId) {
+      await requireStoreAccess(request, sale.storeId);
+    }
+
+    let body;
     // Protect against invalid JSON
     try {
       body = await request.json();
@@ -70,6 +98,20 @@ export async function POST(
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
+      );
+    }
+
+    if (error instanceof Error && (error.message === 'Permission required: sale.update' || error.message.startsWith('Permission required'))) {
+      return NextResponse.json(
+        { error: 'Permission required' },
+        { status: 403 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Not authorized to access this store') {
+      return NextResponse.json(
+        { error: 'Not authorized to access this store' },
+        { status: 403 }
       );
     }
 
@@ -102,7 +144,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     console.error('Error adding item:', error);
     return NextResponse.json(
       { error: 'Failed to add item' },

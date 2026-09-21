@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { inventoryService } from '@omnikes/services/inventory.service';
-import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
 
 // Simple CUID validation (basic format check)
 function isValidCuid(id: string): boolean {
@@ -17,7 +17,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    
+
     // Validate CUID format
     if (!isValidCuid(id)) {
       return NextResponse.json(
@@ -25,10 +25,18 @@ export async function GET(
         { status: 400 }
       );
     }
-    
+
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'inventory.read');
+
+    // Get inventory to verify store access
+    const inventory = await inventoryService.getById(id, organizationId);
+    if (inventory.storeId) {
+      await requireStoreAccess(request, inventory.storeId);
+    }
+
     const { searchParams } = new URL(request.url);
-    
+
     const type = searchParams.get('type') || undefined;
     const skip = parseInt(searchParams.get('skip') || '0');
     const take = parseInt(searchParams.get('take') || '50');
@@ -48,13 +56,27 @@ export async function GET(
       );
     }
 
+    if (error instanceof Error && (error.message === 'Permission required: inventory.read' || error.message.startsWith('Permission required'))) {
+      return NextResponse.json(
+        { error: 'Permission required' },
+        { status: 403 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Not authorized to access this store') {
+      return NextResponse.json(
+        { error: 'Not authorized to access this store' },
+        { status: 403 }
+      );
+    }
+
     if (error instanceof Error && error.message === 'Inventory not found or access denied') {
       return NextResponse.json(
         { error: 'Inventory not found or access denied' },
         { status: 404 }
       );
     }
-    
+
     console.error('Error listing movements:', error);
     return NextResponse.json(
       { error: 'Failed to list movements' },
@@ -73,7 +95,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    
+
     // Validate CUID format
     if (!isValidCuid(id)) {
       return NextResponse.json(
@@ -81,9 +103,16 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     const organizationId = await requireCurrentOrganizationId(request);
-    
+    await requirePermission(request, 'inventory.adjust');
+
+    // Get inventory to verify store access before creating movement
+    const inventory = await inventoryService.getById(id, organizationId);
+    if (inventory.storeId) {
+      await requireStoreAccess(request, inventory.storeId);
+    }
+
     // Protect against invalid JSON
     let body;
     try {
@@ -103,6 +132,20 @@ export async function POST(
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
+      );
+    }
+
+    if (error instanceof Error && (error.message === 'Permission required: inventory.adjust' || error.message.startsWith('Permission required'))) {
+      return NextResponse.json(
+        { error: 'Permission required' },
+        { status: 403 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Not authorized to access this store') {
+      return NextResponse.json(
+        { error: 'Not authorized to access this store' },
+        { status: 403 }
       );
     }
 
@@ -126,7 +169,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     console.error('Error creating movement:', error);
     return NextResponse.json(
       { error: 'Failed to create movement' },

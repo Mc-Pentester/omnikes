@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
 import { prisma } from '@omnikes/lib/prisma';
 
 /**
@@ -9,6 +9,7 @@ import { prisma } from '@omnikes/lib/prisma';
 export async function GET(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'tax.manage');
 
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },
@@ -44,7 +45,14 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
-    
+
+    if (error instanceof Error && (error.message === 'Permission required: tax.manage' || error.message.startsWith('Permission required'))) {
+      return NextResponse.json(
+        { error: 'Permission required' },
+        { status: 403 }
+      );
+    }
+
     console.error('Error getting tax configuration:', error);
     return NextResponse.json(
       { error: 'Failed to get tax configuration' },

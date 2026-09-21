@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { productService } from '@omnikes/services/product.service';
-import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
 
 /**
  * POST /api/products/[id]/deactivate
@@ -13,6 +13,8 @@ export async function POST(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'product.manage');
+
     const product = await productService.deactivate(id, organizationId);
 
     return NextResponse.json(product);
@@ -24,13 +26,20 @@ export async function POST(
       );
     }
 
+    if (error instanceof Error && (error.message === 'Permission required: product.manage' || error.message.startsWith('Permission required'))) {
+      return NextResponse.json(
+        { error: 'Permission required' },
+        { status: 403 }
+      );
+    }
+
     if (error instanceof Error && error.message === 'Product not found or access denied') {
       return NextResponse.json(
         { error: 'Product not found or access denied' },
         { status: 404 }
       );
     }
-    
+
     console.error('Error deactivating product:', error);
     return NextResponse.json(
       { error: 'Failed to deactivate product' },

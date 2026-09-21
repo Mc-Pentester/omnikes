@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { productService } from '@omnikes/services/product.service';
 import { productSchema } from '@omnikes/lib/validation';
-import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
 import { validatePagination } from '@omnikes/lib/pagination';
 
 /**
@@ -11,13 +11,15 @@ import { validatePagination } from '@omnikes/lib/pagination';
 export async function GET(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'product.read');
+
     const { searchParams } = new URL(request.url);
-    
+
     const search = searchParams.get('search') || undefined;
     const category = searchParams.get('category') || undefined;
-    const isActive = searchParams.get('isActive') === 'true' ? true : 
+    const isActive = searchParams.get('isActive') === 'true' ? true :
                      searchParams.get('isActive') === 'false' ? false : undefined;
-    
+
     const { skip, take } = validatePagination(
       searchParams.get('skip'),
       searchParams.get('take')
@@ -41,6 +43,13 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      if (error.message === 'Permission required: product.read' || error.message.startsWith('Permission required')) {
+        return NextResponse.json(
+          { error: 'Permission required' },
+          { status: 403 }
+        );
+      }
+
       if (error.message.includes('Invalid skip') || error.message.includes('Invalid take')) {
         return NextResponse.json(
           { error: error.message },
@@ -48,7 +57,7 @@ export async function GET(request: NextRequest) {
         );
       }
     }
-    
+
     console.error('Error listing products:', error);
     return NextResponse.json(
       { error: 'Failed to list products' },
@@ -64,6 +73,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'product.manage');
+
     const body = await request.json();
 
     const result = await productService.create(organizationId, body);
@@ -77,13 +88,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (error instanceof Error && (error.message === 'Permission required: product.manage' || error.message.startsWith('Permission required'))) {
+      return NextResponse.json(
+        { error: 'Permission required' },
+        { status: 403 }
+      );
+    }
+
     if (error instanceof Error && error.message.includes('validation')) {
       return NextResponse.json(
         { error: error.message },
         { status: 400 }
       );
     }
-    
+
     console.error('Error creating product:', error);
     return NextResponse.json(
       { error: 'Failed to create product' },

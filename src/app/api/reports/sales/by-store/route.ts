@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { salesReportService } from '@omnikes/services/sales-report.service';
 import { salesReportStoreSchema } from '@omnikes/lib/validation';
-import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
 
 /**
  * GET /api/reports/sales/by-store
@@ -10,8 +10,10 @@ import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
 export async function GET(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'report.read');
+
     const { searchParams } = new URL(request.url);
-    
+
     const startDate = searchParams.get('startDate') ? new Date(searchParams.get('startDate')!) : undefined;
     const endDate = searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : undefined;
 
@@ -31,13 +33,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (error instanceof Error && (error.message === 'Permission required: report.read' || error.message.startsWith('Permission required'))) {
+      return NextResponse.json(
+        { error: 'Permission required' },
+        { status: 403 }
+      );
+    }
+
     if (error instanceof Error && error.message.includes('validation')) {
       return NextResponse.json(
         { error: error.message },
         { status: 400 }
       );
     }
-    
+
     console.error('Error getting sales by store:', error);
     return NextResponse.json(
       { error: 'Failed to get sales by store' },

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { inventoryService } from '@omnikes/services/inventory.service';
-import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
 import { validatePagination } from '@omnikes/lib/pagination';
 
 /**
@@ -10,10 +10,17 @@ import { validatePagination } from '@omnikes/lib/pagination';
 export async function GET(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'inventory.read');
+
     const { searchParams } = new URL(request.url);
-    
+
     const storeId = searchParams.get('storeId') || undefined;
-    
+
+    // If storeId is provided, verify store access
+    if (storeId) {
+      await requireStoreAccess(request, storeId);
+    }
+
     const { skip, take } = validatePagination(
       searchParams.get('skip'),
       searchParams.get('take')
@@ -41,6 +48,20 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      if (error.message === 'Permission required: inventory.read' || error.message.startsWith('Permission required')) {
+        return NextResponse.json(
+          { error: 'Permission required' },
+          { status: 403 }
+        );
+      }
+
+      if (error.message === 'Not authorized to access this store') {
+        return NextResponse.json(
+          { error: 'Not authorized to access this store' },
+          { status: 403 }
+        );
+      }
+
       if (error.message.includes('Invalid skip') || error.message.includes('Invalid take')) {
         return NextResponse.json(
           { error: error.message },
@@ -48,7 +69,7 @@ export async function GET(request: NextRequest) {
         );
       }
     }
-    
+
     console.error('Error listing inventory:', error);
     return NextResponse.json(
       { error: 'Failed to list inventory' },
