@@ -3,8 +3,8 @@ import { proformaService } from '@omnikes/services/proforma.service';
 import { requireCurrentOrganizationId, requireStoreAccess, requirePermission } from '@omnikes/lib/auth';
 
 /**
- * POST /api/proformas/[id]/validate
- * Validate a proforma (DRAFT -> SENT)
+ * POST /api/proformas/[id]/convert
+ * Convert a proforma to a sale (ACCEPTED -> CONVERTED)
  */
 export async function POST(
   request: NextRequest,
@@ -13,7 +13,9 @@ export async function POST(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
-    await requirePermission(request, 'proforma.update');
+
+    // Check permission
+    await requirePermission(request, 'proforma.convert');
 
     // Get proforma first to check store access
     const existingProforma = await proformaService.getById(id, organizationId);
@@ -21,9 +23,9 @@ export async function POST(
       await requireStoreAccess(request, existingProforma.storeId);
     }
 
-    const proforma = await proformaService.validate(id, organizationId);
+    const sale = await proformaService.convert(id, organizationId);
 
-    return NextResponse.json(proforma);
+    return NextResponse.json(sale);
   } catch (error) {
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
@@ -53,23 +55,30 @@ export async function POST(
       );
     }
 
-    if (error instanceof Error && error.message === 'Only DRAFT proformas can be validated') {
+    if (error instanceof Error && error.message.includes('Cannot convert proforma with status')) {
       return NextResponse.json(
-        { error: 'Only DRAFT proformas can be validated' },
+        { error: error.message },
         { status: 409 }
       );
     }
 
-    if (error instanceof Error && error.message === 'Proforma must have at least one item to be validated') {
+    if (error instanceof Error && error.message === 'Proforma has already been converted to a sale') {
       return NextResponse.json(
-        { error: 'Proforma must have at least one item to be validated' },
+        { error: 'Proforma has already been converted to a sale' },
+        { status: 409 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Cannot convert an empty proforma') {
+      return NextResponse.json(
+        { error: 'Cannot convert an empty proforma' },
         { status: 400 }
       );
     }
-    
-    console.error('Error validating proforma:', error);
+
+    console.error('Error converting proforma:', error);
     return NextResponse.json(
-      { error: 'Failed to validate proforma' },
+      { error: 'Failed to convert proforma' },
       { status: 500 }
     );
   }

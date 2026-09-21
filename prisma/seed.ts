@@ -198,6 +198,66 @@ async function main() {
     },
   });
 
+  const proformaCreatePermission = await prisma.permission.upsert({
+    where: { code: 'proforma.create' },
+    update: {},
+    create: {
+      code: 'proforma.create',
+      description: 'Créer une proforma',
+      module: 'proforma',
+    },
+  });
+
+  const proformaReadPermission = await prisma.permission.upsert({
+    where: { code: 'proforma.read' },
+    update: {},
+    create: {
+      code: 'proforma.read',
+      description: 'Lire les proformas',
+      module: 'proforma',
+    },
+  });
+
+  const proformaUpdatePermission = await prisma.permission.upsert({
+    where: { code: 'proforma.update' },
+    update: {},
+    create: {
+      code: 'proforma.update',
+      description: 'Modifier une proforma',
+      module: 'proforma',
+    },
+  });
+
+  const proformaAcceptPermission = await prisma.permission.upsert({
+    where: { code: 'proforma.accept' },
+    update: {},
+    create: {
+      code: 'proforma.accept',
+      description: 'Accepter une proforma',
+      module: 'proforma',
+    },
+  });
+
+  const proformaCancelPermission = await prisma.permission.upsert({
+    where: { code: 'proforma.cancel' },
+    update: {},
+    create: {
+      code: 'proforma.cancel',
+      description: 'Annuler une proforma',
+      module: 'proforma',
+    },
+  });
+
+  const proformaConvertPermission = await prisma.permission.upsert({
+    where: { code: 'proforma.convert' },
+    update: {},
+    create: {
+      code: 'proforma.convert',
+      description: 'Convertir une proforma en vente',
+      module: 'proforma',
+    },
+  });
+
   console.log('✅ Permissions created');
 
   // ============================================================
@@ -213,7 +273,36 @@ async function main() {
     storeDeactivatePermission,
   ];
 
+  const proformaPermissions = [
+    proformaCreatePermission,
+    proformaReadPermission,
+    proformaUpdatePermission,
+    proformaAcceptPermission,
+    proformaCancelPermission,
+    proformaConvertPermission,
+  ];
+
   for (const permission of storePermissions) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleA.id,
+        permissionId: permission.id,
+      },
+    });
+
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleB.id,
+        permissionId: permission.id,
+      },
+    });
+  }
+
+  for (const permission of proformaPermissions) {
     await prisma.rolePermission.upsert({
       where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
       update: {},

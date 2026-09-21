@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proformaService } from '@omnikes/services/proforma.service';
-import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requireStoreAccess, requirePermission } from '@omnikes/lib/auth';
 
 /**
  * PATCH /api/proformas/[id]/items/[itemId]
@@ -13,7 +13,15 @@ export async function PATCH(
   try {
     const { id, itemId } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'proforma.update');
+
     const body = await request.json();
+
+    // Get proforma first to check store access
+    const existingProforma = await proformaService.getById(id, organizationId);
+    if (existingProforma.storeId) {
+      await requireStoreAccess(request, existingProforma.storeId);
+    }
 
     const item = await proformaService.updateItem(itemId, organizationId, body);
 
@@ -30,6 +38,20 @@ export async function PATCH(
       return NextResponse.json(
         { error: 'Proforma item not found or access denied' },
         { status: 404 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Not authorized to access this store') {
+      return NextResponse.json(
+        { error: 'Not authorized to access this store' },
+        { status: 403 }
+      );
+    }
+
+    if (error instanceof Error && error.message.startsWith('Permission required')) {
+      return NextResponse.json(
+        { error: 'Permission required' },
+        { status: 403 }
       );
     }
 
@@ -66,6 +88,13 @@ export async function DELETE(
   try {
     const { id, itemId } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'proforma.update');
+
+    // Get proforma first to check store access
+    const existingProforma = await proformaService.getById(id, organizationId);
+    if (existingProforma.storeId) {
+      await requireStoreAccess(request, existingProforma.storeId);
+    }
 
     await proformaService.removeItem(itemId, organizationId);
 
@@ -82,6 +111,20 @@ export async function DELETE(
       return NextResponse.json(
         { error: 'Proforma item not found or access denied' },
         { status: 404 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Not authorized to access this store') {
+      return NextResponse.json(
+        { error: 'Not authorized to access this store' },
+        { status: 403 }
+      );
+    }
+
+    if (error instanceof Error && error.message.startsWith('Permission required')) {
+      return NextResponse.json(
+        { error: 'Permission required' },
+        { status: 403 }
       );
     }
 

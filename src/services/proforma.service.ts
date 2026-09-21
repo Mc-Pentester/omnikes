@@ -348,6 +348,36 @@ export class ProformaService {
   }
 
   /**
+   * Accept a proforma (SENT -> ACCEPTED)
+   */
+  async accept(proformaId: string, organizationId: string) {
+    const exists = await proformaRepository.belongsToOrganization(proformaId, organizationId);
+
+    if (!exists) {
+      throw new Error('Proforma not found or access denied');
+    }
+
+    const proforma = await proformaRepository.findById(proformaId, organizationId);
+
+    if (!proforma) {
+      throw new Error('Proforma not found or access denied');
+    }
+
+    // Only SENT proformas can be accepted
+    if (proforma.status !== 'SENT') {
+      throw new Error(`Cannot accept proforma with status ${proforma.status}. Only SENT proformas can be accepted.`);
+    }
+
+    // Recalculate totals before accepting
+    await this.recalculateTotals(proformaId, organizationId);
+
+    // Update status to ACCEPTED
+    await proformaRepository.updateStatus(proformaId, organizationId, 'ACCEPTED');
+
+    return proformaRepository.findById(proformaId, organizationId);
+  }
+
+  /**
    * Cancel a proforma
    */
   async cancel(proformaId: string, organizationId: string) {
@@ -378,12 +408,132 @@ export class ProformaService {
   }
 
   /**
+   * Convert a proforma to a sale (transactional)
+   */
+  async convert(proformaId: string, organizationId: string) {
+    return prisma.$transaction(async (tx) => {
+      // Load proforma with items, organization, store, customer
+      const proforma = await tx.proforma.findUnique({
+        where: { id: proformaId },
+        include: {
+          organization: true,
+          store: true,
+          customer: true,
+          items: {
+            include: {
+              variant: true,
+            },
+          },
+        },
+      });
+
+      if (!proforma) {
+        throw new Error('Proforma not found');
+      }
+
+      // Multi-tenant check
+      if (proforma.organizationId !== organizationId) {
+        throw new Error('Proforma not found or access denied');
+      }
+
+      // Status validation: only ACCEPTED can be converted
+      if (proforma.status !== 'ACCEPTED') {
+        throw new Error(`Cannot convert proforma with status ${proforma.status}. Only ACCEPTED proformas can be converted.`);
+      }
+
+      // Double conversion check - check if already converted by looking at convertedSale relation
+      const existingSale = await tx.sale.findFirst({
+        where: { convertedFromProformaId: proformaId },
+      });
+
+      if (existingSale) {
+        throw new Error('Proforma has already been converted to a sale');
+      }
+
+      // Empty proforma check
+      if (proforma.items.length === 0) {
+        throw new Error('Cannot convert an empty proforma');
+      }
+
+      // Generate order number
+      const orderNumber = this.generateOrderNumber();
+
+      // Create sale (using direct data without relations to match repository pattern)
+      const sale = await tx.sale.create({
+        data: {
+          organizationId: proforma.organizationId,
+          storeId: proforma.storeId,
+          orderNumber,
+          customerId: proforma.customerId,
+          channel: 'POS',
+          status: 'PENDING',
+          subtotal: proforma.subtotal,
+          tax: proforma.tax,
+          taxRate: proforma.taxRate,
+          total: proforma.total,
+          discount: proforma.discount,
+          applyTax: proforma.applyTax,
+          notes: proforma.notes,
+          convertedFromProformaId: proforma.id,
+        },
+      });
+
+      // Create sale items
+      for (const item of proforma.items) {
+        await tx.saleItem.create({
+          data: {
+            saleId: sale.id,
+            variantId: item.variantId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            discount: item.discount,
+          },
+        });
+      }
+
+      // Update proforma status to CONVERTED
+      await tx.proforma.update({
+        where: { id: proformaId },
+        data: { status: 'CONVERTED' },
+      });
+
+      // Return the created sale with relations
+      return tx.sale.findUnique({
+        where: { id: sale.id },
+        include: {
+          store: true,
+          customer: true,
+          items: {
+            include: {
+              variant: {
+                include: {
+                  product: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+  }
+
+  /**
    * Generate a unique proforma number
    */
   private generateProformaNumber(): string {
     const timestamp = Date.now().toString(36).toUpperCase();
     const random = Math.random().toString(36).substring(2, 8).toUpperCase();
     return `PF-${timestamp}-${random}`;
+  }
+
+  /**
+   * Generate a unique order number for conversion
+   */
+  private generateOrderNumber(): string {
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+    return `SALE-${timestamp}-${random}`;
   }
 }
 

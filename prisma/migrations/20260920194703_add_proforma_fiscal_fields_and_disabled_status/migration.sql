@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "proformas" ADD COLUMN     "applyTax" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "taxRate" DECIMAL(5,4) NOT NULL DEFAULT 0;

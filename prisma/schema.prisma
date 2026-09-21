@@ -576,11 +576,13 @@ model Proforma {
   storeId           String
   proformaNumber    String   @unique
   customerId        String?
-  status            String   @default("DRAFT") // DRAFT, SENT, ACCEPTED, REJECTED, EXPIRED, CONVERTED
+  status            String   @default("DRAFT") // DRAFT, SENT, ACCEPTED, REJECTED, EXPIRED, CONVERTED, CANCELLED (permissible values)
   subtotal          Decimal  @db.Decimal(12, 2)
   tax               Decimal  @db.Decimal(12, 2) @default(0)
+  taxRate           Decimal  @default(0) @db.Decimal(5, 4) // Effective tax rate applied to this proforma (for historical tracking)
   total             Decimal  @db.Decimal(12, 2)
   discount          Decimal  @db.Decimal(12, 2) @default(0)
+  applyTax          Boolean  @default(true) // Whether tax was applied to this proforma
   validUntil        DateTime?
   notes             String?
   

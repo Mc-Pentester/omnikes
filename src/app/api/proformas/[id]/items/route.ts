@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proformaService } from '@omnikes/services/proforma.service';
-import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requireStoreAccess, requirePermission } from '@omnikes/lib/auth';
 
 /**
  * GET /api/proformas/[id]/items
@@ -13,9 +13,16 @@ export async function GET(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
-    const items = await proformaService.getById(id, organizationId).then(proforma => proforma.items);
+    await requirePermission(request, 'proforma.read');
 
-    return NextResponse.json(items);
+    const proforma = await proformaService.getById(id, organizationId);
+
+    // Check store access
+    if (proforma.storeId) {
+      await requireStoreAccess(request, proforma.storeId);
+    }
+
+    return NextResponse.json(proforma.items);
   } catch (error) {
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
@@ -30,7 +37,21 @@ export async function GET(
         { status: 404 }
       );
     }
-    
+
+    if (error instanceof Error && error.message === 'Not authorized to access this store') {
+      return NextResponse.json(
+        { error: 'Not authorized to access this store' },
+        { status: 403 }
+      );
+    }
+
+    if (error instanceof Error && error.message.startsWith('Permission required')) {
+      return NextResponse.json(
+        { error: 'Permission required' },
+        { status: 403 }
+      );
+    }
+
     console.error('Error listing items:', error);
     return NextResponse.json(
       { error: 'Failed to list items' },
@@ -50,7 +71,15 @@ export async function POST(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'proforma.update');
+
     const body = await request.json();
+
+    // Get proforma first to check store access
+    const existingProforma = await proformaService.getById(id, organizationId);
+    if (existingProforma.storeId) {
+      await requireStoreAccess(request, existingProforma.storeId);
+    }
 
     const item = await proformaService.addItem(id, organizationId, body);
 
@@ -67,6 +96,20 @@ export async function POST(
       return NextResponse.json(
         { error: 'Proforma not found or access denied' },
         { status: 404 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Not authorized to access this store') {
+      return NextResponse.json(
+        { error: 'Not authorized to access this store' },
+        { status: 403 }
+      );
+    }
+
+    if (error instanceof Error && error.message.startsWith('Permission required')) {
+      return NextResponse.json(
+        { error: 'Permission required' },
+        { status: 403 }
       );
     }
 
