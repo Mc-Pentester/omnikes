@@ -198,6 +198,16 @@ async function main() {
     },
   });
 
+  const storeDeletePermission = await prisma.permission.upsert({
+    where: { code: 'store.delete' },
+    update: {},
+    create: {
+      code: 'store.delete',
+      description: 'Supprimer un magasin',
+      module: 'store',
+    },
+  });
+
   const proformaCreatePermission = await prisma.permission.upsert({
     where: { code: 'proforma.create' },
     update: {},
@@ -447,6 +457,7 @@ async function main() {
     storeUpdatePermission,
     storeActivatePermission,
     storeDeactivatePermission,
+    storeDeletePermission,
   ];
 
   const proformaPermissions = [
