@@ -17,15 +17,142 @@ export class ProformaService {
     // Generate proforma number if not provided
     const proformaNumber = validatedData.proformaNumber || this.generateProformaNumber();
 
-    return proformaRepository.create({
-      ...validatedData,
-      proformaNumber,
-      organization: {
-        connect: { id: organizationId },
-      },
-      store: {
-        connect: { id: validatedData.storeId },
-      },
+    // Get organization's tax configuration for initial tax rate
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      include: { taxConfiguration: true },
+    });
+
+    const initialTaxRate = organization?.taxConfiguration?.taxRate
+      ? Number(organization.taxConfiguration.taxRate)
+      : 0;
+
+    // Verify customer belongs to organization if provided
+    if (validatedData.customerId) {
+      const customer = await prisma.customer.findFirst({
+        where: {
+          id: validatedData.customerId,
+          organizationId,
+        },
+      });
+
+      if (!customer) {
+        throw new Error('Invalid customer');
+      }
+    }
+
+    const { organizationId: _, storeId: __, customerId: ___, items, ...dataWithoutIds } = validatedData;
+
+    // Create proforma and items in a transaction
+    return prisma.$transaction(async (tx) => {
+      const proforma = await tx.proforma.create({
+        data: {
+          ...dataWithoutIds,
+          proformaNumber,
+          taxRate: initialTaxRate,
+          organization: {
+            connect: { id: organizationId },
+          },
+          store: {
+            connect: { id: validatedData.storeId },
+          },
+          ...(validatedData.customerId
+            ? {
+                customer: {
+                  connect: { id: validatedData.customerId },
+                },
+              }
+            : {}),
+        },
+        include: {
+          store: true,
+          customer: true,
+          items: {
+            include: {
+              variant: {
+                include: {
+                  product: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Create items if provided
+      if (items && items.length > 0) {
+        for (const item of items) {
+          // Verify variant belongs to organization using transaction client
+          const variant = await tx.productVariant.findFirst({
+            where: {
+              id: item.variantId,
+              product: {
+                organizationId,
+              },
+            },
+            include: {
+              product: true,
+            },
+          });
+
+          if (!variant) {
+            throw new Error('Product variant not found or access denied');
+          }
+
+          // Use server-side price
+          const serverPrice = Number(variant.price);
+          const totalPrice = serverPrice * item.quantity;
+
+          await tx.proformaItem.create({
+            data: {
+              proformaId: proforma.id,
+              variantId: item.variantId,
+              quantity: item.quantity,
+              unitPrice: serverPrice,
+              totalPrice,
+              discount: 0,
+            },
+          });
+        }
+
+        // Recalculate totals after items are added
+        const updatedProforma = await tx.proforma.findUnique({
+          where: { id: proforma.id },
+          include: {
+            items: true,
+          },
+        });
+
+        if (updatedProforma) {
+          const grossSubtotal = updatedProforma.items.reduce((sum: number, item: any) => {
+            return sum + Number(item.unitPrice) * item.quantity;
+          }, 0);
+
+          const discount = updatedProforma.items.reduce((sum: number, item: any) => {
+            return sum + Number(item.discount);
+          }, 0);
+
+          const subtotal = grossSubtotal - discount;
+
+          let tax = 0;
+          if (updatedProforma.applyTax) {
+            tax = subtotal * initialTaxRate;
+          }
+
+          const total = subtotal + tax;
+
+          await tx.proforma.update({
+            where: { id: proforma.id },
+            data: {
+              subtotal,
+              tax,
+              total,
+            },
+          });
+        }
+      }
+
+      return proforma;
     });
   }
 
@@ -284,8 +411,8 @@ export class ProformaService {
 
     // Subtotal after discounts
     const subtotal = grossSubtotal - discount;
-    
-    // Get tax rate from organization's tax configuration
+
+    // Get proforma with organization's tax configuration
     const proforma = await prisma.proforma.findUnique({
       where: { id: proformaId },
       include: {
@@ -297,17 +424,22 @@ export class ProformaService {
       },
     });
 
-    const taxRate = proforma?.organization?.taxConfiguration?.taxRate 
-      ? Number(proforma.organization.taxConfiguration.taxRate) 
-      : 0; // No tax if no configuration
-    
-    const tax = subtotal * taxRate;
+    // Apply tax only if applyTax is true and tax configuration exists
+    let taxRate = 0;
+    let tax = 0;
+
+    if (proforma?.applyTax && proforma?.organization?.taxConfiguration?.taxRate) {
+      taxRate = Number(proforma.organization.taxConfiguration.taxRate);
+      tax = subtotal * taxRate;
+    }
+
     const total = subtotal + tax;
 
     await proformaRepository.update(proformaId, organizationId, {
       subtotal,
       discount,
       tax,
+      taxRate,
       total,
     });
   }

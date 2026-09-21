@@ -9,6 +9,9 @@ vi.mock('@omnikes/lib/prisma', () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    organization: {
+      findUnique: vi.fn(),
+    },
     sale: {
       create: vi.fn(),
       findUnique: vi.fn(),
@@ -30,6 +33,7 @@ vi.mock('@omnikes/repositories/proforma.repository', () => ({
     updateStatus: vi.fn(),
     listItems: vi.fn(),
     update: vi.fn(),
+    create: vi.fn(),
   },
 }));
 
@@ -474,13 +478,101 @@ describe('ProformaService - Conversion', () => {
         items: [],
       });
 
-      await proformaService.convert(mockProformaId, mockOrganizationId);
+      const result = await proformaService.convert(mockProformaId, mockOrganizationId);
 
       expect(prisma.sale.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             customerId: null,
           }),
+        })
+      );
+    });
+  });
+
+  describe('Tax Rate Initialization', () => {
+    it('should initialize tax rate from organization configuration', async () => {
+      const mockOrganizationId = 'cmu8gsgwp0000fgqr0uckya14';
+      const mockStoreId = 'cmubhviiu000i0sqr92jnxdrs';
+
+      (prismaMock.organization.findUnique as any).mockResolvedValue({
+        id: mockOrganizationId,
+        taxConfiguration: {
+          taxRate: 0.1,
+        },
+      });
+
+      (proformaRepository.create as any).mockResolvedValue({ id: 'proforma-123' });
+
+      await proformaService.create(mockOrganizationId, {
+        storeId: mockStoreId,
+        proformaNumber: 'PF-123',
+        subtotal: 0,
+        total: 0,
+      });
+
+      expect(prisma.organization.findUnique).toHaveBeenCalledWith({
+        where: { id: mockOrganizationId },
+        include: { taxConfiguration: true },
+      });
+    });
+
+    it('should use 0 tax rate when no tax configuration exists', async () => {
+      const mockOrganizationId = 'cmu8gsgwp0000fgqr0uckya14';
+      const mockStoreId = 'cmubhviiu000i0sqr92jnxdrs';
+
+      (prismaMock.organization.findUnique as any).mockResolvedValue({
+        id: mockOrganizationId,
+        taxConfiguration: null,
+      });
+
+      (proformaRepository.create as any).mockResolvedValue({ id: 'proforma-123' });
+
+      await proformaService.create(mockOrganizationId, {
+        storeId: mockStoreId,
+        proformaNumber: 'PF-123',
+        subtotal: 0,
+        total: 0,
+      });
+
+      expect(prisma.organization.findUnique).toHaveBeenCalledWith({
+        where: { id: mockOrganizationId },
+        include: { taxConfiguration: true },
+      });
+    });
+
+    it('should apply zero tax when applyTax is false', async () => {
+      const mockProformaId = 'proforma-123';
+      const mockOrganizationId = 'org-123';
+
+      (prismaMock.proforma.findUnique as any).mockResolvedValue({
+        id: mockProformaId,
+        applyTax: false,
+        organization: {
+          taxConfiguration: {
+            taxRate: 0.1,
+          },
+        },
+      });
+
+      (proformaRepository.listItems as any).mockResolvedValue([
+        {
+          unitPrice: 100,
+          quantity: 1,
+          discount: 0,
+        },
+      ]);
+
+      (proformaRepository.update as any).mockResolvedValue({});
+
+      await proformaService.recalculateTotals(mockProformaId, mockOrganizationId);
+
+      expect(proformaRepository.update).toHaveBeenCalledWith(
+        mockProformaId,
+        mockOrganizationId,
+        expect.objectContaining({
+          tax: 0,
+          taxRate: 0,
         })
       );
     });

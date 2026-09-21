@@ -144,15 +144,21 @@ export const paymentUpdateSchema = paymentSchema.partial().omit({ saleId: true }
 export const proformaSchema = z.object({
   organizationId: z.string().cuid(),
   storeId: z.string().cuid(),
-  proformaNumber: z.string().min(1, 'Proforma number is required'),
-  customerId: z.string().cuid().optional(),
+  proformaNumber: z.string().optional(),
+  customerId: z.string().cuid().optional().transform(val => val === '' ? undefined : val),
   status: z.string().default('DRAFT'),
-  subtotal: z.number().nonnegative('Subtotal must be non-negative'),
+  subtotal: z.number().nonnegative('Subtotal must be non-negative').default(0),
   tax: z.number().nonnegative('Tax must be non-negative').default(0),
-  total: z.number().nonnegative('Total must be non-negative'),
+  taxRate: z.number().nonnegative('Tax rate must be non-negative').default(0),
+  total: z.number().nonnegative('Total must be non-negative').default(0),
   discount: z.number().nonnegative('Discount must be non-negative').default(0),
+  applyTax: z.boolean().default(true),
   validUntil: z.coerce.date().optional(),
   notes: z.string().max(1000).optional(),
+  items: z.array(z.object({
+    variantId: z.string().cuid(),
+    quantity: z.int().positive('Quantity must be positive'),
+  })).optional(),
 });
 
 export const proformaUpdateSchema = proformaSchema.partial().omit({ organizationId: true, proformaNumber: true });

@@ -258,6 +258,46 @@ async function main() {
     },
   });
 
+  const customerCreatePermission = await prisma.permission.upsert({
+    where: { code: 'customer.create' },
+    update: {},
+    create: {
+      code: 'customer.create',
+      description: 'Créer un client',
+      module: 'customer',
+    },
+  });
+
+  const customerReadPermission = await prisma.permission.upsert({
+    where: { code: 'customer.read' },
+    update: {},
+    create: {
+      code: 'customer.read',
+      description: 'Lire les clients',
+      module: 'customer',
+    },
+  });
+
+  const customerUpdatePermission = await prisma.permission.upsert({
+    where: { code: 'customer.update' },
+    update: {},
+    create: {
+      code: 'customer.update',
+      description: 'Modifier un client',
+      module: 'customer',
+    },
+  });
+
+  const customerDeletePermission = await prisma.permission.upsert({
+    where: { code: 'customer.delete' },
+    update: {},
+    create: {
+      code: 'customer.delete',
+      description: 'Supprimer un client',
+      module: 'customer',
+    },
+  });
+
   console.log('✅ Permissions created');
 
   // ============================================================
@@ -282,6 +322,13 @@ async function main() {
     proformaConvertPermission,
   ];
 
+  const customerPermissions = [
+    customerCreatePermission,
+    customerReadPermission,
+    customerUpdatePermission,
+    customerDeletePermission,
+  ];
+
   for (const permission of storePermissions) {
     await prisma.rolePermission.upsert({
       where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
@@ -303,6 +350,26 @@ async function main() {
   }
 
   for (const permission of proformaPermissions) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleA.id,
+        permissionId: permission.id,
+      },
+    });
+
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleB.id,
+        permissionId: permission.id,
+      },
+    });
+  }
+
+  for (const permission of customerPermissions) {
     await prisma.rolePermission.upsert({
       where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
       update: {},
@@ -799,11 +866,8 @@ async function main() {
   // CUSTOMERS
   // ============================================================
 
-  const customerA = await prisma.customer.upsert({
-    where: { id: 'customer-a' },
-    update: {},
-    create: {
-      id: 'customer-a',
+  const customerA = await prisma.customer.create({
+    data: {
       organizationId: orgA.id,
       name: 'Client Test A',
       email: 'client.a@omnikes.test',
@@ -815,11 +879,8 @@ async function main() {
     },
   });
 
-  const customerB = await prisma.customer.upsert({
-    where: { id: 'customer-b' },
-    update: {},
-    create: {
-      id: 'customer-b',
+  const customerB = await prisma.customer.create({
+    data: {
       organizationId: orgB.id,
       name: 'Client Test B',
       email: 'client.b@omnikes.test',

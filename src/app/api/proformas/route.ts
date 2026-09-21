@@ -3,6 +3,7 @@ import { proformaService } from '@omnikes/services/proforma.service';
 import { requireCurrentOrganizationId, requireStoreAccess, requirePermission } from '@omnikes/lib/auth';
 import { validatePagination } from '@omnikes/lib/pagination';
 import { parseDateRange } from '@omnikes/lib/date-validation';
+import { ZodError } from 'zod';
 
 /**
  * GET /api/proformas
@@ -126,13 +127,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (error instanceof Error && error.message.includes('validation')) {
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    if (error instanceof Error && (error.message.includes('validation') || error.message.includes('not found') || error.message.includes('does not belong'))) {
       return NextResponse.json(
         { error: error.message },
         { status: 400 }
       );
     }
-    
+
     console.error('Error creating proforma:', error);
     return NextResponse.json(
       { error: 'Failed to create proforma' },

@@ -236,6 +236,9 @@ export default function ProformasPage() {
               <h1 className="text-2xl font-bold text-gray-900">Proformas</h1>
               <p className="text-sm text-gray-500">Gérez vos devis et proformas.</p>
             </div>
+            <Button onClick={() => router.push('/proformas/new')}>
+              Créer une proforma
+            </Button>
           </div>
         </header>
 
@@ -243,7 +246,10 @@ export default function ProformasPage() {
           {proformas.length === 0 ? (
             <Card className="p-12 text-center">
               <h2 className="text-xl font-bold text-gray-900 mb-2">Aucune proforma</h2>
-              <p className="text-gray-600">Aucune proforma n'a encore été créée.</p>
+              <p className="text-gray-600 mb-4">Aucune proforma n'a encore été créée.</p>
+              <Button onClick={() => router.push('/proformas/new')}>
+                Créer une proforma
+              </Button>
             </Card>
           ) : (
             <Card className="overflow-hidden">
@@ -285,6 +291,13 @@ export default function ProformasPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => router.push(`/proformas/${proforma.id}`)}
+                            >
+                              Voir
+                            </Button>
                             {proforma.status === 'SENT' && (
                               <Button
                                 variant="outline"
