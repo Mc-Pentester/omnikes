@@ -72,6 +72,8 @@ export class SaleService {
     startDate?: Date;
     endDate?: Date;
     customerId?: string;
+    search?: string;
+    paymentMethod?: string;
     skip?: number;
     take?: number;
   } = {}) {

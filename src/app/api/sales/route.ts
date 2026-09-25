@@ -23,6 +23,8 @@ export async function GET(request: NextRequest) {
     const storeId = searchParams.get('storeId') || undefined;
     const status = searchParams.get('status') || undefined;
     const customerId = searchParams.get('customerId') || undefined;
+    const search = searchParams.get('search') || undefined;
+    const paymentMethod = searchParams.get('paymentMethod') || undefined;
 
     // Validate CUID format for optional parameters if provided
     if (storeId && !isValidCuid(storeId)) {
@@ -58,6 +60,8 @@ export async function GET(request: NextRequest) {
       storeId,
       status,
       customerId,
+      search,
+      paymentMethod,
       startDate,
       endDate,
       skip,
@@ -118,7 +122,7 @@ export async function POST(request: NextRequest) {
     let body;
     try {
       body = await request.json();
-    } catch (jsonError) {
+    } catch {
       return NextResponse.json(
         { error: 'Invalid JSON in request body' },
         { status: 400 }

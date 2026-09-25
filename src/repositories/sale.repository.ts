@@ -6,7 +6,8 @@ export class SaleRepository {
    * Create a new sale
    */
   async create(data: Prisma.SaleCreateInput) {
-    const { organizationId, storeId, ...createData } = data as any;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { organizationId, storeId, ...createData } = data as Prisma.SaleCreateInput & { organizationId: string; storeId: string };
     return prisma.sale.create({
       data: createData,
       include: {
@@ -87,10 +88,12 @@ export class SaleRepository {
     startDate?: Date;
     endDate?: Date;
     customerId?: string;
+    search?: string;
+    paymentMethod?: string;
     skip?: number;
     take?: number;
   } = {}) {
-    const { storeId, status, startDate, endDate, customerId, skip = 0, take = 50 } = options;
+    const { storeId, status, startDate, endDate, customerId, search, paymentMethod, skip = 0, take = 50 } = options;
 
     const where: Prisma.SaleWhereInput = {
       organizationId,
@@ -116,6 +119,23 @@ export class SaleRepository {
       if (endDate) {
         where.createdAt.lte = endDate;
       }
+    }
+
+    // Search by orderNumber or customer name
+    if (search) {
+      where.OR = [
+        { orderNumber: { contains: search, mode: 'insensitive' } },
+        { customer: { name: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    // Filter by payment method
+    if (paymentMethod) {
+      where.payments = {
+        some: {
+          method: paymentMethod,
+        },
+      };
     }
 
     const [sales, total] = await Promise.all([

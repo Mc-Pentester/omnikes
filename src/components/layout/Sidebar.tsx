@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Button } from '@omnikes/components/ui/button';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { useAuth } from '@omnikes/contexts/AuthContext';
 
@@ -19,7 +18,7 @@ const menuItems: MenuItem[] = [
   { id: 'products', label: 'Produits', icon: '📦', path: '/products', available: true },
   { id: 'sales', label: 'Ventes', icon: '🧾', path: '/sales', available: false },
   { id: 'proformas', label: 'Proformas', icon: '📄', path: '/proformas', available: true },
-  { id: 'reports', label: 'Rapports', icon: '📊', path: '/reports', available: false },
+  { id: 'reports', label: 'Rapports', icon: '📊', path: '/reports', available: true },
   { id: 'inventory', label: 'Inventaire', icon: '📦', path: '/inventory', available: true },
   { id: 'stores', label: 'Magasins', icon: '🏪', path: '/stores', available: true },
   { id: 'customers', label: 'Clients', icon: '👥', path: '/customers', available: false },
@@ -96,12 +95,12 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
               <button
                 onClick={() => handleNavigate(item)}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                  pathname === item.path
+                  pathname === item.path || (item.path === '/reports' && pathname.startsWith('/reports'))
                     ? 'bg-blue-50 text-blue-600 font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 } ${!item.available ? 'opacity-50 cursor-not-allowed' : ''}`}
                 role="menuitem"
-                aria-current={pathname === item.path ? 'page' : undefined}
+                aria-current={pathname === item.path || (item.path === '/reports' && pathname.startsWith('/reports')) ? 'page' : undefined}
                 disabled={!item.available}
                 title={!item.available ? 'Module non disponible' : item.label}
               >

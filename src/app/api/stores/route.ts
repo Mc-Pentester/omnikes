@@ -121,6 +121,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Prisma P2002 - Unique constraint violation
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if ((error as any).code === 'P2002') {
         return NextResponse.json(
           { error: 'Un magasin avec ce code existe déjà dans cette organisation.' },
