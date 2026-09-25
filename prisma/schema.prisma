@@ -628,3 +628,25 @@ model ProformaItem {
   @@index([variantId])
   @@map("proforma_items")
 }
+
+// ============================================================
+// CHECKOUT IDEMPOTENCY (Idempotency for checkout operations)
+// ============================================================
+
+model CheckoutIdempotency {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  saleId         String
+  key            String
+  status         String   @default("PROCESSING") // PROCESSING, COMPLETED, FAILED
+  responseStatus Int?
+  responseBody   String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, key])
+  @@index([saleId])
+  @@index([userId])
+  @@map("checkout_idempotency")
+}

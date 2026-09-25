@@ -451,16 +451,15 @@ export default function HomePage() {
         throw new Error('Le total serveur de la vente est invalide. Veuillez réessayer.');
       }
       
-      console.log('[TOTAL FORENSIC] Payment amount:', {
-        displayTotal,
-        serverTotal: totals.total,
-        paymentAmount: totals.total,
-        paymentMethod,
-      });
+      // Generate idempotency key for this checkout attempt
+      const idempotencyKey = crypto.randomUUID();
       
-      const paymentResponse = await fetch(`/api/sales/${currentSaleId}/payments`, {
+      const response = await fetch(`/api/sales/${currentSaleId}/checkout`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey,
+        },
         body: JSON.stringify({
           method: paymentMethod,
           amount: totals.total,
@@ -468,25 +467,8 @@ export default function HomePage() {
         }),
       });
       
-      if (!paymentResponse.ok) {
-        let errorMessage = 'Échec du paiement';
-        try {
-          const data = await paymentResponse.json();
-          if (typeof data?.error === 'string') {
-            errorMessage = data.error;
-          } else if (typeof data?.message === 'string') {
-            errorMessage = data.message;
-          }
-        } catch {
-          // conserver le message générique
-        }
-        throw new Error(errorMessage);
-      }
-      
-      const response = await fetch(`/api/sales/${currentSaleId}/complete`, { method: 'POST' });
-      
       if (!response.ok) {
-        let errorMessage = 'Échec de la finalisation de la vente';
+        let errorMessage = 'Échec du checkout';
         try {
           const data = await response.json();
           if (typeof data?.error === 'string') {
