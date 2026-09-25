@@ -119,6 +119,14 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+
+      // Prisma P2002 - Unique constraint violation
+      if ((error as any).code === 'P2002') {
+        return NextResponse.json(
+          { error: 'Un magasin avec ce code existe déjà dans cette organisation.' },
+          { status: 409 }
+        );
+      }
     }
     
     console.error('Error creating store:', error);
