@@ -84,6 +84,7 @@ export class SaleRepository {
    */
   async listByOrganization(organizationId: string, options: {
     storeId?: string;
+    authorizedStoreIds?: string[] | null;
     status?: string;
     startDate?: Date;
     endDate?: Date;
@@ -93,7 +94,7 @@ export class SaleRepository {
     skip?: number;
     take?: number;
   } = {}) {
-    const { storeId, status, startDate, endDate, customerId, search, paymentMethod, skip = 0, take = 50 } = options;
+    const { storeId, authorizedStoreIds, status, startDate, endDate, customerId, search, paymentMethod, skip = 0, take = 50 } = options;
 
     const where: Prisma.SaleWhereInput = {
       organizationId,
@@ -101,6 +102,13 @@ export class SaleRepository {
 
     if (storeId) {
       where.storeId = storeId;
+    } else if (authorizedStoreIds != null) {
+      // If user is scoped to specific stores, filter by authorized stores
+      if (authorizedStoreIds.length === 0) {
+        // User has no authorized stores → return empty result
+        return { sales: [], total: 0 };
+      }
+      where.storeId = { in: authorizedStoreIds };
     }
 
     if (status) {

@@ -53,8 +53,8 @@ export class SalesReportService {
   async getSalesByStore(organizationId: string, options: {
     startDate?: Date;
     endDate?: Date;
-  } = {}) {
-    return salesReportRepository.getSalesByStore(organizationId, options);
+  } = {}, authorizedStoreIds?: string[] | null) {
+    return salesReportRepository.getSalesByStore(organizationId, options, authorizedStoreIds);
   }
 }
 

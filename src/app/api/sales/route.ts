@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saleService } from '@omnikes/services/sale.service';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, getAuthorizedStoreIds } from '@omnikes/lib/auth';
 import { validatePagination } from '@omnikes/lib/pagination';
 import { parseDateRange } from '@omnikes/lib/date-validation';
 
@@ -46,6 +46,9 @@ export async function GET(request: NextRequest) {
       await requireStoreAccess(request, storeId);
     }
 
+    // Get authorized store IDs for scoped users
+    const authorizedStoreIds = await getAuthorizedStoreIds(request);
+
     const { startDate, endDate } = parseDateRange(
       searchParams.get('startDate'),
       searchParams.get('endDate')
@@ -58,6 +61,7 @@ export async function GET(request: NextRequest) {
 
     const result = await saleService.list(organizationId, {
       storeId,
+      authorizedStoreIds,
       status,
       customerId,
       search,

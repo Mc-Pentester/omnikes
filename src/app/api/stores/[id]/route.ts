@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storeService } from '@omnikes/services/store.service';
 import { storeRepository } from '@omnikes/repositories/store.repository';
-import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
 import { storeSchema } from '@omnikes/lib/validation';
 
 /**
@@ -16,6 +16,9 @@ export async function GET(
     const organizationId = await requireCurrentOrganizationId(request);
     const { id: storeId } = await params;
 
+    // Verify store access before fetching
+    await requireStoreAccess(request, storeId);
+
     const store = await storeService.getStore(storeId, organizationId);
 
     return NextResponse.json({ store });
@@ -25,6 +28,13 @@ export async function GET(
         return NextResponse.json(
           { error: 'Authentication required' },
           { status: 401 }
+        );
+      }
+
+      if (error.message === 'Not authorized to access this store') {
+        return NextResponse.json(
+          { error: 'Not authorized to access this store' },
+          { status: 403 }
         );
       }
 
@@ -56,6 +66,10 @@ export async function PATCH(
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'store.update');
     const { id: storeId } = await params;
+
+    // Verify store access before updating
+    await requireStoreAccess(request, storeId);
+
     const body = await request.json();
 
     // Validate input using Zod schema (partial, exclude organizationId)
@@ -82,6 +96,13 @@ export async function PATCH(
         return NextResponse.json(
           { error: 'Authentication required' },
           { status: 401 }
+        );
+      }
+
+      if (error.message === 'Not authorized to access this store') {
+        return NextResponse.json(
+          { error: 'Not authorized to access this store' },
+          { status: 403 }
         );
       }
 
@@ -129,6 +150,9 @@ export async function DELETE(
     await requirePermission(request, 'store.delete');
     const { id: storeId } = await params;
 
+    // Verify store access before deactivating
+    await requireStoreAccess(request, storeId);
+
     const store = await storeService.deactivate(storeId, organizationId);
 
     return NextResponse.json({ store });
@@ -138,6 +162,13 @@ export async function DELETE(
         return NextResponse.json(
           { error: 'Authentication required' },
           { status: 401 }
+        );
+      }
+
+      if (error.message === 'Not authorized to access this store') {
+        return NextResponse.json(
+          { error: 'Not authorized to access this store' },
+          { status: 403 }
         );
       }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storeService } from '@omnikes/services/store.service';
-import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
 
 /**
  * POST /api/stores/[id]/deactivate
@@ -15,6 +15,9 @@ export async function POST(
     await requirePermission(request, 'store.deactivate');
     const { id: storeId } = await params;
 
+    // Verify store access before deactivating
+    await requireStoreAccess(request, storeId);
+
     const store = await storeService.deactivate(storeId, organizationId);
 
     return NextResponse.json({ store });
@@ -24,6 +27,13 @@ export async function POST(
         return NextResponse.json(
           { error: 'Authentication required' },
           { status: 401 }
+        );
+      }
+
+      if (error.message === 'Not authorized to access this store') {
+        return NextResponse.json(
+          { error: 'Not authorized to access this store' },
+          { status: 403 }
         );
       }
 

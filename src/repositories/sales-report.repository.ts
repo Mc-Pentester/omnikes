@@ -300,13 +300,22 @@ export class SalesReportRepository {
   async getSalesByStore(organizationId: string, options: {
     startDate?: Date;
     endDate?: Date;
-  } = {}) {
+  } = {}, authorizedStoreIds?: string[] | null) {
     const { startDate, endDate } = options;
 
     const where: Prisma.SaleWhereInput = {
       organizationId,
       status: 'COMPLETED',
     };
+
+    // If user is scoped to specific stores, filter by authorized stores
+    if (authorizedStoreIds != null) {
+      if (authorizedStoreIds.length === 0) {
+        // User has no authorized stores → return empty result
+        return [];
+      }
+      where.storeId = { in: authorizedStoreIds };
+    }
 
     if (startDate || endDate) {
       where.createdAt = {};

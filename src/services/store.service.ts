@@ -8,6 +8,7 @@ export class StoreService {
    */
   async listStores(organizationId: string, options: {
     isActive?: boolean;
+    authorizedStoreIds?: string[] | null;
     skip?: number;
     take?: number;
   } = {}) {

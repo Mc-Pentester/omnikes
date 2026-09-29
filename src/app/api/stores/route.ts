@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storeService } from '@omnikes/services/store.service';
 import { storeRepository } from '@omnikes/repositories/store.repository';
-import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, getAuthorizedStoreIds } from '@omnikes/lib/auth';
 import { validatePagination } from '@omnikes/lib/pagination';
 import { storeSchema } from '@omnikes/lib/validation';
 
@@ -22,8 +22,12 @@ export async function GET(request: NextRequest) {
       searchParams.get('take')
     );
 
+    // Get authorized store IDs for scoped users
+    const authorizedStoreIds = await getAuthorizedStoreIds(request);
+
     const result = await storeService.listStores(organizationId, {
       isActive,
+      authorizedStoreIds,
       skip,
       take,
     });

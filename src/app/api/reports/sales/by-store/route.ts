@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { salesReportService } from '@omnikes/services/sales-report.service';
 import { salesReportStoreSchema } from '@omnikes/lib/validation';
-import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, getAuthorizedStoreIds } from '@omnikes/lib/auth';
 
 /**
  * GET /api/reports/sales/by-store
@@ -22,7 +22,10 @@ export async function GET(request: NextRequest) {
       endDate,
     });
 
-    const result = await salesReportService.getSalesByStore(organizationId, validatedData);
+    // Get authorized store IDs for scoped users
+    const authorizedStoreIds = await getAuthorizedStoreIds(request);
+
+    const result = await salesReportService.getSalesByStore(organizationId, validatedData, authorizedStoreIds);
 
     return NextResponse.json(result);
   } catch (error) {

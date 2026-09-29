@@ -7,10 +7,11 @@ export class StoreRepository {
    */
   async listByOrganization(organizationId: string, options: {
     isActive?: boolean;
+    authorizedStoreIds?: string[] | null;
     skip?: number;
     take?: number;
   } = {}) {
-    const { isActive, skip = 0, take = 50 } = options;
+    const { isActive, authorizedStoreIds, skip = 0, take = 50 } = options;
 
     const where: Prisma.StoreWhereInput = {
       organizationId,
@@ -18,6 +19,15 @@ export class StoreRepository {
 
     if (isActive !== undefined) {
       where.isActive = isActive;
+    }
+
+    // If user is scoped to specific stores, filter by authorized stores
+    if (authorizedStoreIds != null) {
+      if (authorizedStoreIds.length === 0) {
+        // User has no authorized stores → return empty result
+        return { stores: [], total: 0 };
+      }
+      where.id = { in: authorizedStoreIds };
     }
 
     const [stores, total] = await Promise.all([

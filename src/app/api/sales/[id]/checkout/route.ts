@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@omnikes/lib/prisma';
-import { requireCurrentOrganizationId, requirePermission, getAuthenticatedUser } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, getAuthenticatedUser, requireStoreAccess } from '@omnikes/lib/auth';
 import { paymentSchema } from '@omnikes/lib/validation';
 
 /**
@@ -94,6 +94,39 @@ export async function POST(
       }
     }
 
+    // Fetch sale to verify store access before transaction
+    const saleForAccessCheck = await prisma.sale.findUnique({
+      where: { id: saleId },
+      select: { storeId: true, organizationId: true },
+    });
+
+    if (!saleForAccessCheck) {
+      return NextResponse.json(
+        { error: 'Sale not found' },
+        { status: 404 }
+      );
+    }
+
+    // Verify organization
+    if (saleForAccessCheck.organizationId !== organizationId) {
+      return NextResponse.json(
+        { error: 'Sale not found or access denied' },
+        { status: 404 }
+      );
+    }
+
+    // Verify store access (RBAC store scope)
+    if (saleForAccessCheck.storeId) {
+      try {
+        await requireStoreAccess(request, saleForAccessCheck.storeId);
+      } catch {
+        return NextResponse.json(
+          { error: 'Not authorized to access this store' },
+          { status: 403 }
+        );
+      }
+    }
+
     // Execute atomic checkout transaction
     const result = await prisma.$transaction(async (tx) => {
       // Create idempotency record with PROCESSING status
@@ -125,12 +158,12 @@ export async function POST(
         throw new Error('Sale not found');
       }
 
-      // Verify organization
+      // Verify organization (re-verify inside transaction for consistency)
       if (sale.organizationId !== organizationId) {
         throw new Error('Sale not found or access denied');
       }
 
-      // Verify store access
+      // Verify store belongs to organization (tenant boundary)
       if (sale.storeId) {
         const storeAccess = await tx.store.findUnique({
           where: { id: sale.storeId },

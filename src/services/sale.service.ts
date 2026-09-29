@@ -68,6 +68,7 @@ export class SaleService {
    */
   async list(organizationId: string, options: {
     storeId?: string;
+    authorizedStoreIds?: string[] | null;
     status?: string;
     startDate?: Date;
     endDate?: Date;
