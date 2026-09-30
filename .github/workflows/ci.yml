@@ -62,4 +62,6 @@ jobs:
           fi
 
       - name: Build
+        env:
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/omnikes_ci
         run: npm run build
