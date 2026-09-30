@@ -27,7 +27,18 @@ vi.mock('@omnikes/services/store.service', () => ({
 }));
 
 describe('SaleService - explicit credit and completion coverage', () => {
-  const baseSale = {
+  const baseSale: {
+    id: string;
+    organizationId: string;
+    storeId: string;
+    orderNumber: string;
+    status: string;
+    total: number;
+    customerId: string | null;
+    items: Array<{ quantity: number; variant: { sku: string }; variantId: string }>;
+    payments: Array<{ status: string; method: string; amount: number }>;
+    saleCredit: { amount: number; status: string } | null;
+  } = {
     id: 'sale-1',
     organizationId: 'org-1',
     storeId: 'store-1',
