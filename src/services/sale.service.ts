@@ -595,18 +595,15 @@ export class SaleService {
 
     const validatedData = paymentSchema.parse(data);
 
-    // CREDIT is intentionally no longer a payment method. Historical CREDIT
+    // CREDIT is intentionally absent from paymentSchema. Historical CREDIT
     // rows remain readable, but new credit must use SaleCredit.
-    if ((validatedData as { method: string }).method === 'CREDIT') {
-      throw new Error('CREDIT payments are no longer accepted; authorize explicit sale credit instead');
-    }
 
     // INVARIANT: payment amount must be positive
     if (validatedData.amount <= 0) {
       throw new Error('Payment amount must be positive');
     }
 
-    // INVARIANT: Check payment doesn't exceed sale total (unless CREDIT method)
+    // INVARIANT: real payment cannot exceed the remaining balance
     const sale = await saleRepository.findById(saleId, organizationId);
     
     if (!sale) {
@@ -616,7 +613,7 @@ export class SaleService {
     const totalPaid = await saleRepository.getTotalPaid(saleId, organizationId);
     const remainingAmount = Number(sale.total) - totalPaid;
 
-    if (validatedData.method !== 'CREDIT' && validatedData.amount > remainingAmount) {
+    if (validatedData.amount > remainingAmount) {
       throw new Error(`Payment amount exceeds remaining balance. Remaining: ${remainingAmount}, Attempted: ${validatedData.amount}`);
     }
 
