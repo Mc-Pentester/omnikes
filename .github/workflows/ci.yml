@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -36,7 +38,28 @@ jobs:
         run: npm test
 
       - name: Lint
-        run: npm run lint
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=1
+
+            mapfile -t changed_files < <(
+              git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- \
+                '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs'
+            )
+
+            if [ "${#changed_files[@]}" -eq 0 ]; then
+              echo "No lintable files changed in this pull request."
+            else
+              echo "Linting changed files only:"
+              printf ' - %s\n' "${changed_files[@]}"
+              npx eslint "${changed_files[@]}"
+            fi
+          else
+            npm run lint
+          fi
 
       - name: Build
         run: npm run build
