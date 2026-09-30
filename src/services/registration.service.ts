@@ -4,6 +4,7 @@ import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { userRepository } from '@omnikes/repositories/user.repository';
 import { organizationRepository } from '@omnikes/repositories/organization.repository';
 import { generateUniqueSlug } from '@omnikes/lib/slug';
+import { checkRateLimit, getIpRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
 import { randomBytes } from 'crypto';
 
 export interface RegisterInput {
@@ -25,13 +26,37 @@ export interface RegisterResult {
   expiresAt: Date;
 }
 
+export class RateLimitError extends Error {
+  constructor(message: string, public resetTime?: number) {
+    super(message);
+    this.name = 'RateLimitError';
+  }
+}
+
 export class RegistrationService {
+  constructor() {
+    // Start cleanup timer on first instantiation
+    startRateLimitCleanup();
+  }
+
   /**
    * Register a new user with a new organization
    * Creates: Organization, User, ADMIN Role, UserRole, Session
+   * Rate limited by IP to prevent mass registration
    */
   async register(data: RegisterInput, ipAddress?: string, userAgent?: string): Promise<RegisterResult> {
     const { organizationName, name, email, password } = data;
+
+    // Check rate limit by IP to prevent mass registration
+    const rateLimitId = getIpRateLimitIdentifier(ipAddress);
+    const rateLimitResult = checkRateLimit(rateLimitId);
+    
+    if (!rateLimitResult.allowed) {
+      throw new RateLimitError(
+        'Too many registration attempts. Please try again later.',
+        rateLimitResult.resetTime
+      );
+    }
 
     // Normalize email
     const normalizedEmail = this.normalizeEmail(email);
@@ -111,11 +136,10 @@ export class RegistrationService {
       user: {
         connect: { id: result.user.id },
       },
-      token,
       expiresAt,
       ipAddress,
       userAgent,
-    });
+    }, token);
 
     return {
       user: {

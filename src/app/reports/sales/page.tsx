@@ -370,100 +370,114 @@ export default function SalesReportPage() {
             {/* KPI */}
             {summary && (
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-                <div className="bg-white border rounded-lg p-6">
+                <div className="bg-white border rounded-lg p-6 shadow-sm">
                   <div className="text-sm text-gray-600 mb-1">CA Total</div>
-                  <div className="text-2xl font-bold">{formatCurrency(summary.totalRevenue)}</div>
+                  <div className="text-2xl font-bold text-green-600">{formatCurrency(summary.totalRevenue)}</div>
                 </div>
-                <div className="bg-white border rounded-lg p-6">
+                <div className="bg-white border rounded-lg p-6 shadow-sm">
                   <div className="text-sm text-gray-600 mb-1">Ventes</div>
-                  <div className="text-2xl font-bold">{summary.salesCount}</div>
+                  <div className="text-2xl font-bold text-blue-600">{summary.salesCount}</div>
                 </div>
-                <div className="bg-white border rounded-lg p-6">
+                <div className="bg-white border rounded-lg p-6 shadow-sm">
                   <div className="text-sm text-gray-600 mb-1">Panier Moyen</div>
-                  <div className="text-2xl font-bold">{formatCurrency(summary.averageSale)}</div>
+                  <div className="text-2xl font-bold text-purple-600">{formatCurrency(summary.averageSale)}</div>
                 </div>
-                <div className="bg-white border rounded-lg p-6">
+                <div className="bg-white border rounded-lg p-6 shadow-sm">
                   <div className="text-sm text-gray-600 mb-1">Taxes</div>
-                  <div className="text-2xl font-bold">{formatCurrency(summary.totalTax)}</div>
+                  <div className="text-2xl font-bold text-orange-600">{formatCurrency(summary.totalTax)}</div>
                 </div>
-                <div className="bg-white border rounded-lg p-6">
+                <div className="bg-white border rounded-lg p-6 shadow-sm">
                   <div className="text-sm text-gray-600 mb-1">Remises</div>
-                  <div className="text-2xl font-bold">{formatCurrency(summary.totalDiscount)}</div>
+                  <div className="text-2xl font-bold text-red-600">{formatCurrency(summary.totalDiscount)}</div>
                 </div>
               </div>
             )}
 
             {/* Évolution des ventes */}
-            <div className="bg-white border rounded-lg p-6 mb-8">
+            <div className="bg-white border rounded-lg p-6 mb-8 shadow-sm">
               <h2 className="text-lg font-semibold mb-4">Évolution des Ventes</h2>
               {byPeriod.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">Aucune donnée disponible</div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-2">Période</th>
-                        <th className="text-right py-2">Ventes</th>
-                        <th className="text-right py-2">CA</th>
-                        <th className="text-right py-2">Articles</th>
-                        <th className="text-right py-2">Taxes</th>
-                        <th className="text-right py-2">Remises</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {byPeriod.map((item) => (
-                        <tr key={item.period} className="border-b">
-                          <td className="py-2">{item.period}</td>
-                          <td className="text-right py-2">{item.salesCount}</td>
-                          <td className="text-right py-2">{formatCurrency(item.revenue)}</td>
-                          <td className="text-right py-2">{item.itemsSold}</td>
-                          <td className="text-right py-2">{formatCurrency(item.tax)}</td>
-                          <td className="text-right py-2">{formatCurrency(item.discount)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-3">
+                  {byPeriod.map((item) => {
+                    const maxRevenue = Math.max(...byPeriod.map(p => p.revenue));
+                    const percentage = maxRevenue > 0 ? (item.revenue / maxRevenue) * 100 : 0;
+                    return (
+                      <div key={item.period} className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="font-medium">{item.period}</span>
+                          <span className="text-gray-600">{formatCurrency(item.revenue)} ({item.salesCount} ventes)</span>
+                        </div>
+                        <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
 
             {/* Répartition des paiements */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              <div className="bg-white border rounded-lg p-6">
+              <div className="bg-white border rounded-lg p-6 shadow-sm">
                 <h2 className="text-lg font-semibold mb-4">Répartition des Paiements</h2>
                 {byPaymentMethod.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">Aucune donnée disponible</div>
                 ) : (
                   <div className="space-y-3">
-                    {byPaymentMethod.map((item) => (
-                      <div key={item.paymentMethod} className="flex justify-between items-center">
-                        <span className="font-medium">{item.paymentMethod}</span>
-                        <div className="text-right">
-                          <div className="font-bold">{formatCurrency(item.amount)}</div>
-                          <div className="text-sm text-gray-600">{item.transactionCount} transactions</div>
+                    {byPaymentMethod.map((item) => {
+                      const maxAmount = Math.max(...byPaymentMethod.map(p => p.amount));
+                      const percentage = maxAmount > 0 ? (item.amount / maxAmount) * 100 : 0;
+                      return (
+                        <div key={item.paymentMethod} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="font-medium">{item.paymentMethod}</span>
+                            <span className="text-gray-600">{formatCurrency(item.amount)}</span>
+                          </div>
+                          <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-green-500 rounded-full transition-all duration-300"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                          <div className="text-xs text-gray-500">{item.transactionCount} transactions</div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
 
-              <div className="bg-white border rounded-lg p-6">
+              <div className="bg-white border rounded-lg p-6 shadow-sm">
                 <h2 className="text-lg font-semibold mb-4">Ventes par Magasin</h2>
                 {byStore.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">Aucune donnée disponible</div>
                 ) : (
                   <div className="space-y-3">
-                    {byStore.map((item) => (
-                      <div key={item.storeId} className="flex justify-between items-center">
-                        <span className="font-medium">{item.storeName}</span>
-                        <div className="text-right">
-                          <div className="font-bold">{formatCurrency(item.revenue)}</div>
-                          <div className="text-sm text-gray-600">{item.salesCount} ventes</div>
+                    {byStore.map((item) => {
+                      const maxRevenue = Math.max(...byStore.map(s => s.revenue));
+                      const percentage = maxRevenue > 0 ? (item.revenue / maxRevenue) * 100 : 0;
+                      return (
+                        <div key={item.storeId} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="font-medium">{item.storeName}</span>
+                            <span className="text-gray-600">{formatCurrency(item.revenue)}</span>
+                          </div>
+                          <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-purple-500 rounded-full transition-all duration-300"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                          <div className="text-xs text-gray-500">{item.salesCount} ventes</div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

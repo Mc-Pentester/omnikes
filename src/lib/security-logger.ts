@@ -10,6 +10,9 @@ type SecurityEventType =
   | 'SESSION_REVOKED'
   | 'SESSION_CREATED'
   | 'PASSWORD_CHANGED'
+  | 'PASSWORD_RESET_REQUESTED'
+  | 'PASSWORD_RESET_SUCCESS'
+  | 'PASSWORD_RESET_FAILED'
   | 'ACCESS_DENIED'
   | 'TENANT_VIOLATION'
   | 'RBAC_VIOLATION'
@@ -129,6 +132,38 @@ export const securityLogger = {
       userId,
       email,
       ipAddress,
+    });
+  },
+
+  passwordResetRequested: (userId: string | null, email: string, ipAddress?: string, reason?: string) => {
+    logSecurityEvent({
+      type: 'PASSWORD_RESET_REQUESTED',
+      timestamp: new Date(),
+      userId: userId || undefined,
+      email,
+      ipAddress,
+      details: reason ? { reason } : undefined,
+    });
+  },
+
+  passwordResetSuccess: (userId: string, email: string, ipAddress?: string) => {
+    logSecurityEvent({
+      type: 'PASSWORD_RESET_SUCCESS',
+      timestamp: new Date(),
+      userId,
+      email,
+      ipAddress,
+    });
+  },
+
+  passwordResetFailed: (userId: string | null, email: string | null, ipAddress?: string, reason?: string) => {
+    logSecurityEvent({
+      type: 'PASSWORD_RESET_FAILED',
+      timestamp: new Date(),
+      userId: userId || undefined,
+      email: email || undefined,
+      ipAddress,
+      details: reason ? { reason } : undefined,
     });
   },
 

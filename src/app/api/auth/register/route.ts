@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { registrationService } from '@omnikes/services/registration.service';
+import { registrationService, RateLimitError } from '@omnikes/services/registration.service';
+import { getClientIP } from '@omnikes/lib/rate-limiter';
 import { registrationSchema } from '@omnikes/lib/validation';
 import { z } from 'zod';
 
@@ -8,6 +9,7 @@ import { z } from 'zod';
  * Register a new user with a new organization
  * Creates: Organization, User, ADMIN Role, UserRole, Session
  * Returns: authenticated user with session cookie
+ * Rate limited by IP to prevent mass registration
  */
 export async function POST(request: NextRequest) {
   try {
@@ -16,9 +18,7 @@ export async function POST(request: NextRequest) {
     // Validate input
     const validatedData = registrationSchema.parse(body);
 
-    const ipAddress = request.headers.get('x-forwarded-for') || 
-                     request.headers.get('x-real-ip') || 
-                     undefined;
+    const ipAddress = getClientIP(request.headers);
     const userAgent = request.headers.get('user-agent') || undefined;
 
     // Remove confirmPassword before passing to service
@@ -50,6 +50,23 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid input', details: error.issues },
         { status: 400 }
       );
+    }
+
+    if (error instanceof RateLimitError) {
+      const response = NextResponse.json(
+        { error: error.message },
+        { status: 429 }
+      );
+      
+      // Add Retry-After header if reset time is available
+      if (error.resetTime) {
+        const retryAfterSeconds = Math.ceil((error.resetTime - Date.now()) / 1000);
+        if (retryAfterSeconds > 0) {
+          response.headers.set('Retry-After', retryAfterSeconds.toString());
+        }
+      }
+      
+      return response;
     }
 
     if (error instanceof Error) {

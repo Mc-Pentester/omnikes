@@ -89,6 +89,11 @@ export default function LoginPage() {
               Créer un compte
             </a>
           </p>
+          <p className="mt-2">
+            <a href="/forgot-password" className="text-blue-600 hover:text-blue-800">
+              Mot de passe oublié?
+            </a>
+          </p>
         </div>
       </Card>
     </div>

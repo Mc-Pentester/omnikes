@@ -1,46 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authService, RateLimitError } from '@omnikes/services/auth.service';
+import { passwordResetService, RateLimitError } from '@omnikes/services/password-reset.service';
 import { getClientIP } from '@omnikes/lib/rate-limiter';
 import { z } from 'zod';
 
-const loginSchema = z.object({
+const forgotPasswordSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
 });
 
 /**
- * POST /api/auth/login
- * Authenticate user and return session token
+ * POST /api/auth/forgot-password
+ * Request a password reset for an email
+ * Rate limited by IP to prevent abuse
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const validatedData = loginSchema.parse(body);
+    const validatedData = forgotPasswordSchema.parse(body);
 
     const ipAddress = getClientIP(request.headers);
-    const userAgent = request.headers.get('user-agent') || undefined;
 
-    const result = await authService.login(
+    const result = await passwordResetService.requestPasswordReset(
       validatedData.email,
-      validatedData.password,
-      ipAddress,
-      userAgent
+      ipAddress
     );
 
-    // Set token as HTTP-only cookie
-    const response = NextResponse.json({
-      user: result.user,
-      expiresAt: result.expiresAt,
-    });
-
-    response.cookies.set('auth_token', result.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      expires: result.expiresAt,
-    });
-
-    return response;
+    return NextResponse.json(result);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -69,13 +53,13 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error) {
       return NextResponse.json(
         { error: error.message },
-        { status: 401 }
+        { status: 400 }
       );
     }
 
-    console.error('Login error:', error);
+    console.error('Forgot password error:', error);
     return NextResponse.json(
-      { error: 'Login failed' },
+      { error: 'Failed to request password reset' },
       { status: 500 }
     );
   }

@@ -5,17 +5,13 @@ import { hashToken, constantTimeCompare } from '@omnikes/lib/crypto';
 export class SessionRepository {
   /**
    * Create a new session with hashed token
+   * Raw token is NEVER persisted - only tokenHash is stored
    */
-  async create(data: Prisma.SessionCreateInput) {
-    // Hash the token and store it in tokenHash
-    // Keep token for backward compatibility during migration
-    const sessionData: Prisma.SessionCreateInput = { ...data };
-    
-    if (sessionData.token) {
-      sessionData.tokenHash = hashToken(sessionData.token);
-    }
+  async create(data: Omit<Prisma.SessionCreateInput, 'tokenHash'>, rawToken: string) {
+    // Hash the token and store ONLY tokenHash
+    const sessionData: Prisma.SessionCreateInput = { ...data, tokenHash: hashToken(rawToken) };
 
-    return prisma.session.create({
+    const session = await prisma.session.create({
       data: sessionData,
       include: {
         user: {
@@ -25,20 +21,21 @@ export class SessionRepository {
         },
       },
     });
+
+    // Return session with raw token attached for cookie creation
+    // This is safe because it's only in memory, never persisted
+    return { ...session, token: rawToken };
   }
 
   /**
-   * Find a session by token (for backward compatibility during migration)
-   * @deprecated Use findByTokenHash instead
+   * Find a session by token hash
+   * Only tokenHash is used for lookup - raw token is never accepted
    */
   async findByToken(token: string) {
     const tokenHash = hashToken(token);
     return prisma.session.findFirst({
       where: {
-        OR: [
-          { token }, // Fallback for old sessions during migration
-          { tokenHash }, // New secure approach
-        ],
+        tokenHash, // Secure approach - only hash lookup
       },
       include: {
         user: {
@@ -57,16 +54,14 @@ export class SessionRepository {
 
   /**
    * Find a valid (non-expired, non-revoked) session by token hash
+   * Only tokenHash is used for lookup - raw token is never accepted
    */
   async findValidByToken(token: string) {
     const tokenHash = hashToken(token);
-    
+
     const session = await prisma.session.findFirst({
       where: {
-        OR: [
-          { token }, // Fallback for old sessions during migration
-          { tokenHash }, // New secure approach
-        ],
+        tokenHash, // Secure approach - only hash lookup
       },
       include: {
         user: {
@@ -95,16 +90,14 @@ export class SessionRepository {
 
   /**
    * Update last accessed timestamp by token hash
+   * Only tokenHash is used for lookup - raw token is never accepted
    */
   async updateLastAccessed(token: string) {
     const tokenHash = hashToken(token);
-    
+
     return prisma.session.updateMany({
       where: {
-        OR: [
-          { token },
-          { tokenHash },
-        ],
+        tokenHash, // Secure approach - only hash lookup
       },
       data: {
         lastAccessedAt: new Date(),
@@ -114,16 +107,14 @@ export class SessionRepository {
 
   /**
    * Revoke a session by token hash
+   * Only tokenHash is used for lookup - raw token is never accepted
    */
   async revoke(token: string) {
     const tokenHash = hashToken(token);
-    
+
     return prisma.session.updateMany({
       where: {
-        OR: [
-          { token },
-          { tokenHash },
-        ],
+        tokenHash, // Secure approach - only hash lookup
       },
       data: {
         revokedAt: new Date(),

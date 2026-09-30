@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
 import { inventoryRepository } from '@omnikes/repositories/inventory.repository';
 import { productRepository } from '@omnikes/repositories/product.repository';
 import { storeRepository } from '@omnikes/repositories/store.repository';
@@ -12,15 +12,16 @@ import { storeRepository } from '@omnikes/repositories/store.repository';
 export async function POST(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'inventory.adjust');
 
     // Get all active stores
     const storesResult = await storeRepository.listByOrganization(organizationId, { isActive: true });
     const stores = storesResult.stores;
-    
+
     // Get all products with variants
     const productsResult = await productRepository.listByOrganization(organizationId, { isActive: true });
     const products = productsResult.products;
-    
+
     let createdCount = 0;
     let existingCount = 0;
 
@@ -55,8 +56,15 @@ export async function POST(request: NextRequest) {
           { status: 401 }
         );
       }
+
+      if (error.message.startsWith('Permission required')) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 403 }
+        );
+      }
     }
-    
+
     console.error('Error initializing inventory:', error);
     return NextResponse.json(
       { error: 'Failed to initialize inventory' },

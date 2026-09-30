@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { productVariantService } from '@omnikes/services/product-variant.service';
-import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
 
 /**
  * GET /api/products/[id]/variants
@@ -13,9 +13,10 @@ export async function GET(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'product.read');
     const { searchParams } = new URL(request.url);
-    
-    const isActive = searchParams.get('isActive') === 'true' ? true : 
+
+    const isActive = searchParams.get('isActive') === 'true' ? true :
                      searchParams.get('isActive') === 'false' ? false : undefined;
     const skip = parseInt(searchParams.get('skip') || '0');
     const take = parseInt(searchParams.get('take') || '50');
@@ -35,13 +36,20 @@ export async function GET(
       );
     }
 
+    if (error instanceof Error && error.message.startsWith('Permission required')) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 403 }
+      );
+    }
+
     if (error instanceof Error && error.message === 'Product not found or access denied') {
       return NextResponse.json(
         { error: 'Product not found or access denied' },
         { status: 404 }
       );
     }
-    
+
     console.error('Error listing variants:', error);
     return NextResponse.json(
       { error: 'Failed to list variants' },
@@ -61,6 +69,7 @@ export async function POST(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'product.manage');
     const body = await request.json();
 
     const result = await productVariantService.create(id, organizationId, body);
@@ -71,6 +80,13 @@ export async function POST(
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
+      );
+    }
+
+    if (error instanceof Error && error.message.startsWith('Permission required')) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 403 }
       );
     }
 
@@ -94,7 +110,7 @@ export async function POST(
         { status: 400 }
       );
     }
-    
+
     console.error('Error creating variant:', error);
     return NextResponse.json(
       { error: 'Failed to create variant' },

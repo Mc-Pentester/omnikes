@@ -145,6 +145,20 @@ export class UserRepository {
 
     return user.lockedUntil > new Date();
   }
+
+  /**
+   * Find a user by reset token hash
+   */
+  async findByResetToken(tokenHash: string) {
+    return prisma.user.findFirst({
+      where: {
+        resetPasswordTokenHash: tokenHash,
+        resetPasswordExpiresAt: {
+          gt: new Date(),
+        },
+      },
+    });
+  }
 }
 
 export const userRepository = new UserRepository();

@@ -2,15 +2,34 @@ import bcrypt from 'bcryptjs';
 import { userRepository } from '@omnikes/repositories/user.repository';
 import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { generateToken } from '@omnikes/lib/crypto';
-import { checkRateLimit, resetRateLimit, getRateLimitIdentifier } from '@omnikes/lib/rate-limiter';
+import { checkRateLimit, resetRateLimit, getRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
 import { securityLogger } from '@omnikes/lib/security-logger';
 
 const MAX_SESSIONS_PER_USER = 10; // Limit concurrent sessions per user
 
+// Initialize rate limit cleanup on service import
+let cleanupInitialized = false;
+
+export class RateLimitError extends Error {
+  constructor(message: string, public resetTime?: number) {
+    super(message);
+    this.name = 'RateLimitError';
+  }
+}
+
 export class AuthService {
+  constructor() {
+    // Start cleanup timer on first instantiation
+    if (!cleanupInitialized) {
+      startRateLimitCleanup();
+      cleanupInitialized = true;
+    }
+  }
+
   /**
    * Login with email and password
    * Returns session token on success
+   * Throws RateLimitError if rate limit is exceeded
    */
   async login(email: string, password: string, ipAddress?: string, userAgent?: string) {
     // Check rate limit
@@ -20,7 +39,10 @@ export class AuthService {
     if (!rateLimitResult.allowed) {
       securityLogger.rateLimitExceeded(rateLimitId, ipAddress);
       // Generic error message to prevent enumeration
-      throw new Error('Too many login attempts. Please try again later.');
+      throw new RateLimitError(
+        'Too many login attempts. Please try again later.',
+        rateLimitResult.resetTime
+      );
     }
 
     // Find user by email
@@ -70,11 +92,10 @@ export class AuthService {
       user: {
         connect: { id: user.id },
       },
-      token, // Will be hashed in repository
       expiresAt,
       ipAddress,
       userAgent,
-    });
+    }, token);
 
     securityLogger.loginSuccess(user.id, email, user.organizationId, ipAddress, userAgent);
     securityLogger.sessionCreated(user.id, email, ipAddress, userAgent);

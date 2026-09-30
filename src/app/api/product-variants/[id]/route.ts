@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { productVariantService } from '@omnikes/services/product-variant.service';
-import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
 
 /**
  * GET /api/product-variants/[id]
@@ -13,6 +13,7 @@ export async function GET(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'product.read');
     const variant = await productVariantService.getById(id, organizationId);
 
     return NextResponse.json(variant);
@@ -24,13 +25,20 @@ export async function GET(
       );
     }
 
+    if (error instanceof Error && error.message.startsWith('Permission required')) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 403 }
+      );
+    }
+
     if (error instanceof Error && error.message === 'Product variant not found or access denied') {
       return NextResponse.json(
         { error: 'Product variant not found or access denied' },
         { status: 404 }
       );
     }
-    
+
     console.error('Error getting variant:', error);
     return NextResponse.json(
       { error: 'Failed to get variant' },
@@ -50,6 +58,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'product.manage');
     const body = await request.json();
 
     const variant = await productVariantService.update(id, organizationId, body);
@@ -60,6 +69,13 @@ export async function PATCH(
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
+      );
+    }
+
+    if (error instanceof Error && error.message.startsWith('Permission required')) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 403 }
       );
     }
 
@@ -83,7 +99,7 @@ export async function PATCH(
         { status: 400 }
       );
     }
-    
+
     console.error('Error updating variant:', error);
     return NextResponse.json(
       { error: 'Failed to update variant' },
@@ -103,6 +119,7 @@ export async function DELETE(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'product.manage');
     const variant = await productVariantService.deactivate(id, organizationId);
 
     return NextResponse.json(variant);
@@ -114,13 +131,20 @@ export async function DELETE(
       );
     }
 
+    if (error instanceof Error && error.message.startsWith('Permission required')) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 403 }
+      );
+    }
+
     if (error instanceof Error && error.message === 'Product variant not found or access denied') {
       return NextResponse.json(
         { error: 'Product variant not found or access denied' },
         { status: 404 }
       );
     }
-    
+
     console.error('Error deactivating variant:', error);
     return NextResponse.json(
       { error: 'Failed to deactivate variant' },
