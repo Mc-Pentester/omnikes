@@ -8,10 +8,12 @@ describe('P0-24-F.2-D - real PostgreSQL sale credit runtime', () => {
   let storeA: { id: string };
   let customerA: { id: string };
   let customerB: { id: string };
+  let temporaryCustomerB = false;
   let adminA: { id: string };
   let variantA: { id: string };
 
   const createdSaleIds: string[] = [];
+  const inventorySnapshots = new Map<string, number>();
 
   beforeAll(async () => {
     orgA = (await prisma.organization.findUniqueOrThrow({
@@ -34,10 +36,23 @@ describe('P0-24-F.2-D - real PostgreSQL sale credit runtime', () => {
       select: { id: true },
     });
 
-    customerB = await prisma.customer.findFirstOrThrow({
-      where: { organizationId: orgA.id, email: 'client.b@omnikes.test' },
+    const existingCustomerB = await prisma.customer.findFirst({
+      where: { organizationId: orgA.id, email: 'p0-24-f2-d.customer-b@omnikes.test' },
       select: { id: true },
     });
+    if (existingCustomerB) {
+      customerB = existingCustomerB;
+    } else {
+      customerB = await prisma.customer.create({
+        data: {
+          organizationId: orgA.id,
+          name: 'P0-24-F.2-D Customer B',
+          email: 'p0-24-f2-d.customer-b@omnikes.test',
+        },
+        select: { id: true },
+      });
+      temporaryCustomerB = true;
+    }
 
     adminA = await prisma.user.findUniqueOrThrow({
       where: { email: 'admin.a@omnikes.test' },
@@ -82,6 +97,7 @@ describe('P0-24-F.2-D - real PostgreSQL sale credit runtime', () => {
     });
 
     createdSaleIds.push(sale.id);
+    inventorySnapshots.set(sale.id, inventory.quantity);
     return { sale, inventory };
   }
 
@@ -96,11 +112,12 @@ describe('P0-24-F.2-D - real PostgreSQL sale credit runtime', () => {
     await prisma.inventoryMovement.deleteMany({ where: { referenceId: saleId } });
     await prisma.sale.delete({ where: { id: saleId } });
 
-    if (sale.status === 'COMPLETED') {
+    const snapshot = inventorySnapshots.get(saleId);
+    if (snapshot !== undefined) {
       for (const item of sale.items) {
         await prisma.inventory.update({
           where: { storeId_variantId: { storeId: sale.storeId, variantId: item.variantId } },
-          data: { quantity: { increment: item.quantity } },
+          data: { quantity: snapshot },
         });
       }
     }
@@ -109,6 +126,9 @@ describe('P0-24-F.2-D - real PostgreSQL sale credit runtime', () => {
   afterAll(async () => {
     for (const saleId of [...createdSaleIds].reverse()) {
       await cleanupSale(saleId);
+    }
+    if (temporaryCustomerB) {
+      await prisma.customer.delete({ where: { id: customerB.id } });
     }
     await prisma.$disconnect();
   });
