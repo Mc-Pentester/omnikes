@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ZodError } from 'zod';
 import { prisma } from '@omnikes/lib/prisma';
 import { requireCurrentOrganizationId, requirePermission, getAuthenticatedUser, requireStoreAccess } from '@omnikes/lib/auth';
 import { paymentSchema } from '@omnikes/lib/validation';
@@ -287,6 +288,13 @@ export async function POST(
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: error.issues },
+        { status: 400 }
+      );
+    }
+
     // Handle idempotency failure
     if (error instanceof Error && error.message.includes('Idempotency-Key')) {
       return NextResponse.json(
