@@ -35,7 +35,7 @@ describe('SaleService - explicit credit and completion coverage', () => {
     status: 'PENDING',
     total: 1000,
     customerId: 'customer-1',
-    items: [],
+    items: [{ quantity: 1, variant: { sku: 'SKU-1' }, variantId: 'variant-1' }],
     payments: [],
     saleCredit: null,
   };
@@ -84,7 +84,7 @@ describe('SaleService - explicit credit and completion coverage', () => {
       where: { id: 'sale-1' },
       data: { status: 'COMPLETED' },
     });
-    expect(tx.inventoryMovement.create).not.toHaveBeenCalled();
+    expect(tx.inventoryMovement.create).toHaveBeenCalled();
   });
 
   it('allows partial payment plus authorized credit when coverage is complete', async () => {
