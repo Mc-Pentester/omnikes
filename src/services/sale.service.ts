@@ -1,7 +1,7 @@
 import { saleRepository } from '@omnikes/repositories/sale.repository';
 import { productVariantRepository } from '@omnikes/repositories/product-variant.repository';
 import { storeService } from '@omnikes/services/store.service';
-import { saleSchema, saleUpdateSchema, saleItemSchema, paymentSchema, SaleInput, SaleUpdateInput, SaleItemInput, PaymentInput } from '@omnikes/lib/validation';
+import { saleSchema, saleUpdateSchema, saleItemSchema, paymentSchema, saleCreditSchema, SaleInput, SaleUpdateInput, SaleItemInput, PaymentInput, SaleCreditInput } from '@omnikes/lib/validation';
 import { prisma } from '@omnikes/lib/prisma';
 import { Prisma, SaleItem, Payment } from '@prisma/client';
 
@@ -328,50 +328,63 @@ export class SaleService {
    * Complete a sale (transactional - deducts stock)
    */
   async complete(saleId: string, organizationId: string) {
-    const exists = await saleRepository.belongsToOrganization(saleId, organizationId);
-    
-    if (!exists) {
-      throw new Error('Sale not found or access denied');
-    }
+    return prisma.$transaction(async (tx) => {
+      // Lock the sale row so payment/credit/finalization decisions are serialized.
+      const lockedSaleRows = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM sales
+        WHERE id = ${saleId} AND "organizationId" = ${organizationId}
+        FOR UPDATE
+      `;
 
-    return prisma.$transaction(async () => {
-      // Get sale with items and payments
-      const sale = await prisma.sale.findUnique({
+      if (lockedSaleRows.length === 0) {
+        throw new Error('Sale not found or access denied');
+      }
+
+      const sale = await tx.sale.findUnique({
         where: { id: saleId },
         include: {
-          items: {
-            include: {
-              variant: true,
-            },
-          },
+          items: { include: { variant: true } },
           payments: true,
+          saleCredit: true,
         },
       });
 
       if (!sale) {
-        throw new Error('Sale not found');
+        throw new Error('Sale not found or access denied');
       }
 
       if (sale.status === 'COMPLETED') {
         throw new Error('Sale is already completed');
       }
 
-      // Verify payment amount
-      const totalPaid = sale.payments
-        .filter(p => p.status === 'COMPLETED')
-        .reduce((sum: number, p: Payment) => sum + Number(p.amount), 0);
-
-      if (totalPaid < Number(sale.total)) {
-        // Allow CREDIT method as partial payment
-        const hasCreditPayment = sale.payments.some((p: Payment) => p.method === 'CREDIT');
-        if (!hasCreditPayment) {
-          throw new Error(`Insufficient payment. Required: ${sale.total}, Paid: ${totalPaid}`);
-        }
+      if (sale.status !== 'PENDING') {
+        throw new Error(`Sale cannot be completed from status ${sale.status}`);
       }
 
-      // Verify and lock inventory for each item
+      // Only real completed payments count as money received.
+      // Historical Payment.method=CREDIT records are intentionally excluded;
+      // new credit must be represented by SaleCredit.
+      const totalPaid = sale.payments
+        .filter(p => p.status === 'COMPLETED' && p.method !== 'CREDIT')
+        .reduce((sum: number, p: Payment) => sum + Number(p.amount), 0);
+
+      const authorizedCredit = sale.saleCredit?.status === 'AUTHORIZED'
+        ? Number(sale.saleCredit.amount)
+        : 0;
+
+      const coverage = totalPaid + authorizedCredit;
+      const saleTotal = Number(sale.total);
+
+      if (coverage < saleTotal) {
+        throw new Error(
+          `Insufficient financial coverage. Required: ${sale.total}, Paid: ${totalPaid}, Authorized credit: ${authorizedCredit}`
+        );
+      }
+
+      // Verify and lock inventory for each item. Stock movement and status
+      // update remain inside this same transaction and roll back together.
       for (const item of sale.items) {
-        const inventory = await prisma.$queryRaw<Array<{ id: string; quantity: number; reservedQuantity: number }>>`
+        const inventory = await tx.$queryRaw<Array<{ id: string; quantity: number; reservedQuantity: number }>>`
           SELECT id, quantity, "reservedQuantity"
           FROM inventories
           WHERE "storeId" = ${sale.storeId} AND "variantId" = ${item.variantId}
@@ -389,16 +402,12 @@ export class SaleService {
           throw new Error(`Insufficient stock for ${item.variant.sku}. Available: ${available}, Required: ${item.quantity}`);
         }
 
-        // Deduct stock
-        await prisma.inventory.update({
+        await tx.inventory.update({
           where: { id: currentInventory.id },
-          data: {
-            quantity: currentInventory.quantity - item.quantity,
-          },
+          data: { quantity: currentInventory.quantity - item.quantity },
         });
 
-        // Create SALE movement
-        await prisma.inventoryMovement.create({
+        await tx.inventoryMovement.create({
           data: {
             inventoryId: currentInventory.id,
             type: 'SALE',
@@ -410,13 +419,21 @@ export class SaleService {
         });
       }
 
-      // Update sale status
-      await prisma.sale.update({
+      await tx.sale.update({
         where: { id: saleId },
         data: { status: 'COMPLETED' },
       });
 
-      return saleRepository.findById(saleId, organizationId);
+      return tx.sale.findUnique({
+        where: { id: saleId },
+        include: {
+          store: true,
+          customer: true,
+          items: { include: { variant: { include: { product: true } } } },
+          payments: true,
+          saleCredit: true,
+        },
+      });
     });
   }
 
@@ -496,6 +513,77 @@ export class SaleService {
   }
 
   /**
+   * Authorize explicit customer credit for a pending sale.
+   */
+  async authorizeCredit(saleId: string, organizationId: string, authorizedBy: string, data: SaleCreditInput) {
+    const validatedData = saleCreditSchema.parse(data);
+
+    return prisma.$transaction(async (tx) => {
+      const lockedSaleRows = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM sales
+        WHERE id = ${saleId} AND "organizationId" = ${organizationId}
+        FOR UPDATE
+      `;
+
+      if (lockedSaleRows.length === 0) {
+        throw new Error('Sale not found or access denied');
+      }
+
+      const sale = await tx.sale.findUnique({
+        where: { id: saleId },
+        include: { payments: true, saleCredit: true },
+      });
+
+      if (!sale) {
+        throw new Error('Sale not found or access denied');
+      }
+      if (sale.status !== 'PENDING') {
+        throw new Error('Credit can only be authorized for a PENDING sale');
+      }
+      if (!sale.customerId) {
+        throw new Error('A customer is required to authorize credit');
+      }
+      if (sale.saleCredit) {
+        throw new Error('Credit is already authorized for this sale');
+      }
+
+      const customer = await tx.customer.findFirst({
+        where: { id: validatedData.customerId, organizationId },
+        select: { id: true },
+      });
+      if (!customer) {
+        throw new Error('Customer not found or access denied');
+      }
+      if (customer.id !== sale.customerId) {
+        throw new Error('Credit customer must match the sale customer');
+      }
+
+      const totalPaid = sale.payments
+        .filter(p => p.status === 'COMPLETED' && p.method !== 'CREDIT')
+        .reduce((sum: number, p: Payment) => sum + Number(p.amount), 0);
+      const remaining = Number(sale.total) - totalPaid;
+
+      if (validatedData.amount > remaining) {
+        throw new Error(`Credit amount exceeds remaining balance. Remaining: ${remaining}, Attempted: ${validatedData.amount}`);
+      }
+
+      return tx.saleCredit.create({
+        data: {
+          organizationId,
+          storeId: sale.storeId,
+          saleId,
+          customerId: customer.id,
+          amount: validatedData.amount,
+          status: 'AUTHORIZED',
+          authorizedBy,
+          note: validatedData.note,
+        },
+        include: { customer: true },
+      });
+    });
+  }
+
+  /**
    * Add a payment to a sale
    */
   async addPayment(saleId: string, organizationId: string, data: PaymentInput) {
@@ -506,6 +594,12 @@ export class SaleService {
     }
 
     const validatedData = paymentSchema.parse(data);
+
+    // CREDIT is intentionally no longer a payment method. Historical CREDIT
+    // rows remain readable, but new credit must use SaleCredit.
+    if ((validatedData as { method: string }).method === 'CREDIT') {
+      throw new Error('CREDIT payments are no longer accepted; authorize explicit sale credit instead');
+    }
 
     // INVARIANT: payment amount must be positive
     if (validatedData.amount <= 0) {
