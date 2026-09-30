@@ -12,6 +12,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      '@omnikes/app': path.resolve(__dirname, './src/app'),
       '@omnikes/lib': path.resolve(__dirname, './src/lib'),
       '@omnikes/repositories': path.resolve(__dirname, './src/repositories'),
       '@omnikes/services': path.resolve(__dirname, './src/services'),
