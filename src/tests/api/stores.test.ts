@@ -52,7 +52,7 @@ describe('POST /api/stores', () => {
   });
 
   it('should return 403 when authenticated but lacks store.create permission', async () => {
-    const mockOrganizationId = 'org-123';
+    const mockOrganizationId = 'cl1234567890ab';
     (requireCurrentOrganizationId as any).mockResolvedValue(mockOrganizationId);
     (requirePermission as any).mockRejectedValue(
       new Error('Permission required: store.create')
@@ -71,7 +71,7 @@ describe('POST /api/stores', () => {
   });
 
   it('should return 400 when payload is invalid', async () => {
-    const mockOrganizationId = 'org-123';
+    const mockOrganizationId = 'cl1234567890ab';
     (requireCurrentOrganizationId as any).mockResolvedValue(mockOrganizationId);
     (requirePermission as any).mockResolvedValue(undefined);
 
@@ -88,7 +88,7 @@ describe('POST /api/stores', () => {
   });
 
   it('should return 409 when code already exists in organization', async () => {
-    const mockOrganizationId = 'org-123';
+    const mockOrganizationId = 'cl1234567890ab';
     (requireCurrentOrganizationId as any).mockResolvedValue(mockOrganizationId);
     (requirePermission as any).mockResolvedValue(undefined);
     (storeRepository.findByCode as any).mockResolvedValue({ id: 'existing-store' });
@@ -106,7 +106,7 @@ describe('POST /api/stores', () => {
   });
 
   it('should return 201 when store is created successfully', async () => {
-    const mockOrganizationId = 'org-123';
+    const mockOrganizationId = 'cl1234567890ab';
     const mockStore = {
       id: 'new-store-id',
       name: 'Test Store',
@@ -130,6 +130,7 @@ describe('POST /api/stores', () => {
     expect(response.status).toBe(201);
     expect(data.store).toEqual(mockStore);
     expect(storeService.create).toHaveBeenCalledWith(mockOrganizationId, {
+      organizationId: mockOrganizationId,
       name: 'Test Store',
       code: 'TEST',
       address: undefined,
@@ -142,7 +143,7 @@ describe('POST /api/stores', () => {
   });
 
   it('should ignore organizationId from body and use session', async () => {
-    const mockOrganizationId = 'org-123';
+    const mockOrganizationId = 'cl1234567890ab';
     const mockStore = { id: 'new-store-id', name: 'Test Store', code: 'TEST' };
 
     (requireCurrentOrganizationId as any).mockResolvedValue(mockOrganizationId);
@@ -164,6 +165,6 @@ describe('POST /api/stores', () => {
     expect(response.status).toBe(201);
     expect(storeService.create).toHaveBeenCalledWith(mockOrganizationId, expect.any(Object));
     // Verify the organizationId used is from session, not from body
-    expect(storeService.create).toHaveBeenCalledWith('org-123', expect.any(Object));
+    expect(storeService.create).toHaveBeenCalledWith('cl1234567890ab', expect.any(Object));
   });
 });
