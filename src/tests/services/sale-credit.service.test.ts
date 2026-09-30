@@ -87,6 +87,21 @@ describe('SaleService - explicit credit and completion coverage', () => {
     expect(tx.inventoryMovement.create).toHaveBeenCalled();
   });
 
+  it('allows 100% explicit credit with no payment', async () => {
+    const tx = makeTx({
+      ...baseSale,
+      payments: [],
+      saleCredit: { amount: 1000, status: 'AUTHORIZED' },
+    });
+
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+
+    await saleService.complete('sale-1', 'org-1');
+
+    expect(tx.sale.update).toHaveBeenCalled();
+    expect(tx.inventoryMovement.create).toHaveBeenCalled();
+  });
+
   it('allows partial payment plus authorized credit when coverage is complete', async () => {
     const tx = makeTx({
       ...baseSale,
