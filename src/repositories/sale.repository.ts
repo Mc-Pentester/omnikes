@@ -24,7 +24,6 @@ export class SaleRepository {
         },
         payments: true,
         saleCredit: true,
-        saleCredit: true,
       },
     });
   }
@@ -166,7 +165,7 @@ export class SaleRepository {
             },
           },
           payments: true,
-        saleCredit: true,
+          saleCredit: true,
         },
         skip,
         take,
