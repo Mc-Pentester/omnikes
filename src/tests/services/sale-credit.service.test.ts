@@ -45,7 +45,7 @@ describe('SaleService - explicit credit and completion coverage', () => {
     orderNumber: 'SALE-001',
     status: 'PENDING',
     total: 1000,
-    customerId: 'customer-1',
+    customerId: 'c123456789',
     items: [{ quantity: 1, variant: { sku: 'SKU-1' }, variantId: 'variant-1' }],
     payments: [],
     saleCredit: null,
@@ -64,13 +64,13 @@ describe('SaleService - explicit credit and completion coverage', () => {
       create: vi.fn().mockResolvedValue({}),
     },
     customer: {
-      findFirst: vi.fn().mockResolvedValue({ id: 'customer-1' }),
+      findFirst: vi.fn().mockResolvedValue({ id: 'c123456789' }),
     },
     saleCredit: {
       create: vi.fn().mockResolvedValue({
         id: 'credit-1',
         saleId: sale.id,
-        customerId: 'customer-1',
+        customerId: 'c123456789',
         amount: 400,
         status: 'AUTHORIZED',
       }),
@@ -160,7 +160,7 @@ describe('SaleService - explicit credit and completion coverage', () => {
 
   it('authorizes explicit credit only for the sale customer', async () => {
     const tx = makeTx(baseSale);
-    tx.customer.findFirst.mockResolvedValue({ id: 'other-customer' });
+    tx.customer.findFirst.mockResolvedValue({ id: 'c987654321' });
 
     vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
 
@@ -168,7 +168,7 @@ describe('SaleService - explicit credit and completion coverage', () => {
       'sale-1',
       'org-1',
       'user-1',
-      { customerId: 'other-customer', amount: 400 }
+      { customerId: 'c987654321', amount: 400 }
     )).rejects.toThrow('Credit customer must match the sale customer');
 
     expect(tx.saleCredit.create).not.toHaveBeenCalled();
@@ -182,7 +182,7 @@ describe('SaleService - explicit credit and completion coverage', () => {
       'sale-1',
       'org-1',
       'user-1',
-      { customerId: 'customer-1', amount: 400 }
+      { customerId: 'c123456789', amount: 400 }
     )).rejects.toThrow('A customer is required to authorize credit');
 
     expect(tx.saleCredit.create).not.toHaveBeenCalled();
