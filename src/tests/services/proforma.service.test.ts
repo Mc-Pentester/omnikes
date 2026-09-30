@@ -6,8 +6,15 @@ import { prisma } from '@omnikes/lib/prisma';
 vi.mock('@omnikes/lib/prisma', () => ({
   prisma: {
     proforma: {
+      create: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
+    },
+    productVariant: {
+      findFirst: vi.fn(),
+    },
+    proformaItem: {
+      create: vi.fn(),
     },
     organization: {
       findUnique: vi.fn(),
@@ -502,6 +509,8 @@ describe('ProformaService - Conversion', () => {
         },
       });
 
+      (prismaMock.proforma.create as any).mockResolvedValue({ id: 'proforma-123' });
+
       (proformaRepository.create as any).mockResolvedValue({ id: 'proforma-123' });
 
       await proformaService.create(mockOrganizationId, {
@@ -525,6 +534,8 @@ describe('ProformaService - Conversion', () => {
         id: mockOrganizationId,
         taxConfiguration: null,
       });
+
+      (prismaMock.proforma.create as any).mockResolvedValue({ id: 'proforma-123' });
 
       (proformaRepository.create as any).mockResolvedValue({ id: 'proforma-123' });
 
