@@ -92,7 +92,11 @@ export default function SalesPage() {
   }, [authLoading, user, router]);
 
   useEffect(() => {
-    if (user) loadSales();
+    if (!user) return;
+    const timer = window.setTimeout(() => {
+      void loadSales();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [user, loadSales]);
 
   const paid = useMemo(() => selected
