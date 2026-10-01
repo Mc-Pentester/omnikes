@@ -43,6 +43,13 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      if (error.message.startsWith('Permission required')) {
+        return NextResponse.json(
+          { error: 'Permission required' },
+          { status: 403 }
+        );
+      }
+
       if (error.message.includes('Invalid skip') || error.message.includes('Invalid take')) {
         return NextResponse.json(
           { error: error.message },
