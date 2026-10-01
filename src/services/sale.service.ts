@@ -438,17 +438,32 @@ export class SaleService {
   }
 
   /**
-   * Cancel a sale (transactional - restores stock if completed)
+   * Cancel a sale without deleting it.
+   *
+   * PENDING:
+   * - No stock was deducted, so no stock reversal is created.
+   *
+   * COMPLETED:
+   * - Restore the sold quantities atomically.
+   * - Create RETURN inventory movements.
+   *
+   * Payments and credits are deliberately preserved as historical records.
+   * This operation is a cancellation, not a refund/settlement operation.
    */
-  async cancel(saleId: string, organizationId: string) {
-    const exists = await saleRepository.belongsToOrganization(saleId, organizationId);
-    
-    if (!exists) {
-      throw new Error('Sale not found or access denied');
-    }
+  async cancel(saleId: string, organizationId: string, cancelledBy: string) {
+    return prisma.$transaction(async (tx) => {
+      // Serialize cancellation against completion/payment/finalization.
+      const lockedSaleRows = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM sales
+        WHERE id = ${saleId} AND "organizationId" = ${organizationId}
+        FOR UPDATE
+      `;
 
-    return prisma.$transaction(async () => {
-      const sale = await prisma.sale.findUnique({
+      if (lockedSaleRows.length === 0) {
+        throw new Error('Sale not found or access denied');
+      }
+
+      const sale = await tx.sale.findUnique({
         where: { id: saleId },
         include: {
           items: {
@@ -456,59 +471,111 @@ export class SaleService {
               variant: true,
             },
           },
+          payments: true,
+          saleCredit: true,
         },
       });
 
       if (!sale) {
-        throw new Error('Sale not found');
+        throw new Error('Sale not found or access denied');
       }
 
       if (sale.status === 'CANCELLED') {
         throw new Error('Sale is already cancelled');
       }
 
-      // If sale was completed, restore stock
-      if (sale.status === 'COMPLETED') {
+      if (sale.status !== 'PENDING' && sale.status !== 'COMPLETED') {
+        throw new Error(`Sale cannot be cancelled from status ${sale.status}`);
+      }
+
+      const oldStatus = sale.status;
+
+      // Only a COMPLETED sale has previously deducted stock.
+      // Lock every affected inventory row before restoring quantities.
+      if (oldStatus === 'COMPLETED') {
         for (const item of sale.items) {
-          const inventory = await prisma.$queryRaw<Array<{ id: string; quantity: number }>>`
-            SELECT id, quantity
+          const inventoryRows = await tx.$queryRaw<Array<{
+            id: string;
+            quantity: number;
+            reservedQuantity: number;
+          }>>`
+            SELECT id, quantity, "reservedQuantity"
             FROM inventories
             WHERE "storeId" = ${sale.storeId} AND "variantId" = ${item.variantId}
             FOR UPDATE
           `;
 
-          if (inventory && inventory.length > 0) {
-            const currentInventory = inventory[0];
-
-            await prisma.inventory.update({
-              where: { id: currentInventory.id },
-              data: {
-                quantity: currentInventory.quantity + item.quantity,
-              },
-            });
-
-            // Create RETURN movement
-            await prisma.inventoryMovement.create({
-              data: {
-                inventoryId: currentInventory.id,
-                type: 'RETURN',
-                quantity: item.quantity,
-                referenceId: saleId,
-                referenceType: 'SALE',
-                notes: `Cancelled sale ${sale.orderNumber}`,
-              },
-            });
+          if (inventoryRows.length === 0) {
+            throw new Error(`Inventory not found for variant ${item.variant.sku}`);
           }
+
+          const inventory = inventoryRows[0];
+
+          await tx.inventory.update({
+            where: { id: inventory.id },
+            data: {
+              quantity: inventory.quantity + item.quantity,
+            },
+          });
+
+          await tx.inventoryMovement.create({
+            data: {
+              inventoryId: inventory.id,
+              type: 'RETURN',
+              quantity: item.quantity,
+              referenceId: saleId,
+              referenceType: 'SALE',
+              notes: `Cancelled sale ${sale.orderNumber}`,
+            },
+          });
         }
       }
 
-      // Update sale status
-      await prisma.sale.update({
+      const cancelledSale = await tx.sale.update({
         where: { id: saleId },
         data: { status: 'CANCELLED' },
+        include: {
+          store: true,
+          customer: true,
+          items: {
+            include: {
+              variant: {
+                include: { product: true },
+              },
+            },
+          },
+          payments: true,
+          saleCredit: true,
+        },
       });
 
-      return saleRepository.findById(saleId, organizationId);
+      await tx.auditLog.create({
+        data: {
+          userId: cancelledBy,
+          organizationId,
+          storeId: sale.storeId,
+          action: 'SALE_CANCELLED',
+          module: 'sales',
+          entityId: saleId,
+          entityType: 'Sale',
+          oldValues: {
+            status: oldStatus,
+          },
+          newValues: {
+            status: 'CANCELLED',
+          },
+          metadata: {
+            orderNumber: sale.orderNumber,
+            stockRestored: oldStatus === 'COMPLETED',
+            paymentCount: sale.payments.length,
+            authorizedCredit: sale.saleCredit?.status === 'AUTHORIZED'
+              ? Number(sale.saleCredit.amount)
+              : 0,
+          },
+        },
+      });
+
+      return cancelledSale;
     });
   }
 
