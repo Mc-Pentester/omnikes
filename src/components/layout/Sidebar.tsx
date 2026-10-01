@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { useAuth } from '@omnikes/contexts/AuthContext';
@@ -23,6 +23,7 @@ const menuItems: MenuItem[] = [
   { id: 'stores', label: 'Magasins', icon: '🏪', path: '/stores', available: true },
   { id: 'customers', label: 'Clients', icon: '👥', path: '/customers', available: false },
   { id: 'settings', label: 'Paramètres', icon: '⚙', path: '/settings', available: false },
+  { id: 'administration', label: 'Administration', icon: '🛡️', path: '/administration/users', available: false },
 ];
 
 interface SidebarProps {
@@ -34,7 +35,23 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { logout } = useAuth();
+  const [canManageUsers, setCanManageUsers] = useState(false);
   const [isCompact, setIsCompact] = useState(compact);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch('/api/auth/me')
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (mounted) setCanManageUsers(data?.user?.canManageUsers === true);
+      })
+      .catch(() => {
+        if (mounted) setCanManageUsers(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleToggle = () => {
     setIsCompact(!isCompact);
@@ -42,7 +59,7 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
   };
 
   const handleNavigate = (item: MenuItem) => {
-    if (!item.available) return;
+    if (!item.available && !(item.id === 'administration' && canManageUsers)) return;
 
     // Navigate to the page
     router.push(item.path);
@@ -53,7 +70,7 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
     router.push('/login');
   };
 
-  const availableItems = menuItems.filter(item => item.available);
+  const availableItems = menuItems.filter(item => item.available || (item.id === 'administration' && canManageUsers));
 
   return (
     <aside 
@@ -101,8 +118,8 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
                 } ${!item.available ? 'opacity-50 cursor-not-allowed' : ''}`}
                 role="menuitem"
                 aria-current={pathname === item.path || (item.path === '/reports' && pathname.startsWith('/reports')) ? 'page' : undefined}
-                disabled={!item.available}
-                title={!item.available ? 'Module non disponible' : item.label}
+                disabled={!item.available && !(item.id === 'administration' && canManageUsers)}
+                title={!item.available && !(item.id === 'administration' && canManageUsers) ? 'Module non disponible' : item.label}
               >
                 <span className="text-2xl" aria-hidden="true">{item.icon}</span>
                 {!isCompact && (
