@@ -80,10 +80,6 @@ export default function SalesPage() {
       }
       const data = await response.json();
       setSales(data.sales || []);
-      if (selected) {
-        const refreshed = (data.sales || []).find((sale: Sale) => sale.id === selected.id);
-        setSelected(refreshed || null);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Impossible de charger les ventes');
     } finally {
@@ -261,6 +257,7 @@ export default function SalesPage() {
                     <div className="text-xs text-gray-500 mt-1">
                       {sale.customer?.name || 'Client non renseigné'} · {sale.store.name}
                     </div>
+                    <span className="inline-block mt-2 text-xs font-semibold text-blue-600">PASSER À LA CAISSE →</span>
                   </button>
                 ))}
               </div>
