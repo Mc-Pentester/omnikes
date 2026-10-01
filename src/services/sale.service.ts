@@ -295,25 +295,6 @@ export class SaleService {
     const tax = subtotal * effectiveRate;
     const total = subtotal + tax - discount;
 
-    console.log('[TOTAL FORENSIC SERVER] Recalculation:', {
-      saleId,
-      numberOfItems: items.length,
-      subtotal,
-      discount,
-      configuredRate,
-      applyTax: sale?.applyTax,
-      effectiveRate,
-      tax,
-      total,
-      items: items.map(item => ({
-        variantId: item.variantId,
-        quantity: item.quantity,
-        unitPrice: Number(item.unitPrice),
-        discount: Number(item.discount),
-        totalPrice: Number(item.totalPrice),
-      })),
-    });
-
     await saleRepository.updateWithTaxRate(saleId, organizationId, {
       subtotal,
       discount,
