@@ -102,11 +102,28 @@ export class RoleRepository {
       return null;
     }
     
-    const storeIds = userRoles
-      .map((role) => role.storeId)
-      .filter((storeId): storeId is string => storeId !== null);
-    
-    return [...new Set(storeIds)];
+    const storeIds = [...new Set(
+      userRoles
+        .map((role) => role.storeId)
+        .filter((storeId): storeId is string => storeId !== null),
+    )];
+
+    if (storeIds.length === 0) {
+      return [];
+    }
+
+    // Defense in depth: a scoped role may be malformed and point at a
+    // store outside the user's organization. Never expose such store IDs
+    // to callers that use this helper for list/filter authorization.
+    const organizationStores = await prisma.store.findMany({
+      where: {
+        id: { in: storeIds },
+        organizationId: user.organizationId,
+      },
+      select: { id: true },
+    });
+
+    return organizationStores.map((store) => store.id);
   }
 
   async canAccessStore(userId: string, storeId: string): Promise<boolean> {
