@@ -14,8 +14,8 @@ export class RoleRepository {
   /**
    * Get all roles with permissions for a user.
    *
-   * Global roles are intentionally organization-agnostic and may have
-   * organizationId = NULL. Scoped roles must belong to the user's organization.
+   * Every role used for authorization must belong to the user's organization.
+   * isGlobal means global across that organization, not cross-tenant.
    */
   async getUserRoles(userId: string): Promise<RoleWithPermissions[]> {
     const user = await prisma.user.findUnique({
@@ -29,10 +29,7 @@ export class RoleRepository {
       where: {
         userId,
         role: {
-          OR: [
-            { isGlobal: true },
-            { organizationId: user.organizationId },
-          ],
+          organizationId: user.organizationId,
         },
       },
       include: {
