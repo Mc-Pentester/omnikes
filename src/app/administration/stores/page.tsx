@@ -168,6 +168,9 @@ export default function AdministrationStoresPage() {
           <a href="/administration/roles" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
             Rôles & permissions
           </a>
+          <a href="/administration/organization" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
+            Organisation
+          </a>
           <button onClick={newStore} className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
             + Nouveau magasin
           </button>

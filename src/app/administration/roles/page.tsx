@@ -187,6 +187,8 @@ export default function AdministrationRolesPage() {
         <a href="/administration/users" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">Utilisateurs</a>
         <a href="/administration/roles" className="rounded-lg bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">Rôles & permissions</a>
         <a href="/administration/stores" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">Magasins</a>
+        <a href="/administration/organization" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">Organisation</a>
+          <a href="/administration/organization" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">Organisation</a>
       </nav>
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-red-700">{error}</div>}
