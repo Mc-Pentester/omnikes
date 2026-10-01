@@ -8,6 +8,7 @@ interface User {
   name: string | null;
   organizationId: string;
   organizationName: string;
+  canAuthorizeCredit: boolean;
 }
 
 interface AuthContextType {
