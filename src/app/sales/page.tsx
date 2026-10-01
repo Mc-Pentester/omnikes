@@ -85,7 +85,7 @@ export default function SalesPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, currentStoreId, router, selected]);
+  }, [user, currentStoreId, router]);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
