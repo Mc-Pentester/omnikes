@@ -54,6 +54,13 @@ export class RoleRepository {
   /**
    * Check if user has a specific permission
    */
+  async hasGlobalRoleWithPermission(userId: string, permissionCode: string): Promise<boolean> {
+    const userRoles = await this.getUserRoles(userId);
+    return userRoles.some(
+      (role) => role.isGlobal && role.permissions.includes(permissionCode),
+    );
+  }
+
   async hasPermission(userId: string, permissionCode: string): Promise<boolean> {
     const userRoles = await this.getUserRoles(userId);
     
