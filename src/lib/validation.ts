@@ -12,6 +12,19 @@ export const organizationSchema = z.object({
   onlineStoreEnabled: z.boolean().default(false),
 });
 
+
+// Administration - organization management
+export const adminOrganizationUpdateSchema = z.object({
+  name: z.string().trim().min(1, 'Organization name is required').max(255).optional(),
+  country: z.string().trim().length(2, 'Country must be an ISO 3166-1 alpha-2 code').transform((value) => value.toUpperCase()).optional(),
+  currency: z.string().trim().length(3, 'Currency must be an ISO 4217 code').transform((value) => value.toUpperCase()).optional(),
+  locale: z.string().trim().min(2).max(20).optional(),
+  timezone: z.string().trim().min(1).max(100).optional(),
+  cloudEnabled: z.boolean().optional(),
+  onlineStoreEnabled: z.boolean().optional(),
+});
+
+export type AdminOrganizationUpdateInput = z.infer<typeof adminOrganizationUpdateSchema>;
 // Store validation
 export const storeSchema = z.object({
   organizationId: z.string().cuid(),
