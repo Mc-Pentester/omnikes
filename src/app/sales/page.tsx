@@ -510,7 +510,7 @@ export default function PendingSalesPage() {
                           step="0.01"
                           value={paymentAmount}
                           onChange={(event) => setPaymentAmount(event.target.value)}
-                          placeholder={`Maximum ${money(Math.max(0, Number(selectedSale.total) - totals.paid))} HTG`}
+                          placeholder={`Maximum ${money(totals.remaining)} HTG`}
                           disabled={processing || totals.remaining <= 0}
                         />
                         <Button
