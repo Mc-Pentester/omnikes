@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuthenticatedUser, requireCurrentOrganizationId } from '@omnikes/lib/auth';
+import { requireAuthenticatedUser, requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
 import { adminAuditService } from '@omnikes/services/admin-audit.service';
 
 function mapError(error: unknown) {
@@ -19,6 +19,7 @@ function mapError(error: unknown) {
 export async function GET(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'audit.read');
     const actor = await requireAuthenticatedUser(request);
     const params = request.nextUrl.searchParams;
     const result = await adminAuditService.list(organizationId, actor.id, {
