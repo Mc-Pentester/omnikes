@@ -100,6 +100,7 @@ export class AdminUserService {
     const data = adminUserCreateSchema.parse(input);
     const role = await this.assertRoleAssignable(actorUserId, organizationId, data.roleId);
     if (role.isGlobal && data.storeId) throw new Error('Global role cannot be assigned to a specific store');
+    if (!role.isGlobal && data.storeId && role.storeId !== data.storeId) throw new Error('Role is not scoped to the selected store');
 
     const existing = await prisma.user.findUnique({ where: { email: data.email } });
     if (existing) throw new Error('A user with this email already exists');
