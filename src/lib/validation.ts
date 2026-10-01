@@ -25,7 +25,7 @@ export const adminOrganizationUpdateSchema = z.object({
 });
 
 export type AdminOrganizationUpdateInput = z.infer<typeof adminOrganizationUpdateSchema>;
-\n// Store validation
+// Store validation
 export const storeSchema = z.object({
   organizationId: z.string().cuid(),
   name: z.string().min(1, 'Store name is required'),
