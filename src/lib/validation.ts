@@ -201,7 +201,7 @@ export const paymentSchema = z.object({
   }),
   amount: z.number().positive('Amount must be positive'),
   reference: z.string().max(200).optional(),
-  status: z.string().default('COMPLETED'),
+  status: z.literal('COMPLETED').default('COMPLETED'),
 });
 
 export const paymentUpdateSchema = paymentSchema.partial().omit({ saleId: true });
