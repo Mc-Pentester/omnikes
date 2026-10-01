@@ -3,8 +3,8 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@omnikes/lib/prisma';
 import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { generateToken } from '@omnikes/lib/crypto';
-import { GET, POST } from '@omnikes/app/api/admin/stores/route';
-import { PATCH, DELETE } from '@omnikes/app/api/admin/stores/[id]/route';
+import { GET, POST as createStore } from '@omnikes/app/api/admin/stores/route';
+import { PATCH, DELETE, POST as activateStore } from '@omnikes/app/api/admin/stores/[id]/route';
 
 describe('P0-25-C - real PostgreSQL store administration', () => {
   let adminId = '';
@@ -93,7 +93,7 @@ describe('P0-25-C - real PostgreSQL store administration', () => {
       }),
     });
 
-    const createResponse = await POST(createRequest as never);
+    const createResponse = await createStore(createRequest as never);
     expect(createResponse.status).toBe(201);
     const createdBody = await createResponse.json();
     createdStoreId = createdBody.store.id;
@@ -150,8 +150,14 @@ describe('P0-25-C - real PostgreSQL store administration', () => {
       method: 'POST',
       headers: { cookie },
     });
-    const activateResponse = await POST as never;
-    void activateResponse;
+    const activateResponse = await activateStore(
+      activateRequest as never,
+      { params: Promise.resolve({ id: createdStoreId }) },
+    );
+    expect(activateResponse.status).toBe(200);
+
+    const active = await prisma.store.findUniqueOrThrow({ where: { id: createdStoreId } });
+    expect(active.isActive).toBe(true);
   });
 
   afterAll(async () => {
