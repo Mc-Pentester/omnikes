@@ -163,6 +163,9 @@ export class AdminUserService {
     if (data.roleId) {
       const selectedRole = await this.assertRoleAssignable(actorUserId, organizationId, data.roleId);
       if (selectedRole.isGlobal && data.storeId) throw new Error('Global role cannot be assigned to a specific store');
+      if (!selectedRole.isGlobal && data.storeId && selectedRole.storeId !== data.storeId) {
+        throw new Error('Role is not scoped to the selected store');
+      }
     } else if (data.storeId) {
       const currentRole = target.userRoles[0]?.role;
       if (!currentRole) throw new Error('User has no role');
