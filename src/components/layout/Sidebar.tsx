@@ -35,7 +35,7 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { logout } = useAuth();
-  const [canManageUsers, setCanManageUsers] = useState(false);
+  const [canAccessAdministration, setCanAccessAdministration] = useState(false);
   const [isCompact, setIsCompact] = useState(compact);
 
   useEffect(() => {
@@ -43,7 +43,11 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
     fetch('/api/auth/me')
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
-        if (mounted) setCanManageUsers(data?.user?.canManageUsers === true);
+        if (mounted) setCanAccessAdministration(
+          data?.user?.canManageUsers === true ||
+          data?.user?.canManageStores === true ||
+          data?.user?.canManageRoles === true,
+        );
       })
       .catch(() => {
         if (mounted) setCanManageUsers(false);
@@ -59,7 +63,7 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
   };
 
   const handleNavigate = (item: MenuItem) => {
-    if (!item.available && !(item.id === 'administration' && canManageUsers)) return;
+    if (!item.available && !(item.id === 'administration' && canAccessAdministration)) return;
 
     // Navigate to the page
     router.push(item.path);
