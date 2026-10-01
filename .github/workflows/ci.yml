@@ -27,6 +27,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/omnikes_ci
+      SESSION_SECRET: ci-runtime-session-secret-0123456789abcdef0123456789abcdef
 
     steps:
       - name: Checkout code
