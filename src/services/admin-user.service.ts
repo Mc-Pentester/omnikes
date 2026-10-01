@@ -14,12 +14,7 @@ export class AdminUserService {
     const [users, roles, stores] = await Promise.all([
       userRepository.listByOrganization(organizationId, search),
       prisma.role.findMany({
-        where: {
-          OR: [
-            { isGlobal: true },
-            { storeId: { not: null } },
-          ],
-        },
+        where: { organizationId },
         select: { id: true, name: true, description: true, isGlobal: true, storeId: true },
         orderBy: [{ name: 'asc' }, { storeId: 'asc' }],
       }),
@@ -37,20 +32,12 @@ export class AdminUserService {
   }
 
   private async resolveRole(roleId: string, organizationId: string, storeId?: string) {
-    const role = await prisma.role.findUnique({
-      where: { id: roleId },
+    const role = await prisma.role.findFirst({
+      where: { id: roleId, organizationId },
       select: { id: true, name: true, description: true, isGlobal: true, storeId: true },
     });
 
     if (!role) throw new Error('Role not found');
-
-    if (!role.isGlobal && role.storeId) {
-      const store = await prisma.store.findFirst({
-        where: { id: role.storeId, organizationId },
-        select: { id: true },
-      });
-      if (!store) throw new Error('Role is outside the current organization');
-    }
 
     if (storeId) {
       const store = await prisma.store.findFirst({
