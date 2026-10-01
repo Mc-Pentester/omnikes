@@ -1,7 +1,7 @@
 import { beforeAll, afterAll, describe, expect, it } from 'vitest';
 import { prisma } from '@omnikes/lib/prisma';
 import { sessionRepository } from '@omnikes/repositories/session.repository';
-import { generateToken } from '@omnikes/services/auth.service';
+import { generateToken } from '@omnikes/lib/crypto';
 import { GET, POST } from '@omnikes/app/api/admin/roles/route';
 import { PATCH } from '@omnikes/app/api/admin/roles/[id]/route';
 
