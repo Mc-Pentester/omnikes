@@ -111,7 +111,12 @@ async function main() {
 
   const adminRoleA = await prisma.role.upsert({
     where: { id: 'admin-role-a' },
-    update: {},
+    update: {
+      organizationId: orgA.id,
+      name: 'ADMIN',
+      description: 'Administrator role for test organization A',
+      isGlobal: true,
+    },
     create: {
       id: 'admin-role-a',
       name: 'ADMIN',
@@ -123,7 +128,12 @@ async function main() {
 
   const cashierRoleA = await prisma.role.upsert({
     where: { id: 'cashier-role-a' },
-    update: {},
+    update: {
+      organizationId: orgA.id,
+      name: 'CASHIER',
+      description: 'Cashier role for test organization A',
+      isGlobal: true,
+    },
     create: {
       id: 'cashier-role-a',
       name: 'CASHIER',
@@ -135,7 +145,12 @@ async function main() {
 
   const adminRoleB = await prisma.role.upsert({
     where: { id: 'admin-role-b' },
-    update: {},
+    update: {
+      organizationId: orgB.id,
+      name: 'ADMIN',
+      description: 'Administrator role for test organization B',
+      isGlobal: true,
+    },
     create: {
       id: 'admin-role-b',
       name: 'ADMIN',
