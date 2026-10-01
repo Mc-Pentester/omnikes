@@ -10,6 +10,7 @@ describe('P0-25-C - RBAC store scope organization boundary', () => {
   let storeBId = '';
   let scopedRoleId = '';
   let malformedRoleId = '';
+  let scopedUserId = '';
 
   beforeAll(async () => {
     const admin = await prisma.user.findUniqueOrThrow({
@@ -62,16 +63,28 @@ describe('P0-25-C - RBAC store scope organization boundary', () => {
     scopedRoleId = scopedRole.id;
     malformedRoleId = malformedRole.id;
 
+    const scopedUser = await prisma.user.create({
+      data: {
+        email: `p0-25-c-${suffix}@omnikes.test`,
+        name: 'P0-25-C Scoped User',
+        password: 'test-hash',
+        organizationId: orgAId,
+      },
+    });
+
+    scopedUserId = scopedUser.id;
+
     await prisma.userRole.createMany({
+
       data: [
-        { userId: adminAId, roleId: scopedRoleId },
-        { userId: adminAId, roleId: malformedRoleId },
+        { userId: scopedUserId, roleId: scopedRoleId },
+        { userId: scopedUserId, roleId: malformedRoleId },
       ],
     });
   });
 
   it('returns only scoped stores belonging to the user organization', async () => {
-    const authorizedStoreIds = await roleRepository.getAuthorizedStoreIds(adminAId);
+    const authorizedStoreIds = await roleRepository.getAuthorizedStoreIds(scopedUserId);
 
     expect(authorizedStoreIds).not.toBeNull();
     expect(authorizedStoreIds).toContain(storeAId);
@@ -85,6 +98,10 @@ describe('P0-25-C - RBAC store scope organization boundary', () => {
   });
 
   afterAll(async () => {
+    if (scopedUserId) {
+      await prisma.user.delete({ where: { id: scopedUserId } });
+    }
+
     await prisma.role.deleteMany({
       where: {
         id: { in: [scopedRoleId, malformedRoleId] },
