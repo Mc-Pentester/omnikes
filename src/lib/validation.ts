@@ -34,6 +34,25 @@ export const userSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
+
+// Administration - user management
+export const adminUserCreateSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  name: z.string().min(1, 'Name is required').max(255),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  roleId: z.string().cuid(),
+  storeId: z.string().cuid().optional(),
+});
+
+export const adminUserUpdateSchema = z.object({
+  email: z.string().email('Invalid email address').optional(),
+  name: z.string().min(1, 'Name is required').max(255).optional(),
+  password: z.string().min(8, 'Password must be at least 8 characters').optional(),
+  isActive: z.boolean().optional(),
+  roleId: z.string().cuid().optional(),
+  storeId: z.string().cuid().optional(),
+});
+
 // Role validation
 export const roleSchema = z.object({
   name: z.string().min(1, 'Role name is required'),
@@ -241,6 +260,8 @@ export type OrganizationInput = z.infer<typeof organizationSchema>;
 export type StoreInput = z.infer<typeof storeSchema>;
 export type UserInput = z.infer<typeof userSchema>;
 export type RoleInput = z.infer<typeof roleSchema>;
+export type AdminUserCreateInput = z.infer<typeof adminUserCreateSchema>;
+export type AdminUserUpdateInput = z.infer<typeof adminUserUpdateSchema>;
 export type PermissionInput = z.infer<typeof permissionSchema>;
 export type ProductInput = z.infer<typeof productSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
