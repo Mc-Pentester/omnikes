@@ -29,15 +29,17 @@ describe('Administration audit runtime - PostgreSQL', () => {
   });
 
   async function cookieFor(userId: string) {
-    const token = generateToken();
-    await sessionRepository.create({
-      userId,
-      token,
-      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-      ipAddress: '127.0.0.1',
-      userAgent: 'vitest',
-    });
-    return `auth_token=${token}`;
+    const rawToken = generateToken();
+    await sessionRepository.create(
+      {
+        user: { connect: { id: userId } },
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        ipAddress: '127.0.0.1',
+        userAgent: 'vitest',
+      },
+      rawToken,
+    );
+    return `auth_token=${rawToken}`;
   }
 
   afterAll(async () => {
