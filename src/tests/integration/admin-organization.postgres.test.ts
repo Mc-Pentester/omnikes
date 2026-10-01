@@ -2,6 +2,7 @@ import { beforeAll, afterAll, describe, expect, it } from 'vitest';
 import { NextRequest } from 'next/server';
 import { prisma } from '@omnikes/lib/prisma';
 import { sessionRepository } from '@omnikes/repositories/session.repository';
+import { roleRepository } from '@omnikes/repositories/role.repository';
 import { generateToken } from '@omnikes/lib/crypto';
 import { GET, PATCH } from '@omnikes/app/api/admin/organization/route';
 
