@@ -1,4 +1,5 @@
 import { beforeAll, afterAll, describe, expect, it } from 'vitest';
+import { NextRequest } from 'next/server';
 import { prisma } from '@omnikes/lib/prisma';
 import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { generateToken } from '@omnikes/lib/crypto';
@@ -73,7 +74,7 @@ describe('P0-25-B - real PostgreSQL role administration', () => {
   }
 
   it('lists only roles belonging to the current organization', async () => {
-    const request = new Request('http://localhost/api/admin/roles', {
+    const request = new NextRequest('http://localhost/api/admin/roles', {
       headers: { cookie: await cookieFor(adminId) },
     });
 
@@ -86,7 +87,7 @@ describe('P0-25-B - real PostgreSQL role administration', () => {
   });
 
   it('denies role administration to CASHIER', async () => {
-    const request = new Request('http://localhost/api/admin/roles', {
+    const request = new NextRequest('http://localhost/api/admin/roles', {
       headers: { cookie: await cookieFor(cashierId) },
     });
 
@@ -98,7 +99,7 @@ describe('P0-25-B - real PostgreSQL role administration', () => {
     const suffix = Date.now().toString();
     const cookie = await cookieFor(adminId);
 
-    const createRequest = new Request('http://localhost/api/admin/roles', {
+    const createRequest = new NextRequest('http://localhost/api/admin/roles', {
       method: 'POST',
       headers: {
         cookie,
@@ -117,7 +118,7 @@ describe('P0-25-B - real PostgreSQL role administration', () => {
     const createdBody = await createdResponse.json();
     createdRoleId = createdBody.role.id;
 
-    const patchRequest = new Request(`http://localhost/api/admin/roles/${createdRoleId}`, {
+    const patchRequest = new NextRequest(`http://localhost/api/admin/roles/${createdRoleId}`, {
       method: 'PATCH',
       headers: {
         cookie,
@@ -146,7 +147,7 @@ describe('P0-25-B - real PostgreSQL role administration', () => {
 
   it('rejects a role scoped to another organization store', async () => {
     const cookie = await cookieFor(adminId);
-    const request = new Request('http://localhost/api/admin/roles', {
+    const request = new NextRequest('http://localhost/api/admin/roles', {
       method: 'POST',
       headers: {
         cookie,
