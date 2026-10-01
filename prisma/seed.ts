@@ -541,6 +541,16 @@ async function main() {
     },
   });
 
+  const auditReadPermission = await prisma.permission.upsert({
+    where: { code: 'audit.read' },
+    update: {},
+    create: {
+      code: 'audit.read',
+      description: 'Consulter le journal d’audit',
+      module: 'audit',
+    },
+  });
+
   console.log('✅ Permissions created');
 
   // ============================================================
@@ -665,6 +675,19 @@ async function main() {
         roleId: adminRoleB.id,
         permissionId: permission.id,
       },
+    });
+  }
+
+  for (const permission of [organizationReadPermission, organizationUpdatePermission, userReadPermission, userCreatePermission, userUpdatePermission, roleReadPermission, roleCreatePermission, roleUpdatePermission, auditReadPermission]) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
+      update: {},
+      create: { roleId: adminRoleA.id, permissionId: permission.id },
+    });
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: permission.id } },
+      update: {},
+      create: { roleId: adminRoleB.id, permissionId: permission.id },
     });
   }
 
