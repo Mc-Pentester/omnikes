@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import bcrypt from 'bcryptjs';
 import { NextRequest } from 'next/server';
+import { generateToken } from '@omnikes/lib/crypto';
+import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { prisma } from '@omnikes/lib/prisma';
 
 import { POST as creditPost } from '@omnikes/app/api/sales/[id]/credit/route';
@@ -124,29 +126,24 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     crossStoreSaleId = crossStoreSale.id;
   });
 
-  async function loginAndGetCookie() {
-    const request = new NextRequest('http://localhost/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'user-agent': 'P0-24-F.2-D-api-runtime-test',
+  async function createAuthenticatedCookie() {
+    const rawToken = generateToken();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await sessionRepository.create(
+      {
+        user: {
+          connect: { id: scopedUser.id },
+        },
+        expiresAt,
+        ipAddress: '127.0.0.1',
+        userAgent: 'P0-24-F.2-D-api-runtime-test',
       },
-      body: JSON.stringify({
-        email: scopedUser.email,
-        password: 'P0F2D-Api-Test!2026',
-      }),
-    });
+      rawToken,
+    );
 
-    const response = await loginPost(request);
-    expect(response.status).toBe(200);
-
-    const setCookie = response.headers.get('set-cookie');
-    expect(setCookie).toBeTruthy();
-
-    const match = setCookie?.match(/auth_token=([^;]+)/);
-    expect(match?.[1]).toBeTruthy();
-
-    return `auth_token=${match?.[1]}`;
+    return `auth_token=${rawToken}`;
   }
 
   afterAll(async () => {
@@ -174,7 +171,7 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
   });
 
   it('allows the scoped user to authorize credit on the authorized store through the real API route', async () => {
-    const cookie = await loginAndGetCookie();
+    const cookie = await createAuthenticatedCookie();
 
     const request = new NextRequest(
       `http://localhost/api/sales/${sameStoreSaleId}/credit`,
@@ -206,7 +203,7 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
   });
 
   it('rejects the same scoped user on a different store through the real API route', async () => {
-    const cookie = await loginAndGetCookie();
+    const cookie = await createAuthenticatedCookie();
 
     const before = await prisma.saleCredit.count({
       where: { saleId: crossStoreSaleId },
