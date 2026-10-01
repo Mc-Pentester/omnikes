@@ -69,6 +69,7 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
 
     scopedRole = await prisma.role.create({
       data: {
+        organizationId: orgA.id,
         name: `P0-F2-D-STORE-A-${suffix}`,
         description: 'P0-24-F.2-D temporary scoped API proof role',
         isGlobal: false,
