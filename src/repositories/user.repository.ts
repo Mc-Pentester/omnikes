@@ -2,85 +2,86 @@ import { prisma } from '@omnikes/lib/prisma';
 import { Prisma } from '@prisma/client';
 
 export class UserRepository {
-  /**
-   * Find a user by email
-   */
   async findByEmail(email: string) {
     return prisma.user.findUnique({
       where: { email },
       include: {
         organization: true,
-        userRoles: {
-          include: {
-            role: true,
-          },
-        },
+        userRoles: { include: { role: true } },
       },
     });
   }
 
-  /**
-   * Find a user by ID
-   */
   async findById(id: string) {
     return prisma.user.findUnique({
       where: { id },
       include: {
         organization: true,
-        userRoles: {
-          include: {
-            role: true,
-          },
-        },
+        userRoles: { include: { role: true } },
       },
     });
   }
 
-  /**
-   * Find a user by ID with organization check
-   */
   async findByIdWithOrganization(id: string, organizationId: string) {
     return prisma.user.findFirst({
-      where: {
-        id,
-        organizationId,
-      },
+      where: { id, organizationId },
       include: {
         organization: true,
-        userRoles: {
-          include: {
-            role: true,
-          },
-        },
+        userRoles: { include: { role: true } },
       },
     });
   }
 
-  /**
-   * Create a new user
-   */
+  async listByOrganization(organizationId: string, search?: string) {
+    return prisma.user.findMany({
+      where: {
+        organizationId,
+        ...(search
+          ? {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        lastLoginAt: true,
+        userRoles: {
+          select: {
+            role: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                isGlobal: true,
+                storeId: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   async create(data: Prisma.UserCreateInput) {
     return prisma.user.create({
       data,
-      include: {
-        organization: true,
-      },
+      include: { organization: true },
     });
   }
 
-  /**
-   * Update a user
-   */
   async update(id: string, data: Prisma.UserUpdateInput) {
-    return prisma.user.update({
-      where: { id },
-      data,
-    });
+    return prisma.user.update({ where: { id }, data });
   }
 
-  /**
-   * Update last login timestamp
-   */
   async updateLastLogin(id: string) {
     return prisma.user.update({
       where: { id },
@@ -92,21 +93,13 @@ export class UserRepository {
     });
   }
 
-  /**
-   * Revoke all sessions for a user (e.g., after password change)
-   */
   async revokeAllSessions(id: string) {
     return prisma.session.updateMany({
       where: { userId: id },
-      data: {
-        revokedAt: new Date(),
-      },
+      data: { revokedAt: new Date() },
     });
   }
 
-  /**
-   * Increment failed login attempts (atomic operation)
-   */
   async incrementFailedAttempts(id: string) {
     const user = await prisma.user.findUnique({
       where: { id },
@@ -115,47 +108,32 @@ export class UserRepository {
 
     if (!user) return null;
 
-    // Use atomic increment to avoid race conditions
-    const updatedUser = await prisma.user.update({
+    return prisma.user.update({
       where: { id },
       data: {
-        failedLoginAttempts: {
-          increment: 1,
-        },
-        // Lock account after 5 failed attempts
-        lockedUntil: (user.failedLoginAttempts || 0) >= 4 
-          ? new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
-          : undefined,
+        failedLoginAttempts: { increment: 1 },
+        lockedUntil:
+          (user.failedLoginAttempts || 0) >= 4
+            ? new Date(Date.now() + 15 * 60 * 1000)
+            : undefined,
       },
     });
-
-    return updatedUser;
   }
 
-  /**
-   * Check if user account is locked
-   */
   async isLocked(id: string): Promise<boolean> {
     const user = await prisma.user.findUnique({
       where: { id },
       select: { lockedUntil: true },
     });
 
-    if (!user || !user.lockedUntil) return false;
-
-    return user.lockedUntil > new Date();
+    return !!user?.lockedUntil && user.lockedUntil > new Date();
   }
 
-  /**
-   * Find a user by reset token hash
-   */
   async findByResetToken(tokenHash: string) {
     return prisma.user.findFirst({
       where: {
         resetPasswordTokenHash: tokenHash,
-        resetPasswordExpiresAt: {
-          gt: new Date(),
-        },
+        resetPasswordExpiresAt: { gt: new Date() },
       },
     });
   }
