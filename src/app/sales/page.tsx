@@ -149,10 +149,38 @@ export default function PendingSalesPage() {
     }
   };
 
+  const finalizeSale = async () => {
+    if (!selectedSale) return;
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/sales/' + selectedSale.id + '/complete', {
+        method: 'POST',
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.error || 'La finalisation de la vente a échoué');
+      }
+
+      setSelectedSale(null);
+      setPaymentAmount('');
+      setCreditAmount('');
+      await loadSales();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'La finalisation de la vente a échoué');
+      await loadSale(selectedSale.id);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const addPayment = async () => {
     if (!selectedSale) return;
     const amount = Number(paymentAmount);
-    const outstandingBeforePayment = Math.max(0, Number(selectedSale.total) - totals.paid);
+    const outstandingBeforePayment = totals.remaining;
 
     if (!Number.isFinite(amount) || amount <= 0 || amount > outstandingBeforePayment) {
       setError(`Montant invalide. Maximum autorisé: ${money(outstandingBeforePayment)} HTG.`);
@@ -333,6 +361,7 @@ export default function PendingSalesPage() {
                       .reduce((sum, payment) => sum + Number(payment.amount), 0);
                     const credit = sale.saleCredit?.status === 'AUTHORIZED' ? Number(sale.saleCredit.amount) : 0;
                     const remaining = Math.max(0, Number(sale.total) - paid - credit);
+                    const fullyCovered = remaining <= 0;
 
                     return (
                       <button
@@ -346,8 +375,8 @@ export default function PendingSalesPage() {
                         </div>
                         <div className="flex justify-between gap-3 mt-2 text-sm">
                           <span className="text-gray-600">{sale.customer?.name || 'Client anonyme'}</span>
-                          <span className={remaining > 0 ? 'text-orange-600 font-medium' : 'text-green-600 font-medium'}>
-                            Reste {money(remaining)} HTG
+                          <span className={fullyCovered ? 'text-amber-700 font-semibold' : 'text-orange-600 font-medium'}>
+                            {fullyCovered ? 'Paiement complet — finalisation en attente' : 'Reste ' + money(remaining) + ' HTG'}
                           </span>
                         </div>
                         <p className="text-xs text-gray-400 mt-2">
@@ -380,8 +409,11 @@ export default function PendingSalesPage() {
                         {selectedSale.store?.name || 'Magasin'} · {selectedSale.customer?.name || 'Client anonyme'}
                       </p>
                     </div>
-                    <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-sm font-semibold w-fit">
-                      PENDING
+                    <span className={
+                      'px-3 py-1 rounded-full text-sm font-semibold w-fit ' +
+                      (totals.remaining <= 0 ? 'bg-amber-100 text-amber-800' : 'bg-orange-100 text-orange-700')
+                    }>
+                      {totals.remaining <= 0 ? 'PAIEMENT COMPLET · FINALISATION' : 'PENDING'}
                     </span>
                   </div>
 
@@ -437,6 +469,26 @@ export default function PendingSalesPage() {
                       <p className="font-semibold text-amber-900">Crédit autorisé</p>
                       <p className="text-sm text-amber-800 mt-1">{money(selectedSale.saleCredit.amount)} HTG pour {selectedSale.customer?.name || 'le client'}</p>
                       {selectedSale.saleCredit.note && <p className="text-sm text-amber-700 mt-1">{selectedSale.saleCredit.note}</p>}
+                    </div>
+                  )}
+
+                  {totals.remaining <= 0 && (
+                    <div className="mb-6 p-4 rounded-lg border border-amber-200 bg-amber-50">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                          <p className="font-semibold text-amber-900">Paiement complet — vente encore PENDING</p>
+                          <p className="text-sm text-amber-800 mt-1">
+                            Aucun nouveau paiement n'est nécessaire. La prochaine étape est la finalisation serveur, qui vérifiera notamment la disponibilité du stock.
+                          </p>
+                        </div>
+                        <Button
+                          onClick={finalizeSale}
+                          disabled={processing}
+                          className="shrink-0"
+                        >
+                          {processing ? 'Finalisation...' : 'Finaliser la vente'}
+                        </Button>
+                      </div>
                     </div>
                   )}
 
