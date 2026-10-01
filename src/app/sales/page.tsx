@@ -149,6 +149,39 @@ export default function PendingSalesPage() {
     }
   };
 
+  const cancelSale = async () => {
+    if (!selectedSale) return;
+
+    const confirmed = window.confirm(
+      `Annuler définitivement la vente ${selectedSale.orderNumber} ? La vente sera conservée avec le statut CANCELLED.`
+    );
+    if (!confirmed) return;
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/sales/' + selectedSale.id + '/cancel', {
+        method: 'POST',
+      });
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.error || 'L’annulation de la vente a échoué');
+      }
+
+      setSelectedSale(null);
+      setPaymentAmount('');
+      setCreditAmount('');
+      await loadSales();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'L’annulation de la vente a échoué');
+      await loadSale(selectedSale.id);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const finalizeSale = async () => {
     if (!selectedSale) return;
 
@@ -471,6 +504,17 @@ export default function PendingSalesPage() {
                       {selectedSale.saleCredit.note && <p className="text-sm text-amber-700 mt-1">{selectedSale.saleCredit.note}</p>}
                     </div>
                   )}
+
+                  <div className="mb-6 flex justify-end">
+                    <Button
+                      onClick={cancelSale}
+                      disabled={processing}
+                      variant="outline"
+                      className="border-red-300 text-red-700 hover:bg-red-50"
+                    >
+                      Annuler la vente
+                    </Button>
+                  </div>
 
                   {totals.remaining <= 0 && (
                     <div className="mb-6 p-4 rounded-lg border border-amber-200 bg-amber-50">
