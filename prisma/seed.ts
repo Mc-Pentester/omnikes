@@ -446,6 +446,28 @@ async function main() {
     },
   });
 
+
+  // Organization administration permissions
+  const organizationReadPermission = await prisma.permission.upsert({
+    where: { code: 'organization.read' },
+    update: {},
+    create: {
+      code: 'organization.read',
+      description: 'Consulter les paramètres de l’organisation',
+      module: 'organization',
+    },
+  });
+
+  const organizationUpdatePermission = await prisma.permission.upsert({
+    where: { code: 'organization.update' },
+    update: {},
+    create: {
+      code: 'organization.update',
+      description: 'Modifier les paramètres de l’organisation',
+      module: 'organization',
+    },
+  });
+
   // Tax permissions
   const taxManagePermission = await prisma.permission.upsert({
     where: { code: 'tax.manage' },
@@ -727,6 +749,20 @@ async function main() {
         roleId: adminRoleB.id,
         permissionId: permission.id,
       },
+    });
+  }
+
+  // Assign organization administration permissions to ADMIN roles
+  for (const permission of [organizationReadPermission, organizationUpdatePermission]) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
+      update: {},
+      create: { roleId: adminRoleA.id, permissionId: permission.id },
+    });
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: permission.id } },
+      update: {},
+      create: { roleId: adminRoleB.id, permissionId: permission.id },
     });
   }
 
