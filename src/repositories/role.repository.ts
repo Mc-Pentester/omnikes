@@ -6,13 +6,16 @@ export interface RoleWithPermissions {
   description: string | null;
   isGlobal: boolean;
   storeId: string | null;
-  organizationId: string;
+  organizationId: string | null;
   permissions: string[]; // Array of permission codes
 }
 
 export class RoleRepository {
   /**
-   * Get all roles with permissions for a user
+   * Get all roles with permissions for a user.
+   *
+   * Global roles are intentionally organization-agnostic and may have
+   * organizationId = NULL. Scoped roles must belong to the user's organization.
    */
   async getUserRoles(userId: string): Promise<RoleWithPermissions[]> {
     const user = await prisma.user.findUnique({
@@ -25,7 +28,12 @@ export class RoleRepository {
     const userRoles = await prisma.userRole.findMany({
       where: {
         userId,
-        role: { organizationId: user.organizationId },
+        role: {
+          OR: [
+            { isGlobal: true },
+            { organizationId: user.organizationId },
+          ],
+        },
       },
       include: {
         role: {
@@ -46,14 +54,11 @@ export class RoleRepository {
       description: ur.role.description,
       isGlobal: ur.role.isGlobal,
       storeId: ur.role.storeId,
-      organizationId: ur.role.organizationId!,
+      organizationId: ur.role.organizationId,
       permissions: ur.role.rolePermissions.map((rp) => rp.permission.code),
     }));
   }
 
-  /**
-   * Check if user has a specific permission
-   */
   async hasGlobalRoleWithPermission(userId: string, permissionCode: string): Promise<boolean> {
     const userRoles = await this.getUserRoles(userId);
     return userRoles.some(
@@ -73,9 +78,6 @@ export class RoleRepository {
     return false;
   }
 
-  /**
-   * Check if user has any of the specified permissions
-   */
   async hasAnyPermission(userId: string, permissionCodes: string[]): Promise<boolean> {
     const userRoles = await this.getUserRoles(userId);
     
@@ -90,42 +92,27 @@ export class RoleRepository {
     return false;
   }
 
-  /**
-   * Check if user has a specific role
-   */
   async hasRole(userId: string, roleName: string): Promise<boolean> {
     const userRoles = await this.getUserRoles(userId);
     
     return userRoles.some((role) => role.name === roleName);
   }
 
-  /**
-   * Get authorized store IDs for a user
-   * Returns null if user has global access (isGlobal = true)
-   * Returns array of store IDs if user is scoped to specific stores
-   */
   async getAuthorizedStoreIds(userId: string): Promise<string[] | null> {
     const userRoles = await this.getUserRoles(userId);
     
-    // If any role is global, user has access to all stores in organization
     if (userRoles.some((role) => role.isGlobal)) {
-      return null; // null means global access
+      return null;
     }
     
-    // Collect all store IDs from scoped roles
     const storeIds = userRoles
       .map((role) => role.storeId)
       .filter((storeId): storeId is string => storeId !== null);
     
-    // Remove duplicates
     return [...new Set(storeIds)];
   }
 
-  /**
-   * Check if user is authorized to access a specific store
-   */
   async canAccessStore(userId: string, storeId: string): Promise<boolean> {
-    // FIRST: Verify tenant boundary (User.organizationId === Store.organizationId)
     const [user, store] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -137,20 +124,16 @@ export class RoleRepository {
       }),
     ]);
 
-    // If user or store doesn't exist, deny access
     if (!user || !store) {
       return false;
     }
 
-    // TENANT BOUNDARY CHECK: User and Store must belong to the same organization
     if (user.organizationId !== store.organizationId) {
       return false;
     }
 
-    // THEN: Apply RBAC store scope check
     const authorizedStoreIds = await this.getAuthorizedStoreIds(userId);
 
-    // null means global access to all stores in the user's organization
     if (authorizedStoreIds === null) {
       return true;
     }
