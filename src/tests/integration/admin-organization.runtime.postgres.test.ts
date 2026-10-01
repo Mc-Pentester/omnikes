@@ -20,7 +20,7 @@ describe('P0-25-D.3 - real PostgreSQL organization runtime proof', () => {
 
   beforeAll(async () => {
     const admin = await prisma.user.findUniqueOrThrow({
-      where: { email: 'admin.a@omnikes.test' },
+      where: { email: 'admin.b@omnikes.test' },
       select: { id: true, organizationId: true },
     });
     const cashier = await prisma.user.findUniqueOrThrow({
@@ -41,7 +41,7 @@ describe('P0-25-D.3 - real PostgreSQL organization runtime proof', () => {
       },
     });
     const orgB = await prisma.organization.findUniqueOrThrow({
-      where: { slug: 'omnikes-test-commerce-b' },
+      where: { slug: 'omnikes-test-commerce-a' },
       select: { id: true },
     });
 
