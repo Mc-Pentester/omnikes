@@ -40,6 +40,7 @@ model Organization {
   sales            Sale[]
   proformas        Proforma[]
   saleCredits      SaleCredit[]
+  roles            Role[]
   taxConfiguration TaxConfiguration? @relation(fields: [taxConfigurationId], references: [id])
 
   @@index([slug])
@@ -120,8 +121,9 @@ model User {
 // ============================================================
 
 model Role {
-  id          String  @id @default(cuid())
-  name        String // ADMIN, MANAGER, CASHIER, etc.
+  id             String        @id @default(cuid())
+  organizationId String?
+  name           String // ADMIN, MANAGER, CASHIER, etc.
   description String?
 
   // Scope
@@ -132,9 +134,11 @@ model Role {
   updatedAt DateTime @updatedAt
 
   // Relations
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   userRoles       UserRole[]
   rolePermissions RolePermission[]
 
+  @@index([organizationId])
   @@index([storeId])
   @@map("roles")
 }
