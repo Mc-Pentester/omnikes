@@ -96,8 +96,18 @@ export class RoleRepository {
   }
 
   async getAuthorizedStoreIds(userId: string): Promise<string[] | null> {
-    const userRoles = await this.getUserRoles(userId);
-    
+    const [user, userRoles] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { organizationId: true },
+      }),
+      this.getUserRoles(userId),
+    ]);
+
+    if (!user) {
+      return [];
+    }
+
     if (userRoles.some((role) => role.isGlobal)) {
       return null;
     }
