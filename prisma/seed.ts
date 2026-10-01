@@ -454,6 +454,37 @@ async function main() {
     },
   });
 
+  const userReadPermission = await prisma.permission.upsert({
+    where: { code: 'user.read' },
+    update: {},
+    create: {
+      code: 'user.read',
+      description: 'Consulter les utilisateurs',
+      module: 'users',
+    },
+  });
+
+  const userCreatePermission = await prisma.permission.upsert({
+    where: { code: 'user.create' },
+    update: {},
+    create: {
+      code: 'user.create',
+      description: 'Créer un utilisateur',
+      module: 'users',
+    },
+  });
+
+  const userUpdatePermission = await prisma.permission.upsert({
+    where: { code: 'user.update' },
+    update: {},
+    create: {
+      code: 'user.update',
+      description: 'Modifier un utilisateur',
+      module: 'users',
+    },
+  });
+
+
   console.log('✅ Permissions created');
 
   // ============================================================
@@ -513,6 +544,12 @@ async function main() {
 
   const taxPermissions = [
     taxManagePermission,
+  ];
+
+  const userPermissions = [
+    userReadPermission,
+    userCreatePermission,
+    userUpdatePermission,
   ];
 
   for (const permission of storePermissions) {
@@ -661,6 +698,27 @@ async function main() {
 
   // Assign all tax permissions to ADMIN roles
   for (const permission of taxPermissions) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleA.id,
+        permissionId: permission.id,
+      },
+    });
+
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: permission.id } },
+      update: {},
+      create: {
+        roleId: adminRoleB.id,
+        permissionId: permission.id,
+      },
+    });
+  }
+
+  // Assign user administration permissions to ADMIN roles
+  for (const permission of userPermissions) {
     await prisma.rolePermission.upsert({
       where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
       update: {},
