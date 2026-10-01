@@ -133,7 +133,7 @@ export default function AdministrationRolesPage() {
       };
 
       const response = await fetch(
-        selectedId ? \`/api/admin/roles/\${selectedId}\` : '/api/admin/roles',
+        selectedId ? `/api/admin/roles/${selectedId}` : '/api/admin/roles',
         {
           method: selectedId ? 'PATCH' : 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -199,14 +199,14 @@ export default function AdministrationRolesPage() {
               <button
                 key={role.id}
                 onClick={() => selectRole(role)}
-                className={\`w-full p-4 text-left hover:bg-gray-50 \${selectedId === role.id ? 'bg-blue-50' : ''}\`}
+                className={`w-full p-4 text-left hover:bg-gray-50 ${selectedId === role.id ? 'bg-blue-50' : ''}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium">{role.name}</span>
                   <span className="text-xs text-gray-500">{role.userCount} utilisateur(s)</span>
                 </div>
                 <div className="mt-1 text-xs text-gray-500">
-                  {role.isGlobal ? 'Tous les magasins' : \`Magasin: \${stores.find((store) => store.id === role.storeId)?.name ?? 'inconnu'}\`}
+                  {role.isGlobal ? 'Tous les magasins' : `Magasin: ${stores.find((store) => store.id === role.storeId)?.name ?? 'inconnu'}`}
                 </div>
                 <div className="mt-2 text-xs text-gray-500">{role.permissions.length} permission(s)</div>
               </button>
