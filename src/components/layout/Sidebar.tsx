@@ -16,7 +16,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊', path: '/dashboard', available: true },
   { id: 'products', label: 'Produits', icon: '📦', path: '/products', available: true },
-  { id: 'sales', label: 'Ventes', icon: '🧾', path: '/sales', available: false },
+  { id: 'sales', label: 'Ventes en attente', icon: '🧾', path: '/sales', available: true },
   { id: 'proformas', label: 'Proformas', icon: '📄', path: '/proformas', available: true },
   { id: 'reports', label: 'Rapports', icon: '📊', path: '/reports', available: true },
   { id: 'inventory', label: 'Inventaire', icon: '📦', path: '/inventory', available: true },
