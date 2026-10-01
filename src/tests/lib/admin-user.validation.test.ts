@@ -13,12 +13,21 @@ describe('Administration user validation', () => {
     }).success).toBe(true);
   });
 
-  it('rejects a user creation payload without a valid role', () => {
+  it('accepts a seeded role identifier that is not a CUID', () => {
     expect(adminUserCreateSchema.safeParse({
       name: 'Jean Test',
       email: 'jean@example.com',
       password: 'SecurePass123!',
-      roleId: 'invalid',
+      roleId: 'admin-role-a',
+    }).success).toBe(true);
+  });
+
+  it('rejects an empty role identifier', () => {
+    expect(adminUserCreateSchema.safeParse({
+      name: 'Jean Test',
+      email: 'jean@example.com',
+      password: 'SecurePass123!',
+      roleId: '',
     }).success).toBe(false);
   });
 
