@@ -1,4 +1,3 @@
-import bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@omnikes/lib/prisma';
 import { authService } from '@omnikes/services/auth.service';
