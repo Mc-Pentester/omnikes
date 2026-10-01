@@ -74,7 +74,9 @@ export default function AdministrationUsersPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      void load();
+      setTimeout(() => {
+        void load();
+      }, 0);
     }
   }, [authLoading, user]);
 
