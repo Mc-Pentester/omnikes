@@ -76,6 +76,7 @@ export class AdminUserService {
   async create(organizationId: string, input: AdminUserCreateInput, actorUserId: string) {
     const data = adminUserCreateSchema.parse(input);
     const role = await this.resolveRole(data.roleId, organizationId, data.storeId);
+    if (role.isGlobal && data.storeId) throw new Error('Global role cannot be assigned to a specific store');
 
     const existing = await prisma.user.findUnique({ where: { email: data.email } });
     if (existing) throw new Error('A user with this email already exists');
@@ -130,9 +131,15 @@ export class AdminUserService {
     const data = adminUserUpdateSchema.parse(input);
     const target = await userRepository.findByIdWithOrganization(userId, organizationId);
     if (!target) throw new Error('User not found');
+    if (userId === actorUserId && data.isActive === false) throw new Error('You cannot deactivate your own account');
+    if (data.email && data.email !== target.email) {
+      const existing = await prisma.user.findUnique({ where: { email: data.email }, select: { id: true } });
+      if (existing && existing.id !== userId) throw new Error('A user with this email already exists');
+    }
 
     if (data.roleId) {
-      await this.resolveRole(data.roleId, organizationId, data.storeId);
+      const selectedRole = await this.resolveRole(data.roleId, organizationId, data.storeId);
+      if (selectedRole.isGlobal && data.storeId) throw new Error('Global role cannot be assigned to a specific store');
     } else if (data.storeId) {
       const currentRole = target.userRoles[0]?.role;
       if (!currentRole) throw new Error('User has no role');
