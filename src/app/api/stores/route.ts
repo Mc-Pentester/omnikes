@@ -12,6 +12,7 @@ import { storeSchema } from '@omnikes/lib/validation';
 export async function GET(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'store.read');
     const { searchParams } = new URL(request.url);
     
     const isActive = searchParams.get('isActive') === 'true' ? true : 
