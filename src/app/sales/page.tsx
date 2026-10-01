@@ -328,37 +328,39 @@ export default function SalesPage() {
                     <p className="text-xs text-gray-500 mt-2">Un paiement partiel reste PENDING jusqu’à couverture complète.</p>
                   </div>
 
-                  <div className="rounded-lg border p-4">
-                    <h3 className="font-semibold mb-3">ACCORDER UN CRÉDIT</h3>
-                    {!selected.customer ? (
-                      <p className="text-sm text-red-600">Cette vente n’a pas de client. Le crédit est impossible.</p>
-                    ) : selected.saleCredit ? (
-                      <p className="text-sm text-gray-600">Un crédit de {money(credit)} HTG est déjà autorisé pour cette vente.</p>
-                    ) : (
-                      <>
-                        <div className="flex gap-2">
+                  {user.canAuthorizeCredit && (
+                    <div className="rounded-lg border p-4">
+                      <h3 className="font-semibold mb-3">ACCORDER UN CRÉDIT</h3>
+                      {!selected.customer ? (
+                        <p className="text-sm text-red-600">Cette vente n’a pas de client. Le crédit est impossible.</p>
+                      ) : selected.saleCredit ? (
+                        <p className="text-sm text-gray-600">Un crédit de {money(credit)} HTG est déjà autorisé pour cette vente.</p>
+                      ) : (
+                        <>
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              value={creditAmount}
+                              onChange={e => setCreditAmount(e.target.value)}
+                              placeholder={money(cashRemaining)}
+                              className="flex-1 rounded-md border px-3 py-2"
+                              disabled={processing || cashRemaining <= 0}
+                            />
+                            <Button onClick={authorizeCredit} disabled={processing || cashRemaining <= 0}>ACCORDER</Button>
+                          </div>
                           <input
-                            type="number"
-                            min="0.01"
-                            step="0.01"
-                            value={creditAmount}
-                            onChange={e => setCreditAmount(e.target.value)}
-                            placeholder={money(cashRemaining)}
-                            className="flex-1 rounded-md border px-3 py-2"
-                            disabled={processing || cashRemaining <= 0}
+                            value={creditNote}
+                            onChange={e => setCreditNote(e.target.value)}
+                            placeholder="Note facultative"
+                            className="w-full rounded-md border px-3 py-2 mt-2"
+                            disabled={processing}
                           />
-                          <Button onClick={authorizeCredit} disabled={processing || cashRemaining <= 0}>ACCORDER</Button>
-                        </div>
-                        <input
-                          value={creditNote}
-                          onChange={e => setCreditNote(e.target.value)}
-                          placeholder="Note facultative"
-                          className="w-full rounded-md border px-3 py-2 mt-2"
-                          disabled={processing}
-                        />
-                      </>
-                    )}
-                  </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-5 flex justify-end">
