@@ -130,7 +130,7 @@ export const saleItemUpdateSchema = saleItemSchema.partial().omit({ saleId: true
 // Payment validation
 export const paymentSchema = z.object({
   saleId: z.string().cuid().optional(),
-  method: z.enum(['CASH', 'CARD', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CHECK', 'CREDIT'], {
+  method: z.enum(['CASH', 'CARD', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CHECK'], {
     message: 'Invalid payment method',
   }),
   amount: z.number().positive('Amount must be positive'),
@@ -139,6 +139,15 @@ export const paymentSchema = z.object({
 });
 
 export const paymentUpdateSchema = paymentSchema.partial().omit({ saleId: true });
+
+// Explicit customer credit authorization
+export const saleCreditSchema = z.object({
+  customerId: z.string().cuid(),
+  amount: z.number().positive('Credit amount must be positive'),
+  note: z.string().max(1000).optional(),
+});
+
+export type SaleCreditInput = z.infer<typeof saleCreditSchema>;
 
 // Proforma validation
 export const proformaSchema = z.object({

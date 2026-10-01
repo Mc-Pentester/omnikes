@@ -39,6 +39,7 @@ model Organization {
   customers        Customer[]
   sales            Sale[]
   proformas        Proforma[]
+  saleCredits      SaleCredit[]
   taxConfiguration TaxConfiguration? @relation(fields: [taxConfigurationId], references: [id])
 
   @@index([slug])
@@ -70,6 +71,7 @@ model Store {
   inventories  Inventory[]
   sales        Sale[]
   proformas    Proforma[]
+  saleCredits  SaleCredit[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -105,7 +107,8 @@ model User {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   userRoles    UserRole[]
   sessions     Session[]
-  auditLogs    AuditLog[]
+  auditLogs             AuditLog[]
+  authorizedSaleCredits SaleCredit[] @relation("SaleCreditAuthorizedBy")
 
   @@index([organizationId])
   @@index([email])
@@ -471,6 +474,7 @@ model Customer {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   sales        Sale[]
   proformas    Proforma[]
+  saleCredits  SaleCredit[]
 
   @@index([organizationId])
   @@index([email])
@@ -506,6 +510,7 @@ model Sale {
   customer                Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
   items                   SaleItem[]
   payments                Payment[]
+  saleCredit              SaleCredit?
   convertedFromProforma   Proforma?    @relation("SaleProformaRelation", fields: [convertedFromProformaId], references: [id])
   convertedFromProformaId String?      @unique
 
@@ -515,6 +520,39 @@ model Sale {
   @@index([status])
   @@index([createdAt])
   @@map("sales")
+}
+
+// ============================================================
+// SALE_CREDIT (Explicit authorized customer credit)
+// ============================================================
+
+model SaleCredit {
+  id             String   @id @default(cuid())
+  organizationId String
+  storeId        String
+  saleId         String
+  customerId     String
+  amount         Decimal  @db.Decimal(12, 2)
+  status         String   @default("AUTHORIZED") // AUTHORIZED, SETTLED, CANCELLED
+  authorizedBy   String
+  authorizedAt   DateTime @default(now())
+  note           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  store             Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  sale              Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  customer          Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  authorizedByUser  User         @relation("SaleCreditAuthorizedBy", fields: [authorizedBy], references: [id], onDelete: Restrict)
+
+  @@unique([saleId])
+  @@index([organizationId])
+  @@index([storeId])
+  @@index([customerId])
+  @@index([authorizedBy])
+  @@index([status])
+  @@map("sale_credits")
 }
 
 // ============================================================

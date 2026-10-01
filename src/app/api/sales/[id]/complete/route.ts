@@ -67,6 +67,16 @@ export async function POST(
       );
     }
 
+    if (error instanceof Error && (
+      error.message.startsWith('Insufficient financial coverage') ||
+      error.message.startsWith('Sale cannot be completed from status')
+    )) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 409 }
+      );
+    }
+
     console.error('Error completing sale:', error);
     return NextResponse.json(
       { error: 'Failed to complete sale' },

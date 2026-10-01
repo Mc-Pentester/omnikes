@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { organizationSchema, userSchema, saleSchema } from '@omnikes/lib/validation';
+import { organizationSchema, userSchema, saleSchema, paymentSchema, saleCreditSchema } from '@omnikes/lib/validation';
 
 describe('Validation Schemas', () => {
   describe('organizationSchema', () => {
@@ -120,4 +120,48 @@ describe('Validation Schemas', () => {
       }
     });
   });
+
+  describe('paymentSchema', () => {
+    it('should reject CREDIT as a new payment method', () => {
+      const result = paymentSchema.safeParse({
+        saleId: 'cl1234567890ad',
+        method: 'CREDIT',
+        amount: 100,
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should accept a real payment method', () => {
+      const result = paymentSchema.safeParse({
+        saleId: 'cl1234567890ad',
+        method: 'CASH',
+        amount: 100,
+      });
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('saleCreditSchema', () => {
+    it('should validate explicit customer credit', () => {
+      const result = saleCreditSchema.safeParse({
+        customerId: 'cl1234567890ad',
+        amount: 100,
+        note: 'Approved by cashier',
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should reject zero or negative credit', () => {
+      expect(saleCreditSchema.safeParse({
+        customerId: 'cl1234567890ad',
+        amount: 0,
+      }).success).toBe(false);
+
+      expect(saleCreditSchema.safeParse({
+        customerId: 'cl1234567890ad',
+        amount: -10,
+      }).success).toBe(false);
+    });
+  });
+
 });

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { ZodError } from 'zod';
 import { prisma } from '@omnikes/lib/prisma';
 import { saleService } from '@omnikes/services/sale.service';
 import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, getAuthenticatedUser } from '@omnikes/lib/auth';
@@ -27,6 +28,13 @@ export async function GET(
 
     return NextResponse.json(payments);
   } catch (error) {
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: error.issues },
+        { status: 400 }
+      );
+    }
+
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -202,7 +210,18 @@ export async function POST(
         },
       });
 
-      // Reload sale to verify status and calculate remaining amount
+      // Lock the sale row so payment and credit authorization cannot
+      // calculate coverage concurrently from the same balance.
+      const lockedSaleRows = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM sales
+        WHERE id = ${saleId} AND "organizationId" = ${organizationId}
+        FOR UPDATE
+      `;
+
+      if (lockedSaleRows.length === 0) {
+        throw new Error('Sale not found or access denied');
+      }
+
       const sale = await tx.sale.findUnique({
         where: { id: saleId },
         include: {
@@ -232,13 +251,14 @@ export async function POST(
 
       // Calculate total already paid
       const totalPaid = sale.payments
-        .filter(p => p.status === 'COMPLETED')
+        .filter(p => p.status === 'COMPLETED' && p.method !== 'CREDIT')
         .reduce((sum: number, p) => sum + Number(p.amount), 0);
 
       const remainingAmount = Number(sale.total) - totalPaid;
 
-      // Validate payment amount
-      if (paymentData.method !== 'CREDIT' && Number(paymentData.amount) > remainingAmount) {
+      // Payment.CREDIT is rejected by paymentSchema. Only real payment
+      // methods can consume the remaining financial balance.
+      if (Number(paymentData.amount) > remainingAmount) {
         throw new Error(`Payment amount exceeds remaining balance. Remaining: ${remainingAmount}, Attempted: ${paymentData.amount}`);
       }
 

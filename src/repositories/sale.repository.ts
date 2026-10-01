@@ -23,6 +23,7 @@ export class SaleRepository {
           },
         },
         payments: true,
+        saleCredit: true,
       },
     });
   }
@@ -49,6 +50,7 @@ export class SaleRepository {
           },
         },
         payments: true,
+        saleCredit: true,
       },
     });
   }
@@ -75,6 +77,7 @@ export class SaleRepository {
           },
         },
         payments: true,
+        saleCredit: true,
       },
     });
   }
@@ -162,6 +165,7 @@ export class SaleRepository {
             },
           },
           payments: true,
+          saleCredit: true,
         },
         skip,
         take,
@@ -356,6 +360,7 @@ export class SaleRepository {
           organizationId,
         },
         status: 'COMPLETED',
+        NOT: { method: 'CREDIT' },
       },
       select: { amount: true },
     });

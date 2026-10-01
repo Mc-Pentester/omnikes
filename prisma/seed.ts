@@ -349,6 +349,16 @@ async function main() {
     },
   });
 
+  const saleCreditPermission = await prisma.permission.upsert({
+    where: { code: 'sale.credit' },
+    update: {},
+    create: {
+      code: 'sale.credit',
+      description: 'Accorder un crédit client',
+      module: 'sales',
+    },
+  });
+
   const saleCancelPermission = await prisma.permission.upsert({
     where: { code: 'sale.cancel' },
     update: {},
@@ -481,6 +491,7 @@ async function main() {
     saleReadPermission,
     saleUpdatePermission,
     saleCompletePermission,
+    saleCreditPermission,
     saleCancelPermission,
     paymentCreatePermission,
     paymentReadPermission,
