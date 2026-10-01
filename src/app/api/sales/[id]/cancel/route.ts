@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saleService } from '@omnikes/services/sale.service';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
+import { requireAuthenticatedUser, requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
 
 /**
  * POST /api/sales/[id]/cancel
@@ -14,6 +14,7 @@ export async function POST(
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'sale.cancel');
+    const user = await requireAuthenticatedUser(request);
 
     // Get sale to verify store access before cancellation
     const sale = await saleService.getById(id, organizationId);
@@ -21,7 +22,7 @@ export async function POST(
       await requireStoreAccess(request, sale.storeId);
     }
 
-    const cancelledSale = await saleService.cancel(id, organizationId);
+    const cancelledSale = await saleService.cancel(id, organizationId, user.id);
 
     return NextResponse.json(cancelledSale);
   } catch (error) {
@@ -53,9 +54,19 @@ export async function POST(
       );
     }
 
-    if (error instanceof Error && error.message === 'Sale is already cancelled') {
+    if (error instanceof Error && (
+      error.message === 'Sale is already cancelled' ||
+      error.message.startsWith('Sale cannot be cancelled from status')
+    )) {
       return NextResponse.json(
-        { error: 'Sale is already cancelled' },
+        { error: error.message },
+        { status: 409 }
+      );
+    }
+
+    if (error instanceof Error && error.message.startsWith('Inventory not found for variant')) {
+      return NextResponse.json(
+        { error: error.message },
         { status: 409 }
       );
     }
