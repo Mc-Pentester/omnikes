@@ -890,6 +890,29 @@ async function main() {
   // USER ROLES
   // ============================================================
 
+  // RBAC invariant: seeded roles are organization-scoped.
+  // Remove only invalid cross-organization assignments for deterministic
+  // seed roles so repeated seed runs cannot recreate tenant-crossing
+  // authorization.
+  await prisma.userRole.deleteMany({
+    where: {
+      OR: [
+        {
+          roleId: adminRoleA.id,
+          user: { organizationId: { not: orgA.id } },
+        },
+        {
+          roleId: cashierRoleA.id,
+          user: { organizationId: { not: orgA.id } },
+        },
+        {
+          roleId: adminRoleB.id,
+          user: { organizationId: { not: orgB.id } },
+        },
+      ],
+    },
+  });
+
   await prisma.userRole.upsert({
     where: { userId_roleId: { userId: adminA.id, roleId: adminRoleA.id } },
     update: {},
@@ -923,8 +946,23 @@ async function main() {
   // STORES
   // ============================================================
 
-  const storeA = await prisma.store.create({
-    data: {
+  const storeA = await prisma.store.upsert({
+    where: {
+      organizationId_code: {
+        organizationId: orgA.id,
+        code: 'STORE-A',
+      },
+    },
+    update: {
+      name: 'OmniKès Test Store A',
+      address: '123 Test Street A',
+      city: 'Port-au-Prince',
+      country: 'HT',
+      phone: '+509 1234 5678',
+      email: 'store.a@omnikes.test',
+      isActive: true,
+    },
+    create: {
       organizationId: orgA.id,
       name: 'OmniKès Test Store A',
       code: 'STORE-A',
@@ -937,8 +975,23 @@ async function main() {
     },
   });
 
-  const storeB = await prisma.store.create({
-    data: {
+  const storeB = await prisma.store.upsert({
+    where: {
+      organizationId_code: {
+        organizationId: orgB.id,
+        code: 'STORE-B',
+      },
+    },
+    update: {
+      name: 'OmniKès Test Store B',
+      address: '456 Test Street B',
+      city: 'Port-au-Prince',
+      country: 'HT',
+      phone: '+509 8765 4321',
+      email: 'store.b@omnikes.test',
+      isActive: true,
+    },
+    create: {
       organizationId: orgB.id,
       name: 'OmniKès Test Store B',
       code: 'STORE-B',
@@ -1361,31 +1414,45 @@ async function main() {
   // CUSTOMERS
   // ============================================================
 
-  const customerA = await prisma.customer.create({
-    data: {
-      organizationId: orgA.id,
-      name: 'Client Test A',
-      email: 'client.a@omnikes.test',
-      phone: '+509 1111 1111',
-      address: '789 Customer Street A',
-      city: 'Port-au-Prince',
-      country: 'HT',
-      isActive: true,
-    },
-  });
+  const customerA =
+    (await prisma.customer.findFirst({
+      where: {
+        organizationId: orgA.id,
+        email: 'client.a@omnikes.test',
+      },
+    })) ??
+    (await prisma.customer.create({
+      data: {
+        organizationId: orgA.id,
+        name: 'Client Test A',
+        email: 'client.a@omnikes.test',
+        phone: '+509 1111 1111',
+        address: '789 Customer Street A',
+        city: 'Port-au-Prince',
+        country: 'HT',
+        isActive: true,
+      },
+    }));
 
-  const customerB = await prisma.customer.create({
-    data: {
-      organizationId: orgB.id,
-      name: 'Client Test B',
-      email: 'client.b@omnikes.test',
-      phone: '+509 2222 2222',
-      address: '321 Customer Street B',
-      city: 'Port-au-Prince',
-      country: 'HT',
-      isActive: true,
-    },
-  });
+  const customerB =
+    (await prisma.customer.findFirst({
+      where: {
+        organizationId: orgB.id,
+        email: 'client.b@omnikes.test',
+      },
+    })) ??
+    (await prisma.customer.create({
+      data: {
+        organizationId: orgB.id,
+        name: 'Client Test B',
+        email: 'client.b@omnikes.test',
+        phone: '+509 2222 2222',
+        address: '321 Customer Street B',
+        city: 'Port-au-Prince',
+        country: 'HT',
+        isActive: true,
+      },
+    }));
 
   console.log('✅ Customers created');
 
