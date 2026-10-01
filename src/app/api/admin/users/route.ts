@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
     }
     if (error instanceof Error && (
       error.message === 'A user with this email already exists' ||
+      error.message === 'Global role cannot be assigned to a specific store' ||
       error.message === 'Role not found' ||
       error.message.includes('outside the current organization') ||
       error.message.includes('Store not found') ||
