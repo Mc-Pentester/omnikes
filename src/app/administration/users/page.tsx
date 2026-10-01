@@ -176,9 +176,14 @@ export default function AdministrationUsersPage() {
           <h1 className="text-3xl font-semibold">Utilisateurs</h1>
           <p className="text-gray-600 mt-1">Gérer les comptes, rôles et accès de l’organisation courante.</p>
         </div>
-        <button onClick={newUser} className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-          + Nouvel utilisateur
-        </button>
+        <div className="flex gap-2">
+          <a href="/administration/roles" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
+            Rôles & permissions
+          </a>
+          <button onClick={newUser} className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+            + Nouvel utilisateur
+          </button>
+        </div>
       </header>
 
       {error && <div className="rounded-lg bg-red-50 p-3 text-red-700">{error}</div>}
