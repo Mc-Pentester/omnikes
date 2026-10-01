@@ -32,6 +32,13 @@ export async function GET(
         );
       }
 
+      if (error.message.startsWith('Permission required')) {
+        return NextResponse.json(
+          { error: 'Permission required' },
+          { status: 403 }
+        );
+      }
+
       if (error.message === 'Not authorized to access this store') {
         return NextResponse.json(
           { error: 'Not authorized to access this store' },
