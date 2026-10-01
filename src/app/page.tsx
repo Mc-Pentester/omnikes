@@ -337,21 +337,9 @@ export default function HomePage() {
   const displayTotal = serverTotals?.total ?? (applyTax ? subtotal + displayTax : subtotal);
   const change = paymentMethod === 'CASH' ? (parseFloat(amountReceived) || 0) - displayTotal : 0;
 
-  // Temporary forensic logging
-  console.log('[TOTAL FORENSIC] Cart calculation:', {
-    cartLength: cart.length,
-    subtotal,
-    taxRate,
-    displayTax,
-    displayTotal,
-    serverTotals,
-  });
-
   const syncCartToSale = async () => {
     if (!currentSaleId) return;
     try {
-      console.log('[SYNC DEBUG] Starting sync for sale:', currentSaleId);
-      
       // Update applyTax if changed
       await fetch(`/api/sales/${currentSaleId}`, {
         method: 'PATCH',
@@ -360,29 +348,22 @@ export default function HomePage() {
       });
       
       const itemsResponse = await fetch(`/api/sales/${currentSaleId}/items`);
-      console.log('[SYNC DEBUG] GET items response status:', itemsResponse.status);
-      
       if (itemsResponse.ok) {
         const existingItems = await itemsResponse.json();
-        console.log('[SYNC DEBUG] Existing items:', existingItems.length);
-        
         for (const item of existingItems) {
           const deleteResponse = await fetch(`/api/sales/${currentSaleId}/items/${item.id}`, { method: 'DELETE' });
-          console.log('[SYNC DEBUG] DELETE item', item.id, 'status:', deleteResponse.status);
-          
           if (!deleteResponse.ok) {
             const errorText = await deleteResponse.text();
-            console.error('[SYNC DEBUG] DELETE item failed:', deleteResponse.status, errorText);
+            console.error('Failed to delete sale item:', deleteResponse.status, errorText);
             throw new Error(`Failed to delete item: ${deleteResponse.status} - ${errorText}`);
           }
         }
       } else {
         const errorText = await itemsResponse.text();
-        console.error('[SYNC DEBUG] GET items failed:', itemsResponse.status, errorText);
+        console.error('Failed to get existing sale items:', itemsResponse.status, errorText);
         throw new Error(`Failed to get existing items: ${itemsResponse.status} - ${errorText}`);
       }
       
-        console.log('[SYNC DEBUG] Adding cart items:', cart.length);
       for (let i = 0; i < cart.length; i++) {
         const item = cart[i];
         const payload = {
@@ -400,13 +381,12 @@ export default function HomePage() {
         
         if (!itemResponse.ok) {
           const errorText = await itemResponse.text();
-          console.error(`[SYNC DEBUG] Cart item ${i + 1}/${cart.length} POST failed:`, itemResponse.status, errorText);
+          console.error(`Failed to add sale item ${i + 1}/${cart.length}:`, itemResponse.status, errorText);
           throw new Error(`Failed to add item ${i + 1}/${cart.length}: ${itemResponse.status} - ${errorText}`);
         }
       }
       
       const saleResponse = await fetch(`/api/sales/${currentSaleId}`);
-      console.log('[SYNC DEBUG] GET sale response status:', saleResponse.status);
       
       if (saleResponse.ok) {
         const sale = await saleResponse.json();
@@ -415,21 +395,15 @@ export default function HomePage() {
           tax: Number(sale.tax),
           total: Number(sale.total),
         };
-        console.log('[SYNC DEBUG] Server totals:', totals);
-        console.log('[TOTAL FORENSIC] Server calculation:', {
-          serverSubtotal: totals.subtotal,
-          serverTax: totals.tax,
-          serverTotal: totals.total,
-        });
         setServerTotals(totals);
         return totals; // Return totals for immediate use
       } else {
         const errorText = await saleResponse.text();
-        console.error('[SYNC DEBUG] GET sale failed:', saleResponse.status, errorText);
+        console.error('Failed to get sale totals:', saleResponse.status, errorText);
         throw new Error(`Failed to get sale totals: ${saleResponse.status} - ${errorText}`);
       }
     } catch (err) {
-      console.error('[SYNC DEBUG] Error syncing cart:', err);
+      console.error('Error syncing cart:', err);
       throw err; // Re-throw to allow completeSale to catch and display the error
     }
   };
