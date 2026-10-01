@@ -180,6 +180,9 @@ export default function AdministrationUsersPage() {
           <a href="/administration/roles" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
             Rôles & permissions
           </a>
+          <a href="/administration/stores" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
+            Magasins
+          </a>
           <button onClick={newUser} className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
             + Nouvel utilisateur
           </button>

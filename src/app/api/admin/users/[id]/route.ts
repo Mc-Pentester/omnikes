@@ -39,6 +39,8 @@ export async function PATCH(
       error.message === 'You cannot deactivate your own account' ||
       error.message === 'Global role cannot be assigned to a specific store' ||
       error.message === 'Role not found' ||
+      error.message === 'Actor cannot delegate one or more permissions' ||
+      error.message === 'Role is outside the actor store scope' ||
       error.message.includes('outside the current organization') ||
       error.message.includes('Store not found') ||
       error.message.includes('Role is not scoped')

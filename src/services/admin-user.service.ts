@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@omnikes/lib/prisma';
 import { authService } from '@omnikes/services/auth.service';
+import { roleRepository } from '@omnikes/repositories/role.repository';
 import { userRepository } from '@omnikes/repositories/user.repository';
 import {
   adminUserCreateSchema,
@@ -10,8 +11,39 @@ import {
 } from '@omnikes/lib/validation';
 
 export class AdminUserService {
-  async list(organizationId: string, search?: string) {
-    const [users, roles, stores] = await Promise.all([
+  private async assertRoleAssignable(actorUserId: string, organizationId: string, roleId: string) {
+    const [actorRoles, targetRole] = await Promise.all([
+      roleRepository.getUserRoles(actorUserId),
+      prisma.role.findFirst({
+        where: { id: roleId, organizationId },
+        include: { rolePermissions: { select: { permission: { select: { code: true } } } } },
+      }),
+    ]);
+
+    if (!targetRole) throw new Error('Role not found');
+
+    const actorPermissions = new Set(actorRoles.flatMap((role) => role.permissions));
+    const targetPermissions = targetRole.rolePermissions.map((rp) => rp.permission.code);
+    if (targetPermissions.some((permission) => !actorPermissions.has(permission))) {
+      throw new Error('Actor cannot delegate one or more permissions');
+    }
+
+    if (targetRole.isGlobal) {
+      if (!actorRoles.some((role) => role.isGlobal)) {
+        throw new Error('Global role assignment requires global administration');
+      }
+    } else {
+      const authorizedStoreIds = await roleRepository.getAuthorizedStoreIds(actorUserId);
+      if (authorizedStoreIds !== null && (!targetRole.storeId || !authorizedStoreIds.includes(targetRole.storeId))) {
+        throw new Error('Role is outside the actor store scope');
+      }
+    }
+
+    return targetRole;
+  }
+
+  async list(organizationId: string, search: string | undefined, actorUserId: string) {
+    const [allUsers, roles, stores] = await Promise.all([
       userRepository.listByOrganization(organizationId, search),
       prisma.role.findMany({
         where: { organizationId },
@@ -25,10 +57,15 @@ export class AdminUserService {
       }),
     ]);
 
-    const scopedRoleStoreIds = new Set(roles.map((role) => role.storeId).filter(Boolean));
-    const safeRoles = roles.filter((role) => role.isGlobal || (role.storeId && scopedRoleStoreIds.has(role.storeId)));
+    const actorStoreIds = await roleRepository.getAuthorizedStoreIds(actorUserId);
+    const safeRoles = roles.filter((role) =>
+      role.isGlobal ? actorStoreIds === null : actorStoreIds === null || (role.storeId ? actorStoreIds.includes(role.storeId) : false),
+    );
+    const users = actorStoreIds === null
+      ? allUsers
+      : allUsers.filter((item) => item.userRoles.some(({ role }) => role.isGlobal || (role.storeId ? actorStoreIds.includes(role.storeId) : false)));
 
-    return { users, roles: safeRoles, stores };
+    return { users, roles: safeRoles, stores: actorStoreIds === null ? stores : stores.filter((store) => actorStoreIds.includes(store.id)) };
   }
 
   private async resolveRole(roleId: string, organizationId: string, storeId?: string) {
@@ -61,8 +98,9 @@ export class AdminUserService {
 
   async create(organizationId: string, input: AdminUserCreateInput, actorUserId: string) {
     const data = adminUserCreateSchema.parse(input);
-    const role = await this.resolveRole(data.roleId, organizationId, data.storeId);
+    const role = await this.assertRoleAssignable(actorUserId, organizationId, data.roleId);
     if (role.isGlobal && data.storeId) throw new Error('Global role cannot be assigned to a specific store');
+    if (!role.isGlobal && data.storeId && role.storeId !== data.storeId) throw new Error('Role is not scoped to the selected store');
 
     const existing = await prisma.user.findUnique({ where: { email: data.email } });
     if (existing) throw new Error('A user with this email already exists');
@@ -124,12 +162,16 @@ export class AdminUserService {
     }
 
     if (data.roleId) {
-      const selectedRole = await this.resolveRole(data.roleId, organizationId, data.storeId);
+      const selectedRole = await this.assertRoleAssignable(actorUserId, organizationId, data.roleId);
       if (selectedRole.isGlobal && data.storeId) throw new Error('Global role cannot be assigned to a specific store');
+      if (!selectedRole.isGlobal && data.storeId && selectedRole.storeId !== data.storeId) {
+        throw new Error('Role is not scoped to the selected store');
+      }
     } else if (data.storeId) {
       const currentRole = target.userRoles[0]?.role;
       if (!currentRole) throw new Error('User has no role');
-      await this.resolveRole(currentRole.id, organizationId, data.storeId);
+      const resolvedCurrentRole = await this.assertRoleAssignable(actorUserId, organizationId, currentRole.id);
+      if (resolvedCurrentRole.isGlobal || resolvedCurrentRole.storeId !== data.storeId) throw new Error('Role is not scoped to the selected store');
     }
 
     const updateData: Prisma.UserUpdateInput = {};

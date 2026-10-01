@@ -35,7 +35,7 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { logout } = useAuth();
-  const [canManageUsers, setCanManageUsers] = useState(false);
+  const [canAccessAdministration, setCanAccessAdministration] = useState(false);
   const [isCompact, setIsCompact] = useState(compact);
 
   useEffect(() => {
@@ -43,10 +43,14 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
     fetch('/api/auth/me')
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
-        if (mounted) setCanManageUsers(data?.user?.canManageUsers === true);
+        if (mounted) setCanAccessAdministration(
+          data?.user?.canAccessAdministration === true ||
+          data?.user?.canManageStores === true ||
+          data?.user?.canManageRoles === true,
+        );
       })
       .catch(() => {
-        if (mounted) setCanManageUsers(false);
+        if (mounted) setCanAccessAdministration(false);
       });
     return () => {
       mounted = false;
@@ -59,7 +63,7 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
   };
 
   const handleNavigate = (item: MenuItem) => {
-    if (!item.available && !(item.id === 'administration' && canManageUsers)) return;
+    if (!item.available && !(item.id === 'administration' && canAccessAdministration)) return;
 
     // Navigate to the page
     router.push(item.path);
@@ -70,7 +74,7 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
     router.push('/login');
   };
 
-  const availableItems = menuItems.filter(item => item.available || (item.id === 'administration' && canManageUsers));
+  const availableItems = menuItems.filter(item => item.available || (item.id === 'administration' && canAccessAdministration));
 
   return (
     <aside 
@@ -118,8 +122,8 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
                 } ${!item.available ? 'opacity-50 cursor-not-allowed' : ''}`}
                 role="menuitem"
                 aria-current={pathname === item.path || (item.path === '/reports' && pathname.startsWith('/reports')) ? 'page' : undefined}
-                disabled={!item.available && !(item.id === 'administration' && canManageUsers)}
-                title={!item.available && !(item.id === 'administration' && canManageUsers) ? 'Module non disponible' : item.label}
+                disabled={!item.available && !(item.id === 'administration' && canAccessAdministration)}
+                title={!item.available && !(item.id === 'administration' && canAccessAdministration) ? 'Module non disponible' : item.label}
               >
                 <span className="text-2xl" aria-hidden="true">{item.icon}</span>
                 {!isCompact && (
