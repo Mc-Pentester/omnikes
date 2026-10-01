@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import bcrypt from 'bcryptjs';
 import { NextRequest } from 'next/server';
 import { prisma } from '@omnikes/lib/prisma';
-import { POST as loginPost } from '@omnikes/app/api/auth/login/route';
+
 import { POST as creditPost } from '@omnikes/app/api/sales/[id]/credit/route';
 
 describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
