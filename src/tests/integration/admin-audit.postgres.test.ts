@@ -2,7 +2,7 @@ import { beforeAll, afterAll, describe, expect, it } from 'vitest';
 import { NextRequest } from 'next/server';
 import { prisma } from '@omnikes/lib/prisma';
 import { sessionRepository } from '@omnikes/repositories/session.repository';
-import { generateToken } from '@omnikes/lib/crypto';
+import { _resetSecretCache, generateToken } from '@omnikes/lib/crypto';
 import { GET } from '@omnikes/app/api/admin/audit/route';
 
 describe('Administration audit runtime - PostgreSQL', () => {
@@ -11,7 +11,11 @@ describe('Administration audit runtime - PostgreSQL', () => {
   let orgAId = '';
   let orgBId = '';
 
+  const previousSessionSecret = process.env.SESSION_SECRET;
+
   beforeAll(async () => {
+    process.env.SESSION_SECRET = 'p0-25-e-admin-audit-runtime-secret-0123456789';
+    _resetSecretCache();
     const [admin, cashier, orgA, orgB] = await Promise.all([
       prisma.user.findUniqueOrThrow({ where: { email: 'admin.a@omnikes.test' }, select: { id: true } }),
       prisma.user.findUniqueOrThrow({ where: { email: 'cashier.a@omnikes.test' }, select: { id: true } }),
@@ -38,6 +42,12 @@ describe('Administration audit runtime - PostgreSQL', () => {
 
   afterAll(async () => {
     await prisma.$disconnect();
+    if (previousSessionSecret === undefined) {
+      delete process.env.SESSION_SECRET;
+    } else {
+      process.env.SESSION_SECRET = previousSessionSecret;
+    }
+    _resetSecretCache();
   });
 
   it('returns only audit events from the authenticated organization', async () => {
