@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   requireCurrentOrganizationId,
   requireAuthenticatedUser,
+  requirePermission,
 } from '@omnikes/lib/auth';
 import { adminOrganizationUpdateSchema } from '@omnikes/lib/validation';
 import { adminOrganizationService } from '@omnikes/services/admin-organization.service';
@@ -20,6 +21,7 @@ function authError(error: unknown) {
 export async function GET(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'organization.read');
     const actor = await requireAuthenticatedUser(request);
     const organization = await adminOrganizationService.get(organizationId, actor.id);
     return NextResponse.json({ organization });
@@ -37,6 +39,7 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'organization.update');
     const actor = await requireAuthenticatedUser(request);
     const body = adminOrganizationUpdateSchema.parse(await request.json());
     const organization = await adminOrganizationService.update(
