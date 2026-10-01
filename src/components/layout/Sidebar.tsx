@@ -50,7 +50,7 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
         );
       })
       .catch(() => {
-        if (mounted) setCanManageUsers(false);
+        if (mounted) setCanAccessAdministration(false);
       });
     return () => {
       mounted = false;
@@ -74,7 +74,7 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
     router.push('/login');
   };
 
-  const availableItems = menuItems.filter(item => item.available || (item.id === 'administration' && canManageUsers));
+  const availableItems = menuItems.filter(item => item.available || (item.id === 'administration' && canAccessAdministration));
 
   return (
     <aside 
