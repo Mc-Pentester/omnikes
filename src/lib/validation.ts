@@ -40,7 +40,7 @@ export const adminUserCreateSchema = z.object({
   email: z.string().email('Invalid email address'),
   name: z.string().min(1, 'Name is required').max(255),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  roleId: z.string().cuid(),
+  roleId: z.string().min(1, 'Role is required'),
   storeId: z.string().cuid().optional(),
 });
 
@@ -49,7 +49,7 @@ export const adminUserUpdateSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255).optional(),
   password: z.string().min(8, 'Password must be at least 8 characters').optional(),
   isActive: z.boolean().optional(),
-  roleId: z.string().cuid().optional(),
+  roleId: z.string().min(1, 'Role is required').optional(),
   storeId: z.string().cuid().optional(),
 });
 
@@ -60,6 +60,40 @@ export const roleSchema = z.object({
   isGlobal: z.boolean().default(false),
   storeId: z.string().cuid().optional(),
 });
+
+// Administration - role management
+export const adminRoleCreateSchema = z.object({
+  name: z.string().trim().min(1, 'Role name is required').max(100),
+  description: z.string().trim().max(500).optional(),
+  isGlobal: z.boolean().default(false),
+  storeId: z.string().cuid().optional(),
+  permissionIds: z.array(z.string().cuid()).default([]),
+}).superRefine((data, ctx) => {
+  if (data.isGlobal && data.storeId) {
+    ctx.addIssue({ code: 'custom', path: ['storeId'], message: 'A global role cannot be scoped to a store' });
+  }
+  if (!data.isGlobal && !data.storeId) {
+    ctx.addIssue({ code: 'custom', path: ['storeId'], message: 'A store-scoped role requires a store' });
+  }
+});
+
+export const adminRoleUpdateSchema = z.object({
+  name: z.string().trim().min(1, 'Role name is required').max(100).optional(),
+  description: z.string().trim().max(500).optional(),
+  isGlobal: z.boolean().optional(),
+  storeId: z.string().cuid().nullable().optional(),
+  permissionIds: z.array(z.string().cuid()).optional(),
+}).superRefine((data, ctx) => {
+  if (data.isGlobal === true && data.storeId) {
+    ctx.addIssue({ code: 'custom', path: ['storeId'], message: 'A global role cannot be scoped to a store' });
+  }
+  if (data.isGlobal === false && data.storeId === null) {
+    ctx.addIssue({ code: 'custom', path: ['storeId'], message: 'A store-scoped role requires a store' });
+  }
+});
+
+export type AdminRoleCreateInput = z.infer<typeof adminRoleCreateSchema>;
+export type AdminRoleUpdateInput = z.infer<typeof adminRoleUpdateSchema>;
 
 // Permission validation
 export const permissionSchema = z.object({

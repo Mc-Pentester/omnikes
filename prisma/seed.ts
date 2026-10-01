@@ -116,6 +116,7 @@ async function main() {
       id: 'admin-role-a',
       name: 'ADMIN',
       description: 'Administrator role for test organization A',
+      organizationId: orgA.id,
       isGlobal: true,
     },
   });
@@ -127,6 +128,7 @@ async function main() {
       id: 'cashier-role-a',
       name: 'CASHIER',
       description: 'Cashier role for test organization A',
+      organizationId: orgA.id,
       isGlobal: true,
     },
   });
@@ -138,6 +140,7 @@ async function main() {
       id: 'admin-role-b',
       name: 'ADMIN',
       description: 'Administrator role for test organization B',
+      organizationId: orgB.id,
       isGlobal: true,
     },
   });
@@ -485,6 +488,37 @@ async function main() {
   });
 
 
+  // Role administration permissions
+  const roleReadPermission = await prisma.permission.upsert({
+    where: { code: 'role.read' },
+    update: {},
+    create: {
+      code: 'role.read',
+      description: 'Consulter les rôles et permissions',
+      module: 'roles',
+    },
+  });
+
+  const roleCreatePermission = await prisma.permission.upsert({
+    where: { code: 'role.create' },
+    update: {},
+    create: {
+      code: 'role.create',
+      description: 'Créer un rôle',
+      module: 'roles',
+    },
+  });
+
+  const roleUpdatePermission = await prisma.permission.upsert({
+    where: { code: 'role.update' },
+    update: {},
+    create: {
+      code: 'role.update',
+      description: 'Modifier un rôle et ses permissions',
+      module: 'roles',
+    },
+  });
+
   console.log('✅ Permissions created');
 
   // ============================================================
@@ -759,6 +793,20 @@ async function main() {
         roleId: cashierRoleA.id,
         permissionId: permission.id,
       },
+    });
+  }
+
+  // Assign role administration permissions to ADMIN roles
+  for (const permission of [roleReadPermission, roleCreatePermission, roleUpdatePermission]) {
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
+      update: {},
+      create: { roleId: adminRoleA.id, permissionId: permission.id },
+    });
+    await prisma.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: permission.id } },
+      update: {},
+      create: { roleId: adminRoleB.id, permissionId: permission.id },
     });
   }
 
