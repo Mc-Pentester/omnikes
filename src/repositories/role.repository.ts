@@ -6,6 +6,7 @@ export interface RoleWithPermissions {
   description: string | null;
   isGlobal: boolean;
   storeId: string | null;
+  organizationId: string;
   permissions: string[]; // Array of permission codes
 }
 
@@ -14,8 +15,18 @@ export class RoleRepository {
    * Get all roles with permissions for a user
    */
   async getUserRoles(userId: string): Promise<RoleWithPermissions[]> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true },
+    });
+
+    if (!user) return [];
+
     const userRoles = await prisma.userRole.findMany({
-      where: { userId },
+      where: {
+        userId,
+        role: { organizationId: user.organizationId },
+      },
       include: {
         role: {
           include: {
@@ -35,6 +46,7 @@ export class RoleRepository {
       description: ur.role.description,
       isGlobal: ur.role.isGlobal,
       storeId: ur.role.storeId,
+      organizationId: ur.role.organizationId!,
       permissions: ur.role.rolePermissions.map((rp) => rp.permission.code),
     }));
   }
