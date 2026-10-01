@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')?.trim() || undefined;
     const { skip, take } = validatePagination(searchParams.get('skip'), searchParams.get('take'));
 
-    const result = await adminUserService.list(organizationId, search);
+    const actor = await requireAuthenticatedUser(request);
+    const result = await adminUserService.list(organizationId, search, actor.id);
     return NextResponse.json({
       ...result,
       users: result.users.slice(skip, skip + take),
@@ -64,6 +65,8 @@ export async function POST(request: NextRequest) {
       error.message === 'A user with this email already exists' ||
       error.message === 'Global role cannot be assigned to a specific store' ||
       error.message === 'Role not found' ||
+      error.message === 'Actor cannot delegate one or more permissions' ||
+      error.message === 'Role is outside the actor store scope' ||
       error.message.includes('outside the current organization') ||
       error.message.includes('Store not found') ||
       error.message.includes('Role is not scoped')
