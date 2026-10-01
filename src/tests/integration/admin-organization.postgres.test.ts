@@ -11,6 +11,10 @@ describe('P0-25-D.1 - real PostgreSQL organization administration', () => {
   let orgAId = '';
   let orgBId = '';
   let originalName = '';
+  let originalCountry = '';
+  let originalCurrency = '';
+  let originalLocale = '';
+  let originalTimezone = '';
   let originalCloudEnabled = false;
   let originalOnlineStoreEnabled = false;
 
@@ -25,7 +29,7 @@ describe('P0-25-D.1 - real PostgreSQL organization administration', () => {
     });
     const org = await prisma.organization.findUniqueOrThrow({
       where: { id: admin.organizationId },
-      select: { id: true, name: true, cloudEnabled: true, onlineStoreEnabled: true },
+      select: { id: true, name: true, country: true, currency: true, locale: true, timezone: true, cloudEnabled: true, onlineStoreEnabled: true },
     });
     const orgB = await prisma.organization.findUniqueOrThrow({
       where: { slug: 'omnikes-test-commerce-b' },
@@ -37,6 +41,10 @@ describe('P0-25-D.1 - real PostgreSQL organization administration', () => {
     orgAId = org.id;
     orgBId = orgB.id;
     originalName = org.name;
+    originalCountry = org.country;
+    originalCurrency = org.currency;
+    originalLocale = org.locale;
+    originalTimezone = org.timezone;
     originalCloudEnabled = org.cloudEnabled;
     originalOnlineStoreEnabled = org.onlineStoreEnabled;
   });
@@ -161,6 +169,10 @@ describe('P0-25-D.1 - real PostgreSQL organization administration', () => {
       where: { id: orgAId },
       data: {
         name: originalName,
+        country: originalCountry,
+        currency: originalCurrency,
+        locale: originalLocale,
+        timezone: originalTimezone,
         cloudEnabled: originalCloudEnabled,
         onlineStoreEnabled: originalOnlineStoreEnabled,
       },
