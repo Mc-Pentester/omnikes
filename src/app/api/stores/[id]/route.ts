@@ -14,6 +14,7 @@ export async function GET(
 ) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'store.read');
     const { id: storeId } = await params;
 
     // Verify store access before fetching
