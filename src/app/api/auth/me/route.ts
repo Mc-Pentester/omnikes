@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@omnikes/lib/auth';
+import { roleRepository } from '@omnikes/repositories/role.repository';
 
 /**
  * GET /api/auth/me
@@ -16,7 +17,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ user });
+    const canManageUsers = await roleRepository.hasPermission(user.id, 'user.read');
+
+    return NextResponse.json({
+      user: {
+        ...user,
+        canManageUsers,
+      },
+    });
   } catch (error) {
     console.error('Get current user error:', error);
     return NextResponse.json(
