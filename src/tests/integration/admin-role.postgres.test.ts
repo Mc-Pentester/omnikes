@@ -10,8 +10,8 @@ describe('P0-25-B - real PostgreSQL role administration', () => {
   let cashierId = '';
   let orgAId = '';
   let orgBId = '';
-  let storeAId = '';
   let storeBId = '';
+  let orgBAdminRoleId = '';
   let saleReadPermissionId = '';
   let createdRoleId = '';
 
@@ -36,6 +36,10 @@ describe('P0-25-B - real PostgreSQL role administration', () => {
       where: { organizationId: orgB.id, code: 'STORE-B' },
       select: { id: true },
     });
+    const orgBAdminRole = await prisma.role.findFirstOrThrow({
+      where: { organizationId: orgB.id, name: 'ADMIN' },
+      select: { id: true },
+    });
     const permission = await prisma.permission.findUniqueOrThrow({
       where: { code: 'sale.read' },
       select: { id: true },
@@ -45,8 +49,8 @@ describe('P0-25-B - real PostgreSQL role administration', () => {
     cashierId = cashier.id;
     orgAId = admin.organizationId;
     orgBId = orgB.id;
-    storeAId = storeA.id;
     storeBId = storeB.id;
+    orgBAdminRoleId = orgBAdminRole.id;
     saleReadPermissionId = permission.id;
   });
 
@@ -77,7 +81,7 @@ describe('P0-25-B - real PostgreSQL role administration', () => {
     expect(response.status).toBe(200);
 
     const body = await response.json();
-    expect(body.roles.every((role: { organizationId?: string }) => !role.organizationId || role.organizationId === orgAId)).toBe(true);
+    expect(body.roles.some((role: { id: string }) => role.id === orgBAdminRoleId)).toBe(false);
     expect(body.roles.some((role: { name: string }) => role.name === 'ADMIN')).toBe(true);
   });
 
