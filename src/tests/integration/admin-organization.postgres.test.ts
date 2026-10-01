@@ -139,6 +139,100 @@ describe('P0-25-D.1 - real PostgreSQL organization administration', () => {
     expect(audit.newValues).toBeTruthy();
   });
 
+
+
+  it('enforces the role organization boundary for authorization', async () => {
+    const suffix = Date.now().toString();
+    const permission = await prisma.permission.create({
+      data: {
+        code: `p0-25-d3.role-boundary.${suffix}`,
+        description: 'P0-25-D.3 runtime boundary test permission',
+        module: 'test',
+      },
+    });
+
+    const [globalA, globalB, scopedA, scopedB, legacyGlobal] = await Promise.all([
+      prisma.role.create({
+        data: {
+          organizationId: orgAId,
+          name: `P0-25-D3-GLOBAL-A-${suffix}`,
+          isGlobal: true,
+        },
+      }),
+      prisma.role.create({
+        data: {
+          organizationId: orgBId,
+          name: `P0-25-D3-GLOBAL-B-${suffix}`,
+          isGlobal: true,
+        },
+      }),
+      prisma.role.create({
+        data: {
+          organizationId: orgAId,
+          name: `P0-25-D3-SCOPED-A-${suffix}`,
+          isGlobal: false,
+          storeId: null,
+        },
+      }),
+      prisma.role.create({
+        data: {
+          organizationId: orgBId,
+          name: `P0-25-D3-SCOPED-B-${suffix}`,
+          isGlobal: false,
+          storeId: null,
+        },
+      }),
+      prisma.role.create({
+        data: {
+          organizationId: null,
+          name: `P0-25-D3-LEGACY-GLOBAL-${suffix}`,
+          isGlobal: true,
+        },
+      }),
+    ]);
+
+    await prisma.rolePermission.create({
+      data: {
+        roleId: globalB.id,
+        permissionId: permission.id,
+      },
+    });
+
+    await prisma.userRole.createMany({
+      data: [
+        { userId: adminId, roleId: globalA.id },
+        { userId: adminId, roleId: globalB.id },
+        { userId: adminId, roleId: scopedA.id },
+        { userId: adminId, roleId: scopedB.id },
+        { userId: adminId, roleId: legacyGlobal.id },
+      ],
+    });
+
+    const roles = await roleRepository.getUserRoles(adminId);
+    const roleIds = new Set(roles.map((role) => role.id));
+
+    expect(roleIds.has(globalA.id)).toBe(true);
+    expect(roleIds.has(scopedA.id)).toBe(true);
+    expect(roleIds.has(globalB.id)).toBe(false);
+    expect(roleIds.has(scopedB.id)).toBe(false);
+    expect(roleIds.has(legacyGlobal.id)).toBe(false);
+
+    expect(await roleRepository.hasPermission(adminId, permission.code)).toBe(false);
+    expect(await roleRepository.hasGlobalRoleWithPermission(adminId, permission.code)).toBe(false);
+
+    await prisma.role.deleteMany({
+      where: {
+        id: {
+          in: [globalA.id, globalB.id, scopedA.id, scopedB.id, legacyGlobal.id],
+        },
+      },
+    });
+    await prisma.permission.delete({
+      where: { id: permission.id },
+    });
+  });
+
+
   it('rejects an invalid timezone without changing the organization', async () => {
     const before = await prisma.organization.findUniqueOrThrow({
       where: { id: orgAId },
