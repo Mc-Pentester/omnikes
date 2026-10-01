@@ -17,12 +17,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const canManageUsers = await roleRepository.hasPermission(user.id, 'user.read');
+    const [canManageUsers, canManageStores, canManageRoles] = await Promise.all([
+      roleRepository.hasPermission(user.id, 'user.read'),
+      roleRepository.hasPermission(user.id, 'store.read'),
+      roleRepository.hasPermission(user.id, 'role.read'),
+    ]);
 
     return NextResponse.json({
       user: {
         ...user,
         canManageUsers,
+        canManageStores,
+        canManageRoles,
       },
     });
   } catch (error) {
