@@ -56,6 +56,13 @@ export async function GET(
       );
     }
 
+    if (error instanceof Error && (error.message === 'Sale is already completed' || error.message === 'Sale is cancelled')) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 409 }
+      );
+    }
+
     if (error instanceof Error && error.message === 'Sale not found or access denied') {
       return NextResponse.json(
         { error: 'Sale not found or access denied' },
@@ -226,6 +233,7 @@ export async function POST(
         where: { id: saleId },
         include: {
           payments: true,
+          saleCredit: true,
         },
       });
 
@@ -249,15 +257,30 @@ export async function POST(
         }
       }
 
-      // Calculate total already paid
+      // Payments may only be added while the sale is awaiting financial
+      // coverage. COMPLETED and CANCELLED are terminal states.
+      if (sale.status === 'COMPLETED') {
+        throw new Error('Sale is already completed');
+      }
+
+      if (sale.status === 'CANCELLED') {
+        throw new Error('Sale is cancelled');
+      }
+
+      // Financial coverage must use the same rule as sale.complete():
+      // completed real payments + explicitly authorized customer credit.
       const totalPaid = sale.payments
         .filter(p => p.status === 'COMPLETED' && p.method !== 'CREDIT')
         .reduce((sum: number, p) => sum + Number(p.amount), 0);
 
-      const remainingAmount = Number(sale.total) - totalPaid;
+      const authorizedCredit = sale.saleCredit?.status === 'AUTHORIZED'
+        ? Number(sale.saleCredit.amount)
+        : 0;
+
+      const remainingAmount = Number(sale.total) - totalPaid - authorizedCredit;
 
       // Payment.CREDIT is rejected by paymentSchema. Only real payment
-      // methods can consume the remaining financial balance.
+      // methods can consume the remaining financial balance after credit.
       if (Number(paymentData.amount) > remainingAmount) {
         throw new Error(`Payment amount exceeds remaining balance. Remaining: ${remainingAmount}, Attempted: ${paymentData.amount}`);
       }
