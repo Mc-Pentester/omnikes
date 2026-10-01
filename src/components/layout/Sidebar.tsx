@@ -44,7 +44,7 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         if (mounted) setCanAccessAdministration(
-          data?.user?.canManageUsers === true ||
+          data?.user?.canAccessAdministration === true ||
           data?.user?.canManageStores === true ||
           data?.user?.canManageRoles === true,
         );
@@ -122,8 +122,8 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
                 } ${!item.available ? 'opacity-50 cursor-not-allowed' : ''}`}
                 role="menuitem"
                 aria-current={pathname === item.path || (item.path === '/reports' && pathname.startsWith('/reports')) ? 'page' : undefined}
-                disabled={!item.available && !(item.id === 'administration' && canManageUsers)}
-                title={!item.available && !(item.id === 'administration' && canManageUsers) ? 'Module non disponible' : item.label}
+                disabled={!item.available && !(item.id === 'administration' && canAccessAdministration)}
+                title={!item.available && !(item.id === 'administration' && canAccessAdministration) ? 'Module non disponible' : item.label}
               >
                 <span className="text-2xl" aria-hidden="true">{item.icon}</span>
                 {!isCompact && (
