@@ -35,6 +35,9 @@ export async function PATCH(
     }
     if (error instanceof Error && (
       error.message === 'User not found' ||
+      error.message === 'A user with this email already exists' ||
+      error.message === 'You cannot deactivate your own account' ||
+      error.message === 'Global role cannot be assigned to a specific store' ||
       error.message === 'Role not found' ||
       error.message.includes('outside the current organization') ||
       error.message.includes('Store not found') ||
