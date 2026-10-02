@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { inventoryService } from '@omnikes/services/inventory.service';
 import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
+import { inventoryMovementSchema } from '@omnikes/lib/validation';
 
 // Simple CUID validation (basic format check)
 function isValidCuid(id: string): boolean {
@@ -124,7 +125,7 @@ export async function POST(
       );
     }
 
-    const movement = await inventoryService.createMovement(id, organizationId, body);
+    const movement = await inventoryService.createMovement(id, organizationId, inventoryMovementSchema.omit({ inventoryId: true }).parse(body));
 
     return NextResponse.json(movement, { status: 201 });
   } catch (error) {
