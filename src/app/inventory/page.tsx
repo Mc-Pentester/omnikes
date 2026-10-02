@@ -41,13 +41,14 @@ interface InventoryMovement {
   createdAt: string;
 }
 
-type InventoryWorkflow = 'receive' | 'adjust';
+type InventoryWorkflow = 'receive' | 'adjust' | 'transfer';
 
 interface InventoryFormData {
   quantity: string;
   reason: string;
   referenceId: string;
   notes: string;
+  targetInventoryId: string;
 }
 
 export default function InventoryPage() {
@@ -64,6 +65,7 @@ export default function InventoryPage() {
     reason: '',
     referenceId: '',
     notes: '',
+    targetInventoryId: '',
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -117,6 +119,7 @@ export default function InventoryPage() {
       reason: '',
       referenceId: '',
       notes: '',
+      targetInventoryId: '',
     });
     setFormError(null);
     setShowModal(true);
@@ -146,10 +149,18 @@ export default function InventoryPage() {
       return;
     }
 
+    if (workflow === 'transfer' && !formData.targetInventoryId) {
+      setFormError('Le magasin de destination est obligatoire.');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const endpoint = workflow === 'receive'
         ? `/api/inventory/${selectedInventory?.id}/receive`
-        : `/api/inventory/${selectedInventory?.id}/adjust`;
+        : workflow === 'adjust'
+          ? `/api/inventory/${selectedInventory?.id}/adjust`
+          : `/api/inventory/${selectedInventory?.id}/transfer`;
 
       const body = workflow === 'receive'
         ? {
@@ -157,12 +168,19 @@ export default function InventoryPage() {
             referenceId: formData.referenceId || undefined,
             notes: formData.notes || undefined,
           }
-        : {
-            newQuantity: quantity,
-            reason: formData.reason,
-            referenceId: formData.referenceId || undefined,
-            notes: formData.notes || undefined,
-          };
+        : workflow === 'adjust'
+          ? {
+              newQuantity: quantity,
+              reason: formData.reason,
+              referenceId: formData.referenceId || undefined,
+              notes: formData.notes || undefined,
+            }
+          : {
+              targetInventoryId: formData.targetInventoryId,
+              quantity,
+              referenceId: formData.referenceId || undefined,
+              notes: formData.notes || undefined,
+            };
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -384,6 +402,7 @@ export default function InventoryPage() {
                               <div className="flex justify-end gap-2">
                                 <Button variant="outline" size="sm" onClick={() => openHistory(item)}>Historique</Button>
                                 <Button variant="outline" size="sm" onClick={() => handleOpenWorkflow(item, 'receive')}>Recevoir</Button>
+                                <Button variant="outline" size="sm" onClick={() => handleOpenWorkflow(item, 'transfer')}>Transférer</Button>
                                 <Button variant="outline" size="sm" onClick={() => handleOpenWorkflow(item, 'adjust')}>Ajuster</Button>
                               </div>
                             </td>
@@ -447,7 +466,9 @@ export default function InventoryPage() {
         onClose={() => setShowModal(false)}
         title={workflow === 'receive'
           ? `Recevoir du stock — ${selectedInventory?.variant.product.name}`
-          : `Ajustement d'inventaire — ${selectedInventory?.variant.product.name}`}
+          : workflow === 'adjust'
+            ? `Ajustement d'inventaire — ${selectedInventory?.variant.product.name}`
+            : `Transférer du stock — ${selectedInventory?.variant.product.name}`}
         footer={
           <>
             <Button variant="outline" onClick={() => setShowModal(false)} disabled={isSubmitting}>
@@ -476,7 +497,7 @@ export default function InventoryPage() {
         <form id="inventory-workflow-form" onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="inventory-quantity" className="block text-sm font-medium text-gray-700 mb-1">
-              {workflow === 'receive' ? 'Quantité reçue *' : 'Nouvelle quantité en stock *'}
+              {workflow === 'receive' ? 'Quantité reçue *' : workflow === 'adjust' ? 'Nouvelle quantité en stock *' : 'Quantité à transférer *'}
             </label>
             <Input
               id="inventory-quantity"
@@ -508,9 +529,36 @@ export default function InventoryPage() {
             </div>
           )}
 
+          {workflow === 'transfer' && selectedInventory && (
+            <div>
+              <label htmlFor="inventory-target" className="block text-sm font-medium text-gray-700 mb-1">
+                Magasin de destination *
+              </label>
+              <select
+                id="inventory-target"
+                value={formData.targetInventoryId}
+                onChange={(e) => setFormData({ ...formData, targetInventoryId: e.target.value })}
+                className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm"
+                required
+              >
+                <option value="">Sélectionner une référence de destination</option>
+                {inventory
+                  .filter((item) => item.id !== selectedInventory.id)
+                  .map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.store.name} — {item.variant.product.name} ({item.variant.sku})
+                    </option>
+                  ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Le transfert déplace le stock de ce magasin vers la référence sélectionnée.
+              </p>
+            </div>
+          )}
+
           <div>
             <label htmlFor="inventory-reference" className="block text-sm font-medium text-gray-700 mb-1">
-              {workflow === 'receive' ? 'Référence de réception / fournisseur' : 'Référence'}
+              {workflow === 'receive' ? 'Référence de réception / fournisseur' : workflow === 'transfer' ? 'Référence du transfert' : 'Référence'}
             </label>
             <Input
               id="inventory-reference"
