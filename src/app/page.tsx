@@ -9,6 +9,7 @@ import { useAuth } from '@omnikes/contexts/AuthContext';
 import { useCurrentStore } from '@omnikes/contexts/StoreContext';
 import { Sidebar } from '@omnikes/components/layout/Sidebar';
 import { Logo } from '@omnikes/components/branding/Logo';
+import { ScaleReaderPanel } from '@omnikes/components/hardware/ScaleReaderPanel';
 
 interface CartItem {
   variantId: string;
@@ -513,6 +514,8 @@ export default function HomePage() {
           </div>
           
           <div className="flex items-center gap-4">
+            <ScaleReaderPanel compact />
+
             <select
               value={currentStoreId || ''}
               onChange={(e) => {
