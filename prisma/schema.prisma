@@ -359,6 +359,9 @@ model ProductVariant {
   barcode    String?
   price      Decimal @db.Decimal(10, 2)
   cost       Decimal @db.Decimal(10, 2)
+  /// UNIT keeps the existing semantics. Weight-based variants use G/KG/LB/OZ.
+  /// Inventory quantity for weight-based variants is stored in grams.
+  saleUnit   String  @default("UNIT")
   attributes Json // { color: "Red", size: "M" }
   isActive   Boolean @default(true)
 
