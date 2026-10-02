@@ -37,6 +37,7 @@ vi.mock('@omnikes/services/store.service', () => ({
 }));
 
 import { saleRepository } from '@omnikes/repositories/sale.repository';
+import { productVariantRepository } from '@omnikes/repositories/product-variant.repository';
 import { storeService } from '@omnikes/services/store.service';
 
 describe('SaleService - Tax Calculation', () => {
