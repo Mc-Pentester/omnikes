@@ -295,6 +295,17 @@ export const salesReportStoreSchema = z.object({
   salesReportDateRangeMessage,
 );
 
+export const salesReportSummarySchema = z.object({
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
+  storeId: z.string().cuid().optional(),
+}).refine(
+  (data) => salesReportDateRangeRefinement(data),
+  salesReportDateRangeMessage,
+);
+
+export const salesReportPaymentMethodSchema = salesReportSummarySchema;
+
 // Registration validation
 export const registrationSchema = z.object({
   organizationName: z.string().min(1, 'Organization name is required').max(255, 'Organization name must be less than 255 characters'),
