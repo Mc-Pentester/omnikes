@@ -3,6 +3,7 @@ import {
   inventoryMovementSchema,
   inventoryAdjustmentSchema,
   inventoryReceiptSchema,
+  inventoryTransferSchema,
   InventoryMovementInput,
 } from '@omnikes/lib/validation';
 import { prisma } from '@omnikes/lib/prisma';
@@ -177,6 +178,63 @@ export class InventoryService {
       });
 
       return movement;
+    });
+  }
+
+  /**
+   * Transfer stock atomically between two inventory records.
+   * Both inventories must belong to the same organization.
+   */
+  async transferInventory(
+    inventoryId: string,
+    organizationId: string,
+    input: unknown,
+  ) {
+    const data = inventoryTransferSchema.parse(input);
+    if (inventoryId === data.targetInventoryId) {
+      throw new Error('Cannot transfer inventory to the same location');
+    }
+
+    const [sourceBelongs, targetBelongs] = await Promise.all([
+      inventoryRepository.belongsToOrganization(inventoryId, organizationId),
+      inventoryRepository.belongsToOrganization(data.targetInventoryId, organizationId),
+    ]);
+    if (!sourceBelongs || !targetBelongs) {
+      throw new Error('Inventory not found or access denied');
+    }
+
+    return prisma.$transaction(async () => {
+      const ids = [inventoryId, data.targetInventoryId].sort();
+      const rows = await prisma.$queryRaw<Array<{ id: string; quantity: number; reservedQuantity: number }>>`
+        SELECT "id", "quantity", "reservedQuantity"
+        FROM "inventories"
+        WHERE "id" IN (${Prisma.join(ids)})
+        ORDER BY "id"
+        FOR UPDATE
+      `;
+
+      const source = rows.find((row) => row.id === inventoryId);
+      const target = rows.find((row) => row.id === data.targetInventoryId);
+      if (!source || !target) throw new Error('Inventory not found');
+
+      const available = source.quantity - source.reservedQuantity;
+      if (available < data.quantity) {
+        throw new Error('Insufficient available stock for transfer');
+      }
+
+      await prisma.inventory.update({ where: { id: source.id }, data: { quantity: source.quantity - data.quantity } });
+      await prisma.inventory.update({ where: { id: target.id }, data: { quantity: target.quantity + data.quantity } });
+
+      const referenceId = data.referenceId || `TRANSFER-${Date.now()}`;
+      const [outMovement] = await Promise.all([
+        prisma.inventoryMovement.create({
+          data: { inventoryId: source.id, type: 'TRANSFER_OUT', quantity: -data.quantity, referenceId, referenceType: 'INVENTORY_TRANSFER', notes: data.notes },
+        }),
+        prisma.inventoryMovement.create({
+          data: { inventoryId: target.id, type: 'TRANSFER_IN', quantity: data.quantity, referenceId, referenceType: 'INVENTORY_TRANSFER', notes: data.notes },
+        }),
+      ]);
+      return { referenceId, sourceInventoryId: source.id, targetInventoryId: target.id, quantity: data.quantity, outMovement };
     });
   }
 
