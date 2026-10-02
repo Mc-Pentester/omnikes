@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { productService } from '@omnikes/services/product.service';
 import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { productUpdateSchema } from '@omnikes/lib/validation';
 
 /**
  * GET /api/products/[id]
@@ -62,8 +63,9 @@ export async function PATCH(
     await requirePermission(request, 'product.manage');
 
     const body = await request.json();
+    const validatedData = productUpdateSchema.parse(body);
 
-    const product = await productService.update(id, organizationId, body);
+    const product = await productService.update(id, organizationId, validatedData);
 
     return NextResponse.json(product);
   } catch (error) {
