@@ -6,7 +6,7 @@ export class LocalBridgeEscPosTransport implements EscPosTransport {
 
   constructor(
     private readonly bridge: LocalHardwareBridgeClient,
-    private readonly printerId?: string,
+    private readonly printerId: string,
   ) {}
 
   async connect(): Promise<void> {
