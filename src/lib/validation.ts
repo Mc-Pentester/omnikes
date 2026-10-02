@@ -127,12 +127,16 @@ export const productSchema = z.object({
 export const productUpdateSchema = productSchema.partial().omit({ organizationId: true });
 
 // ProductVariant validation
+export const PRODUCT_SALE_UNITS = ['UNIT', 'G', 'KG', 'LB', 'OZ'] as const;
+export const productSaleUnitSchema = z.enum(PRODUCT_SALE_UNITS);
+
 export const productVariantSchema = z.object({
   productId: z.string().cuid(),
   sku: z.string().min(1, 'SKU is required').max(100, 'SKU must be less than 100 characters'),
   barcode: z.string().max(50).optional(),
   price: z.number().nonnegative('Price must be non-negative').refine((val) => val >= 0, 'Price must be at least 0'),
   cost: z.number().nonnegative('Cost must be non-negative').refine((val) => val >= 0, 'Cost must be at least 0'),
+  saleUnit: productSaleUnitSchema.default('UNIT'),
   attributes: z.any().optional(),
   isActive: z.boolean().default(true),
 });
