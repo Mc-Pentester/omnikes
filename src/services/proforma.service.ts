@@ -124,7 +124,7 @@ export class ProformaService {
         });
 
         if (updatedProforma) {
-          const grossSubtotal = updatedProforma.items.reduce((sum: number, item: any) => {
+          const grossSubtotal = updatedProforma.items.reduce((sum: number, item: typeof updatedProforma.items[number]) => {
             return sum + Number(item.unitPrice) * item.quantity;
           }, 0);
 

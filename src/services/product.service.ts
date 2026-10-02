@@ -1,5 +1,5 @@
 import { productRepository } from '@omnikes/repositories/product.repository';
-import { productSchema, productUpdateSchema, ProductInput, ProductUpdateInput } from '@omnikes/lib/validation';
+import { productSchema, productUpdateSchema, ProductInput, ProductUpdateInput, ProductVariantInput } from '@omnikes/lib/validation';
 import { Prisma } from '@prisma/client';
 
 export class ProductService {
@@ -13,9 +13,9 @@ export class ProductService {
       organizationId,
     });
 
-    const variants = (data as any).variants;
+    const variants = (data as ProductInput & { variants?: ProductVariantInput[] }).variants;
     
-    const productData: any = {
+    const productData: Prisma.ProductCreateInput = {
       name: validatedData.name,
       description: validatedData.description,
       category: validatedData.category,
@@ -28,7 +28,7 @@ export class ProductService {
     // Add variants if provided
     if (variants && Array.isArray(variants) && variants.length > 0) {
       productData.variants = {
-        create: variants.map((v: any) => ({
+        create: variants.map((v: ProductVariantInput) => ({
           sku: v.sku,
           price: v.price,
           cost: v.cost || 0,

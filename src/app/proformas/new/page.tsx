@@ -20,13 +20,23 @@ interface Customer {
   phone?: string;
 }
 
+interface ApiProductVariant {
+  id: string;
+  sku: string;
+  price: number;
+  cost?: number;
+  barcode?: string;
+  attributes?: unknown;
+  isActive?: boolean;
+}
+
 interface ProductVariant {
   id: string;
   sku: string;
   price: number;
   cost?: number;
   barcode?: string;
-  attributes?: any;
+  attributes?: unknown;
   isActive: boolean;
   product: {
     id: string;
@@ -111,8 +121,8 @@ export default function NewProformaPage() {
           if (variantResponse.ok) {
             const variantData = await variantResponse.json();
             const productVariants = (variantData.variants || [])
-              .filter((v: any) => v.isActive !== false)
-              .map((v: any) => ({
+              .filter((v: ApiProductVariant) => v.isActive !== false)
+              .map((v: ApiProductVariant) => ({
                 id: v.id,
                 sku: v.sku,
                 price: v.price,
@@ -497,7 +507,7 @@ export default function NewProformaPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Valide jusqu'au
+                  Valide jusqu&apos;au
                 </label>
                 <input
                   type="date"
