@@ -75,7 +75,7 @@ export function parseScaleReading(rawInput: string): ScaleReading {
     /\bSTABLE\b/.test(upper) ||
     /^\s*ST[,;:]/i.test(raw);
 
-  const unitMatches = [...raw.matchAll(/\b(kg|kgs|g|grams?|lb|lbs|oz|ounces?)\b/gi)];
+  const unitMatches = [...raw.matchAll(/(?:^|[^a-z])(kg|kgs|g|grams?|lb|lbs|oz|ounces?)(?=$|[^a-z])/gi)];
   const unitToken = unitMatches.at(-1)?.[1];
   const unit = unitToken ? normalizeUnit(unitToken) : null;
 
