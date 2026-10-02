@@ -353,7 +353,7 @@ export class SaleRepository {
    * Get total paid for a sale
    */
   async getTotalPaid(saleId: string, organizationId: string): Promise<number> {
-    const payments = await prisma.payment.findMany({
+    const result = await prisma.payment.aggregate({
       where: {
         saleId,
         sale: {
@@ -362,10 +362,10 @@ export class SaleRepository {
         status: 'COMPLETED',
         NOT: { method: 'CREDIT' },
       },
-      select: { amount: true },
+      _sum: { amount: true },
     });
 
-    return payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+    return Number(result._sum.amount ?? 0);
   }
 }
 
