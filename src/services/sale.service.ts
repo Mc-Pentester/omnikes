@@ -5,6 +5,20 @@ import { saleSchema, saleUpdateSchema, saleItemSchema, paymentSchema, saleCredit
 import { prisma } from '@omnikes/lib/prisma';
 import { Prisma, SaleItem, Payment } from '@prisma/client';
 
+const SALE_UNIT_TO_GRAMS: Record<string, number> = {
+  G: 1,
+  KG: 1000,
+  LB: 453.59237,
+  OZ: 28.349523125,
+};
+
+function getStoredUnitPrice(price: number, saleUnit: string): number {
+  if (saleUnit === 'UNIT') return price;
+  const gramsPerUnit = SALE_UNIT_TO_GRAMS[saleUnit];
+  if (!gramsPerUnit) throw new Error(`Unsupported product sale unit: ${saleUnit}`);
+  return price / gramsPerUnit;
+}
+
 export class SaleService {
   /**
    * Create a new sale (DRAFT/PENDING)
@@ -143,7 +157,7 @@ export class SaleService {
     }
 
     // INVARIANT: Use server-side price, do not trust client
-    const serverPrice = Number(variant.price);
+    const serverPrice = getStoredUnitPrice(Number(variant.price), variant.saleUnit);
     const quantity = validatedData.quantity;
     const discount = validatedData.discount || 0;
 
@@ -205,8 +219,8 @@ export class SaleService {
       }
 
       // INVARIANT: Use server-side price from variant, do not trust client
-      const unitPrice = validatedData.unitPrice !== undefined 
-        ? Number(item.variant.price) // Always use server price if client tries to change it
+      const unitPrice = validatedData.unitPrice !== undefined
+        ? getStoredUnitPrice(Number(item.variant.price), item.variant.saleUnit) // Always use server price if client tries to change it
         : Number(item.unitPrice);
       const discount = validatedData.discount ?? Number(item.discount);
 
