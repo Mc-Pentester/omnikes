@@ -3,7 +3,7 @@ import { ZodError } from 'zod';
 import { prisma } from '@omnikes/lib/prisma';
 import { saleService } from '@omnikes/services/sale.service';
 import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, getAuthenticatedUser } from '@omnikes/lib/auth';
-import { paymentSchema } from '@omnikes/lib/validation';
+import { idempotencyKeySchema, paymentSchema } from '@omnikes/lib/validation';
 
 /**
  * GET /api/sales/[id]/payments
@@ -109,6 +109,12 @@ export async function POST(
       );
     }
 
+    const validatedIdempotencyKey = idempotencyKeySchema.safeParse(idempotencyKey);
+    if (!validatedIdempotencyKey.success) {
+      return NextResponse.json({ error: 'Invalid Idempotency-Key' }, { status: 400 });
+    }
+    const safeIdempotencyKey = validatedIdempotencyKey.data;
+
     // Parse payment data
     const body = await request.json();
     const paymentData = paymentSchema.parse(body);
@@ -118,7 +124,7 @@ export async function POST(
       where: {
         organizationId_key: {
           organizationId,
-          key: idempotencyKey,
+          key: safeIdempotencyKey,
         },
       },
     });
@@ -212,7 +218,7 @@ export async function POST(
           organizationId,
           userId: user.id,
           saleId,
-          key: idempotencyKey,
+          key: safeIdempotencyKey,
           status: 'PROCESSING',
         },
       });
