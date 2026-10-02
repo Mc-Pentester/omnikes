@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { salesReportService } from '@omnikes/services/sales-report.service';
 import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
 import { salesReportPaymentMethodSchema } from '@omnikes/lib/validation';
@@ -51,6 +52,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'Not authorized to access this store' },
         { status: 403 }
+      );
+    }
+
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid report parameters' },
+        { status: 400 }
       );
     }
 
