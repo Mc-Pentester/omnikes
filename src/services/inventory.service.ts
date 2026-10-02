@@ -132,11 +132,15 @@ export class InventoryService {
           }
           break;
         case 'ADJUSTMENT':
-          // INVARIANT: Adjustment cannot result in negative quantity
-          if (quantity < 0) {
-            throw new Error('Adjustment quantity cannot be negative');
+          // ADJUSTMENT is a signed delta: positive adds stock, negative removes stock.
+          // This keeps the movement ledger consistent with physical-count adjustments.
+          newQuantity = currentInventory.quantity + quantity;
+          if (newQuantity < 0) {
+            throw new Error('Adjustment would result in negative stock');
           }
-          newQuantity = quantity;
+          if (newQuantity < currentInventory.reservedQuantity) {
+            throw new Error('Adjustment cannot reduce stock below reserved quantity');
+          }
           break;
         default:
           throw new Error('Invalid movement type');
