@@ -76,7 +76,7 @@ export async function POST(
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'product.manage');
     const body = await request.json();
-    const validatedData = productVariantSchema.omit({ productId: true }).parse(body);
+    const validatedData = productVariantSchema.parse({ ...body, productId: id });
 
     const result = await productVariantService.create(id, organizationId, validatedData);
 
