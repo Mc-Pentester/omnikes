@@ -11,6 +11,14 @@ import { Sidebar } from '@omnikes/components/layout/Sidebar';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { ScaleReaderPanel } from '@omnikes/components/hardware/ScaleReaderPanel';
 
+const SALE_UNIT_TO_GRAMS: Record<'UNIT' | 'G' | 'KG' | 'LB' | 'OZ', number> = { UNIT: 1, G: 1, KG: 1000, LB: 453.59237, OZ: 28.349523125 };
+
+function formatCartQuantity(quantity: number, saleUnit: 'UNIT' | 'G' | 'KG' | 'LB' | 'OZ'): string {
+  if (saleUnit === 'UNIT') return String(quantity);
+  const value = quantity / SALE_UNIT_TO_GRAMS[saleUnit];
+  return `${value.toFixed(value % 1 === 0 ? 0 : 3)} ${saleUnit}`;
+}
+
 interface CartItem {
   variantId: string;
   productId: string;
@@ -263,7 +271,7 @@ export default function HomePage() {
     }
 
     const numericPrice = parseFloat(String(price));
-    const gramsPerSaleUnit: Record<CartItem['saleUnit'], number> = { UNIT: 1, G: 1, KG: 1000, LB: 453.59237, OZ: 28.349523125 };
+    const gramsPerSaleUnit = SALE_UNIT_TO_GRAMS;
     const isWeighted = saleUnit !== 'UNIT';
     if (isWeighted && !pendingScaleReading) {
       alert('Lisez d’abord le poids sur la balance avant d’ajouter ce produit.');
@@ -631,7 +639,7 @@ export default function HomePage() {
                       <h4 className="font-medium text-gray-900 text-sm md:text-base truncate">{item.productName}</h4>
                       <p className="text-xs md:text-sm text-gray-600 truncate">{item.variantName}</p>
                       <p className="text-xs text-gray-500">{item.sku}</p>
-                      <p className="text-sm font-medium text-gray-900">{parseFloat(String(item.unitPrice)).toFixed(2)} HTG</p>
+                      <p className="text-sm font-medium text-gray-900">{(item.unitPrice * SALE_UNIT_TO_GRAMS[item.saleUnit]).toFixed(2)} HTG/{item.saleUnit === 'UNIT' ? 'unité' : item.saleUnit}</p>
                     </div>
                     
                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -649,7 +657,7 @@ export default function HomePage() {
                       >
                         -
                       </button>
-                      <span className="w-8 md:w-12 text-center font-medium text-base md:text-lg" aria-live="polite">{item.quantity}</span>
+                      <span className="w-16 md:w-20 text-center font-medium text-base md:text-lg" aria-live="polite">{formatCartQuantity(item.quantity, item.saleUnit)}</span>
                       <button
                         onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
                         className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-gray-200 rounded-lg hover:bg-gray-300 text-lg md:text-xl font-bold transition-colors focus:ring-2 focus:ring-blue-500 focus:outline-none"
