@@ -20,6 +20,13 @@ vi.mock('@omnikes/repositories/sale.repository', () => ({
     updateWithTaxRate: vi.fn(),
     belongsToOrganization: vi.fn(),
     findById: vi.fn(),
+    createItem: vi.fn(),
+  },
+}));
+
+vi.mock('@omnikes/repositories/product-variant.repository', () => ({
+  productVariantRepository: {
+    findByIdWithOrganizationCheck: vi.fn(),
   },
 }));
 
