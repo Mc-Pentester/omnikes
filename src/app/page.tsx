@@ -588,14 +588,15 @@ export default function HomePage() {
                       product.name,
                       variant.name,
                       variant.sku,
-                      variant.price
+                      variant.price,
+                      variant.saleUnit
                     )}
                     role="button"
                     tabIndex={storesValidated ? 0 : -1}
                     onKeyDown={(e) => {
                       if (storesValidated && (e.key === 'Enter' || e.key === ' ')) {
                         e.preventDefault();
-                        addToCart(variant.id, product.id, product.name, variant.name, variant.sku, variant.price);
+                        addToCart(variant.id, product.id, product.name, variant.name, variant.sku, variant.price, variant.saleUnit);
                       }
                     }}
                     aria-label={`Ajouter ${product.name} - ${variant.name} au panier`}
