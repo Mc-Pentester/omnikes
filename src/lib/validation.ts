@@ -194,6 +194,9 @@ export const saleItemSchema = z.object({
 export const saleItemUpdateSchema = saleItemSchema.partial().omit({ saleId: true, variantId: true });
 
 // Payment validation
+export const IDEMPOTENCY_KEY_MAX_LENGTH = 200;
+export const idempotencyKeySchema = z.string().trim().min(1).max(IDEMPOTENCY_KEY_MAX_LENGTH);
+
 export const paymentSchema = z.object({
   saleId: z.string().cuid().optional(),
   method: z.enum(['CASH', 'CARD', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CHECK'], {
