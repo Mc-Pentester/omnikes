@@ -251,45 +251,49 @@ export const proformaItemSchema = z.object({
 export const proformaItemUpdateSchema = proformaItemSchema.partial().omit({ proformaId: true, variantId: true });
 
 // Sales Report validation
+// Report queries are deliberately bounded to prevent unbounded historical extraction.
+export const SALES_REPORT_MAX_RANGE_DAYS = 366;
+export const SALES_REPORT_MAX_PRODUCT_ROWS = 100;
+
+const salesReportDateRangeRefinement = (data: { startDate?: Date; endDate?: Date }) => {
+  if (data.startDate && data.endDate) {
+    const rangeMs = data.endDate.getTime() - data.startDate.getTime();
+    return rangeMs >= 0 && rangeMs <= SALES_REPORT_MAX_RANGE_DAYS * 24 * 60 * 60 * 1000;
+  }
+  return true;
+};
+
+const salesReportDateRangeMessage = {
+  message: `Report date range must be between 0 and ${SALES_REPORT_MAX_RANGE_DAYS} days`,
+};
+
 export const salesReportPeriodSchema = z.object({
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
   storeId: z.string().cuid().optional(),
   granularity: z.enum(['day', 'week', 'month']),
-}).refine((data) => {
-  if (data.startDate && data.endDate && data.startDate > data.endDate) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'startDate must be before or equal to endDate',
-});
+}).refine(
+  (data) => salesReportDateRangeRefinement(data),
+  salesReportDateRangeMessage,
+);
 
 export const salesReportProductSchema = z.object({
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
   storeId: z.string().cuid().optional(),
-  limit: z.number().int().positive().max(1000).default(50),
-}).refine((data) => {
-  if (data.startDate && data.endDate && data.startDate > data.endDate) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'startDate must be before or equal to endDate',
-});
+  limit: z.number().int().positive().max(SALES_REPORT_MAX_PRODUCT_ROWS).default(50),
+}).refine(
+  (data) => salesReportDateRangeRefinement(data),
+  salesReportDateRangeMessage,
+);
 
 export const salesReportStoreSchema = z.object({
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
-}).refine((data) => {
-  if (data.startDate && data.endDate && data.startDate > data.endDate) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'startDate must be before or equal to endDate',
-});
+}).refine(
+  (data) => salesReportDateRangeRefinement(data),
+  salesReportDateRangeMessage,
+);
 
 // Registration validation
 export const registrationSchema = z.object({
