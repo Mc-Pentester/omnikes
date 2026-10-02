@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     await requirePermission(request, 'product.manage');
 
     const body = await request.json();
-    const validatedData = productSchema.omit({ organizationId: true }).parse(body);
+    const validatedData = productSchema.parse({ ...body, organizationId });
 
     const result = await productService.create(organizationId, validatedData);
 
