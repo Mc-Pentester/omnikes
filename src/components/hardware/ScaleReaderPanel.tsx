@@ -10,9 +10,10 @@ import {
 
 interface ScaleReaderPanelProps {
   compact?: boolean;
+  onReading?: (reading: { weightGrams: number; weight: number; unit: string; stable: boolean }) => void;
 }
 
-export function ScaleReaderPanel({ compact = false }: ScaleReaderPanelProps) {
+export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPanelProps) {
   const [ports, setPorts] = useState<ScalePortInfo[]>([]);
   const [scaleId, setScaleId] = useState('');
   const [baudRate, setBaudRate] = useState('9600');
@@ -77,12 +78,14 @@ export function ScaleReaderPanel({ compact = false }: ScaleReaderPanelProps) {
       const response = await bridge.readScale(options);
       const parsed = parseScaleReading(response.raw);
 
-      setReading({
+      const nextReading = {
         weight: parsed.weight,
         unit: parsed.unit,
         weightGrams: parsed.weightGrams,
         stable: parsed.stable,
-      });
+      };
+      setReading(nextReading);
+      onReading?.(nextReading);
       setStatus('idle');
     } catch (err) {
       setStatus('error');
