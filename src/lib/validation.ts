@@ -162,6 +162,13 @@ export const inventoryReceiptSchema = z.object({
   notes: z.string().trim().max(500).optional(),
 });
 
+export const inventoryTransferSchema = z.object({
+  targetInventoryId: z.string().cuid(),
+  quantity: z.int().positive('Transfer quantity must be positive').max(1000000000, 'Quantity is too large'),
+  referenceId: z.string().trim().max(100).optional(),
+  notes: z.string().trim().max(500).optional(),
+});
+
 // InventoryMovement validation
 export const inventoryMovementSchema = z.object({
   inventoryId: z.string().cuid(),
