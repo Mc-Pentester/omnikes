@@ -26,7 +26,7 @@ export class LocalBridgeEscPosTransport implements EscPosTransport {
 
 export function createLocalBridgeEscPosTransport(
   options: LocalHardwareBridgeOptions = {},
-  printerId?: string,
+  printerId: string,
 ) {
   return new LocalBridgeEscPosTransport(new LocalHardwareBridgeClient(options), printerId);
 }
