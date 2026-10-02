@@ -321,4 +321,67 @@ describe('SaleService - Tax Calculation', () => {
       );
     });
   });
+  describe('weighted product pricing', () => {
+    it('uses server price per kilogram and quantity stored in grams', async () => {
+      const variant = {
+        id: 'variant-123',
+        price: 450,
+        saleUnit: 'KG',
+      };
+      (saleRepository.belongsToOrganization as any).mockResolvedValue(true);
+      (productVariantRepository.findByIdWithOrganizationCheck as any).mockResolvedValue(variant);
+      (saleRepository.createItem as any).mockResolvedValue({ id: 'item-123' });
+      (saleRepository.listItems as any).mockResolvedValue([]);
+      (prisma.sale.findUnique as any).mockResolvedValue({
+        applyTax: false,
+        organization: { taxConfiguration: null },
+      });
+      (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
+
+      const result = await saleService.addItem('sale-123', 'org-123', {
+        variantId: 'variant-123',
+        quantity: 1250,
+        unitPrice: 999999,
+        discount: 0,
+      });
+
+      expect(result).toEqual({ id: 'item-123' });
+      expect(saleRepository.createItem).toHaveBeenCalledWith(expect.objectContaining({
+        quantity: 1250,
+        unitPrice: 0.45,
+        totalPrice: 562.5,
+        discount: 0,
+      }));
+    });
+
+    it('keeps legacy unit pricing unchanged', async () => {
+      (saleRepository.belongsToOrganization as any).mockResolvedValue(true);
+      (productVariantRepository.findByIdWithOrganizationCheck as any).mockResolvedValue({
+        id: 'variant-123',
+        price: 250,
+        saleUnit: 'UNIT',
+      });
+      (saleRepository.createItem as any).mockResolvedValue({ id: 'item-123' });
+      (saleRepository.listItems as any).mockResolvedValue([]);
+      (prisma.sale.findUnique as any).mockResolvedValue({
+        applyTax: false,
+        organization: { taxConfiguration: null },
+      });
+      (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
+
+      await saleService.addItem('sale-123', 'org-123', {
+        variantId: 'variant-123',
+        quantity: 2,
+        unitPrice: 1,
+        discount: 0,
+      });
+
+      expect(saleRepository.createItem).toHaveBeenCalledWith(expect.objectContaining({
+        quantity: 2,
+        unitPrice: 250,
+        totalPrice: 500,
+      }));
+    });
+  });
+
 });
