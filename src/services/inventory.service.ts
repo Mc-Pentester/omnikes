@@ -1,5 +1,10 @@
 import { inventoryRepository } from '@omnikes/repositories/inventory.repository';
-import { inventoryMovementSchema, InventoryMovementInput } from '@omnikes/lib/validation';
+import {
+  inventoryMovementSchema,
+  inventoryAdjustmentSchema,
+  inventoryReceiptSchema,
+  InventoryMovementInput,
+} from '@omnikes/lib/validation';
 import { prisma } from '@omnikes/lib/prisma';
 
 export type MovementType = 'SALE' | 'PURCHASE' | 'ADJUSTMENT' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'RETURN';
@@ -168,6 +173,106 @@ export class InventoryService {
       });
 
       return movement;
+    });
+  }
+
+  /**
+   * QuickBooks-style physical inventory adjustment.
+   * The user enters the counted quantity; the ledger records only the delta.
+   */
+  async adjustInventory(
+    inventoryId: string,
+    organizationId: string,
+    input: unknown,
+  ) {
+    const data = inventoryAdjustmentSchema.parse(input);
+
+    const belongs = await inventoryRepository.belongsToOrganization(inventoryId, organizationId);
+    if (!belongs) throw new Error('Inventory not found or access denied');
+
+    return prisma.$transaction(async () => {
+      const rows = await prisma.$queryRaw<Array<{ quantity: number; reservedQuantity: number }>>`
+        SELECT "quantity", "reservedQuantity"
+        FROM "inventories"
+        WHERE "id" = ${inventoryId}
+        FOR UPDATE
+      `;
+
+      if (!rows[0]) throw new Error('Inventory not found');
+      const current = rows[0];
+
+      if (data.newQuantity < current.reservedQuantity) {
+        throw new Error('Adjusted quantity cannot be below reserved quantity');
+      }
+
+      const difference = data.newQuantity - current.quantity;
+      if (difference === 0) {
+        throw new Error('No inventory adjustment is required');
+      }
+
+      await prisma.inventory.update({
+        where: { id: inventoryId },
+        data: { quantity: data.newQuantity },
+      });
+
+      await prisma.inventoryMovement.create({
+        data: {
+          inventoryId,
+          type: 'ADJUSTMENT',
+          quantity: difference,
+          referenceId: data.referenceId,
+          referenceType: 'INVENTORY_ADJUSTMENT',
+          notes: [data.reason, data.notes].filter(Boolean).join(' — '),
+        },
+      });
+
+      return inventoryRepository.findById(inventoryId, organizationId);
+    });
+  }
+
+  /**
+   * QuickBooks-style receive inventory.
+   * Receiving always increases on-hand stock and creates a PURCHASE ledger entry.
+   */
+  async receiveInventory(
+    inventoryId: string,
+    organizationId: string,
+    input: unknown,
+  ) {
+    const data = inventoryReceiptSchema.parse(input);
+
+    const belongs = await inventoryRepository.belongsToOrganization(inventoryId, organizationId);
+    if (!belongs) throw new Error('Inventory not found or access denied');
+
+    return prisma.$transaction(async () => {
+      const rows = await prisma.$queryRaw<Array<{ quantity: number }>>`
+        SELECT "quantity"
+        FROM "inventories"
+        WHERE "id" = ${inventoryId}
+        FOR UPDATE
+      `;
+
+      if (!rows[0]) throw new Error('Inventory not found');
+
+      const newQuantity = rows[0].quantity + data.quantity;
+
+      await prisma.inventory.update({
+        where: { id: inventoryId },
+        data: { quantity: newQuantity },
+      });
+
+      await prisma.inventoryMovement.create({
+        data: {
+          inventoryId,
+          type: 'PURCHASE',
+          quantity: data.quantity,
+          referenceId: data.referenceId,
+          referenceType: 'INVENTORY_RECEIPT',
+          notes: data.notes,
+        },
+      });
+
+      return inventoryRepository.findById(inventoryId, organizationId);
     });
   }
 
