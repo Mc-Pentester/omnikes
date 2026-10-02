@@ -15,6 +15,7 @@ vi.mock('../../lib/prisma', () => ({
       findMany: vi.fn(),
       count: vi.fn(),
     },
+    $queryRaw: vi.fn(),
   },
 }));
 
