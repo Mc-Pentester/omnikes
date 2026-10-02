@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { salesReportService } from '@omnikes/services/sales-report.service';
 import { salesReportStoreSchema } from '@omnikes/lib/validation';
 import { requireCurrentOrganizationId, requirePermission, getAuthorizedStoreIds } from '@omnikes/lib/auth';
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (error instanceof Error && error.message.includes('validation')) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: error.message },
         { status: 400 }
