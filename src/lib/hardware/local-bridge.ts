@@ -1,3 +1,5 @@
+import type { ScaleSerialOptions } from './scale';
+
 export interface LocalHardwareBridgeOptions {
   baseUrl?: string;
   timeoutMs?: number;
@@ -6,12 +8,20 @@ export interface LocalHardwareBridgeOptions {
 export interface HardwareBridgeHealth {
   ok: boolean;
   version?: string;
+  platform?: string;
+  transport?: string;
 }
 
 export interface EscPosPrintRequest {
   data: string;
   encoding: 'base64';
   printerId?: string;
+}
+
+export interface ScaleBridgeReadResponse {
+  ok: boolean;
+  scaleId: string;
+  raw: string;
 }
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8765';
@@ -37,7 +47,9 @@ function toBase64(data: Uint8Array): string {
   let binary = '';
   const chunkSize = 0x8000;
   for (let offset = 0; offset < data.length; offset += chunkSize) {
-    binary += String.fromCharCode(...data.subarray(offset, Math.min(offset + chunkSize, data.length)));
+    binary += String.fromCharCode(
+      ...data.subarray(offset, Math.min(offset + chunkSize, data.length)),
+    );
   }
   return btoa(binary);
 }
@@ -48,7 +60,10 @@ export class LocalHardwareBridgeClient {
 
   constructor(options: LocalHardwareBridgeOptions = {}) {
     this.baseUrl = normalizeBaseUrl(options.baseUrl ?? DEFAULT_BASE_URL);
-    this.timeoutMs = Math.max(1000, Math.min(options.timeoutMs ?? DEFAULT_TIMEOUT_MS, 30000));
+    this.timeoutMs = Math.max(
+      1000,
+      Math.min(options.timeoutMs ?? DEFAULT_TIMEOUT_MS, 30000),
+    );
   }
 
   async health(): Promise<HardwareBridgeHealth> {
@@ -61,10 +76,19 @@ export class LocalHardwareBridgeClient {
       encoding: 'base64',
       ...(printerId ? { printerId } : {}),
     };
+
     await this.request('/v1/printers/print', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+    });
+  }
+
+  async readScale(options: ScaleSerialOptions): Promise<ScaleBridgeReadResponse> {
+    return this.request<ScaleBridgeReadResponse>('/v1/scales/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(options),
     });
   }
 
@@ -73,14 +97,21 @@ export class LocalHardwareBridgeClient {
       ...init,
       signal: AbortSignal.timeout(this.timeoutMs),
     });
+
     if (!response.ok) {
       throw new Error(`Hardware bridge request failed (${response.status})`);
     }
-    if (response.status === 204) return undefined as T;
+
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
     return (await response.json()) as T;
   }
 }
 
-export function createLocalHardwareBridge(options: LocalHardwareBridgeOptions = {}) {
+export function createLocalHardwareBridge(
+  options: LocalHardwareBridgeOptions = {},
+) {
   return new LocalHardwareBridgeClient(options);
 }
