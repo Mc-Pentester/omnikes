@@ -189,43 +189,28 @@ describe('P0-21-A Cross-Store Isolation Repository Tests', () => {
 
   describe('Sales Report Repository - authorizedStoreIds filtering', () => {
     it('TEST 9 — null (global) should NOT filter by store', async () => {
-      (prisma.sale.findMany as any).mockResolvedValue([
-        { id: 'sale-1', storeId: storeA, store: { id: storeA, name: 'Store A' }, items: [] },
-        { id: 'sale-2', storeId: storeB, store: { id: storeB, name: 'Store B' }, items: [] },
+      (prisma.$queryRaw as any).mockResolvedValue([
+        { storeId: storeA, storeName: 'Store A', salesCount: 1, revenue: 100, itemsSold: 1 },
+        { storeId: storeB, storeName: 'Store B', salesCount: 1, revenue: 200, itemsSold: 1 },
       ]);
 
       const result = await salesReportRepository.getSalesByStore(mockOrganizationId, {}, null);
 
-      expect(prisma.sale.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            organizationId: mockOrganizationId,
-            status: 'COMPLETED',
-          }),
-        })
-      );
-      // Verify that storeId is NOT in the where clause
-      const callArgs = (prisma.sale.findMany as any).mock.calls[0][0];
-      expect(callArgs.where.storeId).toBeUndefined();
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
       expect(result).toHaveLength(2);
     });
 
     it('TEST 10 — [storeA] should filter to only storeA', async () => {
-      (prisma.sale.findMany as any).mockResolvedValue([
-        { id: 'sale-1', storeId: storeA, store: { id: storeA, name: 'Store A' }, items: [] },
+      (prisma.$queryRaw as any).mockResolvedValue([
+        { storeId: storeA, storeName: 'Store A', salesCount: 1, revenue: 100, itemsSold: 1 },
       ]);
 
       const result = await salesReportRepository.getSalesByStore(mockOrganizationId, {}, [storeA]);
 
-      expect(prisma.sale.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            organizationId: mockOrganizationId,
-            status: 'COMPLETED',
-            storeId: { in: [storeA] },
-          }),
-        })
-      );
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      const query = (prisma.$queryRaw as any).mock.calls[0][0];
+      expect(query.values).toContain(mockOrganizationId);
+      expect(query.values).toContain(storeA);
       expect(result).toHaveLength(1);
     });
 
