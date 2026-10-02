@@ -1,46 +1,85 @@
 # OmniKès Local Hardware Bridge
 
-Bridge local pour imprimantes ESC/POS sous Windows.
+Agent local réel pour l'impression ESC/POS sous Windows.
+
+## Architecture
+
+```
+OmniKès
+  ↓ HTTP localhost
+Local Hardware Bridge
+  ↓ Winspool RAW
+Pilote Windows
+  ↓
+USB / Bluetooth / réseau
+  ↓
+Imprimante ESC/POS
+```
+
+Le bridge utilise directement `winspool.drv` et `WritePrinter(..., RAW)`.
+Il ne simule pas une impression et ne génère pas de fichier à imprimer.
+
+## Sécurité
+
+- écoute uniquement sur `127.0.0.1`
+- aucune connexion cloud
+- origine navigateur limitée à localhost
+- payload limité à 512 KiB
+- nom d'imprimante transmis comme argument, sans shell interpolation
+- données temporaires supprimées après l'impression
+
+## Installation
+
+Aucune dépendance npm supplémentaire n'est nécessaire.
+
+Depuis la racine :
+
+```powershell
+npm install
+```
 
 ## Démarrage
-
-Depuis la racine OmniKès :
 
 ```powershell
 npm run hardware:bridge
 ```
 
-Par défaut :
-- écoute sur `127.0.0.1:8765`
-- accepte uniquement l'origine `http://localhost:3000`
-- utilise le spouleur Windows et le datatype RAW
-- aucune donnée n'est envoyée vers le cloud
+Bridge :
 
-## API
+`http://127.0.0.1:8765`
 
-- `GET /health`
-- `GET /v1/printers`
-- `POST /v1/printers/print`
-
-Le POST attend :
-
-```json
-{
-  "encoding": "base64",
-  "data": "...",
-  "printerId": "Nom exact de l'imprimante Windows"
-}
-```
-
-L'imprimante doit être installée dans Windows et accepter l'impression RAW/ESC-POS.
-
-## Test
+## Vérification
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8765/health
 Invoke-RestMethod http://127.0.0.1:8765/v1/printers
 ```
 
-Puis OmniKès peut utiliser `LocalBridgeEscPosTransport`.
+La deuxième commande retourne les imprimantes installées dans Windows avec leur nom exact.
 
-Le bridge ne prétend pas détecter directement un périphérique USB brut : il utilise le spooler Windows. C'est compatible avec une imprimante USB ou Bluetooth lorsqu'elle est correctement installée comme imprimante Windows.
+## Impression réelle
+
+Le client OmniKès envoie :
+
+```json
+{
+  "encoding": "base64",
+  "data": "<ESC/POS en base64>",
+  "printerId": "Nom exact de l'imprimante Windows"
+}
+```
+
+Le bridge appelle ensuite le spooler Windows en datatype `RAW`.
+
+## USB / Bluetooth
+
+Une imprimante USB ou Bluetooth doit être installée et visible dans **Paramètres Windows → Imprimantes et scanners**.
+
+Le bridge utilise alors le pilote/port Windows existant et transmet le flux ESC/POS en RAW.
+
+Il n'est donc pas nécessaire de remplacer le pilote Windows par WinUSB pour cette voie.
+
+## Limite actuelle
+
+Cette version cible Windows, qui correspond au poste local OmniKès actuel.
+Le transport USB direct libusb/WebUSB reste une voie distincte à ajouter si un modèle d'imprimante exige un accès USB sans spooler.
