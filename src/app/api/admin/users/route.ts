@@ -25,16 +25,9 @@ export async function GET(request: NextRequest) {
     const { skip, take } = validatePagination(searchParams.get('skip'), searchParams.get('take'));
 
     const actor = await requireAuthenticatedUser(request);
-    const result = await adminUserService.list(organizationId, search, actor.id);
-    return NextResponse.json({
-      ...result,
-      users: result.users.slice(skip, skip + take),
-      pagination: {
-        skip,
-        take,
-        total: result.users.length,
-      },
-    });
+    const result = await adminUserService.list(organizationId, search, actor.id, { skip, take });
+
+    return NextResponse.json(result);
   } catch (error) {
     const auth = authError(error);
     if (auth) return auth;
