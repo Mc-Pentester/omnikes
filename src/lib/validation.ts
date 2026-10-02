@@ -236,7 +236,7 @@ export const proformaSchema = z.object({
   items: z.array(z.object({
     variantId: z.string().cuid(),
     quantity: z.int().positive('Quantity must be positive'),
-  })).optional(),
+  })).max(100, 'A proforma cannot contain more than 100 items').optional(),
 });
 
 export const proformaUpdateSchema = proformaSchema.partial().omit({ organizationId: true, proformaNumber: true, status: true });
