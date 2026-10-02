@@ -5,3 +5,5 @@ export * from './escpos';
 export * from './printer-factory';
 export * from './local-bridge';
 export * from './local-bridge-escpos';
+export * from './scale';
+export * from './local-bridge-scale';
