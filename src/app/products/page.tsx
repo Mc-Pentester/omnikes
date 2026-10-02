@@ -314,7 +314,7 @@ export default function ProductsPage() {
           {products.length === 0 ? (
             <Card className="p-12 text-center">
               <h2 className="text-xl font-bold text-gray-900 mb-2">Aucun produit</h2>
-              <p className="text-gray-600 mb-6">Aucun produit n'est encore configuré pour votre organisation.</p>
+              <p className="text-gray-600 mb-6">Aucun produit n&apos;est encore configuré pour votre organisation.</p>
               <Button onClick={handleCreate}>+ Créer un produit</Button>
             </Card>
           ) : (

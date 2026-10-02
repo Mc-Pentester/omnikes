@@ -337,7 +337,7 @@ export default function ProformaDetailPage() {
                   </div>
                   {proforma.validUntil && (
                     <div>
-                      <p className="text-sm text-gray-500">Valide jusqu'au</p>
+                      <p className="text-sm text-gray-500">Valide jusqu&apos;au</p>
                       <p className="font-medium">{new Date(proforma.validUntil).toLocaleDateString('fr-FR')}</p>
                     </div>
                   )}

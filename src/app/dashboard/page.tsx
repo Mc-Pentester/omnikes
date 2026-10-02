@@ -109,7 +109,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-              <p className="text-sm text-gray-500">Vue d'ensemble de votre activité</p>
+              <p className="text-sm text-gray-500">Vue d&apos;ensemble de votre activité</p>
             </div>
             <Button onClick={() => router.push('/')}>
               🛒 Ouvrir le POS

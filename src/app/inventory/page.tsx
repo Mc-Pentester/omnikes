@@ -238,7 +238,7 @@ export default function InventoryPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Chargement de l'inventaire...</p>
+        <p className="text-gray-600">Chargement de l&apos;inventaire...</p>
       </div>
     );
   }
@@ -318,8 +318,8 @@ export default function InventoryPage() {
           {inventory.length === 0 ? (
             <Card className="p-12 text-center">
               <h2 className="text-xl font-bold text-gray-900 mb-2">Aucun inventaire</h2>
-              <p className="text-gray-600 mb-4">L'inventaire est créé automatiquement lorsque vous ajoutez du stock.</p>
-              <p className="text-sm text-gray-500 mb-6">Prérequis : créez d'abord un magasin et un produit avec une variante.</p>
+              <p className="text-gray-600 mb-4">L&apos;inventaire est créé automatiquement lorsque vous ajoutez du stock.</p>
+              <p className="text-sm text-gray-500 mb-6">Prérequis : créez d&apos;abord un magasin et un produit avec une variante.</p>
               <div className="flex gap-4 justify-center">
                 <Button onClick={() => router.push('/stores')}>Gérer les magasins</Button>
                 <Button onClick={() => router.push('/products')}>Gérer les produits</Button>
@@ -446,7 +446,7 @@ export default function InventoryPage() {
               <div className="text-gray-500">SKU: {historyInventory.variant.sku} · {historyInventory.store.name}</div>
               <div className="mt-1 text-gray-700">Stock actuel : <strong>{historyInventory.quantity}</strong></div>
             </div>
-            {historyLoading && <p className="text-sm text-gray-500">Chargement de l'historique...</p>}
+            {historyLoading && <p className="text-sm text-gray-500">Chargement de l&apos;historique...</p>}
             {historyError && <p className="text-sm text-red-600">{historyError}</p>}
             {!historyLoading && !historyError && history.length === 0 && (
               <p className="text-sm text-gray-500">Aucun mouvement enregistré.</p>
@@ -530,7 +530,7 @@ export default function InventoryPage() {
           {workflow === 'adjust' && (
             <div>
               <label htmlFor="inventory-reason" className="block text-sm font-medium text-gray-700 mb-1">
-                Raison de l'ajustement *
+                Raison de l&apos;ajustement *
               </label>
               <Input
                 id="inventory-reason"
