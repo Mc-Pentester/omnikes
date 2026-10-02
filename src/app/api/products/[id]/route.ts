@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { productService } from '@omnikes/services/product.service';
 import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
 import { productUpdateSchema } from '@omnikes/lib/validation';
@@ -20,6 +21,9 @@ export async function GET(
 
     return NextResponse.json(product);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid request data' }, { status: 400 });
+    }
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },
