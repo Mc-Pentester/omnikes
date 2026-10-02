@@ -129,7 +129,11 @@ export async function POST(
       );
     }
 
-    const movement = await inventoryService.createMovement(id, organizationId, inventoryMovementSchema.omit({ inventoryId: true }).parse(body));
+    const movement = await inventoryService.createMovement(
+      id,
+      organizationId,
+      inventoryMovementSchema.parse({ ...body, inventoryId: id }),
+    );
 
     return NextResponse.json(movement, { status: 201 });
   } catch (error) {
