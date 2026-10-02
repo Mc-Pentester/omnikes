@@ -332,7 +332,7 @@ describe('SaleService - Tax Calculation', () => {
   describe('weighted product pricing', () => {
     it('uses server price per kilogram and quantity stored in grams', async () => {
       const variant = {
-        id: 'variant-123',
+        id: 'cvariant123',
         price: 450,
         saleUnit: 'KG',
       };
@@ -347,7 +347,7 @@ describe('SaleService - Tax Calculation', () => {
       (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
 
       const result = await saleService.addItem('sale-123', 'org-123', {
-        variantId: 'variant-123',
+        variantId: 'cvariant123',
         quantity: 1250,
         unitPrice: 999999,
         discount: 0,
@@ -365,7 +365,7 @@ describe('SaleService - Tax Calculation', () => {
     it('keeps legacy unit pricing unchanged', async () => {
       (saleRepository.belongsToOrganization as any).mockResolvedValue(true);
       (productVariantRepository.findByIdWithOrganizationCheck as any).mockResolvedValue({
-        id: 'variant-123',
+        id: 'cvariant123',
         price: 250,
         saleUnit: 'UNIT',
       });
@@ -378,7 +378,7 @@ describe('SaleService - Tax Calculation', () => {
       (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
 
       await saleService.addItem('sale-123', 'org-123', {
-        variantId: 'variant-123',
+        variantId: 'cvariant123',
         quantity: 2,
         unitPrice: 1,
         discount: 0,
