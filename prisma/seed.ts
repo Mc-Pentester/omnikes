@@ -15,13 +15,18 @@ async function main() {
   console.log('🌱 Starting OmniKès test data seed...');
 
   // ============================================================
-  // SECURITY: Get passwords from environment variables
-  // For production, these should be set in .env or secure secret management
-  // For local development, fallback to test passwords if not set
+  // SECURITY: Seed credentials must come from the environment.
+  // Never embed usable passwords in source code.
   // ============================================================
-  const testPasswordA = process.env.SEED_PASSWORD_A || 'OmniKesTestA!2026';
-  const testPasswordCashierA = process.env.SEED_PASSWORD_CASHIER_A || 'OmniKesCashierA!2026';
-  const testPasswordB = process.env.SEED_PASSWORD_B || 'OmniKesTestB!2026';
+  const testPasswordA = process.env.SEED_PASSWORD_A;
+  const testPasswordCashierA = process.env.SEED_PASSWORD_CASHIER_A;
+  const testPasswordB = process.env.SEED_PASSWORD_B;
+
+  if (!testPasswordA || !testPasswordCashierA || !testPasswordB) {
+    throw new Error(
+      'SEED_PASSWORD_A, SEED_PASSWORD_CASHIER_A and SEED_PASSWORD_B are required to run the seed',
+    );
+  }
 
   const passwordHashA = await bcrypt.hash(testPasswordA, 10);
   const passwordHashCashierA = await bcrypt.hash(testPasswordCashierA, 10);
@@ -1919,11 +1924,6 @@ async function main() {
   console.log('✅ Proformas B created');
 
   console.log('🎉 Seed completed successfully!');
-  console.log('');
-  console.log('Test Users:');
-  console.log('  admin.a@omnikes.test / OmniKesTestA!2026 (Organization A)');
-  console.log('  cashier.a@omnikes.test / OmniKesCashierA!2026 (Organization A)');
-  console.log('  admin.b@omnikes.test / OmniKesTestB!2026 (Organization B)');
 }
 
 main()
