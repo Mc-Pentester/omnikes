@@ -15,9 +15,12 @@ const ALLOWED_ORIGINS = new Set(
     .map((value) => value.trim())
     .filter(Boolean),
 );
+
 const MAX_BODY_BYTES = 1024 * 1024;
 const MAX_PRINT_BYTES = 512 * 1024;
-const VERSION = '1.1.0';
+const MAX_SCALE_RAW_BYTES = 4096;
+const MAX_SCALE_READ_TIMEOUT_MS = 10000;
+const VERSION = '1.2.0';
 
 function json(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -47,11 +50,15 @@ function originAllowed(req, res) {
 async function readJson(req) {
   let total = 0;
   const chunks = [];
+
   for await (const chunk of req) {
     total += chunk.length;
-    if (total > MAX_BODY_BYTES) throw new Error('Request body too large');
+    if (total > MAX_BODY_BYTES) {
+      throw new Error('Request body too large');
+    }
     chunks.push(chunk);
   }
+
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 
@@ -72,8 +79,153 @@ async function listPrinters() {
   );
 
   if (!stdout.trim()) return [];
+
   const parsed = JSON.parse(stdout);
   return Array.isArray(parsed) ? parsed : [parsed];
+}
+
+async function listSerialPorts() {
+  if (process.platform !== 'win32') {
+    throw new Error('The Windows scale bridge requires Windows');
+  }
+
+  const script = [
+    '$ErrorActionPreference = "Stop"',
+    'Get-CimInstance Win32_SerialPort | Select-Object DeviceID,Name,Description,Manufacturer,Status | ConvertTo-Json -Compress',
+  ].join('; ');
+
+  const { stdout } = await execFileAsync(
+    'powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
+    { windowsHide: true, maxBuffer: 1024 * 1024 },
+  );
+
+  if (!stdout.trim()) return [];
+
+  const parsed = JSON.parse(stdout);
+  return Array.isArray(parsed) ? parsed : [parsed];
+}
+
+function validateScaleOptions(options) {
+  if (!options || typeof options !== 'object') {
+    throw new Error('Scale configuration is required');
+  }
+
+  if (
+    typeof options.scaleId !== 'string' ||
+    !/^COM[0-9]+$/i.test(options.scaleId) ||
+    options.scaleId.length > 20
+  ) {
+    throw new Error('scaleId must be a valid Windows COM port');
+  }
+
+  const baudRate = Number(options.baudRate ?? 9600);
+  const dataBits = Number(options.dataBits ?? 8);
+  const parity = String(options.parity ?? 'none').toLowerCase();
+  const stopBits = Number(options.stopBits ?? 1);
+  const readTimeoutMs = Number(options.readTimeoutMs ?? 2500);
+  const settleMs = Number(options.settleMs ?? 300);
+  const command = typeof options.command === 'string' ? options.command : '';
+
+  if (!Number.isInteger(baudRate) || baudRate < 300 || baudRate > 1000000) {
+    throw new Error('Invalid baudRate');
+  }
+
+  if (![7, 8].includes(dataBits)) {
+    throw new Error('dataBits must be 7 or 8');
+  }
+
+  if (!['none', 'odd', 'even', 'mark', 'space'].includes(parity)) {
+    throw new Error('Unsupported parity');
+  }
+
+  if (![1, 1.5, 2].includes(stopBits)) {
+    throw new Error('Unsupported stopBits');
+  }
+
+  if (
+    !Number.isInteger(readTimeoutMs) ||
+    readTimeoutMs < 250 ||
+    readTimeoutMs > MAX_SCALE_READ_TIMEOUT_MS
+  ) {
+    throw new Error('Invalid readTimeoutMs');
+  }
+
+  if (!Number.isInteger(settleMs) || settleMs < 0 || settleMs > 5000) {
+    throw new Error('Invalid settleMs');
+  }
+
+  if (command.length > 100) {
+    throw new Error('Scale command is too long');
+  }
+
+  return {
+    scaleId: options.scaleId.toUpperCase(),
+    baudRate,
+    dataBits,
+    parity,
+    stopBits,
+    command,
+    readTimeoutMs,
+    settleMs,
+  };
+}
+
+async function readScale(options) {
+  if (process.platform !== 'win32') {
+    throw new Error('The Windows scale bridge requires Windows');
+  }
+
+  const validated = validateScaleOptions(options);
+
+  const scriptPath = fileURLToPath(
+    new URL('./read-scale.ps1', import.meta.url),
+  );
+
+  const { stdout } = await execFileAsync(
+    'powershell.exe',
+    [
+      '-NoProfile',
+      '-NonInteractive',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      scriptPath,
+      '-PortName',
+      validated.scaleId,
+      '-BaudRate',
+      String(validated.baudRate),
+      '-DataBits',
+      String(validated.dataBits),
+      '-Parity',
+      validated.parity,
+      '-StopBits',
+      String(validated.stopBits),
+      '-Command',
+      validated.command,
+      '-ReadTimeoutMs',
+      String(validated.readTimeoutMs),
+      '-SettleMs',
+      String(validated.settleMs),
+    ],
+    {
+      windowsHide: true,
+      maxBuffer: 64 * 1024,
+      timeout: validated.readTimeoutMs + 5000,
+    },
+  );
+
+  const raw = stdout.trim();
+
+  if (!raw) {
+    throw new Error('Scale returned no data');
+  }
+
+  return {
+    ok: true,
+    scaleId: validated.scaleId,
+    raw: raw.slice(0, MAX_SCALE_RAW_BYTES),
+  };
 }
 
 async function printRaw(printerId, data) {
@@ -136,11 +288,21 @@ async function handle(req, res) {
       version: VERSION,
       platform: process.platform,
       transport: 'windows-winspool-raw',
+      scaleTransport: 'windows-system-serial',
     });
   }
 
   if (req.method === 'GET' && url.pathname === '/v1/printers') {
     return json(res, 200, { printers: await listPrinters() });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/v1/scales') {
+    return json(res, 200, { scales: await listSerialPorts() });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/v1/scales/read') {
+    const body = await readJson(req);
+    return json(res, 200, await readScale(body));
   }
 
   if (req.method === 'POST' && url.pathname === '/v1/printers/print') {
@@ -150,10 +312,7 @@ async function handle(req, res) {
 
     const body = await readJson(req);
 
-    if (
-      body?.encoding !== 'base64' ||
-      typeof body?.data !== 'string'
-    ) {
+    if (body?.encoding !== 'base64' || typeof body?.data !== 'string') {
       return json(res, 400, { error: 'Expected a base64 ESC/POS payload' });
     }
 
@@ -182,9 +341,18 @@ async function handle(req, res) {
 }
 
 if (process.argv.includes('--doctor')) {
-  listPrinters()
-    .then((printers) => {
-      console.log(JSON.stringify({ ok: true, version: VERSION, platform: process.platform, printers }, null, 2));
+  Promise.all([
+    listPrinters(),
+    listSerialPorts(),
+  ])
+    .then(([printers, scales]) => {
+      console.log(JSON.stringify({
+        ok: true,
+        version: VERSION,
+        platform: process.platform,
+        printers,
+        scales,
+      }, null, 2));
       process.exit(0);
     })
     .catch((error) => {
