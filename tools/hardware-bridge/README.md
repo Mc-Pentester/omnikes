@@ -83,3 +83,36 @@ Il n'est donc pas nécessaire de remplacer le pilote Windows par WinUSB pour cet
 
 Cette version cible Windows, qui correspond au poste local OmniKès actuel.
 Le transport USB direct libusb/WebUSB reste une voie distincte à ajouter si un modèle d'imprimante exige un accès USB sans spooler.
+
+
+## Balance électronique — HW-04
+
+Le bridge expose une lecture de balance série Windows :
+
+`GET http://127.0.0.1:8765/v1/scales`
+
+liste les ports série Windows détectés.
+
+`POST http://127.0.0.1:8765/v1/scales/read`
+
+avec par exemple :
+
+```json
+{
+  "scaleId": "COM3",
+  "baudRate": 9600,
+  "dataBits": 8,
+  "parity": "none",
+  "stopBits": 1,
+  "readTimeoutMs": 2500,
+  "settleMs": 300
+}
+```
+
+Le bridge ouvre réellement le port COM via `System.IO.Ports.SerialPort`, envoie éventuellement la commande configurée, lit une trame bornée dans le temps et restitue la trame brute à OmniKès.
+
+La normalisation du poids et la validation des unités sont effectuées côté application dans `src/lib/hardware/scale.ts`.
+
+La balance doit fournir une interface série Windows (USB/RS232 via un adaptateur ou port COM virtuel). Le protocole de chaque modèle peut nécessiter une commande et/ou des paramètres série spécifiques.
+
+`--doctor` liste maintenant à la fois les imprimantes et les ports série détectés.
