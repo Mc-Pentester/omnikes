@@ -24,6 +24,14 @@ export interface ScaleBridgeReadResponse {
   raw: string;
 }
 
+export interface ScalePortInfo {
+  DeviceID?: string;
+  Name?: string;
+  Description?: string;
+  Manufacturer?: string;
+  Status?: string;
+}
+
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8765';
 const DEFAULT_TIMEOUT_MS = 5000;
 
@@ -81,6 +89,12 @@ export class LocalHardwareBridgeClient {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+    });
+  }
+
+  async listScales(): Promise<{ scales: ScalePortInfo[] }> {
+    return this.request<{ scales: ScalePortInfo[] }>('/v1/scales', {
+      method: 'GET',
     });
   }
 
