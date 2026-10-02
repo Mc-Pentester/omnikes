@@ -61,20 +61,18 @@ describe('P0-25-B.2 - global role organization scope', () => {
 
     const byId = new Map(roles.map((role) => [role.id, role]));
 
-    expect(byId.get('admin-role-a')).toMatchObject({
-      isGlobal: true,
-      organizationId: 'cmu8gsgwp0000fgqr0uckya14',
-    });
+    const adminRoleA = byId.get('admin-role-a');
+    const cashierRoleA = byId.get('cashier-role-a');
+    const adminRoleB = byId.get('admin-role-b');
 
-    expect(byId.get('cashier-role-a')).toMatchObject({
-      isGlobal: true,
-      organizationId: 'cmu8gsgwp0000fgqr0uckya14',
-    });
+    expect(adminRoleA).toMatchObject({ isGlobal: true });
+    expect(cashierRoleA).toMatchObject({ isGlobal: true });
+    expect(adminRoleB).toMatchObject({ isGlobal: true });
 
-    expect(byId.get('admin-role-b')).toMatchObject({
-      isGlobal: true,
-      organizationId: 'cmu8gsgx00001fgqrledvbouk',
-    });
+    expect(adminRoleA?.organizationId).not.toBeNull();
+    expect(cashierRoleA?.organizationId).toBe(adminRoleA?.organizationId);
+    expect(adminRoleB?.organizationId).not.toBeNull();
+    expect(adminRoleB?.organizationId).not.toBe(adminRoleA?.organizationId);
   });
 });
 
