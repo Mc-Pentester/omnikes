@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { validatePagination } from '@omnikes/lib/pagination';
 import { inventoryService } from '@omnikes/services/inventory.service';
 import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
 import { inventoryMovementSchema } from '@omnikes/lib/validation';
@@ -39,8 +41,7 @@ export async function GET(
     const { searchParams } = new URL(request.url);
 
     const type = searchParams.get('type') || undefined;
-    const skip = parseInt(searchParams.get('skip') || '0');
-    const take = parseInt(searchParams.get('take') || '50');
+    const { skip, take } = validatePagination(searchParams.get('skip'), searchParams.get('take'));
 
     const result = await inventoryService.listMovements(id, organizationId, {
       type,
@@ -50,6 +51,9 @@ export async function GET(
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid request data' }, { status: 400 });
+    }
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },
