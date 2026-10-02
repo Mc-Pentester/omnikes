@@ -78,8 +78,7 @@ jobs:
             git fetch origin "${{ github.base_ref }}" --depth=1
 
             mapfile -t changed_files < <(
-              git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- \
-                '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs'
+              git diff --name-only "origin/${{ github.base_ref }}...HEAD" --                 '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs'
             )
 
             if [ "${#changed_files[@]}" -eq 0 ]; then
@@ -94,4 +93,5 @@ jobs:
           fi
 
       - name: Build
+        # Trigger verification run after the weighted-pricing test fix.
         run: npm run build
