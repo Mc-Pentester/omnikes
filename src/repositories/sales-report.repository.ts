@@ -50,7 +50,7 @@ function buildSaleConditions(
     conditions.push(Prisma.sql`s."storeId" = ${storeId}`);
   }
 
-  return Prisma.join(conditions, Prisma.sql` AND `);
+  return Prisma.join(conditions, ' AND ');
 }
 
 export class SalesReportRepository {
@@ -266,7 +266,7 @@ export class SalesReportRepository {
       conditions.push(Prisma.sql`s."storeId" IN (${Prisma.join(authorizedStoreIds)})`);
     }
 
-    const where = Prisma.join(conditions, Prisma.sql` AND `);
+    const where = Prisma.join(conditions, ' AND ');
 
     type StoreRow = {
       storeId: string;
