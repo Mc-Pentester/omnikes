@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { productVariantService } from '@omnikes/services/product-variant.service';
 import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { productVariantSchema } from '@omnikes/lib/validation';
 
 /**
  * GET /api/products/[id]/variants
@@ -71,8 +72,9 @@ export async function POST(
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'product.manage');
     const body = await request.json();
+    const validatedData = productVariantSchema.omit({ productId: true }).parse(body);
 
-    const result = await productVariantService.create(id, organizationId, body);
+    const result = await productVariantService.create(id, organizationId, validatedData);
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
