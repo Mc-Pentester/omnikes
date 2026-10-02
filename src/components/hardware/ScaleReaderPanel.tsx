@@ -34,10 +34,12 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
 
     try {
       const result = await bridge.listScales();
-      setPorts(result.scales ?? []);
+      const scales = result.scales ?? [];
+      setPorts(scales);
 
-      if (!scaleId && result.scales?.[0]?.DeviceID) {
-        setScaleId(result.scales[0].DeviceID);
+      const firstDeviceId = scales[0]?.DeviceID;
+      if (firstDeviceId) {
+        setScaleId((current) => current || firstDeviceId);
       }
 
       setStatus('idle');
@@ -49,10 +51,14 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
           : 'Bridge matériel indisponible',
       );
     }
-  }, [bridge, scaleId, onReading]);
+  }, [bridge]);
 
   useEffect(() => {
-    void discover();
+    const timer = window.setTimeout(() => {
+      void discover();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [discover]);
 
   const read = async () => {

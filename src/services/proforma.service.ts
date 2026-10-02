@@ -128,7 +128,7 @@ export class ProformaService {
             return sum + Number(item.unitPrice) * item.quantity;
           }, 0);
 
-          const discount = updatedProforma.items.reduce((sum: number, item: any) => {
+          const discount = updatedProforma.items.reduce((sum: number, item: typeof updatedProforma.items[number]) => {
             return sum + Number(item.discount);
           }, 0);
 
