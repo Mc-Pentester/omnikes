@@ -307,7 +307,7 @@ export default function StoresPage() {
           {stores.length === 0 ? (
             <Card className="p-12 text-center">
               <h2 className="text-xl font-bold text-gray-900 mb-2">Aucun magasin</h2>
-              <p className="text-gray-600 mb-6">Aucun magasin n'est encore configuré pour votre organisation.</p>
+              <p className="text-gray-600 mb-6">Aucun magasin n&apos;est encore configuré pour votre organisation.</p>
               <Button onClick={handleCreate}>+ Créer un magasin</Button>
             </Card>
           ) : (

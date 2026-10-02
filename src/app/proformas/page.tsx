@@ -246,7 +246,7 @@ export default function ProformasPage() {
           {proformas.length === 0 ? (
             <Card className="p-12 text-center">
               <h2 className="text-xl font-bold text-gray-900 mb-2">Aucune proforma</h2>
-              <p className="text-gray-600 mb-4">Aucune proforma n'a encore été créée.</p>
+              <p className="text-gray-600 mb-4">Aucune proforma n&apos;a encore été créée.</p>
               <Button onClick={() => router.push('/proformas/new')}>
                 Créer une proforma
               </Button>

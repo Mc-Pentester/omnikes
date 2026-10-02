@@ -522,7 +522,7 @@ export default function PendingSalesPage() {
                         <div>
                           <p className="font-semibold text-amber-900">Paiement complet — vente encore PENDING</p>
                           <p className="text-sm text-amber-800 mt-1">
-                            Aucun nouveau paiement n'est nécessaire. La prochaine étape est la finalisation serveur, qui vérifiera notamment la disponibilité du stock.
+                            Aucun nouveau paiement n&apos;est nécessaire. La prochaine étape est la finalisation serveur, qui vérifiera notamment la disponibilité du stock.
                           </p>
                         </div>
                         <Button
