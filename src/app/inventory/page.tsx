@@ -15,6 +15,7 @@ interface Inventory {
   storeId: string;
   variantId: string;
   quantity: number;
+  reservedQuantity: number;
   variant: {
     id: string;
     sku: string;
@@ -28,6 +29,16 @@ interface Inventory {
     id: string;
     name: string;
   };
+}
+
+interface InventoryMovement {
+  id: string;
+  type: string;
+  quantity: number;
+  referenceId?: string | null;
+  referenceType?: string | null;
+  notes?: string | null;
+  createdAt: string;
 }
 
 type InventoryWorkflow = 'receive' | 'adjust';
@@ -57,6 +68,13 @@ export default function InventoryPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSidebarCompact, setIsSidebarCompact] = useState(false);
+  const [search, setSearch] = useState('');
+  const [storeFilter, setStoreFilter] = useState('');
+  const [stockFilter, setStockFilter] = useState<'all' | 'available' | 'reserved' | 'zero'>('all');
+  const [historyInventory, setHistoryInventory] = useState<Inventory | null>(null);
+  const [history, setHistory] = useState<InventoryMovement[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -68,7 +86,7 @@ export default function InventoryPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/inventory');
+      const response = await fetch('/api/inventory?skip=0&take=100');
       
       if (!response.ok) {
         throw new Error('Failed to fetch inventory');
@@ -205,6 +223,46 @@ export default function InventoryPage() {
     );
   }
 
+  const stores = Array.from(
+    new Map(inventory.map((item) => [item.storeId, item.store])).values()
+  );
+
+  const filteredInventory = inventory.filter((item) => {
+    const q = search.trim().toLowerCase();
+    const matchesSearch = !q ||
+      item.variant.product.name.toLowerCase().includes(q) ||
+      item.variant.sku.toLowerCase().includes(q);
+    const matchesStore = !storeFilter || item.storeId === storeFilter;
+    const available = Math.max(0, item.quantity - item.reservedQuantity);
+    const matchesStock =
+      stockFilter === 'all' ||
+      (stockFilter === 'available' && available > 0) ||
+      (stockFilter === 'reserved' && item.reservedQuantity > 0) ||
+      (stockFilter === 'zero' && item.quantity === 0);
+    return matchesSearch && matchesStore && matchesStock;
+  });
+
+  const totalUnits = inventory.reduce((sum, item) => sum + item.quantity, 0);
+  const totalReserved = inventory.reduce((sum, item) => sum + item.reservedQuantity, 0);
+  const zeroStockCount = inventory.filter((item) => item.quantity === 0).length;
+
+  const openHistory = async (item: Inventory) => {
+    setHistoryInventory(item);
+    setHistory([]);
+    setHistoryError(null);
+    setHistoryLoading(true);
+    try {
+      const response = await fetch(`/api/inventory/${item.id}/movements?skip=0&take=50`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Impossible de charger l’historique');
+      setHistory(data.movements || []);
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : 'Impossible de charger l’historique');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar 
@@ -230,57 +288,159 @@ export default function InventoryPage() {
             <Card className="p-12 text-center">
               <h2 className="text-xl font-bold text-gray-900 mb-2">Aucun inventaire</h2>
               <p className="text-gray-600 mb-4">L'inventaire est créé automatiquement lorsque vous ajoutez du stock.</p>
-              <p className="text-sm text-gray-500 mb-6">Prérequis: Créez d'abord un magasin et un produit avec une variante.</p>
+              <p className="text-sm text-gray-500 mb-6">Prérequis : créez d'abord un magasin et un produit avec une variante.</p>
               <div className="flex gap-4 justify-center">
                 <Button onClick={() => router.push('/stores')}>Gérer les magasins</Button>
                 <Button onClick={() => router.push('/products')}>Gérer les produits</Button>
               </div>
             </Card>
           ) : (
-            <Card className="overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produit</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Magasin</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantité</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {inventory.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.variant.product.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.store.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.quantity}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleOpenWorkflow(item, 'receive')}
-                            >
-                              Recevoir
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleOpenWorkflow(item, 'adjust')}
-                            >
-                              Ajuster
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="p-5">
+                  <p className="text-sm text-gray-500">Articles en stock</p>
+                  <p className="mt-1 text-2xl font-bold text-gray-900">{totalUnits}</p>
+                  <p className="text-xs text-gray-500 mt-1">{inventory.length} références suivies</p>
+                </Card>
+                <Card className="p-5">
+                  <p className="text-sm text-gray-500">Quantités réservées</p>
+                  <p className="mt-1 text-2xl font-bold text-gray-900">{totalReserved}</p>
+                  <p className="text-xs text-gray-500 mt-1">Non disponibles à la vente</p>
+                </Card>
+                <Card className="p-5">
+                  <p className="text-sm text-gray-500">Ruptures</p>
+                  <p className="mt-1 text-2xl font-bold text-gray-900">{zeroStockCount}</p>
+                  <p className="text-xs text-gray-500 mt-1">Références à quantité zéro</p>
+                </Card>
               </div>
-            </Card>
+
+              <Card className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Rechercher produit ou SKU..."
+                  />
+                  <select
+                    value={storeFilter}
+                    onChange={(e) => setStoreFilter(e.target.value)}
+                    className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm"
+                  >
+                    <option value="">Tous les magasins</option>
+                    {stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
+                  </select>
+                  <select
+                    value={stockFilter}
+                    onChange={(e) => setStockFilter(e.target.value as typeof stockFilter)}
+                    className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm"
+                  >
+                    <option value="all">Tous les stocks</option>
+                    <option value="available">Disponible</option>
+                    <option value="reserved">Avec réservation</option>
+                    <option value="zero">Rupture</option>
+                  </select>
+                  <Button
+                    variant="outline"
+                    onClick={() => { setSearch(''); setStoreFilter(''); setStockFilter('all'); }}
+                  >
+                    Réinitialiser
+                  </Button>
+                </div>
+              </Card>
+
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                  <div>
+                    <h2 className="font-semibold text-gray-900">Stock par référence</h2>
+                    <p className="text-sm text-gray-500">{filteredInventory.length} résultat(s)</p>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produit / SKU</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Magasin</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Stock</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Réservé</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Disponible</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredInventory.map((item) => {
+                        const available = Math.max(0, item.quantity - item.reservedQuantity);
+                        return (
+                          <tr key={item.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4">
+                              <div className="font-medium text-gray-900">{item.variant.product.name}</div>
+                              <div className="text-xs text-gray-500">{item.variant.sku}</div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500">{item.store.name}</td>
+                            <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">{item.quantity}</td>
+                            <td className="px-6 py-4 text-right text-sm text-gray-500">{item.reservedQuantity}</td>
+                            <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">{available}</td>
+                            <td className="px-6 py-4">
+                              <div className="flex justify-end gap-2">
+                                <Button variant="outline" size="sm" onClick={() => openHistory(item)}>Historique</Button>
+                                <Button variant="outline" size="sm" onClick={() => handleOpenWorkflow(item, 'receive')}>Recevoir</Button>
+                                <Button variant="outline" size="sm" onClick={() => handleOpenWorkflow(item, 'adjust')}>Ajuster</Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {filteredInventory.length === 0 && (
+                  <div className="p-8 text-center text-sm text-gray-500">Aucun stock ne correspond aux filtres.</div>
+                )}
+              </Card>
+            </div>
           )}
         </main>
       </div>
+
+      <Modal
+        isOpen={Boolean(historyInventory)}
+        onClose={() => setHistoryInventory(null)}
+        title={historyInventory ? `Historique — ${historyInventory.variant.product.name}` : 'Historique'}
+      >
+        {historyInventory && (
+          <div className="space-y-4">
+            <div className="rounded-lg bg-gray-50 p-4 text-sm">
+              <div className="font-medium text-gray-900">{historyInventory.variant.product.name}</div>
+              <div className="text-gray-500">SKU: {historyInventory.variant.sku} · {historyInventory.store.name}</div>
+              <div className="mt-1 text-gray-700">Stock actuel : <strong>{historyInventory.quantity}</strong></div>
+            </div>
+            {historyLoading && <p className="text-sm text-gray-500">Chargement de l'historique...</p>}
+            {historyError && <p className="text-sm text-red-600">{historyError}</p>}
+            {!historyLoading && !historyError && history.length === 0 && (
+              <p className="text-sm text-gray-500">Aucun mouvement enregistré.</p>
+            )}
+            {!historyLoading && !historyError && history.length > 0 && (
+              <div className="max-h-96 overflow-y-auto divide-y divide-gray-200 border border-gray-200 rounded-lg">
+                {history.map((movement) => (
+                  <div key={movement.id} className="p-3 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-medium text-gray-900">{movement.type}</span>
+                      <span className={movement.quantity >= 0 ? 'font-semibold text-green-700' : 'font-semibold text-red-700'}>
+                        {movement.quantity >= 0 ? '+' : ''}{movement.quantity}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {new Date(movement.createdAt).toLocaleString('fr-FR')}
+                    </div>
+                    {movement.referenceId && <div className="mt-1 text-xs text-gray-600">Référence : {movement.referenceId}</div>}
+                    {movement.notes && <div className="mt-1 text-xs text-gray-600">{movement.notes}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
 
       <Modal
         isOpen={showModal}
