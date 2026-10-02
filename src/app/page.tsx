@@ -80,6 +80,9 @@ export default function HomePage() {
 
   const generateOrderNumber = useCallback(() => `SALE-${Date.now()}`, []);
   const generatePaymentReference = useCallback(() => `PAY-${Date.now()}`, []);
+  const handleScaleReading = useCallback((reading: { weightGrams: number; stable: boolean }) => {
+    setPendingScaleReading(reading);
+  }, []);
 
   const handlePayment = useCallback(() => {
     if (cart.length === 0) return;
@@ -537,7 +540,7 @@ export default function HomePage() {
           <div className="flex items-center gap-4">
             <ScaleReaderPanel
       compact
-      onReading={(reading) => setPendingScaleReading({ weightGrams: reading.weightGrams, stable: reading.stable })}
+      onReading={handleScaleReading}
     />
 
             <select
