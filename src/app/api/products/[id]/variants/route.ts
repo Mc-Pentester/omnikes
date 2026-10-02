@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { validatePagination } from '@omnikes/lib/pagination';
 import { productVariantService } from '@omnikes/services/product-variant.service';
 import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
 import { productVariantSchema } from '@omnikes/lib/validation';
@@ -19,8 +21,7 @@ export async function GET(
 
     const isActive = searchParams.get('isActive') === 'true' ? true :
                      searchParams.get('isActive') === 'false' ? false : undefined;
-    const skip = parseInt(searchParams.get('skip') || '0');
-    const take = parseInt(searchParams.get('take') || '50');
+    const { skip, take } = validatePagination(searchParams.get('skip'), searchParams.get('take'));
 
     const result = await productVariantService.listByProduct(id, organizationId, {
       isActive,
@@ -30,6 +31,9 @@ export async function GET(
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid request data' }, { status: 400 });
+    }
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },
