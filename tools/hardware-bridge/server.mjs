@@ -181,6 +181,18 @@ async function handle(req, res) {
   return json(res, 404, { error: 'Not found' });
 }
 
+if (process.argv.includes('--doctor')) {
+  listPrinters()
+    .then((printers) => {
+      console.log(JSON.stringify({ ok: true, version: VERSION, platform: process.platform, printers }, null, 2));
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error(error instanceof Error ? error.message : error);
+      process.exit(1);
+    });
+}
+
 const server = createServer((req, res) => {
   handle(req, res).catch((error) => {
     console.error(
