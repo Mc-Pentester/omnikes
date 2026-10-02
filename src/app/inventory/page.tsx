@@ -30,9 +30,12 @@ interface Inventory {
   };
 }
 
-interface MovementFormData {
-  type: 'PURCHASE' | 'SALE' | 'ADJUSTMENT';
+type InventoryWorkflow = 'receive' | 'adjust';
+
+interface InventoryFormData {
   quantity: string;
+  reason: string;
+  referenceId: string;
   notes: string;
 }
 
@@ -44,9 +47,11 @@ export default function InventoryPage() {
   const [inventory, setInventory] = useState<Inventory[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedInventory, setSelectedInventory] = useState<Inventory | null>(null);
-  const [formData, setFormData] = useState<MovementFormData>({
-    type: 'PURCHASE',
+  const [workflow, setWorkflow] = useState<InventoryWorkflow>('receive');
+  const [formData, setFormData] = useState<InventoryFormData>({
     quantity: '',
+    reason: '',
+    referenceId: '',
     notes: '',
   });
   const [formError, setFormError] = useState<string | null>(null);
@@ -86,11 +91,13 @@ export default function InventoryPage() {
     }
   }, [user]);
 
-  const handleAddMovement = (inventoryItem: Inventory) => {
+  const handleOpenWorkflow = (inventoryItem: Inventory, nextWorkflow: InventoryWorkflow) => {
     setSelectedInventory(inventoryItem);
+    setWorkflow(nextWorkflow);
     setFormData({
-      type: 'PURCHASE',
-      quantity: '',
+      quantity: nextWorkflow === 'adjust' ? String(inventoryItem.quantity) : '',
+      reason: '',
+      referenceId: '',
       notes: '',
     });
     setFormError(null);
@@ -102,62 +109,66 @@ export default function InventoryPage() {
     setFormError(null);
     setIsSubmitting(true);
 
-    // Basic validation
-    if (!formData.quantity || isNaN(parseInt(formData.quantity))) {
-      setFormError('La quantité doit être un nombre valide.');
+    const quantity = Number(formData.quantity);
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      setFormError('La quantité doit être un nombre entier valide.');
       setIsSubmitting(false);
       return;
     }
 
-    if (parseInt(formData.quantity) <= 0) {
-      setFormError('La quantité doit être positive.');
+    if (workflow === 'receive' && quantity <= 0) {
+      setFormError('La quantité reçue doit être supérieure à zéro.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (workflow === 'adjust' && !formData.reason.trim()) {
+      setFormError('La raison de l\'ajustement est obligatoire.');
       setIsSubmitting(false);
       return;
     }
 
     try {
-      const response = await fetch(`/api/inventory/${selectedInventory?.id}/movements`, {
+      const endpoint = workflow === 'receive'
+        ? `/api/inventory/${selectedInventory?.id}/receive`
+        : `/api/inventory/${selectedInventory?.id}/adjust`;
+
+      const body = workflow === 'receive'
+        ? {
+            quantity,
+            referenceId: formData.referenceId || undefined,
+            notes: formData.notes || undefined,
+          }
+        : {
+            newQuantity: quantity,
+            reason: formData.reason,
+            referenceId: formData.referenceId || undefined,
+            notes: formData.notes || undefined,
+          };
+
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: formData.type,
-          quantity: parseInt(formData.quantity),
-          notes: formData.notes,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
 
       if (response.status === 401) {
         setFormError('Authentication required');
-        setIsSubmitting(false);
         return;
       }
 
-      if (response.status === 404) {
-        setFormError('Inventory not found or access denied');
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (response.status === 409) {
-        setFormError('Insufficient stock for this operation');
-        setIsSubmitting(false);
-        return;
-      }
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        const data = await response.json();
-        setFormError(data.error || 'Erreur lors de l\'enregistrement du mouvement');
-        setIsSubmitting(false);
+        setFormError(data.error || 'Erreur lors de l\'enregistrement.');
         return;
       }
 
       setShowModal(false);
       await fetchInventory();
     } catch (err) {
-      console.error('Error creating movement:', err);
-      setFormError('Erreur lors de l\'enregistrement du mouvement');
+      console.error('Error updating inventory:', err);
+      setFormError('Erreur lors de l\'enregistrement.');
     } finally {
       setIsSubmitting(false);
     }
@@ -244,13 +255,22 @@ export default function InventoryPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.store.name}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.quantity}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleAddMovement(item)}
-                          >
-                            Ajuster
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenWorkflow(item, 'receive')}
+                            >
+                              Recevoir
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenWorkflow(item, 'adjust')}
+                            >
+                              Ajuster
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -265,77 +285,94 @@ export default function InventoryPage() {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={`Ajuster le stock - ${selectedInventory?.variant.product.name}`}
+        title={workflow === 'receive'
+          ? `Recevoir du stock — ${selectedInventory?.variant.product.name}`
+          : `Ajustement d'inventaire — ${selectedInventory?.variant.product.name}`}
         footer={
           <>
-            <Button
-              variant="outline"
-              onClick={() => setShowModal(false)}
-              disabled={isSubmitting}
-            >
+            <Button variant="outline" onClick={() => setShowModal(false)} disabled={isSubmitting}>
               Annuler
             </Button>
-            <Button
-              type="submit"
-              form="movement-form"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
+            <Button type="submit" form="inventory-workflow-form" disabled={isSubmitting}>
+              {isSubmitting ? 'Enregistrement...' : workflow === 'receive' ? 'Enregistrer la réception' : 'Enregistrer l\'ajustement'}
             </Button>
           </>
         }
       >
+        {selectedInventory && (
+          <div className="mb-4 rounded-lg bg-gray-50 p-4 text-sm">
+            <div className="font-medium text-gray-900">{selectedInventory.variant.product.name}</div>
+            <div className="text-gray-500">SKU: {selectedInventory.variant.sku} · Magasin: {selectedInventory.store.name}</div>
+            <div className="mt-1 text-gray-700">Stock actuel : <strong>{selectedInventory.quantity}</strong></div>
+          </div>
+        )}
+
         {formError && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
             {formError}
           </div>
         )}
 
-        <form id="movement-form" onSubmit={handleSubmit} className="space-y-4">
+        <form id="inventory-workflow-form" onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
-              Type de mouvement
-            </label>
-            <select
-              id="type"
-              value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value as 'PURCHASE' | 'SALE' | 'ADJUSTMENT' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="PURCHASE">Entrée</option>
-              <option value="SALE">Sortie</option>
-              <option value="ADJUSTMENT">Ajustement</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
-              Quantité *
+            <label htmlFor="inventory-quantity" className="block text-sm font-medium text-gray-700 mb-1">
+              {workflow === 'receive' ? 'Quantité reçue *' : 'Nouvelle quantité en stock *'}
             </label>
             <Input
-              id="quantity"
+              id="inventory-quantity"
               type="number"
-              min="1"
+              min={workflow === 'receive' ? 1 : 0}
               value={formData.quantity}
               onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-              placeholder="10"
               required
+            />
+            {workflow === 'adjust' && selectedInventory && (
+              <p className="mt-1 text-xs text-gray-500">
+                Le système enregistrera automatiquement la différence entre {selectedInventory.quantity} et la nouvelle quantité.
+              </p>
+            )}
+          </div>
+
+          {workflow === 'adjust' && (
+            <div>
+              <label htmlFor="inventory-reason" className="block text-sm font-medium text-gray-700 mb-1">
+                Raison de l'ajustement *
+              </label>
+              <Input
+                id="inventory-reason"
+                value={formData.reason}
+                onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                placeholder="Comptage physique, perte, casse, correction..."
+                required
+              />
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="inventory-reference" className="block text-sm font-medium text-gray-700 mb-1">
+              {workflow === 'receive' ? 'Référence de réception / fournisseur' : 'Référence'}
+            </label>
+            <Input
+              id="inventory-reference"
+              value={formData.referenceId}
+              onChange={(e) => setFormData({ ...formData, referenceId: e.target.value })}
+              placeholder={workflow === 'receive' ? 'Bon de livraison, facture, fournisseur...' : 'Référence interne...'}
             />
           </div>
 
           <div>
-            <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="inventory-notes" className="block text-sm font-medium text-gray-700 mb-1">
               Notes
             </label>
             <Input
-              id="notes"
+              id="inventory-notes"
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Notes du mouvement"
+              placeholder="Notes complémentaires"
             />
           </div>
         </form>
-      </Modal>
+      </Modal>>
     </div>
   );
 }
