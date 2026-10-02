@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { salesReportService } from '@omnikes/services/sales-report.service';
 import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
+import { salesReportSummarySchema } from '@omnikes/lib/validation';
 
 /**
  * GET /api/reports/sales/summary
@@ -17,16 +18,18 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : undefined;
     const storeId = searchParams.get('storeId') || undefined;
 
+    const validatedData = salesReportSummarySchema.parse({
+      startDate,
+      endDate,
+      storeId,
+    });
+
     // If storeId is provided, verify store access
     if (storeId) {
       await requireStoreAccess(request, storeId);
     }
 
-    const result = await salesReportService.getSummary(organizationId, {
-      startDate,
-      endDate,
-      storeId,
-    });
+    const result = await salesReportService.getSummary(organizationId, validatedData);
 
     return NextResponse.json(result);
   } catch (error) {
