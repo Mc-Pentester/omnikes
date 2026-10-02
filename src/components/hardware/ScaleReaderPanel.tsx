@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createLocalHardwareBridge,
+  parseScaleReading,
   type ScalePortInfo,
   type ScaleSerialOptions,
 } from '@omnikes/lib/hardware';
@@ -24,7 +25,7 @@ export function ScaleReaderPanel({ compact = false }: ScaleReaderPanelProps) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'reading' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  const bridge = createLocalHardwareBridge();
+  const bridge = useMemo(() => createLocalHardwareBridge(), []);
 
   const discover = useCallback(async () => {
     setStatus('loading');
@@ -74,8 +75,7 @@ export function ScaleReaderPanel({ compact = false }: ScaleReaderPanelProps) {
       };
 
       const response = await bridge.readScale(options);
-      const parsed = await import('@omnikes/lib/hardware/scale')
-        .then(({ parseScaleReading }) => parseScaleReading(response.raw));
+      const parsed = parseScaleReading(response.raw);
 
       setReading({
         weight: parsed.weight,
