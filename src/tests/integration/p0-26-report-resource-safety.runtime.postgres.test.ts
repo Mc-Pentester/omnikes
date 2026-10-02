@@ -55,21 +55,20 @@ describe('P0-26 - PostgreSQL report aggregation and resource ceilings', () => {
   });
 
   it('all report aggregations execute successfully', async () => {
-    const [periodResponse, productResponse, paymentResponse, storeResponse] = await Promise.all([
-      byPeriod(await request('/api/reports/sales/by-period?granularity=day')),
-      byProduct(await request('/api/reports/sales/by-product?limit=50')),
-      byPaymentMethod(await request('/api/reports/sales/by-payment-method')),
-      byStore(await request('/api/reports/sales/by-store')),
-    ]);
-
+    const periodResponse = await byPeriod(await request('/api/reports/sales/by-period?granularity=day'));
     expect(periodResponse.status).toBe(200);
-    expect(productResponse.status).toBe(200);
-    expect(paymentResponse.status).toBe(200);
-    expect(storeResponse.status).toBe(200);
-
     expect(Array.isArray(await periodResponse.json())).toBe(true);
+
+    const productResponse = await byProduct(await request('/api/reports/sales/by-product?limit=50'));
+    expect(productResponse.status).toBe(200);
     expect(Array.isArray(await productResponse.json())).toBe(true);
+
+    const paymentResponse = await byPaymentMethod(await request('/api/reports/sales/by-payment-method'));
+    expect(paymentResponse.status).toBe(200);
     expect(Array.isArray(await paymentResponse.json())).toBe(true);
+
+    const storeResponse = await byStore(await request('/api/reports/sales/by-store'));
+    expect(storeResponse.status).toBe(200);
     expect(Array.isArray(await storeResponse.json())).toBe(true);
   });
 
