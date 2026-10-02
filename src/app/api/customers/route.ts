@@ -76,6 +76,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(customer, { status: 201 });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid customer data' },
+        { status: 400 }
+      );
+    }
+
     if (error instanceof Error) {
       if (error.message === 'Authentication required' || error.message === 'Invalid or expired session') {
         return NextResponse.json(
