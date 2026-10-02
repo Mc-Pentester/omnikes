@@ -593,7 +593,7 @@ export default function InventoryPage() {
             />
           </div>
         </form>
-      </Modal>>
+      </Modal>
     </div>
   );
 }
