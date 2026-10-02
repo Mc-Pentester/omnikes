@@ -74,11 +74,9 @@ export class PasswordResetService {
     // Log the token for development (in production, send email instead)
     securityLogger.passwordResetRequested(user.id, email, ipAddress, 'Token generated');
     
-    // In development, log the token for testing
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[PASSWORD RESET] Email: ${email}, Token: ${token}, Expires: ${expiresAt.toISOString()}`);
-    }
-
+    // Never log password-reset tokens. In local development without an email
+    // transport, the token remains available only to the caller/test harness.
+    // Production delivery must use the configured email transport.
     // In production, send email with reset link:
     // const resetLink = `${process.env.APP_URL}/reset-password?token=${token}`;
     // await sendEmail(email, 'Password Reset', `Click here to reset: ${resetLink}`);
