@@ -87,23 +87,35 @@ export class RegistrationService {
         },
       });
 
-      // Find or create a global ADMIN role (roles are not organization-scoped in the schema)
-      let adminRole = await tx.role.findFirst({
-        where: {
+      // Create an organization-scoped ADMIN role for the new tenant.
+      // "isGlobal" means all stores inside this organization, never cross-tenant.
+      const adminRole = await tx.role.create({
+        data: {
           name: 'ADMIN',
+          description: 'Administrator role',
+          organizationId: organization.id,
           isGlobal: true,
         },
       });
 
-      if (!adminRole) {
-        adminRole = await tx.role.create({
-          data: {
-            name: 'ADMIN',
-            description: 'Administrator role',
-            isGlobal: true,
-          },
-        });
+      // A newly registered administrator must receive the existing permission
+      // catalog explicitly. Permissions themselves are global definitions;
+      // the role carrying them is tenant-scoped.
+      const permissions = await tx.permission.findMany({
+        select: { id: true },
+      });
+
+      if (permissions.length === 0) {
+        throw new Error('No permissions are configured; cannot create administrator role');
       }
+
+      await tx.rolePermission.createMany({
+        data: permissions.map((permission) => ({
+          roleId: adminRole.id,
+          permissionId: permission.id,
+        })),
+        skipDuplicates: true,
+      });
 
       // Create User
       const user = await tx.user.create({
