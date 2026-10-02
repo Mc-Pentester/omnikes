@@ -6,6 +6,7 @@ import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
 import { useAuth } from '@omnikes/contexts/AuthContext';
 import { Sidebar } from '@omnikes/components/layout/Sidebar';
+import { createProformaPrinter } from '@omnikes/lib/hardware/browser-printer';
 
 interface Proforma {
   id: string;
@@ -77,6 +78,18 @@ export default function ProformaDetailPage() {
       fetchProforma();
     }
   }, [user, params.id]);
+
+  const handlePrint = async () => {
+    if (!proforma) return;
+
+    try {
+      const printer = createProformaPrinter(proforma.id);
+      await printer.print();
+    } catch (err) {
+      console.error('Error printing proforma:', err);
+      alert(err instanceof Error ? err.message : 'Impossible de lancer l’impression.');
+    }
+  };
 
   const handleValidate = async () => {
     if (!confirm('Valider et envoyer cette proforma ?')) {
@@ -267,6 +280,9 @@ export default function ProformaDetailPage() {
               </div>
             </div>
             <div className="flex gap-2">
+              <Button variant="outline" onClick={handlePrint}>
+                Imprimer
+              </Button>
               {proforma.status === 'DRAFT' && (
                 <Button onClick={handleValidate}>
                   Valider
