@@ -28,6 +28,9 @@ jobs:
     env:
       DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/omnikes_ci
       SESSION_SECRET: ci-runtime-session-secret-0123456789abcdef0123456789abcdef
+      SEED_PASSWORD_A: ci-seed-password-admin-a-2026
+      SEED_PASSWORD_CASHIER_A: ci-seed-password-cashier-a-2026
+      SEED_PASSWORD_B: ci-seed-password-admin-b-2026
 
     steps:
       - name: Checkout code
