@@ -250,6 +250,25 @@ export const proformaItemSchema = z.object({
 
 export const proformaItemUpdateSchema = proformaItemSchema.partial().omit({ proformaId: true, variantId: true });
 
+// Customer validation
+export const CUSTOMER_MAX_PAGE_SIZE = 100;
+
+export const customerListQuerySchema = z.object({
+  search: z.string().trim().max(200).optional(),
+  skip: z.coerce.number().int().min(0).max(1000000).default(0),
+  take: z.coerce.number().int().min(1).max(CUSTOMER_MAX_PAGE_SIZE).default(50),
+});
+
+export const customerCreateSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  email: z.string().trim().email().max(320).optional().or(z.literal('')),
+  phone: z.string().trim().max(50).optional().or(z.literal('')),
+  address: z.string().trim().max(500).optional().or(z.literal('')),
+  city: z.string().trim().max(120).optional().or(z.literal('')),
+  country: z.string().trim().length(2).toUpperCase().optional().or(z.literal('')),
+  isActive: z.boolean().optional(),
+}).strict();
+
 // Sales Report validation
 // Report queries are deliberately bounded to prevent unbounded historical extraction.
 export const SALES_REPORT_MAX_RANGE_DAYS = 366;
