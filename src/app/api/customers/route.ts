@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
 import { customerRepository } from '@omnikes/repositories/customer.repository';
+import { customerCreateSchema, customerListQuerySchema } from '@omnikes/lib/validation';
+import { z } from 'zod';
 
 /**
  * GET /api/customers
@@ -12,18 +14,23 @@ export async function GET(request: NextRequest) {
     await requirePermission(request, 'customer.read');
 
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search') || undefined;
-    const skip = searchParams.get('skip') ? parseInt(searchParams.get('skip')!) : undefined;
-    const take = searchParams.get('take') ? parseInt(searchParams.get('take')!) : undefined;
-
-    const result = await customerRepository.listByOrganization(organizationId, {
-      search,
-      skip,
-      take,
+    const validatedQuery = customerListQuerySchema.parse({
+      search: searchParams.get('search') || undefined,
+      skip: searchParams.get('skip') ?? undefined,
+      take: searchParams.get('take') ?? undefined,
     });
+
+    const result = await customerRepository.listByOrganization(organizationId, validatedQuery);
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid customer parameters' },
+        { status: 400 }
+      );
+    }
+
     if (error instanceof Error) {
       if (error.message === 'Authentication required' || error.message === 'Invalid or expired session') {
         return NextResponse.json(
@@ -58,9 +65,10 @@ export async function POST(request: NextRequest) {
     await requirePermission(request, 'customer.create');
 
     const body = await request.json();
+    const validatedData = customerCreateSchema.parse(body);
 
     const customer = await customerRepository.create({
-      ...body,
+      ...validatedData,
       organization: {
         connect: { id: organizationId },
       },
