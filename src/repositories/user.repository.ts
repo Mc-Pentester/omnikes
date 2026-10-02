@@ -1,6 +1,13 @@
 import { prisma } from '@omnikes/lib/prisma';
 import { Prisma } from '@prisma/client';
 
+export interface UserListOptions {
+  search?: string;
+  authorizedStoreIds?: string[] | null;
+  skip?: number;
+  take?: number;
+}
+
 export class UserRepository {
   async findByEmail(email: string) {
     return prisma.user.findUnique({
@@ -32,43 +39,71 @@ export class UserRepository {
     });
   }
 
-  async listByOrganization(organizationId: string, search?: string) {
-    return prisma.user.findMany({
-      where: {
-        organizationId,
-        ...(search
-          ? {
-              OR: [
-                { name: { contains: search, mode: 'insensitive' } },
-                { email: { contains: search, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        lastLoginAt: true,
-        userRoles: {
-          select: {
-            role: {
-              select: {
-                id: true,
-                name: true,
-                description: true,
-                isGlobal: true,
-                storeId: true,
+  async listByOrganization(organizationId: string, options: UserListOptions = {}) {
+    const { search, authorizedStoreIds, skip = 0, take = 50 } = options;
+
+    const where: Prisma.UserWhereInput = {
+      organizationId,
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
+    if (authorizedStoreIds != null) {
+      if (authorizedStoreIds.length === 0) {
+        return { users: [], total: 0, skip, take };
+      }
+
+      where.userRoles = {
+        some: {
+          role: {
+            OR: [
+              { isGlobal: true },
+              { storeId: { in: authorizedStoreIds } },
+            ],
+          },
+        },
+      };
+    }
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          lastLoginAt: true,
+          userRoles: {
+            select: {
+              role: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  isGlobal: true,
+                  storeId: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+        skip,
+        take,
+        orderBy: { createdAt: 'asc' },
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    return { users, total, skip, take };
   }
 
   async create(data: Prisma.UserCreateInput) {
