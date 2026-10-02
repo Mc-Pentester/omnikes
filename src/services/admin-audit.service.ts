@@ -24,7 +24,7 @@ export class AdminAuditService {
 
     const take = Math.min(Math.max(input.take ?? 50, 1), 100);
     const page = Math.max(input.page ?? 1, 1);
-    const search = input.search?.trim() || undefined;
+    const search = input.search?.trim().slice(0, 200) || undefined;
 
     let from: Date | undefined;
     let to: Date | undefined;
