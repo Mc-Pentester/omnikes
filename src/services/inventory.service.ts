@@ -208,7 +208,7 @@ export class InventoryService {
       const rows = await prisma.$queryRaw<Array<{ id: string; quantity: number; reservedQuantity: number }>>`
         SELECT "id", "quantity", "reservedQuantity"
         FROM "inventories"
-        WHERE "id" IN (${Prisma.join(ids)})
+        WHERE "id" = ${ids[0]} OR "id" = ${ids[1]}
         ORDER BY "id"
         FOR UPDATE
       `;
