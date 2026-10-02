@@ -49,7 +49,7 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
           : 'Bridge matériel indisponible',
       );
     }
-  }, [bridge, scaleId]);
+  }, [bridge, scaleId, onReading]);
 
   useEffect(() => {
     void discover();
