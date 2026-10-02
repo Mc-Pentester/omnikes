@@ -157,7 +157,7 @@ export class SaleService {
     }
 
     // INVARIANT: Use server-side price, do not trust client
-    const serverPrice = getStoredUnitPrice(Number(variant.price), variant.saleUnit);
+    const serverPrice = getStoredUnitPrice(Number(variant.price), variant.saleUnit ?? 'UNIT');
     const quantity = validatedData.quantity;
     const discount = validatedData.discount || 0;
 
@@ -220,7 +220,7 @@ export class SaleService {
 
       // INVARIANT: Use server-side price from variant, do not trust client
       const unitPrice = validatedData.unitPrice !== undefined
-        ? getStoredUnitPrice(Number(item.variant.price), item.variant.saleUnit) // Always use server price if client tries to change it
+        ? getStoredUnitPrice(Number(item.variant.price), item.variant.saleUnit ?? 'UNIT') // Always use server price if client tries to change it
         : Number(item.unitPrice);
       const discount = validatedData.discount ?? Number(item.discount);
 
