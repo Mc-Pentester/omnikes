@@ -20,6 +20,7 @@ interface CartItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  saleUnit: 'UNIT' | 'G' | 'KG' | 'LB' | 'OZ';
 }
 
 interface Product {
@@ -30,6 +31,7 @@ interface Product {
     sku: string;
     name: string;
     price: number;
+    saleUnit: 'UNIT' | 'G' | 'KG' | 'LB' | 'OZ';
   }[];
 }
 
@@ -66,6 +68,7 @@ export default function HomePage() {
   const [serverTotals, setServerTotals] = useState<{ subtotal: number; tax: number; total: number } | null>(null);
   const [storesValidated, setStoresValidated] = useState(false);
   const [applyTax, setApplyTax] = useState(true);
+  const [pendingScaleReading, setPendingScaleReading] = useState<{ weightGrams: number; stable: boolean } | null>(null);
 
   const generateOrderNumber = useCallback(() => `SALE-${Date.now()}`, []);
   const generatePaymentReference = useCallback(() => `PAY-${Date.now()}`, []);
@@ -252,7 +255,7 @@ export default function HomePage() {
     );
   }
 
-  const addToCart = async (variantId: string, productId: string, productName: string, variantName: string, sku: string, price: number) => {
+  const addToCart = async (variantId: string, productId: string, productName: string, variantName: string, sku: string, price: number, saleUnit: CartItem['saleUnit'] = 'UNIT') => {
     // Prevent adding to cart before stores are validated
     if (!storesValidated) {
       console.log('[POS][STORE] Stores not yet validated, ignoring addToCart');
@@ -260,12 +263,20 @@ export default function HomePage() {
     }
 
     const numericPrice = parseFloat(String(price));
+    const gramsPerSaleUnit: Record<CartItem['saleUnit'], number> = { UNIT: 1, G: 1, KG: 1000, LB: 453.59237, OZ: 28.349523125 };
+    const isWeighted = saleUnit !== 'UNIT';
+    if (isWeighted && !pendingScaleReading) {
+      alert('Lisez d’abord le poids sur la balance avant d’ajouter ce produit.');
+      return;
+    }
+    const quantity = isWeighted ? Math.max(1, Math.round(pendingScaleReading!.weightGrams)) : 1;
+    const effectiveUnitPrice = isWeighted ? numericPrice / gramsPerSaleUnit[saleUnit] : numericPrice;
     const existingItem = cart.find(item => item.variantId === variantId);
     
     if (existingItem) {
       setCart(cart.map(item =>
         item.variantId === variantId
-          ? { ...item, quantity: item.quantity + 1, totalPrice: (item.quantity + 1) * parseFloat(String(item.unitPrice)) }
+          ? { ...item, quantity: isWeighted ? quantity : item.quantity + 1, totalPrice: (isWeighted ? quantity : item.quantity + 1) * parseFloat(String(item.unitPrice)) }
           : item
       ));
     } else {
@@ -275,10 +286,12 @@ export default function HomePage() {
         productName,
         variantName,
         sku,
-        quantity: 1,
-        unitPrice: numericPrice,
-        totalPrice: numericPrice,
+        quantity,
+        unitPrice: effectiveUnitPrice,
+        totalPrice: quantity * effectiveUnitPrice,
+        saleUnit,
       }]);
+      if (isWeighted) setPendingScaleReading(null);
     }
 
     if (!currentSaleId) {
@@ -514,7 +527,10 @@ export default function HomePage() {
           </div>
           
           <div className="flex items-center gap-4">
-            <ScaleReaderPanel compact />
+            <ScaleReaderPanel
+      compact
+      onReading={(reading) => setPendingScaleReading({ weightGrams: reading.weightGrams, stable: reading.stable })}
+    />
 
             <select
               value={currentStoreId || ''}
