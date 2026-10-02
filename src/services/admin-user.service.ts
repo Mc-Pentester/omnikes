@@ -42,9 +42,21 @@ export class AdminUserService {
     return targetRole;
   }
 
-  async list(organizationId: string, search: string | undefined, actorUserId: string) {
-    const [allUsers, roles, stores] = await Promise.all([
-      userRepository.listByOrganization(organizationId, search),
+  async list(
+    organizationId: string,
+    search: string | undefined,
+    actorUserId: string,
+    options: { skip: number; take: number },
+  ) {
+    const actorStoreIds = await roleRepository.getAuthorizedStoreIds(actorUserId);
+
+    const [userResult, roles, stores] = await Promise.all([
+      userRepository.listByOrganization(organizationId, {
+        search,
+        authorizedStoreIds: actorStoreIds,
+        skip: options.skip,
+        take: options.take,
+      }),
       prisma.role.findMany({
         where: { organizationId },
         select: { id: true, name: true, description: true, isGlobal: true, storeId: true },
@@ -57,15 +69,20 @@ export class AdminUserService {
       }),
     ]);
 
-    const actorStoreIds = await roleRepository.getAuthorizedStoreIds(actorUserId);
     const safeRoles = roles.filter((role) =>
       role.isGlobal ? actorStoreIds === null : actorStoreIds === null || (role.storeId ? actorStoreIds.includes(role.storeId) : false),
     );
-    const users = actorStoreIds === null
-      ? allUsers
-      : allUsers.filter((item) => item.userRoles.some(({ role }) => role.isGlobal || (role.storeId ? actorStoreIds.includes(role.storeId) : false)));
 
-    return { users, roles: safeRoles, stores: actorStoreIds === null ? stores : stores.filter((store) => actorStoreIds.includes(store.id)) };
+    return {
+      users: userResult.users,
+      roles: safeRoles,
+      stores: actorStoreIds === null ? stores : stores.filter((store) => actorStoreIds.includes(store.id)),
+      pagination: {
+        skip: userResult.skip,
+        take: userResult.take,
+        total: userResult.total,
+      },
+    };
   }
 
   private async resolveRole(roleId: string, organizationId: string, storeId?: string) {
