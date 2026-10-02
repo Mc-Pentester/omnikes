@@ -205,8 +205,8 @@ export class InventoryService {
 
     return prisma.$transaction(async () => {
       const ids = [inventoryId, data.targetInventoryId].sort();
-      const rows = await prisma.$queryRaw<Array<{ id: string; quantity: number; reservedQuantity: number }>>`
-        SELECT "id", "quantity", "reservedQuantity"
+      const rows = await prisma.$queryRaw<Array<{ id: string; variantId: string; quantity: number; reservedQuantity: number }>>`
+        SELECT "id", "variantId", "quantity", "reservedQuantity"
         FROM "inventories"
         WHERE "id" = ${ids[0]} OR "id" = ${ids[1]}
         ORDER BY "id"
@@ -216,6 +216,9 @@ export class InventoryService {
       const source = rows.find((row) => row.id === inventoryId);
       const target = rows.find((row) => row.id === data.targetInventoryId);
       if (!source || !target) throw new Error('Inventory not found');
+      if (source.variantId !== target.variantId) {
+        throw new Error('Transfer destination must use the same product variant');
+      }
 
       const available = source.quantity - source.reservedQuantity;
       if (available < data.quantity) {
