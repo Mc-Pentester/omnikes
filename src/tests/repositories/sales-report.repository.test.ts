@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-const queryRaw = vi.fn();
+const { queryRaw } = vi.hoisted(() => ({ queryRaw: vi.fn() }));
 
 vi.mock('@omnikes/lib/prisma', () => ({
   prisma: {
