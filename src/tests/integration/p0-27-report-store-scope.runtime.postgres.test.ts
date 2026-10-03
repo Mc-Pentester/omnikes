@@ -106,10 +106,10 @@ describe('P0-27 - scoped report aggregation', () => {
     });
 
     expect(actual.salesCount).toBe(expected._count.id);
-    expect(actual.totalRevenue).toBe(expected._sum.total ?? 0);
-    expect(actual.totalDiscount).toBe(expected._sum.discount ?? 0);
-    expect(actual.totalTax).toBe(expected._sum.tax ?? 0);
-    expect(actual.averageSale).toBe(expected._avg.total ?? 0);
+    expect(actual.totalRevenue).toBe(Number(expected._sum.total ?? 0));
+    expect(actual.totalDiscount).toBe(Number(expected._sum.discount ?? 0));
+    expect(actual.totalTax).toBe(Number(expected._sum.tax ?? 0));
+    expect(actual.averageSale).toBe(Number(expected._avg.total ?? 0));
     expect(actual.itemsSold).toBe(itemsSold._sum.quantity ?? 0);
   });
 
