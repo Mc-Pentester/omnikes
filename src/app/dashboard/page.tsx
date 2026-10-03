@@ -65,8 +65,8 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    queueMicrotask(loadDashboardStats);
-  }, [user, loadDashboardStats]);
+    loadDashboardStats();
+  }, [user]);
 
   if (authLoading) {
     return (
