@@ -80,6 +80,7 @@ export class ProformaRepository {
    */
   async listByOrganization(organizationId: string, options: {
     storeId?: string;
+    authorizedStoreIds?: string[] | null;
     status?: string;
     customerId?: string;
     startDate?: Date;
@@ -87,7 +88,7 @@ export class ProformaRepository {
     skip?: number;
     take?: number;
   } = {}) {
-    const { storeId, status, customerId, startDate, endDate, skip = 0, take = 50 } = options;
+    const { storeId, authorizedStoreIds, status, customerId, startDate, endDate, skip = 0, take = 50 } = options;
 
     const where: Prisma.ProformaWhereInput = {
       organizationId,
@@ -95,6 +96,16 @@ export class ProformaRepository {
 
     if (storeId) {
       where.storeId = storeId;
+    }
+
+    if (authorizedStoreIds != null) {
+      if (authorizedStoreIds.length === 0) {
+        return { proformas: [], total: 0, skip, take };
+      }
+      where.storeId = { in: authorizedStoreIds };
+      if (storeId) {
+        where.storeId = { in: authorizedStoreIds.filter((id) => id === storeId) };
+      }
     }
 
     if (status) {
