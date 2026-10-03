@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proformaService } from '@omnikes/services/proforma.service';
-import { requireCurrentOrganizationId, requireStoreAccess, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requireStoreAccess, requirePermission, getAuthorizedStoreIds } from '@omnikes/lib/auth';
 import { validatePagination } from '@omnikes/lib/pagination';
 import { parseDateRange } from '@omnikes/lib/date-validation';
 import { ZodError } from 'zod';
@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
       await requireStoreAccess(request, storeId);
     }
 
+    const authorizedStoreIds = await getAuthorizedStoreIds(request);
+
     const { startDate, endDate } = parseDateRange(
       searchParams.get('startDate'),
       searchParams.get('endDate')
@@ -37,6 +39,7 @@ export async function GET(request: NextRequest) {
 
     const result = await proformaService.list(organizationId, {
       storeId,
+      authorizedStoreIds,
       status,
       customerId,
       startDate,
