@@ -4,6 +4,7 @@ import { prisma } from '@omnikes/lib/prisma';
 import { saleService } from '@omnikes/services/sale.service';
 import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, getAuthenticatedUser } from '@omnikes/lib/auth';
 import { idempotencyKeySchema, paymentSchema } from '@omnikes/lib/validation';
+import { roundMoney } from '@omnikes/lib/money';
 
 /**
  * GET /api/sales/[id]/payments
@@ -313,19 +314,23 @@ export async function POST(
 
       // Financial coverage must use the same rule as sale.complete():
       // completed real payments + explicitly authorized customer credit.
-      const totalPaid = sale.payments
-        .filter(p => p.status === 'COMPLETED' && p.method !== 'CREDIT')
-        .reduce((sum: number, p) => sum + Number(p.amount), 0);
+      const totalPaid = roundMoney(
+        sale.payments
+          .filter(p => p.status === 'COMPLETED' && p.method !== 'CREDIT')
+          .reduce((sum: number, p) => sum + Number(p.amount), 0)
+      );
 
       const authorizedCredit = sale.saleCredit?.status === 'AUTHORIZED'
-        ? Number(sale.saleCredit.amount)
+        ? roundMoney(Number(sale.saleCredit.amount))
         : 0;
 
-      const remainingAmount = Number(sale.total) - totalPaid - authorizedCredit;
+      const remainingAmount = roundMoney(Number(sale.total) - totalPaid - authorizedCredit);
 
       // Payment.CREDIT is rejected by paymentSchema. Only real payment
       // methods can consume the remaining financial balance after credit.
-      if (Number(parsedPaymentData.amount) > remainingAmount) {
+      const attemptedAmount = roundMoney(Number(parsedPaymentData.amount));
+
+      if (attemptedAmount > remainingAmount) {
         throw new Error(`Payment amount exceeds remaining balance. Remaining: ${remainingAmount}, Attempted: ${parsedPaymentData.amount}`);
       }
 
