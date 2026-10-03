@@ -591,8 +591,13 @@ export class ProformaService {
   async convert(proformaId: string, organizationId: string) {
     return prisma.$transaction(async (tx) => {
       // Load proforma with items, organization, store, customer
-      const proforma = await tx.proforma.findUnique({
-        where: { id: proformaId },
+      // Load the proforma through a tenant-scoped predicate. Do not fetch an
+      // arbitrary tenant row and check organizationId only after retrieval.
+      const proforma = await tx.proforma.findFirst({
+        where: {
+          id: proformaId,
+          organizationId,
+        },
         include: {
           organization: true,
           store: true,
@@ -606,11 +611,6 @@ export class ProformaService {
       });
 
       if (!proforma) {
-        throw new Error('Proforma not found');
-      }
-
-      // Multi-tenant check
-      if (proforma.organizationId !== organizationId) {
         throw new Error('Proforma not found or access denied');
       }
 
@@ -621,7 +621,10 @@ export class ProformaService {
 
       // Double conversion check - check if already converted by looking at convertedSale relation
       const existingSale = await tx.sale.findFirst({
-        where: { convertedFromProformaId: proformaId },
+        where: {
+          convertedFromProformaId: proformaId,
+          organizationId,
+        },
       });
 
       if (existingSale) {
