@@ -51,7 +51,7 @@ export class ProductService {
       
       for (const store of activeStores) {
         for (const variant of product.variants) {
-          await inventoryRepository.findOrCreate(store.id, variant.id);
+          await inventoryRepository.findOrCreate(store.id, variant.id, organizationId);
         }
       }
     }
