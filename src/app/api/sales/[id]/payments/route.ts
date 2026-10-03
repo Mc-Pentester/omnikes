@@ -235,8 +235,14 @@ export async function POST(
         throw new Error('Sale not found or access denied');
       }
 
-      const sale = await tx.sale.findUnique({
-        where: { id: saleId },
+      // Re-read the locked sale with the same tenant predicate. The lock above
+      // serializes payment operations; this query preserves tenant isolation
+      // inside the transaction as well.
+      const sale = await tx.sale.findFirst({
+        where: {
+          id: saleId,
+          organizationId,
+        },
         include: {
           payments: true,
           saleCredit: true,
@@ -244,11 +250,6 @@ export async function POST(
       });
 
       if (!sale) {
-        throw new Error('Sale not found');
-      }
-
-      // Verify organization (re-verify inside transaction for consistency)
-      if (sale.organizationId !== organizationId) {
         throw new Error('Sale not found or access denied');
       }
 
