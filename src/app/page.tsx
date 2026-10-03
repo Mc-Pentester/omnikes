@@ -100,131 +100,7 @@ export default function HomePage() {
     product.variants.some(v => v.sku.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const fetchStores = useCallback(async () => {
-    if (!user) return;
-    try {
-      const response = await fetch('/api/stores?isActive=true');
-      if (!response.ok) throw new Error('Failed to fetch stores');
-      const data = await response.json();
-      setStores(data.stores || []);
-    } catch (err) {
-      console.error('Error fetching stores:', err);
-      setError('Impossible de charger les magasins');
-      setStores([]);
-    }
-  }, [user]);
-
-  const fetchProducts = useCallback(async () => {
-    if (!user) return;
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch('/api/products');
-      if (!response.ok) throw new Error('Failed to fetch products');
-      const data = await response.json();
-      setProducts(data.products || []);
-    } catch (err) {
-      console.error('Error fetching products:', err);
-      setError('Impossible de charger les produits');
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  const fetchTaxRate = useCallback(async () => {
-    if (!user) return;
-    try {
-      const response = await fetch('/api/tax');
-      if (response.ok) {
-        const data = await response.json();
-        setTaxRate(data.taxRate);
-      } else {
-        setTaxRate(null);
-      }
-    } catch (err) {
-      setTaxRate(null);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user) {
-      setTimeout(() => {
-        fetchStores();
-        fetchProducts();
-        fetchTaxRate();
-      }, 0);
-    }
-  }, [user, fetchStores, fetchProducts, fetchTaxRate]);
-
   const storesValidated = stores.length > 0 && Boolean(currentStoreId) && stores.some((s) => s.id === currentStoreId);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (stores.length === 0) return;
-      if (stores.length === 1 && !currentStoreId) {
-        setCurrentStore(stores[0]);
-        return;
-      }
-      if (currentStoreId) {
-        const isValidStore = stores.some((s: Store) => s.id === currentStoreId);
-        if (!isValidStore) {
-          console.log('[POS][STORE] Invalid storeId in localStorage, clearing:', currentStoreId);
-          clearCurrentStore();
-        } else if (currentStore && (!currentStore.name || !currentStore.code)) {
-          const store = stores.find((s) => s.id === currentStoreId);
-          if (store) {
-            console.log('[POS][STORE] Enriching store data for:', currentStoreId);
-            setCurrentStore(store);
-          }
-        }
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [stores, currentStoreId, currentStore, setCurrentStore, clearCurrentStore]);
-
-  if (authLoading || storeLoading) {
-    return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-gray-600">Chargement...</p></div>;
-  }
-
-  if (!user) {
-    router.push('/login');
-    return null;
-  }
-
-  if (stores.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 text-xl mb-4">Aucun magasin disponible</p>
-          <p className="text-gray-600">Veuillez contacter votre administrateur pour configurer un magasin.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!currentStore) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 text-xl mb-4">Veuillez sélectionner un magasin</p>
-          <select
-            value=""
-            onChange={(e) => {
-              const store = stores.find(s => s.id === e.target.value);
-              if (store) setCurrentStore(store);
-            }}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
-          >
-            <option value="">Sélectionner un magasin</option>
-            {stores.map(store => (
-              <option key={store.id} value={store.id}>{store.name} ({store.code})</option>
-            ))}
-          </select>
-        </div>
-      </div>
-    );
-  }
 
   const addToCart = async (variantId: string, productId: string, productName: string, variantName: string, sku: string, price: number, saleUnit: CartItem['saleUnit'] = 'UNIT') => {
     // Prevent adding to cart before stores are validated
@@ -300,6 +176,130 @@ export default function HomePage() {
       }
     }
   };
+
+  const fetchStores = useCallback(async () => {
+    if (!user) return;
+    try {
+      const response = await fetch('/api/stores?isActive=true');
+      if (!response.ok) throw new Error('Failed to fetch stores');
+      const data = await response.json();
+      setStores(data.stores || []);
+    } catch (err) {
+      console.error('Error fetching stores:', err);
+      setError('Impossible de charger les magasins');
+      setStores([]);
+    }
+  }, [user]);
+
+  const fetchProducts = useCallback(async () => {
+    if (!user) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('/api/products');
+      if (!response.ok) throw new Error('Failed to fetch products');
+      const data = await response.json();
+      setProducts(data.products || []);
+    } catch (err) {
+      console.error('Error fetching products:', err);
+      setError('Impossible de charger les produits');
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const fetchTaxRate = useCallback(async () => {
+    if (!user) return;
+    try {
+      const response = await fetch('/api/tax');
+      if (response.ok) {
+        const data = await response.json();
+        setTaxRate(data.taxRate);
+      } else {
+        setTaxRate(null);
+      }
+    } catch (err) {
+      setTaxRate(null);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      setTimeout(() => {
+        fetchStores();
+        fetchProducts();
+        fetchTaxRate();
+      }, 0);
+    }
+  }, [user, fetchStores, fetchProducts, fetchTaxRate]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (stores.length === 0) return;
+      if (stores.length === 1 && !currentStoreId) {
+        setCurrentStore(stores[0]);
+        return;
+      }
+      if (currentStoreId) {
+        const isValidStore = stores.some((s: Store) => s.id === currentStoreId);
+        if (!isValidStore) {
+          console.log('[POS][STORE] Invalid storeId in localStorage, clearing:', currentStoreId);
+          clearCurrentStore();
+        } else if (currentStore && (!currentStore.name || !currentStore.code)) {
+          const store = stores.find((s) => s.id === currentStoreId);
+          if (store) {
+            console.log('[POS][STORE] Enriching store data for:', currentStoreId);
+            setCurrentStore(store);
+          }
+        }
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [stores, currentStoreId, currentStore, setCurrentStore, clearCurrentStore]);
+
+  if (authLoading || storeLoading) {
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-gray-600">Chargement...</p></div>;
+  }
+
+  if (!user) {
+    router.push('/login');
+    return null;
+  }
+
+  if (stores.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 text-xl mb-4">Aucun magasin disponible</p>
+          <p className="text-gray-600">Veuillez contacter votre administrateur pour configurer un magasin.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentStore) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 text-xl mb-4">Veuillez sélectionner un magasin</p>
+          <select
+            value=""
+            onChange={(e) => {
+              const store = stores.find(s => s.id === e.target.value);
+              if (store) setCurrentStore(store);
+            }}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
+          >
+            <option value="">Sélectionner un magasin</option>
+            {stores.map(store => (
+              <option key={store.id} value={store.id}>{store.name} ({store.code})</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
