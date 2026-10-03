@@ -318,8 +318,10 @@ export class SaleService {
       ? Number(configuredRate)
       : 0;
     
+    // SaleItem.totalPrice is already net of its line discount.
+    // Keep discount as an audit/reporting aggregate, but do not subtract it again.
     const tax = subtotal * effectiveRate;
-    const total = subtotal + tax - discount;
+    const total = subtotal + tax;
 
     await saleRepository.updateWithTaxRate(saleId, organizationId, {
       subtotal,

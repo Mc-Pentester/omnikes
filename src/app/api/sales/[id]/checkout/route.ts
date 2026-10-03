@@ -249,10 +249,11 @@ export async function POST(
       }
 
       // Recalculate server total
+      // SaleItem.totalPrice is already net of each line discount.
+      // Do not subtract the aggregate discount a second time at checkout.
       const subtotal = sale.items.reduce((sum, item) => sum + Number(item.totalPrice), 0);
-      const discount = sale.items.reduce((sum, item) => sum + Number(item.discount), 0);
       const tax = Number(sale.tax);
-      const serverTotal = subtotal - discount + tax;
+      const serverTotal = subtotal + tax;
 
       // Validate payment amount
       if (Number(checkoutPaymentData.amount) !== serverTotal) {
