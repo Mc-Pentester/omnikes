@@ -11,6 +11,7 @@ type Summary = {
   totalAvailable: number;
   lowStockCount: number;
   inventoryValue: number;
+  currency: string;
 };
 
 type StockRow = {
@@ -65,6 +66,12 @@ export default function InventoryReportPage() {
 
   const formatNumber = (value: number) =>
     new Intl.NumberFormat('fr-HT', { maximumFractionDigits: 2 }).format(value);
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('fr-HT', {
+      style: 'currency',
+      currency: summary?.currency || 'HTG',
+    }).format(value);
 
   const formatDate = (value: string) =>
     new Date(value).toLocaleString('fr-HT', {
@@ -231,7 +238,7 @@ export default function InventoryReportPage() {
                     ['Réservé', summary?.totalReserved ?? 0],
                     ['Disponible', summary?.totalAvailable ?? 0],
                     ['Stock faible', summary?.lowStockCount ?? 0],
-                    ['Valeur au coût', formatNumber(summary?.inventoryValue ?? 0)],
+                    ['Valeur au coût', formatCurrency(summary?.inventoryValue ?? 0)],
                   ].map(([label, value]) => (
                     <div key={String(label)} className="bg-white border rounded-lg p-5 shadow-sm">
                       <div className="text-sm text-gray-600 mb-1">{label}</div>
@@ -304,8 +311,8 @@ export default function InventoryReportPage() {
                               <td className="text-right py-2">{row.quantity} {row.saleUnit}</td>
                               <td className="text-right py-2">{row.reservedQuantity}</td>
                               <td className="text-right py-2 font-medium">{row.availableQuantity}</td>
-                              <td className="text-right py-2">{formatNumber(row.unitCost)}</td>
-                              <td className="text-right py-2">{formatNumber(row.stockValue)}</td>
+                              <td className="text-right py-2">{formatCurrency(row.unitCost)}</td>
+                              <td className="text-right py-2">{formatCurrency(row.stockValue)}</td>
                               <td className="py-2">
                                 <span className={`px-2 py-1 rounded text-xs ${row.lowStock ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}`}>
                                   {row.lowStock ? 'Stock faible' : 'Normal'}
