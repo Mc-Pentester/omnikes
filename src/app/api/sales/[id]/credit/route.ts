@@ -24,8 +24,8 @@ export async function POST(
 
     await requirePermission(request, 'sale.credit');
 
-    const sale = await prisma.sale.findUnique({
-      where: { id: saleId },
+    const sale = await prisma.sale.findFirst({
+      where: { id: saleId, organizationId },
       select: { organizationId: true, storeId: true },
     });
 
