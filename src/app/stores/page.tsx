@@ -82,7 +82,13 @@ export default function StoresPage() {
     }
   };
 
-  const loadStoresOnAuth = useEffectEvent(() => {\n    if (user) void fetchStores();\n  });\n\n  useEffect(() => {\n    loadStoresOnAuth();\n  }, [user]);
+  const loadStoresOnAuth = useEffectEvent(() => {
+    if (user) void fetchStores();
+  });
+
+  useEffect(() => {
+    loadStoresOnAuth();
+  }, [user]);
 
   const handleCreate = () => {
     setModalMode('create');
