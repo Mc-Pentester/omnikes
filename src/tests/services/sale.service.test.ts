@@ -46,7 +46,7 @@ describe('SaleService - Tax Calculation', () => {
   });
 
   describe('recalculateTotals', () => {
-    it('should calculate tax using organization tax configuration (10%)', async () => {
+    it('should calculate tax from discounted line totals without double-counting discounts (10%)', async () => {
       const mockSaleId = 'sale-123';
       const mockOrganizationId = 'org-123';
       const mockTaxRate = 0.10;
@@ -73,7 +73,7 @@ describe('SaleService - Tax Calculation', () => {
       const expectedSubtotal = 150;
       const expectedDiscount = 10;
       const expectedTax = expectedSubtotal * mockTaxRate;
-      const expectedTotal = expectedSubtotal + expectedTax - expectedDiscount;
+      const expectedTotal = expectedSubtotal + expectedTax;
 
       expect(saleRepository.updateWithTaxRate).toHaveBeenCalledWith(
         mockSaleId,
@@ -112,7 +112,7 @@ describe('SaleService - Tax Calculation', () => {
       const expectedSubtotal = 100;
       const expectedDiscount = 0;
       const expectedTax = 0;
-      const expectedTotal = expectedSubtotal + expectedTax - expectedDiscount;
+      const expectedTotal = expectedSubtotal + expectedTax;
 
       expect(saleRepository.updateWithTaxRate).toHaveBeenCalledWith(
         mockSaleId,
@@ -154,7 +154,7 @@ describe('SaleService - Tax Calculation', () => {
       const expectedSubtotal = 200;
       const expectedDiscount = 0;
       const expectedTax = expectedSubtotal * mockTaxRate;
-      const expectedTotal = expectedSubtotal + expectedTax - expectedDiscount;
+      const expectedTotal = expectedSubtotal + expectedTax;
 
       expect(saleRepository.updateWithTaxRate).toHaveBeenCalledWith(
         mockSaleId,
@@ -196,7 +196,7 @@ describe('SaleService - Tax Calculation', () => {
       const expectedSubtotal = 100;
       const expectedDiscount = 0;
       const expectedTax = 0;
-      const expectedTotal = expectedSubtotal + expectedTax - expectedDiscount;
+      const expectedTotal = expectedSubtotal + expectedTax;
 
       expect(saleRepository.updateWithTaxRate).toHaveBeenCalledWith(
         mockSaleId,
@@ -238,7 +238,7 @@ describe('SaleService - Tax Calculation', () => {
       const expectedSubtotal = 100;
       const expectedDiscount = 0;
       const expectedTax = 0;
-      const expectedTotal = expectedSubtotal + expectedTax - expectedDiscount;
+      const expectedTotal = expectedSubtotal + expectedTax;
 
       expect(saleRepository.updateWithTaxRate).toHaveBeenCalledWith(
         mockSaleId,
@@ -281,7 +281,7 @@ describe('SaleService - Tax Calculation', () => {
       const expectedSubtotal = 150;
       const expectedDiscount = 15;
       const expectedTax = expectedSubtotal * mockTaxRate;
-      const expectedTotal = expectedSubtotal + expectedTax - expectedDiscount;
+      const expectedTotal = expectedSubtotal + expectedTax;
 
       expect(saleRepository.updateWithTaxRate).toHaveBeenCalledWith(
         mockSaleId,
