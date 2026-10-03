@@ -4,6 +4,7 @@ import { storeService } from '@omnikes/services/store.service';
 import { proformaSchema, proformaUpdateSchema, proformaItemSchema, ProformaInput, ProformaUpdateInput, ProformaItemInput } from '@omnikes/lib/validation';
 import { prisma } from '@omnikes/lib/prisma';
 import { Prisma, ProformaItem } from '@prisma/client';
+import { roundMoney } from '@omnikes/lib/money';
 
 export class ProformaService {
   /**
@@ -46,7 +47,17 @@ export class ProformaService {
       }
     }
 
-    const { organizationId: _, storeId: __, customerId: ___, items, ...dataWithoutIds } = validatedData;
+    const {
+      organizationId: _,
+      storeId: __,
+      customerId: ___,
+      items,
+      subtotal: _subtotal,
+      tax: _tax,
+      total: _total,
+      discount: _discount,
+      ...dataWithoutIds
+    } = validatedData;
 
     // Create proforma and items in a transaction
     return prisma.$transaction(async (tx) => {
@@ -54,6 +65,10 @@ export class ProformaService {
         data: {
           ...dataWithoutIds,
           proformaNumber,
+          subtotal: 0,
+          tax: 0,
+          total: 0,
+          discount: 0,
           taxRate: initialTaxRate,
           organization: {
             connect: { id: organizationId },
@@ -105,8 +120,8 @@ export class ProformaService {
           }
 
           // Use server-side price
-          const serverPrice = Number(variant.price);
-          const totalPrice = serverPrice * item.quantity;
+          const serverPrice = roundMoney(Number(variant.price));
+          const totalPrice = roundMoney(serverPrice * item.quantity);
 
           await tx.proformaItem.create({
             data: {
@@ -129,15 +144,15 @@ export class ProformaService {
         });
 
         if (updatedProforma) {
-          const grossSubtotal = updatedProforma.items.reduce((sum: number, item: typeof updatedProforma.items[number]) => {
+          const grossSubtotal = roundMoney(updatedProforma.items.reduce((sum: number, item: typeof updatedProforma.items[number]) => {
             return sum + Number(item.unitPrice) * item.quantity;
-          }, 0);
+          }, 0));
 
-          const discount = updatedProforma.items.reduce((sum: number, item: typeof updatedProforma.items[number]) => {
+          const discount = roundMoney(updatedProforma.items.reduce((sum: number, item: typeof updatedProforma.items[number]) => {
             return sum + Number(item.discount);
-          }, 0);
+          }, 0));
 
-          const subtotal = grossSubtotal - discount;
+          const subtotal = roundMoney(grossSubtotal - discount);
 
           let tax = 0;
           if (updatedProforma.applyTax) {
@@ -230,17 +245,12 @@ export class ProformaService {
     }
 
     // Explicitly exclude status from update data
-    const { customerId, validUntil, notes, subtotal, tax, taxRate, total, discount, applyTax } = validatedData;
+    const { customerId, validUntil, notes, applyTax } = validatedData;
 
     await proformaRepository.update(id, organizationId, {
       ...(customerId !== undefined && { customerId }),
       ...(validUntil !== undefined && { validUntil }),
       ...(notes !== undefined && { notes }),
-      ...(subtotal !== undefined && { subtotal }),
-      ...(tax !== undefined && { tax }),
-      ...(taxRate !== undefined && { taxRate }),
-      ...(total !== undefined && { total }),
-      ...(discount !== undefined && { discount }),
       ...(applyTax !== undefined && { applyTax }),
     } as Prisma.ProformaUpdateInput);
 
@@ -289,9 +299,9 @@ export class ProformaService {
     }
 
     // INVARIANT: Use server-side price, do not trust client
-    const serverPrice = Number(variant.price);
+    const serverPrice = roundMoney(Number(variant.price));
     const quantity = validatedData.quantity;
-    const discount = validatedData.discount || 0;
+    const discount = roundMoney(validatedData.discount || 0);
 
     // INVARIANT: discount cannot exceed gross amount
     const grossAmount = serverPrice * quantity;
@@ -300,7 +310,7 @@ export class ProformaService {
     }
 
     // INVARIANT: line total must never be negative
-    const totalPrice = grossAmount - discount;
+    const totalPrice = roundMoney(grossAmount - discount);
     if (totalPrice < 0) {
       throw new Error('Line total cannot be negative');
     }
@@ -363,10 +373,8 @@ export class ProformaService {
       }
 
       // INVARIANT: Use server-side price from variant, do not trust client
-      const unitPrice = validatedData.unitPrice !== undefined 
-        ? Number(item.variant.price) // Always use server price if client tries to change it
-        : Number(item.unitPrice);
-      const discount = validatedData.discount ?? Number(item.discount);
+      const unitPrice = roundMoney(Number(item.variant.price)); // Always use server price
+      const discount = roundMoney(validatedData.discount ?? Number(item.discount));
 
       // INVARIANT: discount cannot exceed gross amount
       const grossAmount = unitPrice * quantity;
@@ -375,7 +383,7 @@ export class ProformaService {
       }
 
       // INVARIANT: line total must never be negative
-      const totalPrice = grossAmount - discount;
+      const totalPrice = roundMoney(grossAmount - discount);
       if (totalPrice < 0) {
         throw new Error('Line total cannot be negative');
       }
@@ -445,16 +453,16 @@ export class ProformaService {
     const items = await proformaRepository.listItems(proformaId, organizationId);
 
     // Calculate gross subtotal (before discounts)
-    const grossSubtotal = items.reduce((sum: number, item: ProformaItem) => {
+    const grossSubtotal = roundMoney(items.reduce((sum: number, item: ProformaItem) => {
       const grossLineTotal = Number(item.unitPrice) * item.quantity;
       return sum + grossLineTotal;
-    }, 0);
+    }, 0));
 
     // Sum of all line discounts
-    const discount = items.reduce((sum: number, item: ProformaItem) => sum + Number(item.discount), 0);
+    const discount = roundMoney(items.reduce((sum: number, item: ProformaItem) => sum + Number(item.discount), 0));
 
     // Subtotal after discounts
-    const subtotal = grossSubtotal - discount;
+    const subtotal = roundMoney(grossSubtotal - discount);
 
     // Get proforma with organization's tax configuration
     const proforma = await prisma.proforma.findFirst({
@@ -477,10 +485,10 @@ export class ProformaService {
 
     if (proforma?.applyTax && proforma?.organization?.taxConfiguration?.taxRate) {
       taxRate = Number(proforma.organization.taxConfiguration.taxRate);
-      tax = subtotal * taxRate;
+      tax = roundMoney(subtotal * taxRate);
     }
 
-    const total = subtotal + tax;
+    const total = roundMoney(subtotal + tax);
 
     await proformaRepository.update(proformaId, organizationId, {
       subtotal,
