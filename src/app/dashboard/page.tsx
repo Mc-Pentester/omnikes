@@ -65,7 +65,13 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    loadDashboardStats();
+    if (!user) return;
+
+    const timeoutId = window.setTimeout(() => {
+      loadDashboardStats();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [user]);
 
   if (authLoading) {
