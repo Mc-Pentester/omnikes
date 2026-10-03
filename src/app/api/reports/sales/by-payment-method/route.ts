@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { salesReportService } from '@omnikes/services/sales-report.service';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, getAuthorizedStoreIds } from '@omnikes/lib/auth';
 import { salesReportPaymentMethodSchema } from '@omnikes/lib/validation';
 
 /**
@@ -30,7 +30,9 @@ export async function GET(request: NextRequest) {
       await requireStoreAccess(request, storeId);
     }
 
-    const result = await salesReportService.getSalesByPaymentMethod(organizationId, validatedData);
+    const authorizedStoreIds = await getAuthorizedStoreIds(request);
+
+    const result = await salesReportService.getSalesByPaymentMethod(organizationId, { ...validatedData, authorizedStoreIds });
 
     return NextResponse.json(result);
   } catch (error) {
