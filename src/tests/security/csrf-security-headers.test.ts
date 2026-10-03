@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { NextRequest } from 'next/server';
 
-// Mock the middleware functions
 function getExpectedOrigin(request: NextRequest): string {
   const host = request.headers.get('host');
   const protocol = request.headers.get('x-forwarded-proto') || 'http';
@@ -11,7 +10,6 @@ function getExpectedOrigin(request: NextRequest): string {
 function isValidOrigin(request: NextRequest): boolean {
   const method = request.method;
 
-  // Skip validation for safe methods
   if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
     return true;
   }
@@ -24,7 +22,6 @@ function isValidOrigin(request: NextRequest): boolean {
   const origin = request.headers.get('origin');
   const referer = request.headers.get('referer');
 
-  // In development, allow localhost origins
   if (process.env.NODE_ENV === 'development') {
     if (origin && DEV_ORIGINS.includes(origin)) {
       return true;
@@ -34,47 +31,35 @@ function isValidOrigin(request: NextRequest): boolean {
     }
   }
 
-  // If origin is present, it must match expected origin
   if (origin) {
-    const expectedOrigin = getExpectedOrigin(request);
-    return origin === expectedOrigin;
+    return origin === getExpectedOrigin(request);
   }
 
-  // If no origin, check referer
   if (referer) {
-    const expectedOrigin = getExpectedOrigin(request);
     try {
-      const refererUrl = new URL(referer);
-      return refererUrl.origin === expectedOrigin;
+      return new URL(referer).origin === getExpectedOrigin(request);
     } catch {
       return false;
     }
   }
 
-  // If neither origin nor referer is present, reject for state-changing methods
   return false;
 }
 
 describe('CSRF Protection', () => {
   describe('Safe methods (GET, HEAD, OPTIONS)', () => {
     it('should allow GET without Origin header', () => {
-      const request = new NextRequest('http://localhost:3000/api/test', {
-        method: 'GET',
-      });
+      const request = new NextRequest('http://localhost:3000/api/test', { method: 'GET' });
       expect(isValidOrigin(request)).toBe(true);
     });
 
     it('should allow HEAD without Origin header', () => {
-      const request = new NextRequest('http://localhost:3000/api/test', {
-        method: 'HEAD',
-      });
+      const request = new NextRequest('http://localhost:3000/api/test', { method: 'HEAD' });
       expect(isValidOrigin(request)).toBe(true);
     });
 
     it('should allow OPTIONS without Origin header', () => {
-      const request = new NextRequest('http://localhost:3000/api/test', {
-        method: 'OPTIONS',
-      });
+      const request = new NextRequest('http://localhost:3000/api/test', { method: 'OPTIONS' });
       expect(isValidOrigin(request)).toBe(true);
     });
   });
@@ -84,9 +69,7 @@ describe('CSRF Protection', () => {
       process.env.NODE_ENV = 'development';
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
-        headers: {
-          origin: 'http://localhost:3000',
-        },
+        headers: { origin: 'http://localhost:3000' },
       });
       expect(isValidOrigin(request)).toBe(true);
     });
@@ -95,9 +78,7 @@ describe('CSRF Protection', () => {
       process.env.NODE_ENV = 'development';
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
-        headers: {
-          referer: 'http://localhost:3000/login',
-        },
+        headers: { referer: 'http://localhost:3000/login' },
       });
       expect(isValidOrigin(request)).toBe(true);
     });
@@ -106,9 +87,7 @@ describe('CSRF Protection', () => {
       process.env.NODE_ENV = 'development';
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
-        headers: {
-          origin: 'http://localhost:3000',
-        },
+        headers: { origin: 'http://localhost:3000' },
       });
       expect(isValidOrigin(request)).toBe(true);
     });
@@ -117,9 +96,7 @@ describe('CSRF Protection', () => {
       process.env.NODE_ENV = 'development';
       const request = new NextRequest('http://127.0.0.1:3000/api/auth/login', {
         method: 'POST',
-        headers: {
-          origin: 'http://127.0.0.1:3000',
-        },
+        headers: { origin: 'http://127.0.0.1:3000' },
       });
       expect(isValidOrigin(request)).toBe(true);
     });
@@ -129,9 +106,7 @@ describe('CSRF Protection', () => {
     it('should reject POST with evil.com Origin', () => {
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
-        headers: {
-          origin: 'https://evil.example.com',
-        },
+        headers: { origin: 'https://evil.example.com' },
       });
       expect(isValidOrigin(request)).toBe(false);
     });
@@ -139,9 +114,7 @@ describe('CSRF Protection', () => {
     it('should reject PATCH with evil.com Origin', () => {
       const request = new NextRequest('http://localhost:3000/api/products/123', {
         method: 'PATCH',
-        headers: {
-          origin: 'https://evil.example.com',
-        },
+        headers: { origin: 'https://evil.example.com' },
       });
       expect(isValidOrigin(request)).toBe(false);
     });
@@ -149,9 +122,7 @@ describe('CSRF Protection', () => {
     it('should reject DELETE with evil.com Origin', () => {
       const request = new NextRequest('http://localhost:3000/api/products/123', {
         method: 'DELETE',
-        headers: {
-          origin: 'https://evil.example.com',
-        },
+        headers: { origin: 'https://evil.example.com' },
       });
       expect(isValidOrigin(request)).toBe(false);
     });
@@ -159,9 +130,7 @@ describe('CSRF Protection', () => {
     it('should reject PUT with evil.com Origin', () => {
       const request = new NextRequest('http://localhost:3000/api/products/123', {
         method: 'PUT',
-        headers: {
-          origin: 'https://evil.example.com',
-        },
+        headers: { origin: 'https://evil.example.com' },
       });
       expect(isValidOrigin(request)).toBe(false);
     });
@@ -169,9 +138,7 @@ describe('CSRF Protection', () => {
     it('should reject POST with evil.com Referer', () => {
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
-        headers: {
-          referer: 'https://evil.example.com/login',
-        },
+        headers: { referer: 'https://evil.example.com/login' },
       });
       expect(isValidOrigin(request)).toBe(false);
     });
@@ -203,9 +170,7 @@ describe('CSRF Protection', () => {
     it('should reject null Origin', () => {
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
-        headers: {
-          origin: 'null',
-        },
+        headers: { origin: 'null' },
       });
       expect(isValidOrigin(request)).toBe(false);
     });
@@ -213,23 +178,17 @@ describe('CSRF Protection', () => {
 
   describe('Missing Origin and Referer', () => {
     it('should reject POST without Origin or Referer', () => {
-      const request = new NextRequest('http://localhost:3000/api/auth/login', {
-        method: 'POST',
-      });
+      const request = new NextRequest('http://localhost:3000/api/auth/login', { method: 'POST' });
       expect(isValidOrigin(request)).toBe(false);
     });
 
     it('should reject PATCH without Origin or Referer', () => {
-      const request = new NextRequest('http://localhost:3000/api/products/123', {
-        method: 'PATCH',
-      });
+      const request = new NextRequest('http://localhost:3000/api/products/123', { method: 'PATCH' });
       expect(isValidOrigin(request)).toBe(false);
     });
 
     it('should reject DELETE without Origin or Referer', () => {
-      const request = new NextRequest('http://localhost:3000/api/products/123', {
-        method: 'DELETE',
-      });
+      const request = new NextRequest('http://localhost:3000/api/products/123', { method: 'DELETE' });
       expect(isValidOrigin(request)).toBe(false);
     });
   });
@@ -244,19 +203,17 @@ describe('CSRF Protection', () => {
           'x-forwarded-proto': 'https',
         },
       });
-      // Expected origin based on x-forwarded-proto is https://localhost:3000
-      // Actual origin is http://localhost:3000
-      // Should reject
       expect(isValidOrigin(request)).toBe(false);
     });
   });
 });
 
 describe('Security Headers', () => {
-  it('should include Content-Security-Policy', () => {
+  it('should use a per-request nonce for scripts instead of unsafe-inline', () => {
+    const nonce = 'OWY1Y2M4LTQ2YWQtNDc0YS1iMjIwLTU2MzM2ZTY0NjA5MA==';
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      `script-src 'self' 'nonce-${nonce}'`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob:",
@@ -268,7 +225,9 @@ describe('Security Headers', () => {
     ].join('; ');
 
     expect(csp).toContain("default-src 'self'");
+    expect(csp).not.toContain("script-src 'self' 'unsafe-inline'");
     expect(csp).not.toContain("'unsafe-eval'");
+    expect(csp).toMatch(/script-src 'self' 'nonce-[A-Za-z0-9+/]+=*'/);
     expect(csp).toContain("object-src 'none'");
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("base-uri 'self'");
