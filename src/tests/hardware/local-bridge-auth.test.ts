@@ -18,8 +18,10 @@ describe('LocalHardwareBridgeClient authentication', () => {
     await client.health();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][1]?.headers).toEqual({
-      Authorization: 'Bearer ' + 'a'.repeat(32),
-    });
+
+    const requestInit = fetchMock.mock.calls[0][1] as RequestInit | undefined;
+    expect(new Headers(requestInit?.headers).get('Authorization')).toBe(
+      'Bearer ' + 'a'.repeat(32),
+    );
   });
 });
