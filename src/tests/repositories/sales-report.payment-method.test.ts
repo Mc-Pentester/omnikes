@@ -36,7 +36,7 @@ describe('SalesReportRepository.getSalesByPaymentMethod', () => {
     ]);
 
     const sql = JSON.stringify(queryRaw.mock.calls[0]?.[0] ?? '');
-    expect(sql).toContain('p."status" = \\'COMPLETED\\'');
-    expect(sql).toContain('p."method" <> \\'CREDIT\\'');
+    expect(sql).toContain("p.\\\"status\\\" = 'COMPLETED'");
+    expect(sql).toContain("p.\\\"method\\\" <> 'CREDIT'");
   });
 });
