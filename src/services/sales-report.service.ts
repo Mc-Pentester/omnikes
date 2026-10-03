@@ -8,6 +8,7 @@ export class SalesReportService {
     startDate?: Date;
     endDate?: Date;
     storeId?: string;
+    authorizedStoreIds?: string[] | null;
   } = {}) {
     return salesReportRepository.getSummary(organizationId, options);
   }
@@ -19,6 +20,7 @@ export class SalesReportService {
     startDate?: Date;
     endDate?: Date;
     storeId?: string;
+    authorizedStoreIds?: string[] | null;
     granularity: 'day' | 'week' | 'month';
   }) {
     return salesReportRepository.getSalesByPeriod(organizationId, options);
@@ -31,6 +33,7 @@ export class SalesReportService {
     startDate?: Date;
     endDate?: Date;
     storeId?: string;
+    authorizedStoreIds?: string[] | null;
     limit?: number;
   } = {}) {
     return salesReportRepository.getSalesByProduct(organizationId, options);
@@ -43,6 +46,7 @@ export class SalesReportService {
     startDate?: Date;
     endDate?: Date;
     storeId?: string;
+    authorizedStoreIds?: string[] | null;
   } = {}) {
     return salesReportRepository.getSalesByPaymentMethod(organizationId, options);
   }
