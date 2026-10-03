@@ -367,6 +367,9 @@ export class InventoryService {
     }
 
     return prisma.$transaction(async () => {
+    const belongs = await inventoryRepository.belongsToOrganization(inventoryId, organizationId);
+    if (!belongs) throw new Error('Inventory not found or access denied');
+
       const inventory = await prisma.$queryRaw<Array<{ quantity: number; reservedQuantity: number }>>`
         SELECT "quantity", "reservedQuantity"
         FROM "inventories"
@@ -404,6 +407,9 @@ export class InventoryService {
     }
 
     return prisma.$transaction(async () => {
+    const belongs = await inventoryRepository.belongsToOrganization(inventoryId, organizationId);
+    if (!belongs) throw new Error('Inventory not found or access denied');
+
       const inventory = await prisma.$queryRaw<Array<{ reservedQuantity: number }>>`
         SELECT "reservedQuantity"
         FROM "inventories"
@@ -440,6 +446,9 @@ export class InventoryService {
     }
 
     return prisma.$transaction(async () => {
+    const belongs = await inventoryRepository.belongsToOrganization(inventoryId, organizationId);
+    if (!belongs) throw new Error('Inventory not found or access denied');
+
       const inventory = await prisma.$queryRaw<Array<{ quantity: number }>>`
         SELECT "quantity"
         FROM "inventories"
