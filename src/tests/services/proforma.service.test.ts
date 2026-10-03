@@ -7,7 +7,7 @@ vi.mock('@omnikes/lib/prisma', () => ({
   prisma: {
     proforma: {
       create: vi.fn(),
-      findUnique: vi.fn(),
+      findFirst: vi.fn(),
       update: vi.fn(),
     },
     productVariant: {
@@ -51,6 +51,12 @@ vi.mock('@omnikes/repositories/product-variant.repository', () => ({
 }));
 
 import { proformaRepository } from '@omnikes/repositories/proforma.repository';
+
+vi.mock('@omnikes/services/store.service', () => ({
+  storeService: {
+    validateStoreBelongsToOrganization: vi.fn(),
+  },
+}));
 
 describe('ProformaService - Acceptance', () => {
   beforeEach(() => {
