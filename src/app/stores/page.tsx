@@ -82,12 +82,7 @@ export default function StoresPage() {
     }
   };
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (user) void fetchStores();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [user]);
+  const loadStoresOnAuth = useEffectEvent(() => {\n    if (user) void fetchStores();\n  });\n\n  useEffect(() => {\n    loadStoresOnAuth();\n  }, [user]);
 
   const handleCreate = () => {
     setModalMode('create');

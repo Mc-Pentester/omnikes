@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useEffectEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
@@ -118,12 +118,7 @@ export default function InventoryPage() {
     }
   };
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (user) void fetchInventory();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [user]);
+  const loadInventoryOnAuth = useEffectEvent(() => {\n    if (user) void fetchInventory();\n  });\n\n  useEffect(() => {\n    loadInventoryOnAuth();\n  }, [user]);
 
   const handleOpenWorkflow = (inventoryItem: Inventory, nextWorkflow: InventoryWorkflow) => {
     setSelectedInventory(inventoryItem);

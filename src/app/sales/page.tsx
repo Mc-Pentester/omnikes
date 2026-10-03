@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@omnikes/components/ui/button';
 import { Input } from '@omnikes/components/ui/input';

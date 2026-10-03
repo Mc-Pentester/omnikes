@@ -95,6 +95,8 @@ export default function HomePage() {
     }
   }, [loading, error]);
 
+  const storesValidated = stores.length > 0 && !!currentStoreId && stores.some((store) => store.id === currentStoreId);
+
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.variants.some(v => v.sku.toLowerCase().includes(searchTerm.toLowerCase()))

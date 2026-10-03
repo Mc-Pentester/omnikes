@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useEffectEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
@@ -60,12 +60,7 @@ export default function DashboardPage() {
     }
   };
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (user) void fetchStats();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [user]);
+  const loadDashboardStats = useEffectEvent(() => {\n    if (user) void fetchStats();\n  });\n\n  useEffect(() => {\n    loadDashboardStats();\n  }, [user]);
 
   if (authLoading) {
     return (
