@@ -387,7 +387,8 @@ describe('ProformaService - Conversion', () => {
         return callback(prisma);
       });
 
-      (prismaMock.proforma.findFirst as any).mockResolvedValue(mockProforma);
+      // A tenant-scoped query must return no row for a proforma owned by another organization.
+      (prismaMock.proforma.findFirst as any).mockResolvedValue(null);
 
       await expect(proformaService.convert(mockProformaId, mockOrganizationId))
         .rejects.toThrow('Proforma not found or access denied');
