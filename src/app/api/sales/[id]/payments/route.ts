@@ -452,6 +452,13 @@ export async function POST(
       );
     }
 
+    if (error instanceof Error && error.message.includes('Payment amount exceeds remaining balance')) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 409 }
+      );
+    }
+
     if (error instanceof Error && error.message.includes('validation')) {
       return NextResponse.json(
         { error: error.message },
