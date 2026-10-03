@@ -3,6 +3,7 @@ import { authService } from '@omnikes/services/auth.service';
 import { generateToken, hashToken } from '@omnikes/lib/crypto';
 import { checkRateLimit, getIpRateLimitIdentifier } from '@omnikes/lib/rate-limiter';
 import { securityLogger } from '@omnikes/lib/security-logger';
+import { deliverPasswordResetLink, isPasswordResetDeliveryConfigured } from '@omnikes/lib/password-reset-delivery';
 
 const TOKEN_EXPIRY_HOURS = 1; // Token valid for 1 hour
 
@@ -19,9 +20,9 @@ export class PasswordResetService {
   }
 
   /**
-   * Request a password reset for an email
-   * Generates a reset token and stores it in the user record
-   * In production, this would send an email with the reset link
+   * Request a password reset for an email.
+   * The token is stored only as a hash. Delivery is optional so OmniKès
+   * remains fully Local-First when no email transport is configured.
    */
   async requestPasswordReset(email: string, ipAddress?: string): Promise<{ success: boolean; message: string }> {
     // Check rate limit by IP to prevent abuse
@@ -71,19 +72,29 @@ export class PasswordResetService {
       resetPasswordExpiresAt: expiresAt,
     });
 
-    // Log the token for development (in production, send email instead)
-    securityLogger.passwordResetRequested(user.id, email, ipAddress, 'Token generated');
-    
-    // Never log password-reset tokens. In local development without an email
-    // transport, the token remains available only to the caller/test harness.
-    // Production delivery must use the configured email transport.
-    // In production, send email with reset link:
-    // const resetLink = `${process.env.APP_URL}/reset-password?token=${token}`;
-    // await sendEmail(email, 'Password Reset', `Click here to reset: ${resetLink}`);
+    securityLogger.passwordResetRequested(
+      user.id,
+      email,
+      ipAddress,
+      isPasswordResetDeliveryConfigured()
+        ? 'Token generated and queued for delivery'
+        : 'Token generated; no delivery transport configured',
+    );
 
-    return { 
-      success: true, 
-      message: 'If an account exists with this email, a password reset link has been sent.' 
+    // Optional delivery: no external service is required for Local-First use.
+    // The raw token is never logged or returned by this API.
+    if (isPasswordResetDeliveryConfigured()) {
+      try {
+        await deliverPasswordResetLink({ email, token, expiresAt });
+      } catch (error) {
+        securityLogger.passwordResetRequested(user.id, email, ipAddress, 'Password reset delivery failed');
+        console.error('Password reset delivery failed:', error instanceof Error ? error.message : error);
+      }
+    }
+
+    return {
+      success: true,
+      message: 'If an account exists with this email, a password reset link has been sent.'
     };
   }
 
