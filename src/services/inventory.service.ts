@@ -7,114 +7,113 @@ import {
   InventoryMovementInput,
 } from '@omnikes/lib/validation';
 import { prisma } from '@omnikes/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export type MovementType = 'SALE' | 'PURCHASE' | 'ADJUSTMENT' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'RETURN';
 
+type InventoryTransaction = Prisma.TransactionClient;
+
+const inventoryWithRelations = {
+  store: true,
+  variant: {
+    include: {
+      product: true,
+    },
+  },
+} satisfies Prisma.InventoryInclude;
+
 export class InventoryService {
-  /**
-   * Get inventory by ID with organization check
-   */
   async getById(id: string, organizationId: string) {
     const inventory = await inventoryRepository.findById(id, organizationId);
-    
-    if (!inventory) {
-      throw new Error('Inventory not found or access denied');
-    }
-
+    if (!inventory) throw new Error('Inventory not found or access denied');
     return inventory;
   }
 
-  /**
-   * Get inventory for a store and variant
-   */
   async getByStoreAndVariant(storeId: string, variantId: string, organizationId: string) {
     const inventory = await inventoryRepository.findByStoreAndVariant(storeId, variantId, organizationId);
-    
-    if (!inventory) {
-      throw new Error('Inventory not found or access denied');
-    }
-
+    if (!inventory) throw new Error('Inventory not found or access denied');
     return inventory;
   }
 
-  /**
-   * List inventories for a store
-   */
-  async listByStore(storeId: string, organizationId: string, options: {
-    skip?: number;
-    take?: number;
-  } = {}) {
+  async listByStore(storeId: string, organizationId: string, options: { skip?: number; take?: number } = {}) {
     return inventoryRepository.listByStore(storeId, organizationId, options);
   }
 
-  /**
-   * List inventories for an organization
-   */
-  async listByOrganization(organizationId: string, options: {
-    storeId?: string;
-    skip?: number;
-    take?: number;
-  } = {}) {
+  async listByOrganization(organizationId: string, options: { storeId?: string; skip?: number; take?: number } = {}) {
     return inventoryRepository.listByOrganization(organizationId, options);
   }
 
-  /**
-   * Get available quantity for a variant in a store
-   */
   async getAvailableQuantity(storeId: string, variantId: string, organizationId: string) {
     return inventoryRepository.getAvailableQuantity(storeId, variantId, organizationId);
   }
 
-  /**
-   * Check availability
-   */
   async checkAvailability(storeId: string, variantId: string, quantity: number, organizationId: string): Promise<boolean> {
     const available = await this.getAvailableQuantity(storeId, variantId, organizationId);
     return available >= quantity;
   }
 
-  /**
-   * Create a stock movement with transaction
-   * This handles concurrency and stock integrity
-   */
+  private async getLockedInventory(tx: InventoryTransaction, inventoryId: string, organizationId: string) {
+    const rows = await tx.$queryRaw<Array<{ quantity: number; reservedQuantity: number }>>`
+      SELECT i."quantity", i."reservedQuantity"
+      FROM "inventories" i
+      INNER JOIN "stores" s ON s."id" = i."storeId"
+      WHERE i."id" = ${inventoryId}
+        AND s."organizationId" = ${organizationId}
+      FOR UPDATE
+    `;
+    return rows[0];
+  }
+
+  private async getLockedTransferInventories(
+    tx: InventoryTransaction,
+    sourceId: string,
+    targetId: string,
+    organizationId: string,
+  ) {
+    return tx.$queryRaw<Array<{ id: string; variantId: string; quantity: number; reservedQuantity: number }>>`
+      SELECT i."id", i."variantId", i."quantity", i."reservedQuantity"
+      FROM "inventories" i
+      INNER JOIN "stores" s ON s."id" = i."storeId"
+      WHERE (i."id" = ${sourceId} OR i."id" = ${targetId})
+        AND s."organizationId" = ${organizationId}
+      ORDER BY i."id"
+      FOR UPDATE
+    `;
+  }
+
+  private async findInventoryInTransaction(
+    tx: InventoryTransaction,
+    inventoryId: string,
+    organizationId: string,
+  ) {
+    return tx.inventory.findFirst({
+      where: {
+        id: inventoryId,
+        store: { organizationId },
+      },
+      include: inventoryWithRelations,
+    });
+  }
+
   async createMovement(inventoryId: string, organizationId: string, data: InventoryMovementInput) {
-    // Validate input
     const validatedData = inventoryMovementSchema.parse(data);
 
-    // INVARIANT: quantity must not be zero
     if (validatedData.quantity === 0) {
       throw new Error('Movement quantity cannot be zero');
     }
 
-    // INVARIANT: Validate movement type
     const validTypes: MovementType[] = ['SALE', 'PURCHASE', 'ADJUSTMENT', 'TRANSFER_IN', 'TRANSFER_OUT', 'RETURN'];
     if (!validTypes.includes(validatedData.type as MovementType)) {
       throw new Error(`Invalid movement type: ${validatedData.type}`);
     }
 
-    // Check if inventory belongs to organization
     const belongs = await inventoryRepository.belongsToOrganization(inventoryId, organizationId);
-    if (!belongs) {
-      throw new Error('Inventory not found or access denied');
-    }
+    if (!belongs) throw new Error('Inventory not found or access denied');
 
-    // Use transaction for atomic operation
-    return prisma.$transaction(async () => {
-      // Get current inventory state with FOR UPDATE lock
-      const inventory = await prisma.$queryRaw<Array<{ quantity: number; reservedQuantity: number }>>`
-        SELECT "quantity", "reservedQuantity"
-        FROM "inventories"
-        WHERE "id" = ${inventoryId}
-        FOR UPDATE
-      `;
+    return prisma.$transaction(async (tx) => {
+      const currentInventory = await this.getLockedInventory(tx, inventoryId, organizationId);
+      if (!currentInventory) throw new Error('Inventory not found or access denied');
 
-      if (!inventory || inventory.length === 0) {
-        throw new Error('Inventory not found');
-      }
-
-      const currentInventory = inventory[0];
-
-      // Calculate new quantity based on movement type
       let newQuantity = currentInventory.quantity;
       const { type, quantity } = validatedData;
 
@@ -127,18 +126,11 @@ export class InventoryService {
         case 'SALE':
         case 'TRANSFER_OUT':
           newQuantity = currentInventory.quantity - Math.abs(quantity);
-          // INVARIANT: Prevent negative stock
-          if (newQuantity < 0) {
-            throw new Error('Insufficient stock for this operation');
-          }
+          if (newQuantity < 0) throw new Error('Insufficient stock for this operation');
           break;
         case 'ADJUSTMENT':
-          // ADJUSTMENT is a signed delta: positive adds stock, negative removes stock.
-          // This keeps the movement ledger consistent with physical-count adjustments.
           newQuantity = currentInventory.quantity + quantity;
-          if (newQuantity < 0) {
-            throw new Error('Adjustment would result in negative stock');
-          }
+          if (newQuantity < 0) throw new Error('Adjustment would result in negative stock');
           if (newQuantity < currentInventory.reservedQuantity) {
             throw new Error('Adjustment cannot reduce stock below reserved quantity');
           }
@@ -147,14 +139,12 @@ export class InventoryService {
           throw new Error('Invalid movement type');
       }
 
-      // Update inventory
-      await prisma.inventory.update({
+      await tx.inventory.update({
         where: { id: inventoryId },
         data: { quantity: newQuantity },
       });
 
-      // Create movement record
-      const movement = await prisma.inventoryMovement.create({
+      return tx.inventoryMovement.create({
         data: {
           inventoryId,
           type: validatedData.type,
@@ -163,33 +153,12 @@ export class InventoryService {
           referenceType: validatedData.referenceType,
           notes: validatedData.notes,
         },
-        include: {
-          inventory: {
-            include: {
-              store: true,
-              variant: {
-                include: {
-                  product: true,
-                },
-              },
-            },
-          },
-        },
+        include: { inventory: { include: inventoryWithRelations } },
       });
-
-      return movement;
     });
   }
 
-  /**
-   * Transfer stock atomically between two inventory records.
-   * Both inventories must belong to the same organization.
-   */
-  async transferInventory(
-    inventoryId: string,
-    organizationId: string,
-    input: unknown,
-  ) {
+  async transferInventory(inventoryId: string, organizationId: string, input: unknown) {
     const data = inventoryTransferSchema.parse(input);
     if (inventoryId === data.targetInventoryId) {
       throw new Error('Cannot transfer inventory to the same location');
@@ -203,84 +172,90 @@ export class InventoryService {
       throw new Error('Inventory not found or access denied');
     }
 
-    return prisma.$transaction(async () => {
-      const ids = [inventoryId, data.targetInventoryId].sort();
-      const rows = await prisma.$queryRaw<Array<{ id: string; variantId: string; quantity: number; reservedQuantity: number }>>`
-        SELECT "id", "variantId", "quantity", "reservedQuantity"
-        FROM "inventories"
-        WHERE "id" = ${ids[0]} OR "id" = ${ids[1]}
-        ORDER BY "id"
-        FOR UPDATE
-      `;
+    return prisma.$transaction(async (tx) => {
+      const rows = await this.getLockedTransferInventories(
+        tx,
+        inventoryId,
+        data.targetInventoryId,
+        organizationId,
+      );
 
       const source = rows.find((row) => row.id === inventoryId);
       const target = rows.find((row) => row.id === data.targetInventoryId);
-      if (!source || !target) throw new Error('Inventory not found');
+      if (!source || !target) throw new Error('Inventory not found or access denied');
       if (source.variantId !== target.variantId) {
         throw new Error('Transfer destination must use the same product variant');
       }
 
       const available = source.quantity - source.reservedQuantity;
-      if (available < data.quantity) {
-        throw new Error('Insufficient available stock for transfer');
-      }
+      if (available < data.quantity) throw new Error('Insufficient available stock for transfer');
 
-      await prisma.inventory.update({ where: { id: source.id }, data: { quantity: source.quantity - data.quantity } });
-      await prisma.inventory.update({ where: { id: target.id }, data: { quantity: target.quantity + data.quantity } });
+      await tx.inventory.update({
+        where: { id: source.id },
+        data: { quantity: source.quantity - data.quantity },
+      });
+      await tx.inventory.update({
+        where: { id: target.id },
+        data: { quantity: target.quantity + data.quantity },
+      });
 
       const referenceId = data.referenceId || `TRANSFER-${Date.now()}`;
       const [outMovement] = await Promise.all([
-        prisma.inventoryMovement.create({
-          data: { inventoryId: source.id, type: 'TRANSFER_OUT', quantity: -data.quantity, referenceId, referenceType: 'INVENTORY_TRANSFER', notes: data.notes },
+        tx.inventoryMovement.create({
+          data: {
+            inventoryId: source.id,
+            type: 'TRANSFER_OUT',
+            quantity: -data.quantity,
+            referenceId,
+            referenceType: 'INVENTORY_TRANSFER',
+            notes: data.notes,
+          },
         }),
-        prisma.inventoryMovement.create({
-          data: { inventoryId: target.id, type: 'TRANSFER_IN', quantity: data.quantity, referenceId, referenceType: 'INVENTORY_TRANSFER', notes: data.notes },
+        tx.inventoryMovement.create({
+          data: {
+            inventoryId: target.id,
+            type: 'TRANSFER_IN',
+            quantity: data.quantity,
+            referenceId,
+            referenceType: 'INVENTORY_TRANSFER',
+            notes: data.notes,
+          },
         }),
       ]);
-      return { referenceId, sourceInventoryId: source.id, targetInventoryId: target.id, quantity: data.quantity, outMovement };
+
+      return {
+        referenceId,
+        sourceInventoryId: source.id,
+        targetInventoryId: target.id,
+        quantity: data.quantity,
+        outMovement,
+      };
     });
   }
 
-  /**
-   * QuickBooks-style physical inventory adjustment.
-   * The user enters the counted quantity; the ledger records only the delta.
-   */
-  async adjustInventory(
-    inventoryId: string,
-    organizationId: string,
-    input: unknown,
-  ) {
+  async adjustInventory(inventoryId: string, organizationId: string, input: unknown) {
     const data = inventoryAdjustmentSchema.parse(input);
 
     const belongs = await inventoryRepository.belongsToOrganization(inventoryId, organizationId);
     if (!belongs) throw new Error('Inventory not found or access denied');
 
-    return prisma.$transaction(async () => {
-      const rows = await prisma.$queryRaw<Array<{ quantity: number; reservedQuantity: number }>>`
-        SELECT "quantity", "reservedQuantity"
-        FROM "inventories"
-        WHERE "id" = ${inventoryId}
-        FOR UPDATE
-      `;
-
-      if (!rows[0]) throw new Error('Inventory not found');
-      const current = rows[0];
+    return prisma.$transaction(async (tx) => {
+      const current = await this.getLockedInventory(tx, inventoryId, organizationId);
+      if (!current) throw new Error('Inventory not found or access denied');
 
       if (data.newQuantity < current.reservedQuantity) {
         throw new Error('Adjusted quantity cannot be below reserved quantity');
       }
 
       const difference = data.newQuantity - current.quantity;
-      if (difference === 0) {
-        throw new Error('No inventory adjustment is required');
-      }
+      if (difference === 0) throw new Error('No inventory adjustment is required');
 
-      await prisma.inventory.update({
+      await tx.inventory.update({
         where: { id: inventoryId },
         data: { quantity: data.newQuantity },
       });
 
-      await prisma.inventoryMovement.create({
+      await tx.inventoryMovement.create({
         data: {
           inventoryId,
           type: 'ADJUSTMENT',
@@ -291,42 +266,26 @@ export class InventoryService {
         },
       });
 
-      return inventoryRepository.findById(inventoryId, organizationId);
+      return this.findInventoryInTransaction(tx, inventoryId, organizationId);
     });
   }
 
-  /**
-   * QuickBooks-style receive inventory.
-   * Receiving always increases on-hand stock and creates a PURCHASE ledger entry.
-   */
-  async receiveInventory(
-    inventoryId: string,
-    organizationId: string,
-    input: unknown,
-  ) {
+  async receiveInventory(inventoryId: string, organizationId: string, input: unknown) {
     const data = inventoryReceiptSchema.parse(input);
 
     const belongs = await inventoryRepository.belongsToOrganization(inventoryId, organizationId);
     if (!belongs) throw new Error('Inventory not found or access denied');
 
-    return prisma.$transaction(async () => {
-      const rows = await prisma.$queryRaw<Array<{ quantity: number }>>`
-        SELECT "quantity"
-        FROM "inventories"
-        WHERE "id" = ${inventoryId}
-        FOR UPDATE
-      `;
+    return prisma.$transaction(async (tx) => {
+      const current = await this.getLockedInventory(tx, inventoryId, organizationId);
+      if (!current) throw new Error('Inventory not found or access denied');
 
-      if (!rows[0]) throw new Error('Inventory not found');
-
-      const newQuantity = rows[0].quantity + data.quantity;
-
-      await prisma.inventory.update({
+      await tx.inventory.update({
         where: { id: inventoryId },
-        data: { quantity: newQuantity },
+        data: { quantity: current.quantity + data.quantity },
       });
 
-      await prisma.inventoryMovement.create({
+      await tx.inventoryMovement.create({
         data: {
           inventoryId,
           type: 'PURCHASE',
@@ -337,148 +296,90 @@ export class InventoryService {
         },
       });
 
-      return inventoryRepository.findById(inventoryId, organizationId);
+      return this.findInventoryInTransaction(tx, inventoryId, organizationId);
     });
   }
 
-  /**
-   * List movements for an inventory
-   */
-  async listMovements(inventoryId: string, organizationId: string, options: {
-    type?: string;
-    skip?: number;
-    take?: number;
-  } = {}) {
-    // Check if inventory belongs to organization
+  async listMovements(
+    inventoryId: string,
+    organizationId: string,
+    options: { type?: string; skip?: number; take?: number } = {},
+  ) {
     const belongs = await inventoryRepository.belongsToOrganization(inventoryId, organizationId);
-    if (!belongs) {
-      throw new Error('Inventory not found or access denied');
-    }
-
+    if (!belongs) throw new Error('Inventory not found or access denied');
     return inventoryRepository.listMovements(inventoryId, organizationId, options);
   }
 
-  /**
-   * Reserve stock (for orders, etc.)
-   */
   async reserveStock(inventoryId: string, quantity: number, organizationId: string) {
-    if (quantity <= 0) {
-      throw new Error('Quantity must be positive');
-    }
+    if (quantity <= 0) throw new Error('Quantity must be positive');
 
-    return prisma.$transaction(async () => {
-    const belongs = await inventoryRepository.belongsToOrganization(inventoryId, organizationId);
-    if (!belongs) throw new Error('Inventory not found or access denied');
+    return prisma.$transaction(async (tx) => {
+      const current = await this.getLockedInventory(tx, inventoryId, organizationId);
+      if (!current) throw new Error('Inventory not found or access denied');
 
-      const inventory = await prisma.$queryRaw<Array<{ quantity: number; reservedQuantity: number }>>`
-        SELECT "quantity", "reservedQuantity"
-        FROM "inventories"
-        WHERE "id" = ${inventoryId}
-        FOR UPDATE
-      `;
+      const available = current.quantity - current.reservedQuantity;
+      if (available < quantity) throw new Error('Insufficient available stock');
 
-      if (!inventory || inventory.length === 0) {
-        throw new Error('Inventory not found');
-      }
-
-      const currentInventory = inventory[0];
-      const available = currentInventory.quantity - currentInventory.reservedQuantity;
-      if (available < quantity) {
-        throw new Error('Insufficient available stock');
-      }
-
-      await prisma.inventory.update({
+      await tx.inventory.update({
         where: { id: inventoryId },
-        data: {
-          reservedQuantity: currentInventory.reservedQuantity + quantity,
-        },
+        data: { reservedQuantity: current.reservedQuantity + quantity },
       });
 
-      return inventoryRepository.findById(inventoryId, organizationId);
+      return this.findInventoryInTransaction(tx, inventoryId, organizationId);
     });
   }
 
-  /**
-   * Release reserved stock
-   */
   async releaseReservedStock(inventoryId: string, quantity: number, organizationId: string) {
-    if (quantity <= 0) {
-      throw new Error('Quantity must be positive');
-    }
+    if (quantity <= 0) throw new Error('Quantity must be positive');
 
-    return prisma.$transaction(async () => {
-    const belongs = await inventoryRepository.belongsToOrganization(inventoryId, organizationId);
-    if (!belongs) throw new Error('Inventory not found or access denied');
-
-      const inventory = await prisma.$queryRaw<Array<{ reservedQuantity: number }>>`
-        SELECT "reservedQuantity"
-        FROM "inventories"
-        WHERE "id" = ${inventoryId}
+    return prisma.$transaction(async (tx) => {
+      const current = await tx.$queryRaw<Array<{ reservedQuantity: number }>>`
+        SELECT i."reservedQuantity"
+        FROM "inventories" i
+        INNER JOIN "stores" s ON s."id" = i."storeId"
+        WHERE i."id" = ${inventoryId}
+          AND s."organizationId" = ${organizationId}
         FOR UPDATE
       `;
+      if (!current[0]) throw new Error('Inventory not found or access denied');
 
-      if (!inventory || inventory.length === 0) {
-        throw new Error('Inventory not found');
-      }
-
-      const currentInventory = inventory[0];
-      if (currentInventory.reservedQuantity < quantity) {
+      if (current[0].reservedQuantity < quantity) {
         throw new Error('Cannot release more than reserved');
       }
 
-      await prisma.inventory.update({
+      await tx.inventory.update({
         where: { id: inventoryId },
-        data: {
-          reservedQuantity: Math.max(0, currentInventory.reservedQuantity - quantity),
-        },
+        data: { reservedQuantity: current[0].reservedQuantity - quantity },
       });
 
-      return inventoryRepository.findById(inventoryId, organizationId);
+      return this.findInventoryInTransaction(tx, inventoryId, organizationId);
     });
   }
 
-  /**
-   * Adjust inventory quantity (manual adjustment)
-   */
   async adjustQuantity(inventoryId: string, newQuantity: number, organizationId: string, notes?: string) {
-    if (newQuantity < 0) {
-      throw new Error('Quantity cannot be negative');
-    }
+    if (newQuantity < 0) throw new Error('Quantity cannot be negative');
 
-    return prisma.$transaction(async () => {
-    const belongs = await inventoryRepository.belongsToOrganization(inventoryId, organizationId);
-    if (!belongs) throw new Error('Inventory not found or access denied');
+    return prisma.$transaction(async (tx) => {
+      const current = await this.getLockedInventory(tx, inventoryId, organizationId);
+      if (!current) throw new Error('Inventory not found or access denied');
 
-      const inventory = await prisma.$queryRaw<Array<{ quantity: number }>>`
-        SELECT "quantity"
-        FROM "inventories"
-        WHERE "id" = ${inventoryId}
-        FOR UPDATE
-      `;
+      const difference = newQuantity - current.quantity;
 
-      if (!inventory || inventory.length === 0) {
-        throw new Error('Inventory not found');
-      }
-
-      const currentInventory = inventory[0];
-      const difference = newQuantity - currentInventory.quantity;
-
-      await prisma.inventory.update({
+      await tx.inventory.update({
         where: { id: inventoryId },
         data: { quantity: newQuantity },
       });
 
-      // Create adjustment movement
-      await prisma.inventoryMovement.create({
+      await tx.inventoryMovement.create({
         data: {
           inventoryId,
           type: 'ADJUSTMENT',
           quantity: difference,
-          notes: notes || `Manual adjustment from ${currentInventory.quantity} to ${newQuantity}`,
+          notes: notes || `Manual adjustment from ${current.quantity} to ${newQuantity}`,
         },
       });
 
-      return inventoryRepository.findById(inventoryId, organizationId);
+      return this.findInventoryInTransaction(tx, inventoryId, organizationId);
     });
   }
 }
