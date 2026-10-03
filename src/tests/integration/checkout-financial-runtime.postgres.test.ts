@@ -3,10 +3,15 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@omnikes/lib/prisma';
 import { POST as checkout } from '@omnikes/app/api/sales/[id]/checkout/route';
 
+const authState = vi.hoisted(() => ({
+  organizationId: '',
+  userId: '',
+}));
+
 vi.mock('@omnikes/lib/auth', () => ({
-  requireCurrentOrganizationId: vi.fn().mockResolvedValue('org-a-id'),
+  requireCurrentOrganizationId: vi.fn().mockImplementation(async () => authState.organizationId),
   requirePermission: vi.fn().mockResolvedValue(undefined),
-  getAuthenticatedUser: vi.fn().mockResolvedValue({ id: 'user-a-id' }),
+  getAuthenticatedUser: vi.fn().mockImplementation(async () => ({ id: authState.userId })),
   requireStoreAccess: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -14,6 +19,7 @@ describe('P0 POS financial runtime proofs', () => {
   let orgId: string;
   let storeId: string;
   let variantId: string;
+  let userId: string;
   let customerId: string | null = null;
   const saleIds: string[] = [];
   const inventorySnapshots = new Map<string, number>();
@@ -24,6 +30,14 @@ describe('P0 POS financial runtime proofs', () => {
       select: { id: true },
     });
     orgId = org.id;
+    authState.organizationId = orgId;
+
+    const user = await prisma.user.findFirstOrThrow({
+      where: { organizationId: orgId },
+      select: { id: true },
+    });
+    userId = user.id;
+    authState.userId = userId;
 
     const store = await prisma.store.findFirstOrThrow({
       where: { organizationId: orgId, code: 'STORE-A' },
@@ -47,7 +61,7 @@ describe('P0 POS financial runtime proofs', () => {
   async function createSale() {
     const inventory = await prisma.inventory.findUniqueOrThrow({
       where: { storeId_variantId: { storeId, variantId } },
-      select: { id: true, quantity: true },
+      select: { quantity: true },
     });
 
     const sale = await prisma.sale.create({
