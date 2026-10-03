@@ -2,6 +2,10 @@ import { prisma } from '@omnikes/lib/prisma';
 import { Prisma } from '@prisma/client';
 
 export class ProductVariantRepository {
+  async create(data: Prisma.ProductVariantCreateInput) {
+    return prisma.productVariant.create({ data });
+  }
+
   /**
    * Find a variant by ID with organization check
    */
