@@ -1,4 +1,4 @@
-import { LocalHardwareBridgeClient } from './local-bridge';
+import { LocalHardwareBridgeClient, type LocalHardwareBridgeOptions } from './local-bridge';
 import { parseScaleReading, type ScaleAdapter, type ScaleReading, type ScaleSerialOptions } from './scale';
 
 export class LocalBridgeScaleAdapter implements ScaleAdapter {
@@ -26,7 +26,7 @@ export class LocalBridgeScaleAdapter implements ScaleAdapter {
 
 export function createLocalBridgeScale(
   options: ScaleSerialOptions,
-  bridgeOptions?: { baseUrl?: string; timeoutMs?: number },
+  bridgeOptions: LocalHardwareBridgeOptions,
 ): LocalBridgeScaleAdapter {
   return new LocalBridgeScaleAdapter(
     new LocalHardwareBridgeClient(bridgeOptions),
