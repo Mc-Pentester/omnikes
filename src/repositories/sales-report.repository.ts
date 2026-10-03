@@ -77,6 +77,7 @@ export class SalesReportRepository {
       totalPaid: number;
       authorizedCredit: number;
       uncoveredAmount: number;
+      currency: string;
     };
 
     const rows = await prisma.$queryRaw<SummaryRow[]>(Prisma.sql`
@@ -119,6 +120,7 @@ export class SalesReportRepository {
         LEFT JOIN credit_coverage cc ON cc."saleId" = fs."id"
       )
       SELECT
+        (SELECT o."currency" FROM "organizations" o WHERE o."id" = ${organizationId}) AS "currency",
         COUNT(*)::int AS "salesCount",
         ROUND(COALESCE(SUM(fs."total"), 0)::numeric, 2)::double precision AS "totalRevenue",
         ROUND(COALESCE(SUM(fs."discount"), 0)::numeric, 2)::double precision AS "totalDiscount",
@@ -147,6 +149,7 @@ export class SalesReportRepository {
       totalPaid: 0,
       authorizedCredit: 0,
       uncoveredAmount: 0,
+      currency: 'HTG',
     };
   }
 
