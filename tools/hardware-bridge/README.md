@@ -24,9 +24,21 @@ Il ne simule pas une impression et ne génère pas de fichier à imprimer.
 - écoute uniquement sur `127.0.0.1`
 - aucune connexion cloud
 - origine navigateur limitée à localhost
+- endpoints matériels `/v1/*` protégés par Bearer token
+- token de 32 caractères minimum
+- comparaison du token en temps constant
 - payload limité à 512 KiB
 - nom d'imprimante transmis comme argument, sans shell interpolation
 - données temporaires supprimées après l'impression
+
+Le token doit être défini dans **le processus Next.js et le processus du bridge** avec la même valeur :
+
+```powershell
+$env:OMNIKES_HARDWARE_BRIDGE_TOKEN = "GENERER_UN_SECRET_DE_32_CARACTERES_OU_PLUS"
+```
+
+Le navigateur ne reçoit le token qu'après authentification à OmniKès via `GET /api/hardware/bridge-token`.
+Le token n'est pas stocké dans la base de données.
 
 ## Installation
 
@@ -50,12 +62,20 @@ Bridge :
 
 ## Vérification
 
+Le health check reste disponible sans token :
+
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8765/health
-Invoke-RestMethod http://127.0.0.1:8765/v1/printers
 ```
 
-La deuxième commande retourne les imprimantes installées dans Windows avec leur nom exact.
+Les endpoints matériels exigent maintenant le token :
+
+```powershell
+$headers = @{ Authorization = "Bearer $env:OMNIKES_HARDWARE_BRIDGE_TOKEN" }
+Invoke-RestMethod http://127.0.0.1:8765/v1/printers -Headers $headers
+```
+
+Sans token valide, le bridge retourne HTTP 401.
 
 ## Impression réelle
 
@@ -115,4 +135,4 @@ La normalisation du poids et la validation des unités sont effectuées côté a
 
 La balance doit fournir une interface série Windows (USB/RS232 via un adaptateur ou port COM virtuel). Le protocole de chaque modèle peut nécessiter une commande et/ou des paramètres série spécifiques.
 
-`--doctor` liste maintenant à la fois les imprimantes et les ports série détectés.
+`--doctor` liste maintenant à la fois les imprimantes et les ports série.
