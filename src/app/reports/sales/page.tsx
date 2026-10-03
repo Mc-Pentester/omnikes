@@ -91,7 +91,7 @@ export default function SalesReportPage() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fr-HT', {
       style: 'currency',
-      currency: summary.currency || 'HTG',
+      currency: summary?.currency || 'HTG',
     }).format(amount);
   };
 
