@@ -1,3 +1,40 @@
+describe('SaleService - Financial authority at creation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('ignores client-supplied sale financial totals until server-priced items are added', async () => {
+    (storeService.validateStoreBelongsToOrganization as any).mockResolvedValue(undefined);
+    (prisma.organization.findUnique as any).mockResolvedValue({
+      id: 'corg1234567',
+      taxConfiguration: { taxRate: 0.10 },
+    });
+    (saleRepository.create as any).mockResolvedValue({ id: 'sale-123' });
+
+    const result = await saleService.create('corg1234567', {
+      organizationId: 'corg1234567',
+      storeId: 'cstore1234567',
+      orderNumber: 'ORD-123',
+      status: 'PENDING',
+      subtotal: 9999,
+      tax: 999,
+      total: 10998,
+      discount: 500,
+      applyTax: true,
+    });
+
+    expect(result).toEqual({ id: 'sale-123' });
+    expect(saleRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+      subtotal: 0,
+      discount: 0,
+      tax: 0,
+      taxRate: 0.10,
+      total: 0,
+      applyTax: true,
+    }));
+  });
+});
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { saleService } from '@omnikes/services/sale.service';
 import { prisma } from '@omnikes/lib/prisma';
@@ -9,12 +46,16 @@ vi.mock('@omnikes/lib/prisma', () => ({
       findFirst: vi.fn(),
       update: vi.fn(),
     },
+    organization: {
+      findUnique: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
 }));
 
 vi.mock('@omnikes/repositories/sale.repository', () => ({
   saleRepository: {
+    create: vi.fn(),
     listItems: vi.fn(),
     update: vi.fn(),
     updateWithTaxRate: vi.fn(),
@@ -48,7 +89,7 @@ describe('SaleService - Tax Calculation', () => {
   describe('recalculateTotals', () => {
     it('should calculate tax from discounted line totals without double-counting discounts (10%)', async () => {
       const mockSaleId = 'sale-123';
-      const mockOrganizationId = 'org-123';
+      const mockOrganizationId = 'corg1234567';
       const mockTaxRate = 0.10;
       const mockItems = [
         { totalPrice: 100, discount: 0 },
@@ -91,7 +132,7 @@ describe('SaleService - Tax Calculation', () => {
 
     it('should use zero tax when no tax configuration exists', async () => {
       const mockSaleId = 'sale-123';
-      const mockOrganizationId = 'org-123';
+      const mockOrganizationId = 'corg1234567';
       const mockItems = [
         { totalPrice: 100, discount: 0 },
       ];
@@ -130,7 +171,7 @@ describe('SaleService - Tax Calculation', () => {
 
     it('should handle different tax rates correctly (15%)', async () => {
       const mockSaleId = 'sale-123';
-      const mockOrganizationId = 'org-123';
+      const mockOrganizationId = 'corg1234567';
       const mockTaxRate = 0.15;
       const mockItems = [
         { totalPrice: 200, discount: 0 },
@@ -172,7 +213,7 @@ describe('SaleService - Tax Calculation', () => {
 
     it('should apply zero tax when applyTax is false', async () => {
       const mockSaleId = 'sale-123';
-      const mockOrganizationId = 'org-123';
+      const mockOrganizationId = 'corg1234567';
       const mockTaxRate = 0.10;
       const mockItems = [
         { totalPrice: 100, discount: 0 },
@@ -214,7 +255,7 @@ describe('SaleService - Tax Calculation', () => {
 
     it('should handle zero tax rate (tax exempt)', async () => {
       const mockSaleId = 'sale-123';
-      const mockOrganizationId = 'org-123';
+      const mockOrganizationId = 'corg1234567';
       const mockTaxRate = 0;
       const mockItems = [
         { totalPrice: 100, discount: 0 },
@@ -256,7 +297,7 @@ describe('SaleService - Tax Calculation', () => {
 
     it('should correctly calculate total with discounts (10%)', async () => {
       const mockSaleId = 'sale-123';
-      const mockOrganizationId = 'org-123';
+      const mockOrganizationId = 'corg1234567';
       const mockTaxRate = 0.10;
       const mockItems = [
         { totalPrice: 100, discount: 10 },
@@ -299,7 +340,7 @@ describe('SaleService - Tax Calculation', () => {
 
     it('should historize tax rate in sale', async () => {
       const mockSaleId = 'sale-123';
-      const mockOrganizationId = 'org-123';
+      const mockOrganizationId = 'corg1234567';
       const mockTaxRate = 0.10;
       const mockItems = [
         { totalPrice: 100, discount: 0 },
@@ -346,7 +387,7 @@ describe('SaleService - Tax Calculation', () => {
       });
       (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
 
-      const result = await saleService.addItem('sale-123', 'org-123', {
+      const result = await saleService.addItem('sale-123', 'corg1234567', {
         variantId: 'cvariant123',
         quantity: 1250,
         unitPrice: 999999,
@@ -377,7 +418,7 @@ describe('SaleService - Tax Calculation', () => {
       });
       (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
 
-      await saleService.addItem('sale-123', 'org-123', {
+      await saleService.addItem('sale-123', 'corg1234567', {
         variantId: 'cvariant123',
         quantity: 2,
         unitPrice: 1,
