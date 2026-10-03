@@ -63,10 +63,6 @@ function buildSaleConditions(
 }
 
 export class SalesReportRepository {
-  /**
-   * All report aggregation happens in PostgreSQL.
-   * The API/service layer also applies the same 366-day ceiling.
-   */
   async getSummary(organizationId: string, options: SaleFilterOptions = {}) {
     const range = normalizeDateRange(options);
     const where = buildSaleConditions(organizationId, { ...options, ...range });
@@ -130,13 +126,13 @@ export class SalesReportRepository {
         (SELECT "itemsSold" FROM item_totals) AS "itemsSold",
         (SELECT "totalPaid" FROM financial_coverage) AS "totalPaid",
         (SELECT "authorizedCredit" FROM financial_coverage) AS "authorizedCredit",
-        (
+        ROUND((
           SUM(fs."total")
           - (SELECT "totalPaid" + "authorizedCredit" FROM financial_coverage)
-        )::double precision AS "uncoveredAmount",
+        )::numeric, 2)::double precision AS "uncoveredAmount",
         CASE
           WHEN COUNT(*) = 0 THEN 0
-          ELSE (SUM(fs."total") / COUNT(*))::double precision
+          ELSE ROUND((SUM(fs."total") / COUNT(*))::numeric, 2)::double precision
         END AS "averageSale"
       FROM filtered_sales fs
     `);
