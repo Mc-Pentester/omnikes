@@ -25,7 +25,7 @@ describe('P0-28 monetary precision', () => {
   });
 
   it('rejects credit amounts with more than two decimals', () => {
-    expect(() => saleCreditSchema.parse({ customerId: 'c1234567890', amount: 10.01 })).not.toThrow();
-    expect(() => saleCreditSchema.parse({ customerId: 'c1234567890', amount: 10.001 })).toThrow();
+    expect(() => saleCreditSchema.parse({ customerId: 'c123456789012345678901234', amount: 10.01 })).not.toThrow();
+    expect(() => saleCreditSchema.parse({ customerId: 'c123456789012345678901234', amount: 10.001 })).toThrow();
   });
 });
