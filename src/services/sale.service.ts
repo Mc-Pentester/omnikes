@@ -4,6 +4,7 @@ import { storeService } from '@omnikes/services/store.service';
 import { saleSchema, saleUpdateSchema, saleItemSchema, paymentSchema, saleCreditSchema, SaleInput, SaleUpdateInput, SaleItemInput, PaymentInput, SaleCreditInput } from '@omnikes/lib/validation';
 import { prisma } from '@omnikes/lib/prisma';
 import { Prisma, SaleItem, Payment } from '@prisma/client';
+import { roundMoney } from '@omnikes/lib/money';
 
 const SALE_UNIT_TO_GRAMS: Record<string, number> = {
   G: 1,
@@ -161,9 +162,9 @@ export class SaleService {
     }
 
     // INVARIANT: Use server-side price, do not trust client
-    const serverPrice = getStoredUnitPrice(Number(variant.price), variant.saleUnit ?? 'UNIT');
+    const serverPrice = roundMoney(getStoredUnitPrice(Number(variant.price), variant.saleUnit ?? 'UNIT'));
     const quantity = validatedData.quantity;
-    const discount = validatedData.discount || 0;
+    const discount = roundMoney(validatedData.discount || 0);
 
     // INVARIANT: discount cannot exceed gross amount
     const grossAmount = serverPrice * quantity;
@@ -172,7 +173,7 @@ export class SaleService {
     }
 
     // INVARIANT: line total must never be negative
-    const totalPrice = grossAmount - discount;
+    const totalPrice = roundMoney(grossAmount - discount);
     if (totalPrice < 0) {
       throw new Error('Line total cannot be negative');
     }
@@ -227,9 +228,9 @@ export class SaleService {
 
       // INVARIANT: Use server-side price from variant, do not trust client
       const unitPrice = validatedData.unitPrice !== undefined
-        ? getStoredUnitPrice(Number(item.variant.price), item.variant.saleUnit ?? 'UNIT') // Always use server price if client tries to change it
-        : Number(item.unitPrice);
-      const discount = validatedData.discount ?? Number(item.discount);
+        ? roundMoney(getStoredUnitPrice(Number(item.variant.price), item.variant.saleUnit ?? 'UNIT')) // Always use server price if client tries to change it
+        : roundMoney(Number(item.unitPrice));
+      const discount = roundMoney(validatedData.discount ?? Number(item.discount));
 
       // INVARIANT: discount cannot exceed gross amount
       const grossAmount = unitPrice * quantity;
@@ -297,8 +298,8 @@ export class SaleService {
   async recalculateTotals(saleId: string, organizationId: string) {
     const items = await saleRepository.listItems(saleId, organizationId);
 
-    const subtotal = items.reduce((sum: number, item: SaleItem) => sum + Number(item.totalPrice), 0);
-    const discount = items.reduce((sum: number, item: SaleItem) => sum + Number(item.discount), 0);
+    const subtotal = roundMoney(items.reduce((sum: number, item: SaleItem) => sum + Number(item.totalPrice), 0));
+    const discount = roundMoney(items.reduce((sum: number, item: SaleItem) => sum + Number(item.discount), 0));
     
     // Get tax rate from organization's tax configuration
     const sale = await prisma.sale.findFirst({
@@ -324,8 +325,8 @@ export class SaleService {
     
     // SaleItem.totalPrice is already net of its line discount.
     // Keep discount as an audit/reporting aggregate, but do not subtract it again.
-    const tax = subtotal * effectiveRate;
-    const total = subtotal + tax;
+    const tax = roundMoney(subtotal * effectiveRate);
+    const total = roundMoney(subtotal + tax);
 
     await saleRepository.updateWithTaxRate(saleId, organizationId, {
       subtotal,
@@ -377,12 +378,12 @@ export class SaleService {
       // Only real completed payments count as money received.
       // Historical Payment.method=CREDIT records are intentionally excluded;
       // new credit must be represented by SaleCredit.
-      const totalPaid = sale.payments
+      const totalPaid = roundMoney(sale.payments
         .filter(p => p.status === 'COMPLETED' && p.method !== 'CREDIT')
-        .reduce((sum: number, p: Payment) => sum + Number(p.amount), 0);
+        .reduce((sum: number, p: Payment) => sum + Number(p.amount), 0));
 
       const authorizedCredit = sale.saleCredit?.status === 'AUTHORIZED'
-        ? Number(sale.saleCredit.amount)
+        ? roundMoney(Number(sale.saleCredit.amount))
         : 0;
 
       const coverage = totalPaid + authorizedCredit;
@@ -641,7 +642,7 @@ export class SaleService {
       const totalPaid = sale.payments
         .filter(p => p.status === 'COMPLETED' && p.method !== 'CREDIT')
         .reduce((sum: number, p: Payment) => sum + Number(p.amount), 0);
-      const remaining = Number(sale.total) - totalPaid;
+      const remaining = roundMoney(Number(sale.total) - totalPaid);
 
       if (validatedData.amount > remaining) {
         throw new Error(`Credit amount exceeds remaining balance. Remaining: ${remaining}, Attempted: ${validatedData.amount}`);
