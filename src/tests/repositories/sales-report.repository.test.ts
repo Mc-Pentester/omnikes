@@ -60,7 +60,7 @@ describe('SalesReportRepository — product tax allocation', () => {
 
 describe('SalesReportRepository — monetary output normalization', () => {
   it('rounds report monetary aggregates to two decimals in PostgreSQL', async () => {
-    const expected = [{
+    const expected = {
       salesCount: 1,
       totalRevenue: 100.12,
       totalDiscount: 0.13,
@@ -70,7 +70,7 @@ describe('SalesReportRepository — monetary output normalization', () => {
       totalPaid: 100.12,
       authorizedCredit: 0,
       uncoveredAmount: 0,
-    }];
+    };
     queryRaw.mockResolvedValueOnce(expected);
 
     const repository = new SalesReportRepository();
