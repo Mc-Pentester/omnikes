@@ -331,7 +331,10 @@ export class ProformaService {
     // Calculate new total if quantity or price changed
     if (validatedData.quantity !== undefined || validatedData.unitPrice !== undefined || validatedData.discount !== undefined) {
       const item = await prisma.proformaItem.findFirst({
-        where: { id: itemId },
+        where: {
+          id: itemId,
+          proforma: { organizationId },
+        },
         include: {
           proforma: true,
           variant: true,
@@ -387,8 +390,11 @@ export class ProformaService {
       await proformaRepository.updateItem(itemId, organizationId, validatedData as Prisma.ProformaItemUpdateInput);
     }
 
-    return prisma.proformaItem.findUnique({
-      where: { id: itemId },
+    return prisma.proformaItem.findFirst({
+      where: {
+        id: itemId,
+        proforma: { organizationId },
+      },
       include: {
         variant: {
           include: {
@@ -404,7 +410,10 @@ export class ProformaService {
    */
   async removeItem(itemId: string, organizationId: string) {
     const item = await prisma.proformaItem.findFirst({
-      where: { id: itemId },
+      where: {
+        id: itemId,
+        proforma: { organizationId },
+      },
       include: {
         proforma: true,
       },
@@ -447,8 +456,11 @@ export class ProformaService {
     const subtotal = grossSubtotal - discount;
 
     // Get proforma with organization's tax configuration
-    const proforma = await prisma.proforma.findUnique({
-      where: { id: proformaId },
+    const proforma = await prisma.proforma.findFirst({
+      where: {
+        id: proformaId,
+        organizationId,
+      },
       include: {
         organization: {
           include: {
