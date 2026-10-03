@@ -71,7 +71,7 @@ describe('SalesReportRepository — monetary output normalization', () => {
       authorizedCredit: 0,
       uncoveredAmount: 0,
     };
-    queryRaw.mockResolvedValueOnce(expected);
+    queryRaw.mockResolvedValueOnce([expected]);
 
     const repository = new SalesReportRepository();
     const result = await repository.getSummary(
@@ -89,5 +89,6 @@ describe('SalesReportRepository — monetary output normalization', () => {
     expect(sql).toContain('ROUND');
     expect(sql).toContain('\\"totalRevenue\\"');
     expect(sql).toContain('\\"uncoveredAmount\\"');
+    expect(sql).toContain('\\"averageSale\\"');
   });
 });
