@@ -641,10 +641,29 @@ export class ProformaService {
         throw new Error('Cannot convert an empty proforma');
       }
 
+      // Rebuild sale financials from the authoritative proforma items.
+      // Never copy client-controlled/stale aggregate totals as the source of truth.
+      const grossSubtotal = roundMoney(proforma.items.reduce((sum, item) => {
+        return sum + Number(item.unitPrice) * item.quantity;
+      }, 0));
+      const discount = roundMoney(proforma.items.reduce((sum, item) => {
+        return sum + Number(item.discount);
+      }, 0));
+      const subtotal = roundMoney(grossSubtotal - discount);
+
+      const organizationWithTax = await tx.organization.findUnique({
+        where: { id: organizationId },
+        include: { taxConfiguration: true },
+      });
+      const taxRate = proforma.applyTax && organizationWithTax?.taxConfiguration?.taxRate
+        ? Number(organizationWithTax.taxConfiguration.taxRate)
+        : 0;
+      const tax = proforma.applyTax ? roundMoney(subtotal * taxRate) : 0;
+      const total = roundMoney(subtotal + tax);
+
       // Generate order number
       const orderNumber = this.generateOrderNumber();
 
-      // Create sale (using direct data without relations to match repository pattern)
       const sale = await tx.sale.create({
         data: {
           organizationId: proforma.organizationId,
@@ -653,11 +672,11 @@ export class ProformaService {
           customerId: proforma.customerId,
           channel: 'POS',
           status: 'PENDING',
-          subtotal: proforma.subtotal,
-          tax: proforma.tax,
-          taxRate: proforma.taxRate,
-          total: proforma.total,
-          discount: proforma.discount,
+          subtotal,
+          tax,
+          taxRate,
+          total,
+          discount,
           applyTax: proforma.applyTax,
           notes: proforma.notes,
           convertedFromProformaId: proforma.id,
