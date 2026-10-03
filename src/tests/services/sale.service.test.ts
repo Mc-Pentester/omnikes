@@ -1,3 +1,40 @@
+describe('SaleService - Financial authority at creation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('ignores client-supplied sale financial totals until server-priced items are added', async () => {
+    (storeService.validateStoreBelongsToOrganization as any).mockResolvedValue(undefined);
+    (prisma.organization.findUnique as any).mockResolvedValue({
+      id: 'org-123',
+      taxConfiguration: { taxRate: 0.10 },
+    });
+    (saleRepository.create as any).mockResolvedValue({ id: 'sale-123' });
+
+    const result = await saleService.create('org-123', {
+      organizationId: 'org-123',
+      storeId: 'store-123',
+      orderNumber: 'ORD-123',
+      status: 'PENDING',
+      subtotal: 9999,
+      tax: 999,
+      total: 10998,
+      discount: 500,
+      applyTax: true,
+    });
+
+    expect(result).toEqual({ id: 'sale-123' });
+    expect(saleRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+      subtotal: 0,
+      discount: 0,
+      tax: 0,
+      taxRate: 0.10,
+      total: 0,
+      applyTax: true,
+    }));
+  });
+});
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { saleService } from '@omnikes/services/sale.service';
 import { prisma } from '@omnikes/lib/prisma';
