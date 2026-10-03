@@ -74,7 +74,6 @@ export default function HomePage() {
   const [isSidebarCompact, setIsSidebarCompact] = useState(false);
   const [taxRate, setTaxRate] = useState<number | null>(null);
   const [serverTotals, setServerTotals] = useState<{ subtotal: number; tax: number; total: number } | null>(null);
-  const [storesValidated, setStoresValidated] = useState(false);
   const [applyTax, setApplyTax] = useState(true);
   const [pendingScaleReading, setPendingScaleReading] = useState<{ weightGrams: number; stable: boolean } | null>(null);
 
@@ -100,46 +99,6 @@ export default function HomePage() {
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.variants.some(v => v.sku.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F1') {
-        e.preventDefault();
-        const searchInput = document.getElementById('product-search') as HTMLInputElement;
-        searchInput?.focus();
-      }
-      if (e.key === 'F12') {
-        e.preventDefault();
-        handlePayment();
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        if (showPaymentModal) setShowPaymentModal(false);
-      }
-      if (e.key === 'Enter' && document.activeElement?.id === 'product-search') {
-        const firstProduct = filteredProducts[0];
-        if (firstProduct && firstProduct.variants[0]) {
-          e.preventDefault();
-          addToCart(
-            firstProduct.variants[0].id,
-            firstProduct.id,
-            firstProduct.name,
-            firstProduct.variants[0].name,
-            firstProduct.variants[0].sku,
-            firstProduct.variants[0].price
-          );
-          setSearchTerm('');
-          setTimeout(() => {
-            const searchInput = document.getElementById('product-search') as HTMLInputElement;
-            searchInput?.focus();
-          }, 100);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePayment, filteredProducts, showPaymentModal]);
 
   const fetchStores = useCallback(async () => {
     if (!user) return;
@@ -198,29 +157,30 @@ export default function HomePage() {
     }
   }, [user, fetchStores, fetchProducts, fetchTaxRate]);
 
+  const storesValidated = stores.length > 0 && Boolean(currentStoreId) && stores.some((s) => s.id === currentStoreId);
+
   useEffect(() => {
-    if (stores.length === 0) return;
-    if (stores.length === 1 && !currentStoreId) {
-      setCurrentStore(stores[0]);
-      setStoresValidated(true);
-      return;
-    }
-    if (currentStoreId) {
-      const isValidStore = stores.some((s: Store) => s.id === currentStoreId);
-      if (!isValidStore) {
-        console.log('[POS][STORE] Invalid storeId in localStorage, clearing:', currentStoreId);
-        clearCurrentStore();
-      } else {
-        if (currentStore && (!currentStore.name || !currentStore.code)) {
-          const store = stores.find((s: Store) => s.id === currentStoreId);
+    const timer = window.setTimeout(() => {
+      if (stores.length === 0) return;
+      if (stores.length === 1 && !currentStoreId) {
+        setCurrentStore(stores[0]);
+        return;
+      }
+      if (currentStoreId) {
+        const isValidStore = stores.some((s: Store) => s.id === currentStoreId);
+        if (!isValidStore) {
+          console.log('[POS][STORE] Invalid storeId in localStorage, clearing:', currentStoreId);
+          clearCurrentStore();
+        } else if (currentStore && (!currentStore.name || !currentStore.code)) {
+          const store = stores.find((s) => s.id === currentStoreId);
           if (store) {
             console.log('[POS][STORE] Enriching store data for:', currentStoreId);
             setCurrentStore(store);
           }
         }
       }
-    }
-    setStoresValidated(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [stores, currentStoreId, currentStore, setCurrentStore, clearCurrentStore]);
 
   if (authLoading || storeLoading) {
@@ -340,6 +300,46 @@ export default function HomePage() {
       }
     }
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F1') {
+        e.preventDefault();
+        const searchInput = document.getElementById('product-search') as HTMLInputElement;
+        searchInput?.focus();
+      }
+      if (e.key === 'F12') {
+        e.preventDefault();
+        handlePayment();
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (showPaymentModal) setShowPaymentModal(false);
+      }
+      if (e.key === 'Enter' && document.activeElement?.id === 'product-search') {
+        const firstProduct = filteredProducts[0];
+        if (firstProduct && firstProduct.variants[0]) {
+          e.preventDefault();
+          addToCart(
+            firstProduct.variants[0].id,
+            firstProduct.id,
+            firstProduct.name,
+            firstProduct.variants[0].name,
+            firstProduct.variants[0].sku,
+            firstProduct.variants[0].price
+          );
+          setSearchTerm('');
+          setTimeout(() => {
+            const searchInput = document.getElementById('product-search') as HTMLInputElement;
+            searchInput?.focus();
+          }, 100);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handlePayment, filteredProducts, showPaymentModal]);
 
   const removeFromCart = (variantId: string) => {
     setCart(cart.filter(item => item.variantId !== variantId));
