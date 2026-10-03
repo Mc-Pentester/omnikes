@@ -78,18 +78,6 @@ export default function InventoryPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
 
-  const handleBarcodeScan = (barcode: string) => {
-    setSearch(barcode);
-    const match = inventory.find((item) => item.variant.sku.toLowerCase() === barcode.toLowerCase());
-    if (match) {
-      setSelectedInventory(match);
-      setWorkflow('receive');
-      setFormData({ quantity: '', reason: '', referenceId: barcode, notes: '', targetInventoryId: '' });
-      setFormError(null);
-      setShowModal(true);
-    }
-  };
-
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
