@@ -11,6 +11,7 @@ type ReportDateOptions = {
 
 type SaleFilterOptions = ReportDateOptions & {
   storeId?: string;
+  authorizedStoreIds?: string[] | null;
 };
 
 function normalizeDateRange(options: ReportDateOptions): { startDate: Date; endDate: Date } {
@@ -48,6 +49,14 @@ function buildSaleConditions(
 
   if (storeId) {
     conditions.push(Prisma.sql`s."storeId" = ${storeId}`);
+  }
+
+  if (authorizedStoreIds != null) {
+    if (authorizedStoreIds.length === 0) {
+      conditions.push(Prisma.sql`FALSE`);
+    } else {
+      conditions.push(Prisma.sql`s."storeId" IN (${Prisma.join(authorizedStoreIds)})`);
+    }
   }
 
   return Prisma.join(conditions, ' AND ');
