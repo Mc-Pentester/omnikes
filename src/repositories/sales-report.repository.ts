@@ -193,32 +193,53 @@ export class SalesReportRepository {
         FROM "sales" s
         WHERE ${where}
       ),
-      sale_item_totals AS (
+      sale_item_basis AS (
         SELECT
+          si."id" AS "saleItemId",
           si."saleId",
-          SUM(si."quantity")::double precision AS "totalQuantity"
+          si."variantId",
+          si."quantity",
+          si."totalPrice",
+          si."discount",
+          fs."tax",
+          SUM(si."totalPrice") OVER (PARTITION BY si."saleId") AS "saleSubtotal",
+          ROW_NUMBER() OVER (PARTITION BY si."saleId" ORDER BY si."id") AS "taxAllocationOrder"
         FROM "sale_items" si
         INNER JOIN filtered_sales fs ON fs."id" = si."saleId"
-        GROUP BY si."saleId"
+      ),
+      provisional_tax AS (
+        SELECT
+          *,
+          CASE
+            WHEN "saleSubtotal" = 0 THEN 0::numeric
+            ELSE ROUND(("tax" * "totalPrice" / "saleSubtotal")::numeric, 2)
+          END AS "provisionalTax"
+        FROM sale_item_basis
+      ),
+      allocated_items AS (
+        SELECT
+          *,
+          CASE
+            WHEN "saleSubtotal" = 0 THEN 0::numeric
+            WHEN "taxAllocationOrder" = 1 THEN
+              "tax" - (
+                SUM("provisionalTax") OVER (PARTITION BY "saleId") - "provisionalTax"
+              )
+            ELSE "provisionalTax"
+          END AS "allocatedTax"
+        FROM provisional_tax
       )
       SELECT
         pv."productId" AS "productId",
         p."name" AS "productName",
         pv."id" AS "variantId",
         pv."sku" AS "sku",
-        SUM(si."quantity")::int AS "quantitySold",
-        SUM(si."totalPrice")::double precision AS "revenue",
-        SUM(si."discount")::double precision AS "discount",
-        COALESCE(
-          SUM(
-            (fs."tax" * si."quantity") / NULLIF(sit."totalQuantity", 0)
-          ),
-          0
-        )::double precision AS "tax"
-      FROM "sale_items" si
-      INNER JOIN filtered_sales fs ON fs."id" = si."saleId"
-      INNER JOIN sale_item_totals sit ON sit."saleId" = si."saleId"
-      INNER JOIN "product_variants" pv ON pv."id" = si."variantId"
+        SUM(ai."quantity")::int AS "quantitySold",
+        SUM(ai."totalPrice")::double precision AS "revenue",
+        SUM(ai."discount")::double precision AS "discount",
+        SUM(ai."allocatedTax")::double precision AS "tax"
+      FROM allocated_items ai
+      INNER JOIN "product_variants" pv ON pv."id" = ai."variantId"
       INNER JOIN "products" p ON p."id" = pv."productId"
       GROUP BY pv."productId", p."name", pv."id", pv."sku"
       ORDER BY "revenue" DESC
