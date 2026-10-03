@@ -78,6 +78,9 @@ export class SalesReportRepository {
       totalTax: number;
       itemsSold: number;
       averageSale: number;
+      totalPaid: number;
+      authorizedCredit: number;
+      uncoveredAmount: number;
     };
 
     const rows = await prisma.$queryRaw<SummaryRow[]>(Prisma.sql`
@@ -90,6 +93,34 @@ export class SalesReportRepository {
         SELECT COALESCE(SUM(si."quantity"), 0)::double precision AS "itemsSold"
         FROM "sale_items" si
         INNER JOIN filtered_sales fs ON fs."id" = si."saleId"
+      ),
+      payment_coverage AS (
+        SELECT
+          p."saleId",
+          COALESCE(SUM(p."amount") FILTER (
+            WHERE p."status" = 'COMPLETED' AND p."method" <> 'CREDIT'
+          ), 0)::double precision AS "totalPaid"
+        FROM "payments" p
+        INNER JOIN filtered_sales fs ON fs."id" = p."saleId"
+        GROUP BY p."saleId"
+      ),
+      credit_coverage AS (
+        SELECT
+          sc."saleId",
+          COALESCE(SUM(sc."amount") FILTER (
+            WHERE sc."status" = 'AUTHORIZED'
+          ), 0)::double precision AS "authorizedCredit"
+        FROM "sale_credits" sc
+        INNER JOIN filtered_sales fs ON fs."id" = sc."saleId"
+        GROUP BY sc."saleId"
+      ),
+      financial_coverage AS (
+        SELECT
+          COALESCE(SUM(pc."totalPaid"), 0)::double precision AS "totalPaid",
+          COALESCE(SUM(cc."authorizedCredit"), 0)::double precision AS "authorizedCredit"
+        FROM filtered_sales fs
+        LEFT JOIN payment_coverage pc ON pc."saleId" = fs."id"
+        LEFT JOIN credit_coverage cc ON cc."saleId" = fs."id"
       )
       SELECT
         COUNT(*)::int AS "salesCount",
@@ -97,6 +128,12 @@ export class SalesReportRepository {
         COALESCE(SUM(fs."discount"), 0)::double precision AS "totalDiscount",
         COALESCE(SUM(fs."tax"), 0)::double precision AS "totalTax",
         (SELECT "itemsSold" FROM item_totals) AS "itemsSold",
+        (SELECT "totalPaid" FROM financial_coverage) AS "totalPaid",
+        (SELECT "authorizedCredit" FROM financial_coverage) AS "authorizedCredit",
+        (
+          SUM(fs."total")
+          - (SELECT "totalPaid" + "authorizedCredit" FROM financial_coverage)
+        )::double precision AS "uncoveredAmount",
         CASE
           WHEN COUNT(*) = 0 THEN 0
           ELSE (SUM(fs."total") / COUNT(*))::double precision
@@ -111,6 +148,9 @@ export class SalesReportRepository {
       totalDiscount: 0,
       totalTax: 0,
       averageSale: 0,
+      totalPaid: 0,
+      authorizedCredit: 0,
+      uncoveredAmount: 0,
     };
   }
 
