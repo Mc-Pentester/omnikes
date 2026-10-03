@@ -3,45 +3,6 @@ import { Prisma } from '@prisma/client';
 
 export class ProductRepository {
   /**
-   * Create a new product
-   */
-  async create(data: Prisma.ProductCreateInput) {
-    return prisma.product.create({
-      data,
-      include: {
-        variants: true,
-      },
-    });
-  }
-
-  /**
-   * Find a product by ID within an organization
-   */
-  async findById(id: string, organizationId: string) {
-    return prisma.product.findFirst({
-      where: {
-        id,
-        organizationId,
-      },
-      include: {
-        variants: true,
-      },
-    });
-  }
-
-  /**
-   * Find a product by ID (without organization check - use with caution)
-   */
-  async findByIdUnsafe(id: string) {
-    return prisma.product.findUnique({
-      where: { id },
-      include: {
-        variants: true,
-      },
-    });
-  }
-
-  /**
    * List products for an organization with optional filters
    */
   async listByOrganization(organizationId: string, options: {
