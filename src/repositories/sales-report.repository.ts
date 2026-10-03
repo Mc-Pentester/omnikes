@@ -306,7 +306,7 @@ export class SalesReportRepository {
         SUM(p."amount")::double precision AS "amount"
       FROM "payments" p
       INNER JOIN "sales" s ON s."id" = p."saleId"
-      WHERE ${where} AND p."status" = 'COMPLETED'
+      WHERE ${where} AND p."status" = 'COMPLETED' AND p."method" <> 'CREDIT'
       GROUP BY p."method"
       ORDER BY "amount" DESC
     `);
