@@ -62,7 +62,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
       mockedRequirePermission.mockResolvedValue(undefined);
       mockedRequireStoreAccess.mockResolvedValue(undefined);
       mockedPrisma.checkoutIdempotency.findUnique.mockResolvedValue(null);
-      mockedPrisma.sale.findUnique.mockResolvedValue({
+      mockedPrisma.sale.findFirst.mockResolvedValue({
         storeId: storeA,
         organizationId: mockOrganizationId,
       });
@@ -94,7 +94,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
       mockedRequirePermission.mockResolvedValue(undefined);
       mockedRequireStoreAccess.mockRejectedValue(new Error('Not authorized to access this store'));
       mockedPrisma.checkoutIdempotency.findUnique.mockResolvedValue(null);
-      mockedPrisma.sale.findUnique.mockResolvedValue({
+      mockedPrisma.sale.findFirst.mockResolvedValue({
         storeId: storeB,
         organizationId: mockOrganizationId,
       });
@@ -122,7 +122,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
       mockedRequirePermission.mockResolvedValue(undefined);
       mockedRequireStoreAccess.mockRejectedValue(new Error('Not authorized to access this store'));
       mockedPrisma.checkoutIdempotency.findUnique.mockResolvedValue(null);
-      mockedPrisma.sale.findUnique.mockResolvedValue({
+      mockedPrisma.sale.findFirst.mockResolvedValue({
         storeId: storeB,
         organizationId: mockOrganizationId,
       });
@@ -148,7 +148,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
       mockedGetAuthenticatedUser.mockResolvedValue({ id: mockUserId });
       mockedRequirePermission.mockResolvedValue(undefined);
       mockedPrisma.checkoutIdempotency.findUnique.mockResolvedValue(null);
-      mockedPrisma.sale.findUnique.mockResolvedValue({
+      mockedPrisma.sale.findFirst.mockResolvedValue({
         storeId: storeB,
         organizationId: 'org-b-id', // Different organization
       });
@@ -176,7 +176,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
       mockedRequirePermission.mockResolvedValue(undefined);
       mockedRequireStoreAccess.mockRejectedValue(new Error('Not authorized to access this store'));
       mockedPrisma.checkoutIdempotency.findUnique.mockResolvedValue(null);
-      mockedPrisma.sale.findUnique.mockResolvedValue({
+      mockedPrisma.sale.findFirst.mockResolvedValue({
         storeId: storeB,
         organizationId: mockOrganizationId,
       });
@@ -204,7 +204,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
       mockedRequirePermission.mockResolvedValue(undefined);
       mockedRequireStoreAccess.mockRejectedValue(new Error('Not authorized to access this store'));
       mockedPrisma.checkoutIdempotency.findUnique.mockResolvedValue(null);
-      mockedPrisma.sale.findUnique.mockResolvedValue({
+      mockedPrisma.sale.findFirst.mockResolvedValue({
         storeId: storeB,
         organizationId: mockOrganizationId,
       });
@@ -233,7 +233,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
       mockedRequirePermission.mockResolvedValue(undefined);
       mockedRequireStoreAccess.mockRejectedValue(new Error('Not authorized to access this store'));
       mockedPrisma.checkoutIdempotency.findUnique.mockResolvedValue(null);
-      mockedPrisma.sale.findUnique.mockResolvedValue({
+      mockedPrisma.sale.findFirst.mockResolvedValue({
         storeId: storeB,
         organizationId: mockOrganizationId,
       });
@@ -273,7 +273,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
       mockedRequirePermission.mockResolvedValue(undefined);
       mockedRequireStoreAccess.mockRejectedValue(new Error('Not authorized to access this store'));
       mockedPrisma.checkoutIdempotency.findUnique.mockResolvedValue(null);
-      mockedPrisma.sale.findUnique.mockResolvedValue({
+      mockedPrisma.sale.findFirst.mockResolvedValue({
         storeId: storeB,
         organizationId: mockOrganizationId,
       });
