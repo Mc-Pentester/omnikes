@@ -14,10 +14,11 @@ describe('P0-27 - scoped report aggregation', () => {
   let otherStoreId = '';
 
   beforeAll(async () => {
-    const reportPermission = await prisma.permission.findUniqueOrThrow({
-      where: { code: 'report.read' },
-      select: { id: true },
-    });
+    const [reportPermission, inventoryPermission, proformaPermission] = await Promise.all([
+      prisma.permission.findUniqueOrThrow({ where: { code: 'report.read' }, select: { id: true } }),
+      prisma.permission.findUniqueOrThrow({ where: { code: 'inventory.read' }, select: { id: true } }),
+      prisma.permission.findUniqueOrThrow({ where: { code: 'proforma.read' }, select: { id: true } }),
+    ]);
 
     const organization = await prisma.organization.create({
       data: {
@@ -137,7 +138,11 @@ describe('P0-27 - scoped report aggregation', () => {
         isGlobal: false,
         storeId: scopedStore.id,
         rolePermissions: {
-          create: { permissionId: reportPermission.id },
+          create: [
+            { permissionId: reportPermission.id },
+            { permissionId: inventoryPermission.id },
+            { permissionId: proformaPermission.id },
+          ],
         },
       },
     });
