@@ -59,6 +59,10 @@ export async function POST(
     const body = await request.json();
     const parsedPaymentData = paymentSchema.parse(body);
     paymentData = parsedPaymentData;
+
+    if (!saleId || !organizationId || !safeIdempotencyKey) {
+      throw new Error('Checkout context is invalid');
+    }
     const checkoutSaleId = saleId;
     const checkoutOrganizationId = organizationId;
     const checkoutUserId = user.id;
