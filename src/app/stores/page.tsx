@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
@@ -61,7 +61,7 @@ export default function StoresPage() {
     }
   }, [authLoading, user, router]);
 
-  const fetchStores = async () => {
+  const fetchStores = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -80,15 +80,11 @@ export default function StoresPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadStoresOnAuth = useEffectEvent(() => {
-    if (user) void fetchStores();
-  });
+  }, []);
 
   useEffect(() => {
-    loadStoresOnAuth();
-  }, [user]);
+    if (user) void fetchStores();
+  }, [user, fetchStores]);
 
   const handleCreate = () => {
     setModalMode('create');
