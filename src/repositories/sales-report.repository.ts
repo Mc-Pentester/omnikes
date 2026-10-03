@@ -127,7 +127,7 @@ export class SalesReportRepository {
         (SELECT "totalPaid" FROM financial_coverage) AS "totalPaid",
         (SELECT "authorizedCredit" FROM financial_coverage) AS "authorizedCredit",
         ROUND((
-          SUM(fs."total")
+          COALESCE(SUM(fs."total"), 0)
           - (SELECT "totalPaid" + "authorizedCredit" FROM financial_coverage)
         )::numeric, 2)::double precision AS "uncoveredAmount",
         CASE
