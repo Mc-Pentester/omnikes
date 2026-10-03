@@ -17,10 +17,18 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let saleId: string | undefined;
+  let organizationId: string | undefined;
+  let authenticatedUserId: string | undefined;
+  let safeIdempotencyKey: string | undefined;
+  let paymentData: ReturnType<typeof paymentSchema.parse> | undefined;
+
   try {
-    const { id: saleId } = await params;
-    const organizationId = await requireCurrentOrganizationId(request);
+    const { id } = await params;
+    saleId = id;
+    organizationId = await requireCurrentOrganizationId(request);
     const user = await getAuthenticatedUser(request);
+    authenticatedUserId = user?.id;
     
     if (!user) {
       return NextResponse.json(
@@ -45,11 +53,11 @@ export async function POST(
     if (!validatedIdempotencyKey.success) {
       return NextResponse.json({ error: 'Invalid Idempotency-Key' }, { status: 400 });
     }
-    const safeIdempotencyKey = validatedIdempotencyKey.data;
+    safeIdempotencyKey = validatedIdempotencyKey.data;
 
     // Parse payment data
     const body = await request.json();
-    const paymentData = paymentSchema.parse(body);
+    paymentData = paymentSchema.parse(body);
 
     // Check for existing idempotency record
     const existingIdempotency = await prisma.checkoutIdempotency.findUnique({
@@ -333,7 +341,17 @@ export async function POST(
     // The database unique constraint is the final arbiter for the idempotency key.
     // If another transaction committed the same key first, return its cached
     // response instead of surfacing a generic 500.
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      error.code === 'P2002' &&
+      organizationId &&
+      safeIdempotencyKey &&
+      saleId &&
+      authenticatedUserId &&
+      paymentData
+    ) {
       const committedIdempotency = await prisma.checkoutIdempotency.findUnique({
         where: {
           organizationId_key: {
@@ -346,7 +364,7 @@ export async function POST(
       if (
         committedIdempotency &&
         committedIdempotency.saleId === saleId &&
-        committedIdempotency.userId === user.id &&
+        committedIdempotency.userId === authenticatedUserId &&
         committedIdempotency.status === 'COMPLETED'
       ) {
         const cachedResponse = JSON.parse(committedIdempotency.responseBody || '{}') as {
