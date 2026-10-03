@@ -9,7 +9,6 @@ import { Input } from '@omnikes/components/ui/input';
 import { Modal } from '@omnikes/components/ui/modal';
 import { useAuth } from '@omnikes/contexts/AuthContext';
 import { Sidebar } from '@omnikes/components/layout/Sidebar';
-import { BarcodeScannerStatus } from '@omnikes/components/hardware/BarcodeScannerStatus';
 
 interface Inventory {
   id: string;
@@ -79,18 +78,6 @@ export default function InventoryPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
 
-  const handleBarcodeScan = (barcode: string) => {
-    setSearch(barcode);
-    const match = inventory.find((item) => item.variant.sku.toLowerCase() === barcode.toLowerCase());
-    if (match) {
-      setSelectedInventory(match);
-      setWorkflow('receive');
-      setFormData({ quantity: '', reason: '', referenceId: barcode, notes: '', targetInventoryId: '' });
-      setFormError(null);
-      setShowModal(true);
-    }
-  };
-
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/login');
@@ -118,7 +105,13 @@ export default function InventoryPage() {
     }
   };
 
-  const loadInventoryOnAuth = useEffectEvent(() => {\n    if (user) void fetchInventory();\n  });\n\n  useEffect(() => {\n    loadInventoryOnAuth();\n  }, [user]);
+  const loadInventoryOnAuth = useEffectEvent(() => {
+    if (user) void fetchInventory();
+  });
+
+  useEffect(() => {
+    queueMicrotask(loadInventoryOnAuth);
+  }, [user, loadInventoryOnAuth]);
 
   const handleOpenWorkflow = (inventoryItem: Inventory, nextWorkflow: InventoryWorkflow) => {
     setSelectedInventory(inventoryItem);

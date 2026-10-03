@@ -102,8 +102,6 @@ export default function HomePage() {
     product.variants.some(v => v.sku.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const storesValidated = stores.length > 0 && Boolean(currentStoreId) && stores.some((s) => s.id === currentStoreId);
-
   const addToCart = useCallback(async (variantId: string, productId: string, productName: string, variantName: string, sku: string, price: number, saleUnit: CartItem['saleUnit'] = 'UNIT') => {
     // Prevent adding to cart before stores are validated
     if (!storesValidated) {
@@ -221,7 +219,7 @@ export default function HomePage() {
       } else {
         setTaxRate(null);
       }
-    } catch (err) {
+    } catch {
       setTaxRate(null);
     }
   }, [user]);

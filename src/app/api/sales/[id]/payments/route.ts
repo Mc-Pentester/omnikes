@@ -156,8 +156,25 @@ export async function POST(
 
       // Return cached result if completed
       if (existingIdempotency.status === 'COMPLETED') {
+        const cachedResponse = JSON.parse(existingIdempotency.responseBody || '{}') as {
+          method?: string;
+          amount?: number | string;
+          reference?: string | null;
+        };
+
+        if (
+          cachedResponse.method !== paymentData.method ||
+          Number(cachedResponse.amount) !== Number(paymentData.amount) ||
+          (cachedResponse.reference ?? null) !== (paymentData.reference ?? null)
+        ) {
+          return NextResponse.json(
+            { error: 'Idempotency-Key already used with different payment data' },
+            { status: 409 }
+          );
+        }
+
         return NextResponse.json(
-          JSON.parse(existingIdempotency.responseBody || '{}'),
+          cachedResponse,
           { status: existingIdempotency.responseStatus || 200 }
         );
       }

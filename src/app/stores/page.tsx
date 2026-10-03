@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
@@ -53,7 +53,6 @@ export default function StoresPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSidebarCompact, setIsSidebarCompact] = useState(false);
-  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -61,7 +60,7 @@ export default function StoresPage() {
     }
   }, [authLoading, user, router]);
 
-  const fetchStores = async () => {
+  const fetchStores = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -80,9 +79,11 @@ export default function StoresPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadStoresOnAuth = useEffectEvent(() => {\n    if (user) void fetchStores();\n  });\n\n  useEffect(() => {\n    loadStoresOnAuth();\n  }, [user]);
+  useEffect(() => {
+    if (user) queueMicrotask(() => void fetchStores());
+  }, [user, fetchStores]);
 
   const handleCreate = () => {
     setModalMode('create');
