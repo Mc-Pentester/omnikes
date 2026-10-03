@@ -256,7 +256,7 @@ describe('Security Headers', () => {
   it('should include Content-Security-Policy', () => {
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob:",
@@ -268,6 +268,7 @@ describe('Security Headers', () => {
     ].join('; ');
 
     expect(csp).toContain("default-src 'self'");
+    expect(csp).not.toContain("'unsafe-eval'");
     expect(csp).toContain("object-src 'none'");
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("base-uri 'self'");
