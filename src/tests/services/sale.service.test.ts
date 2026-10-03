@@ -6,14 +6,14 @@ describe('SaleService - Financial authority at creation', () => {
   it('ignores client-supplied sale financial totals until server-priced items are added', async () => {
     (storeService.validateStoreBelongsToOrganization as any).mockResolvedValue(undefined);
     (prisma.organization.findUnique as any).mockResolvedValue({
-      id: 'org-123',
+      id: 'corg1234567',
       taxConfiguration: { taxRate: 0.10 },
     });
     (saleRepository.create as any).mockResolvedValue({ id: 'sale-123' });
 
-    const result = await saleService.create('org-123', {
-      organizationId: 'org-123',
-      storeId: 'store-123',
+    const result = await saleService.create('corg1234567', {
+      organizationId: 'corg1234567',
+      storeId: 'cstore1234567',
       orderNumber: 'ORD-123',
       status: 'PENDING',
       subtotal: 9999,
@@ -89,7 +89,7 @@ describe('SaleService - Tax Calculation', () => {
   describe('recalculateTotals', () => {
     it('should calculate tax from discounted line totals without double-counting discounts (10%)', async () => {
       const mockSaleId = 'sale-123';
-      const mockOrganizationId = 'org-123';
+      const mockOrganizationId = 'corg1234567';
       const mockTaxRate = 0.10;
       const mockItems = [
         { totalPrice: 100, discount: 0 },
@@ -132,7 +132,7 @@ describe('SaleService - Tax Calculation', () => {
 
     it('should use zero tax when no tax configuration exists', async () => {
       const mockSaleId = 'sale-123';
-      const mockOrganizationId = 'org-123';
+      const mockOrganizationId = 'corg1234567';
       const mockItems = [
         { totalPrice: 100, discount: 0 },
       ];
@@ -171,7 +171,7 @@ describe('SaleService - Tax Calculation', () => {
 
     it('should handle different tax rates correctly (15%)', async () => {
       const mockSaleId = 'sale-123';
-      const mockOrganizationId = 'org-123';
+      const mockOrganizationId = 'corg1234567';
       const mockTaxRate = 0.15;
       const mockItems = [
         { totalPrice: 200, discount: 0 },
@@ -213,7 +213,7 @@ describe('SaleService - Tax Calculation', () => {
 
     it('should apply zero tax when applyTax is false', async () => {
       const mockSaleId = 'sale-123';
-      const mockOrganizationId = 'org-123';
+      const mockOrganizationId = 'corg1234567';
       const mockTaxRate = 0.10;
       const mockItems = [
         { totalPrice: 100, discount: 0 },
@@ -255,7 +255,7 @@ describe('SaleService - Tax Calculation', () => {
 
     it('should handle zero tax rate (tax exempt)', async () => {
       const mockSaleId = 'sale-123';
-      const mockOrganizationId = 'org-123';
+      const mockOrganizationId = 'corg1234567';
       const mockTaxRate = 0;
       const mockItems = [
         { totalPrice: 100, discount: 0 },
@@ -297,7 +297,7 @@ describe('SaleService - Tax Calculation', () => {
 
     it('should correctly calculate total with discounts (10%)', async () => {
       const mockSaleId = 'sale-123';
-      const mockOrganizationId = 'org-123';
+      const mockOrganizationId = 'corg1234567';
       const mockTaxRate = 0.10;
       const mockItems = [
         { totalPrice: 100, discount: 10 },
@@ -340,7 +340,7 @@ describe('SaleService - Tax Calculation', () => {
 
     it('should historize tax rate in sale', async () => {
       const mockSaleId = 'sale-123';
-      const mockOrganizationId = 'org-123';
+      const mockOrganizationId = 'corg1234567';
       const mockTaxRate = 0.10;
       const mockItems = [
         { totalPrice: 100, discount: 0 },
@@ -387,7 +387,7 @@ describe('SaleService - Tax Calculation', () => {
       });
       (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
 
-      const result = await saleService.addItem('sale-123', 'org-123', {
+      const result = await saleService.addItem('sale-123', 'corg1234567', {
         variantId: 'cvariant123',
         quantity: 1250,
         unitPrice: 999999,
@@ -418,7 +418,7 @@ describe('SaleService - Tax Calculation', () => {
       });
       (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
 
-      await saleService.addItem('sale-123', 'org-123', {
+      await saleService.addItem('sale-123', 'corg1234567', {
         variantId: 'cvariant123',
         quantity: 2,
         unitPrice: 1,
