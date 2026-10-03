@@ -118,7 +118,13 @@ export default function InventoryPage() {
     }
   };
 
-  const loadInventoryOnAuth = useEffectEvent(() => {\n    if (user) void fetchInventory();\n  });\n\n  useEffect(() => {\n    loadInventoryOnAuth();\n  }, [user]);
+  const loadInventoryOnAuth = useEffectEvent(() => {
+    if (user) void fetchInventory();
+  });
+
+  useEffect(() => {
+    loadInventoryOnAuth();
+  }, [user]);
 
   const handleOpenWorkflow = (inventoryItem: Inventory, nextWorkflow: InventoryWorkflow) => {
     setSelectedInventory(inventoryItem);
