@@ -110,7 +110,13 @@ export default function InventoryPage() {
   });
 
   useEffect(() => {
-    loadInventoryOnAuth();
+    if (!user) return;
+
+    const timeoutId = window.setTimeout(() => {
+      loadInventoryOnAuth();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [user]);
 
   const handleOpenWorkflow = (inventoryItem: Inventory, nextWorkflow: InventoryWorkflow) => {
