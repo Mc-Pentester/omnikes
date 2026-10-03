@@ -22,7 +22,7 @@ export class ProductVariantService {
     });
 
     // Check SKU uniqueness
-    const isSkuUnique = await productVariantRepository.isSkuUnique(validatedData.sku);
+    const isSkuUnique = await productVariantRepository.isSkuUnique(validatedData.sku, organizationId);
     if (!isSkuUnique) {
       throw new Error('SKU already exists');
     }
@@ -68,7 +68,7 @@ export class ProductVariantService {
       throw new Error('Product not found or access denied');
     }
 
-    return productVariantRepository.listByProduct(productId, options);
+    return productVariantRepository.listByProduct(productId, organizationId, options);
   }
 
   /**
@@ -99,7 +99,7 @@ export class ProductVariantService {
 
     // Check SKU uniqueness if SKU is being updated
     if (validatedData.sku) {
-      const isSkuUnique = await productVariantRepository.isSkuUnique(validatedData.sku, id);
+      const isSkuUnique = await productVariantRepository.isSkuUnique(validatedData.sku, organizationId, id);
       if (!isSkuUnique) {
         throw new Error('SKU already exists');
       }
@@ -144,7 +144,7 @@ export class ProductVariantService {
    * Find variant by SKU
    */
   async getBySku(sku: string, organizationId: string) {
-    const variant = await productVariantRepository.findBySku(sku);
+    const variant = await productVariantRepository.findBySku(sku, organizationId);
     
     if (!variant) {
       throw new Error('Product variant not found');
@@ -162,7 +162,7 @@ export class ProductVariantService {
    * Find variant by barcode
    */
   async getByBarcode(barcode: string, organizationId: string) {
-    const variant = await productVariantRepository.findByBarcode(barcode);
+    const variant = await productVariantRepository.findByBarcode(barcode, organizationId);
     
     if (!variant) {
       throw new Error('Product variant not found');
