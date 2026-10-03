@@ -6,7 +6,7 @@ import { prisma } from '@omnikes/lib/prisma';
 vi.mock('@omnikes/lib/prisma', () => ({
   prisma: {
     sale: {
-      findUnique: vi.fn(),
+      findFirst: vi.fn(),
       update: vi.fn(),
     },
     $transaction: vi.fn(),
@@ -56,7 +56,7 @@ describe('SaleService - Tax Calculation', () => {
       ];
 
       (saleRepository.listItems as any).mockResolvedValue(mockItems);
-      (prisma.sale.findUnique as any).mockResolvedValue({
+      (prisma.sale.findFirst as any).mockResolvedValue({
         id: mockSaleId,
         applyTax: true,
         organization: {
@@ -97,7 +97,7 @@ describe('SaleService - Tax Calculation', () => {
       ];
 
       (saleRepository.listItems as any).mockResolvedValue(mockItems);
-      (prisma.sale.findUnique as any).mockResolvedValue({
+      (prisma.sale.findFirst as any).mockResolvedValue({
         id: mockSaleId,
         applyTax: true,
         organization: {
@@ -137,7 +137,7 @@ describe('SaleService - Tax Calculation', () => {
       ];
 
       (saleRepository.listItems as any).mockResolvedValue(mockItems);
-      (prisma.sale.findUnique as any).mockResolvedValue({
+      (prisma.sale.findFirst as any).mockResolvedValue({
         id: mockSaleId,
         applyTax: true,
         organization: {
@@ -179,7 +179,7 @@ describe('SaleService - Tax Calculation', () => {
       ];
 
       (saleRepository.listItems as any).mockResolvedValue(mockItems);
-      (prisma.sale.findUnique as any).mockResolvedValue({
+      (prisma.sale.findFirst as any).mockResolvedValue({
         id: mockSaleId,
         applyTax: false,
         organization: {
@@ -221,7 +221,7 @@ describe('SaleService - Tax Calculation', () => {
       ];
 
       (saleRepository.listItems as any).mockResolvedValue(mockItems);
-      (prisma.sale.findUnique as any).mockResolvedValue({
+      (prisma.sale.findFirst as any).mockResolvedValue({
         id: mockSaleId,
         applyTax: true,
         organization: {
@@ -264,7 +264,7 @@ describe('SaleService - Tax Calculation', () => {
       ];
 
       (saleRepository.listItems as any).mockResolvedValue(mockItems);
-      (prisma.sale.findUnique as any).mockResolvedValue({
+      (prisma.sale.findFirst as any).mockResolvedValue({
         id: mockSaleId,
         applyTax: true,
         organization: {
@@ -306,7 +306,7 @@ describe('SaleService - Tax Calculation', () => {
       ];
 
       (saleRepository.listItems as any).mockResolvedValue(mockItems);
-      (prisma.sale.findUnique as any).mockResolvedValue({
+      (prisma.sale.findFirst as any).mockResolvedValue({
         id: mockSaleId,
         applyTax: true,
         organization: {
@@ -340,7 +340,7 @@ describe('SaleService - Tax Calculation', () => {
       (productVariantRepository.findByIdWithOrganizationCheck as any).mockResolvedValue(variant);
       (saleRepository.createItem as any).mockResolvedValue({ id: 'item-123' });
       (saleRepository.listItems as any).mockResolvedValue([]);
-      (prisma.sale.findUnique as any).mockResolvedValue({
+      (prisma.sale.findFirst as any).mockResolvedValue({
         applyTax: false,
         organization: { taxConfiguration: null },
       });
@@ -371,7 +371,7 @@ describe('SaleService - Tax Calculation', () => {
       });
       (saleRepository.createItem as any).mockResolvedValue({ id: 'item-123' });
       (saleRepository.listItems as any).mockResolvedValue([]);
-      (prisma.sale.findUnique as any).mockResolvedValue({
+      (prisma.sale.findFirst as any).mockResolvedValue({
         applyTax: false,
         organization: { taxConfiguration: null },
       });
