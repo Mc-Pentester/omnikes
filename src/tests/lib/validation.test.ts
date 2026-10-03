@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { organizationSchema, userSchema, saleSchema, paymentSchema, saleCreditSchema } from '@omnikes/lib/validation';
+import { organizationSchema, userSchema, saleSchema, paymentSchema, saleCreditSchema, proformaSchema, proformaItemSchema } from '@omnikes/lib/validation';
 
 describe('Validation Schemas', () => {
   describe('organizationSchema', () => {
@@ -164,4 +164,37 @@ describe('Validation Schemas', () => {
     });
   });
 
+});
+
+
+describe('P0-28-B proforma monetary precision', () => {
+  it('rejects proforma financial values with more than two decimals', () => {
+    const base = {
+      organizationId: 'cmu8gsgwp0000fgqr0uckya14',
+      storeId: 'cmubhviiu000i0sqr92jnxdrs',
+      subtotal: 10.01,
+      tax: 1.8,
+      total: 11.81,
+      discount: 0,
+    };
+
+    expect(() => proformaSchema.parse(base)).not.toThrow();
+    expect(() => proformaSchema.parse({ ...base, subtotal: 10.001 })).toThrow();
+    expect(() => proformaSchema.parse({ ...base, tax: Number.POSITIVE_INFINITY })).toThrow();
+  });
+
+  it('rejects proforma item financial values with more than two decimals', () => {
+    const base = {
+      proformaId: 'cmu8gsgwp0000fgqr0uckya14',
+      variantId: 'cmubhviiu000i0sqr92jnxdrs',
+      quantity: 1,
+      unitPrice: 10.01,
+      totalPrice: 10.01,
+      discount: 0,
+    };
+
+    expect(() => proformaItemSchema.parse(base)).not.toThrow();
+    expect(() => proformaItemSchema.parse({ ...base, unitPrice: 10.001 })).toThrow();
+    expect(() => proformaItemSchema.parse({ ...base, totalPrice: Number.POSITIVE_INFINITY })).toThrow();
+  });
 });
