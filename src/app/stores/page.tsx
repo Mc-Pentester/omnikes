@@ -82,7 +82,7 @@ export default function StoresPage() {
   }, []);
 
   useEffect(() => {
-    if (user) void fetchStores();
+    if (user) queueMicrotask(() => void fetchStores());
   }, [user, fetchStores]);
 
   const handleCreate = () => {
