@@ -302,9 +302,10 @@ export default function InventoryPage() {
             <div className="flex items-center gap-4">
               <Logo size={40} />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Inventaire</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Gestion des stocks</h1>
                 <p className="text-sm text-gray-500">Gérez le stock de vos magasins.</p>
               </div>
+            </div>
             <Button variant="outline" onClick={() => router.push('/inventory/report')}>
               📊 Rapport d&apos;inventaire
             </Button>
