@@ -3,6 +3,7 @@ import type { ScaleSerialOptions } from './scale';
 export interface LocalHardwareBridgeOptions {
   baseUrl?: string;
   timeoutMs?: number;
+  token: string;
 }
 
 export interface HardwareBridgeHealth {
@@ -34,6 +35,7 @@ export interface ScalePortInfo {
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8765';
 const DEFAULT_TIMEOUT_MS = 5000;
+const MIN_TOKEN_LENGTH = 32;
 
 function assertLoopbackUrl(value: string): URL {
   const url = new URL(value);
@@ -65,13 +67,19 @@ function toBase64(data: Uint8Array): string {
 export class LocalHardwareBridgeClient {
   private readonly baseUrl: string;
   private readonly timeoutMs: number;
+  private readonly token: string;
 
-  constructor(options: LocalHardwareBridgeOptions = {}) {
+  constructor(options: LocalHardwareBridgeOptions) {
+    if (options.token.length < MIN_TOKEN_LENGTH) {
+      throw new Error('Hardware bridge token must be at least 32 characters');
+    }
+
     this.baseUrl = normalizeBaseUrl(options.baseUrl ?? DEFAULT_BASE_URL);
     this.timeoutMs = Math.max(
       1000,
       Math.min(options.timeoutMs ?? DEFAULT_TIMEOUT_MS, 30000),
     );
+    this.token = options.token;
   }
 
   async health(): Promise<HardwareBridgeHealth> {
@@ -107,8 +115,12 @@ export class LocalHardwareBridgeClient {
   }
 
   private async request<T>(path: string, init: RequestInit): Promise<T> {
+    const headers = new Headers(init.headers);
+    headers.set('Authorization', `Bearer ${this.token}`);
+
     const response = await fetch(new URL(path, this.baseUrl), {
       ...init,
+      headers,
       signal: AbortSignal.timeout(this.timeoutMs),
     });
 
@@ -124,8 +136,6 @@ export class LocalHardwareBridgeClient {
   }
 }
 
-export function createLocalHardwareBridge(
-  options: LocalHardwareBridgeOptions = {},
-) {
+export function createLocalHardwareBridge(options: LocalHardwareBridgeOptions) {
   return new LocalHardwareBridgeClient(options);
 }
