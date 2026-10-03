@@ -257,6 +257,10 @@ describe('ProformaService - Conversion', () => {
 
       (prismaMock.proforma.findFirst as any).mockResolvedValue(mockProforma);
       (prismaMock.sale.findFirst as any).mockResolvedValue(null);
+      (prismaMock.organization.findUnique as any).mockResolvedValue({
+        id: mockOrganizationId,
+        taxConfiguration: { taxRate: 0.1 },
+      });
       (prismaMock.sale.create as any).mockResolvedValue(mockSale);
       (prismaMock.saleItem.create as any).mockResolvedValue({});
       (prismaMock.proforma.update as any).mockResolvedValue({});
@@ -428,6 +432,10 @@ describe('ProformaService - Conversion', () => {
 
       (prismaMock.proforma.findFirst as any).mockResolvedValue(mockProforma);
       (prismaMock.sale.findFirst as any).mockResolvedValue(null);
+      (prismaMock.organization.findUnique as any).mockResolvedValue({
+        id: mockOrganizationId,
+        taxConfiguration: { taxRate: 0.1 },
+      });
       (prismaMock.sale.create as any).mockResolvedValue({ id: 'sale-123' });
       (prismaMock.saleItem.create as any).mockResolvedValue({});
       (prismaMock.proforma.update as any).mockResolvedValue({});
@@ -484,6 +492,10 @@ describe('ProformaService - Conversion', () => {
 
       (prismaMock.proforma.findFirst as any).mockResolvedValue(mockProforma);
       (prismaMock.sale.findFirst as any).mockResolvedValue(null);
+      (prismaMock.organization.findUnique as any).mockResolvedValue({
+        id: mockOrganizationId,
+        taxConfiguration: { taxRate: 0.1 },
+      });
       (prismaMock.sale.create as any).mockResolvedValue({ id: 'sale-123' });
       (prismaMock.saleItem.create as any).mockResolvedValue({});
       (prismaMock.proforma.update as any).mockResolvedValue({});
@@ -595,5 +607,60 @@ describe('ProformaService - Conversion', () => {
         })
       );
     });
+  });
+});
+
+
+describe('P0-29 conversion financial authority', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('recalculates sale financials from proforma items instead of trusting aggregate totals', async () => {
+    const organizationId = 'cmu8gsgwp0000fgqr0uckya14';
+    const proforma = {
+      id: 'proforma-123',
+      organizationId,
+      storeId: 'store-123',
+      customerId: null,
+      status: 'ACCEPTED',
+      applyTax: true,
+      // Forged/stale aggregate values must be ignored.
+      subtotal: 1,
+      tax: 1,
+      taxRate: 0.01,
+      total: 2,
+      discount: 1,
+      notes: null,
+      items: [
+        { variantId: 'variant-123', quantity: 2, unitPrice: 50, totalPrice: 100, discount: 0, variant: { id: 'variant-123' } },
+      ],
+      organization: { id: organizationId },
+      store: { id: 'store-123' },
+    };
+
+    (prismaMock.$transaction as any).mockImplementation(async (callback: any) => callback(prisma));
+    (prismaMock.proforma.findFirst as any).mockResolvedValue(proforma);
+    (prismaMock.sale.findFirst as any).mockResolvedValue(null);
+    (prismaMock.organization.findUnique as any).mockResolvedValue({
+      id: organizationId,
+      taxConfiguration: { taxRate: 0.18 },
+    });
+    (prismaMock.sale.create as any).mockResolvedValue({ id: 'sale-123' });
+    (prismaMock.saleItem.create as any).mockResolvedValue({});
+    (prismaMock.proforma.update as any).mockResolvedValue({});
+    (prismaMock.sale.findUnique as any).mockResolvedValue({ id: 'sale-123', items: [] });
+
+    await proformaService.convert(proforma.id, organizationId);
+
+    expect(prisma.sale.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        subtotal: 100,
+        discount: 0,
+        taxRate: 0.18,
+        tax: 18,
+        total: 118,
+      }),
+    }));
   });
 });
