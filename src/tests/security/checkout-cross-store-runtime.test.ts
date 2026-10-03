@@ -17,7 +17,7 @@ vi.mock('../../lib/prisma', () => ({
       delete: vi.fn(),
     },
     sale: {
-      findUnique: vi.fn(),
+      findFirst: vi.fn(),
     },
     $transaction: vi.fn(),
   },
