@@ -78,7 +78,7 @@ describe('P0-24-F.1-A Payment Idempotency Tests', () => {
       mockedRequirePermission.mockResolvedValue(undefined);
       mockedRequireStoreAccess.mockResolvedValue(undefined);
       mockedPrisma.paymentIdempotency.findUnique.mockResolvedValue(null);
-      mockedPrisma.sale.findUnique
+      mockedPrisma.sale.findFirst
         .mockResolvedValueOnce({ storeId, organizationId: mockOrganizationId })
         .mockResolvedValue({
           id: saleId,
@@ -251,7 +251,7 @@ describe('P0-24-F.1-A Payment Idempotency Tests', () => {
       mockedGetAuthenticatedUser.mockResolvedValue({ id: mockUserId });
       mockedRequirePermission.mockResolvedValue(undefined);
       mockedPrisma.paymentIdempotency.findUnique.mockResolvedValue(null);
-      mockedPrisma.sale.findUnique.mockResolvedValue({
+      mockedPrisma.sale.findFirst.mockResolvedValue({
         storeId: 'different-store-id',
         organizationId: mockOrganizationId,
       });
@@ -309,7 +309,7 @@ describe('P0-24-F.1-A Payment Idempotency Tests', () => {
       mockedRequirePermission.mockResolvedValue(undefined);
       mockedRequireStoreAccess.mockResolvedValue(undefined);
       mockedPrisma.paymentIdempotency.findUnique.mockResolvedValue(null);
-      mockedPrisma.sale.findUnique
+      mockedPrisma.sale.findFirst
         .mockResolvedValueOnce({ storeId, organizationId: mockOrganizationId })
         .mockResolvedValue({
           id: saleId,
@@ -400,7 +400,7 @@ describe('P0-24-F.1-A Payment Idempotency Tests', () => {
       mockedGetAuthenticatedUser.mockResolvedValue({ id: mockUserId });
       mockedRequirePermission.mockResolvedValue(undefined);
       mockedPrisma.paymentIdempotency.findUnique.mockResolvedValue(null);
-      mockedPrisma.sale.findUnique.mockResolvedValue({
+      mockedPrisma.sale.findFirst.mockResolvedValue({
         storeId: 'different-store-id',
         organizationId: mockOrganizationId,
       });
@@ -427,7 +427,7 @@ describe('P0-24-F.1-A Payment Idempotency Tests', () => {
       mockedGetAuthenticatedUser.mockResolvedValue({ id: mockUserId });
       mockedRequirePermission.mockResolvedValue(undefined);
       mockedPrisma.paymentIdempotency.findUnique.mockResolvedValue(null);
-      mockedPrisma.sale.findUnique.mockResolvedValue({
+      mockedPrisma.sale.findFirst.mockResolvedValue({
         storeId,
         organizationId: 'different-org-id',
       });
@@ -454,7 +454,7 @@ describe('P0-24-F.1-A Payment Idempotency Tests', () => {
       mockedRequirePermission.mockResolvedValue(undefined);
       mockedRequireStoreAccess.mockResolvedValue(undefined);
       mockedPrisma.paymentIdempotency.findUnique.mockResolvedValue(null);
-      mockedPrisma.sale.findUnique
+      mockedPrisma.sale.findFirst
         .mockResolvedValueOnce({ storeId, organizationId: mockOrganizationId })
         .mockResolvedValue({
           id: saleId,
@@ -625,7 +625,7 @@ describe('P0-24-F.1-A Payment Idempotency Tests', () => {
       // Second call after delete: findUnique returns null
       mockedPrisma.paymentIdempotency.findUnique.mockResolvedValueOnce(null);
       
-      mockedPrisma.sale.findUnique
+      mockedPrisma.sale.findFirst
         .mockResolvedValueOnce({ storeId, organizationId: mockOrganizationId })
         .mockResolvedValue({
           id: saleId,
