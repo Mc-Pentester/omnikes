@@ -102,8 +102,8 @@ export async function POST(
     }
 
     // Fetch sale to verify store access before transaction
-    const saleForAccessCheck = await prisma.sale.findUnique({
-      where: { id: saleId },
+    const saleForAccessCheck = await prisma.sale.findFirst({
+      where: { id: saleId, organizationId },
       select: { storeId: true, organizationId: true },
     });
 
