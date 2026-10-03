@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, getAuthorizedStoreIds } from '@omnikes/lib/auth';
 import { inventoryRepository } from '@omnikes/repositories/inventory.repository';
 import { productRepository } from '@omnikes/repositories/product.repository';
 import { storeRepository } from '@omnikes/repositories/store.repository';
@@ -14,8 +14,15 @@ export async function POST(request: NextRequest) {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'inventory.adjust');
 
-    // Get all active stores
-    const storesResult = await storeRepository.listByOrganization(organizationId, { isActive: true });
+    // Resolve the user's store scope before enumerating or mutating inventory.
+    // null = global organization access, [] = no store access, array = scoped stores.
+    const authorizedStoreIds = await getAuthorizedStoreIds(request);
+
+    // Get only active stores within the authenticated user's store scope.
+    const storesResult = await storeRepository.listByOrganization(organizationId, {
+      isActive: true,
+      authorizedStoreIds,
+    });
     const stores = storesResult.stores;
 
     // Get all products with variants
