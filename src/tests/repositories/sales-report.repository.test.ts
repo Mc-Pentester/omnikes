@@ -90,6 +90,6 @@ describe('SalesReportRepository — monetary output normalization', () => {
     expect(sql).toContain('\\"totalRevenue\\"');
     expect(sql).toContain('\\"uncoveredAmount\\"');
     expect(sql).toContain('\\"averageSale\\"');
-    expect(sql).toContain('COALESCE(SUM(fs.\"total\"), 0)');
+    expect(sql).toContain('COALESCE(SUM(fs.\\\"total\\\"), 0)');
   });
 });
