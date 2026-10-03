@@ -53,6 +53,12 @@ describe('P0-31-A - real PostgreSQL financial reconciliation', () => {
   });
 
   it('reconciles completed sale revenue against real payments and authorized credit', async () => {
+    const startDate = new Date(Date.now() - 2000);
+    const baseline = await salesReportRepository.getSummary(organizationId, {
+      startDate,
+      endDate: new Date(Date.now() + 60000),
+    });
+
     const paidSale = await createCompletedSale(1000);
     await prisma.payment.create({
       data: { saleId: paidSale.id, method: 'CASH', amount: 1000, status: 'COMPLETED' },
@@ -78,29 +84,36 @@ describe('P0-31-A - real PostgreSQL financial reconciliation', () => {
     });
 
     const summary = await salesReportRepository.getSummary(organizationId, {
-      startDate: new Date('2026-10-01T00:00:00.000Z'),
-      endDate: new Date('2026-10-03T23:59:59.999Z'),
+      startDate,
+      endDate: new Date(Date.now() + 60000),
     });
 
-    expect(summary.salesCount).toBeGreaterThanOrEqual(2);
-    expect(Number(summary.totalPaid)).toBeGreaterThanOrEqual(1600);
-    expect(Number(summary.authorizedCredit)).toBeGreaterThanOrEqual(400);
-    expect(Number(summary.uncoveredAmount)).toBe(0);
+    expect(summary.salesCount - baseline.salesCount).toBe(2);
+    expect(Number(summary.totalPaid) - Number(baseline.totalPaid)).toBe(1600);
+    expect(Number(summary.authorizedCredit) - Number(baseline.authorizedCredit)).toBe(400);
+    expect(Number(summary.uncoveredAmount) - Number(baseline.uncoveredAmount)).toBe(0);
   });
 
   it('does not count historical CREDIT payments as real cash coverage', async () => {
+    const startDate = new Date(Date.now() - 2000);
+    const baseline = await salesReportRepository.getSummary(organizationId, {
+      startDate,
+      endDate: new Date(Date.now() + 60000),
+    });
+
     const legacyCreditSale = await createCompletedSale(1000);
     await prisma.payment.create({
       data: { saleId: legacyCreditSale.id, method: 'CREDIT', amount: 1000, status: 'COMPLETED' },
     });
 
     const summary = await salesReportRepository.getSummary(organizationId, {
-      startDate: new Date('2026-10-01T00:00:00.000Z'),
-      endDate: new Date('2026-10-03T23:59:59.999Z'),
+      startDate,
+      endDate: new Date(Date.now() + 60000),
     });
 
-    expect(Number(summary.totalPaid)).toBeGreaterThanOrEqual(1600);
-    expect(Number(summary.authorizedCredit)).toBeGreaterThanOrEqual(400);
-    expect(Number(summary.uncoveredAmount)).toBeGreaterThanOrEqual(1000);
+    expect(summary.salesCount - baseline.salesCount).toBe(1);
+    expect(Number(summary.totalPaid) - Number(baseline.totalPaid)).toBe(0);
+    expect(Number(summary.authorizedCredit) - Number(baseline.authorizedCredit)).toBe(0);
+    expect(Number(summary.uncoveredAmount) - Number(baseline.uncoveredAmount)).toBe(1000);
   });
 });
