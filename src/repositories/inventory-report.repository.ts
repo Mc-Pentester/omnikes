@@ -64,6 +64,7 @@ export class InventoryReportRepository {
       totalAvailable: number;
       lowStockCount: number;
       inventoryValue: number;
+      currency: string;
     };
     type StockRow = {
       inventoryId: string;
@@ -99,6 +100,7 @@ export class InventoryReportRepository {
           WHERE ${where}
         )
         SELECT
+          (SELECT o."currency" FROM "organizations" o WHERE o."id" = ${organizationId}) AS "currency",
           COUNT(*)::int AS "totalItems",
           COALESCE(SUM("quantity"), 0)::int AS "totalQuantity",
           COALESCE(SUM("reservedQuantity"), 0)::int AS "totalReserved",
@@ -161,6 +163,7 @@ export class InventoryReportRepository {
         totalAvailable: 0,
         lowStockCount: 0,
         inventoryValue: 0,
+        currency: 'HTG',
       },
       stock: stockRows,
       movements: movementRows,
