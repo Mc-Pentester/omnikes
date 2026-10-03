@@ -19,7 +19,7 @@ vi.mock('../../lib/prisma', () => ({
       update: vi.fn(),
     },
     sale: {
-      findUnique: vi.fn(),
+      findFirst: vi.fn(),
     },
     store: {
       findUnique: vi.fn(),
