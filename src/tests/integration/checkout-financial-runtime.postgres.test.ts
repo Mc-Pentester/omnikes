@@ -183,6 +183,52 @@ describe('P0 POS financial runtime proofs', () => {
     expect(idempotencyRecords[0].status).toBe('COMPLETED');
   });
 
+  it('returns the committed response for concurrent requests sharing the same idempotency key', async () => {
+    const sale = await createSale();
+
+    const key = `p0-runtime-same-key-${sale.id}`;
+    const makeRequest = () =>
+      new NextRequest(`http://localhost/api/sales/${sale.id}/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': key,
+        },
+        body: JSON.stringify({
+          method: 'CASH',
+          amount: 1000,
+        }),
+      });
+
+    const [responseA, responseB] = await Promise.all([
+      checkout(makeRequest(), {
+        params: Promise.resolve({ id: sale.id }),
+      }),
+      checkout(makeRequest(), {
+        params: Promise.resolve({ id: sale.id }),
+      }),
+    ]);
+
+    expect([responseA.status, responseB.status].sort()).toEqual([201, 201]);
+
+    const payments = await prisma.payment.findMany({
+      where: { saleId: sale.id },
+    });
+    const movements = await prisma.inventoryMovement.count({
+      where: { referenceId: sale.id, type: 'SALE' },
+    });
+    const idempotencyRecords = await prisma.checkoutIdempotency.findMany({
+      where: { saleId: sale.id, key },
+    });
+
+    expect(payments).toHaveLength(1);
+    expect(Number(payments[0].amount)).toBe(1000);
+    expect(movements).toBe(1);
+    expect(idempotencyRecords).toHaveLength(1);
+    expect(idempotencyRecords[0].status).toBe('COMPLETED');
+    expect(idempotencyRecords[0].responseStatus).toBe(201);
+  });
+
   it('rolls back payment, stock movement, and sale completion when checkout fails on insufficient stock', async () => {
     const sale = await createSale();
 

@@ -17,10 +17,18 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let saleId: string | undefined;
+  let organizationId: string | undefined;
+  let authenticatedUserId: string | undefined;
+  let safeIdempotencyKey: string | undefined;
+  let paymentData: ReturnType<typeof paymentSchema.parse> | undefined;
+
   try {
-    const { id: saleId } = await params;
-    const organizationId = await requireCurrentOrganizationId(request);
+    const { id } = await params;
+    saleId = id;
+    organizationId = await requireCurrentOrganizationId(request);
     const user = await getAuthenticatedUser(request);
+    authenticatedUserId = user?.id;
     
     if (!user) {
       return NextResponse.json(
@@ -45,18 +53,28 @@ export async function POST(
     if (!validatedIdempotencyKey.success) {
       return NextResponse.json({ error: 'Invalid Idempotency-Key' }, { status: 400 });
     }
-    const safeIdempotencyKey = validatedIdempotencyKey.data;
+    safeIdempotencyKey = validatedIdempotencyKey.data;
 
     // Parse payment data
     const body = await request.json();
-    const paymentData = paymentSchema.parse(body);
+    const parsedPaymentData = paymentSchema.parse(body);
+    paymentData = parsedPaymentData;
+
+    if (!saleId || !organizationId || !safeIdempotencyKey) {
+      throw new Error('Checkout context is invalid');
+    }
+    const checkoutSaleId = saleId;
+    const checkoutOrganizationId = organizationId;
+    const checkoutUserId = user.id;
+    const checkoutIdempotencyKey = safeIdempotencyKey;
+    const checkoutPaymentData = parsedPaymentData;
 
     // Check for existing idempotency record
     const existingIdempotency = await prisma.checkoutIdempotency.findUnique({
       where: {
         organizationId_key: {
-          organizationId,
-          key: safeIdempotencyKey,
+          organizationId: checkoutOrganizationId,
+          key: checkoutIdempotencyKey,
         },
       },
     });
@@ -93,8 +111,8 @@ export async function POST(
           !cachedPayment ||
           cachedPayment.method !== paymentData.method ||
           Number(cachedPayment.amount) !== Number(paymentData.amount) ||
-          (paymentData.reference !== undefined &&
-          (cachedPayment.reference ?? null) !== (paymentData.reference ?? null)
+          (parsedPaymentData.reference !== undefined &&
+          (cachedPayment.reference ?? null) !== (parsedPaymentData.reference ?? null)
           )
         ) {
           return NextResponse.json(
@@ -162,10 +180,10 @@ export async function POST(
       // Create idempotency record with PROCESSING status
       const idempotencyRecord = await tx.checkoutIdempotency.create({
         data: {
-          organizationId,
-          userId: user.id,
-          saleId,
-          key: safeIdempotencyKey,
+          organizationId: checkoutOrganizationId,
+          userId: checkoutUserId,
+          saleId: checkoutSaleId,
+          key: checkoutIdempotencyKey,
           status: 'PROCESSING',
         },
       });
@@ -174,7 +192,7 @@ export async function POST(
       // validate the same pending sale and create duplicate payments/stock movements.
       const lockedSaleRows = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT id FROM sales
-        WHERE id = ${saleId} AND "organizationId" = ${organizationId}
+        WHERE id = ${checkoutSaleId} AND "organizationId" = ${checkoutOrganizationId}
         FOR UPDATE
       `;
 
@@ -184,7 +202,7 @@ export async function POST(
 
       // Reload sale with items and payments after acquiring the row lock.
       const sale = await tx.sale.findUnique({
-        where: { id: saleId },
+        where: { id: checkoutSaleId },
         include: {
           items: {
             include: {
@@ -201,7 +219,7 @@ export async function POST(
       }
 
       // Verify organization (re-verify inside transaction for consistency)
-      if (sale.organizationId !== organizationId) {
+      if (sale.organizationId !== checkoutOrganizationId) {
         throw new Error('Sale not found or access denied');
       }
 
@@ -237,8 +255,8 @@ export async function POST(
       const serverTotal = subtotal - discount + tax;
 
       // Validate payment amount
-      if (Number(paymentData.amount) !== serverTotal) {
-        throw new Error(`Payment amount mismatch. Expected: ${serverTotal}, Received: ${paymentData.amount}`);
+      if (Number(checkoutPaymentData.amount) !== serverTotal) {
+        throw new Error(`Payment amount mismatch. Expected: ${serverTotal}, Received: ${checkoutPaymentData.amount}`);
       }
 
       // Verify and lock inventory for each item
@@ -275,7 +293,7 @@ export async function POST(
             inventoryId: currentInventory.id,
             type: 'SALE',
             quantity: -item.quantity,
-            referenceId: saleId,
+            referenceId: checkoutSaleId,
             referenceType: 'SALE',
             notes: `Sale ${sale.orderNumber}`,
           },
@@ -285,17 +303,17 @@ export async function POST(
       // Create payment
       const payment = await tx.payment.create({
         data: {
-          saleId,
-          method: paymentData.method,
-          amount: paymentData.amount,
-          reference: paymentData.reference || `PAY-${Date.now()}`,
+          saleId: checkoutSaleId,
+          method: checkoutPaymentData.method,
+          amount: checkoutPaymentData.amount,
+          reference: checkoutPaymentData.reference || `PAY-${Date.now()}`,
           status: 'COMPLETED',
         },
       });
 
       // Update sale status to COMPLETED
       await tx.sale.update({
-        where: { id: saleId },
+        where: { id: checkoutSaleId },
         data: { status: 'COMPLETED' },
       });
 
@@ -311,7 +329,7 @@ export async function POST(
 
       // Return completed sale
       return tx.sale.findUnique({
-        where: { id: saleId },
+        where: { id: checkoutSaleId },
         include: {
           store: true,
           customer: true,
@@ -329,6 +347,59 @@ export async function POST(
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
+    // Two simultaneous requests can both miss the pre-transaction lookup.
+    // The database unique constraint is the final arbiter for the idempotency key.
+    // If another transaction committed the same key first, return its cached
+    // response instead of surfacing a generic 500.
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      error.code === 'P2002' &&
+      organizationId &&
+      safeIdempotencyKey &&
+      saleId &&
+      authenticatedUserId &&
+      paymentData
+    ) {
+      const committedIdempotency = await prisma.checkoutIdempotency.findUnique({
+        where: {
+          organizationId_key: {
+            organizationId,
+            key: safeIdempotencyKey,
+          },
+        },
+      });
+
+      if (
+        committedIdempotency &&
+        committedIdempotency.saleId === saleId &&
+        committedIdempotency.userId === authenticatedUserId &&
+        committedIdempotency.status === 'COMPLETED'
+      ) {
+        const cachedResponse = JSON.parse(committedIdempotency.responseBody || '{}') as {
+          payment?: {
+            method?: string;
+            amount?: number | string;
+            reference?: string | null;
+          };
+        };
+        const cachedPayment = cachedResponse.payment;
+
+        if (
+          cachedPayment &&
+          cachedPayment.method === paymentData.method &&
+          Number(cachedPayment.amount) === Number(paymentData.amount) &&
+          (paymentData.reference === undefined ||
+            (cachedPayment.reference ?? null) === (paymentData.reference ?? null))
+        ) {
+          return NextResponse.json(
+            cachedResponse,
+            { status: committedIdempotency.responseStatus || 200 }
+          );
+        }
+      }
+    }
     if (error instanceof ZodError) {
       return NextResponse.json(
         { error: 'Invalid request data', details: error.issues },
