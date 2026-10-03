@@ -53,7 +53,6 @@ export default function StoresPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSidebarCompact, setIsSidebarCompact] = useState(false);
-  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
