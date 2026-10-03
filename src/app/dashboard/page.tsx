@@ -65,8 +65,14 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    queueMicrotask(loadDashboardStats);
-  }, [user, loadDashboardStats]);
+    if (!user) return;
+
+    const timeoutId = window.setTimeout(() => {
+      loadDashboardStats();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [user]);
 
   if (authLoading) {
     return (
