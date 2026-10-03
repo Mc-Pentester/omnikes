@@ -93,7 +93,10 @@ export default function PendingSalesPage() {
   }, [currentStoreId, selectedSale, user]);
 
   useEffect(() => {
-    if (user) loadSales();
+    const timer = window.setTimeout(() => {
+      if (user) void loadSales();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [user, loadSales]);
 
   const loadSale = async (saleId: string) => {

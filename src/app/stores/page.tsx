@@ -83,9 +83,10 @@ export default function StoresPage() {
   };
 
   useEffect(() => {
-    if (user) {
-      fetchStores();
-    }
+    const timer = window.setTimeout(() => {
+      if (user) void fetchStores();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [user]);
 
   const handleCreate = () => {

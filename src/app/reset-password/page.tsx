@@ -17,16 +17,7 @@ function ResetPasswordContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [tokenValid, setTokenValid] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    if (!token) {
-      setError('Invalid reset link. Please request a new password reset.');
-      setTokenValid(false);
-      return;
-    }
-    setTokenValid(true);
-  }, [token]);
+  const tokenValid = Boolean(token);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,7 +67,7 @@ function ResetPasswordContent() {
           <div className="text-center">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Invalid Reset Link</h2>
             <p className="text-sm text-gray-600 mb-6">
-              {error}
+              {error || 'Invalid reset link. Please request a new password reset.'}
             </p>
             <Button
               onClick={() => router.push('/forgot-password')}

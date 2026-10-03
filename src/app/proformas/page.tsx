@@ -72,9 +72,10 @@ export default function ProformasPage() {
   };
 
   useEffect(() => {
-    if (user) {
-      fetchProformas();
-    }
+    const timer = window.setTimeout(() => {
+      if (user) void fetchProformas();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [user]);
 
   const handleAccept = async (proformaId: string) => {
