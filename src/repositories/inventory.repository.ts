@@ -152,10 +152,11 @@ export class InventoryRepository {
    */
   async listByOrganization(organizationId: string, options: {
     storeId?: string;
+    authorizedStoreIds?: string[] | null;
     skip?: number;
     take?: number;
   } = {}) {
-    const { storeId, skip = 0, take = 50 } = options;
+    const { storeId, authorizedStoreIds, skip = 0, take = 50 } = options;
 
     const where: Prisma.InventoryWhereInput = {
       store: {
@@ -165,6 +166,16 @@ export class InventoryRepository {
 
     if (storeId) {
       where.storeId = storeId;
+    }
+
+    if (authorizedStoreIds != null) {
+      if (authorizedStoreIds.length === 0) {
+        return { inventories: [], total: 0, skip, take };
+      }
+      where.storeId = { in: authorizedStoreIds };
+      if (storeId) {
+        where.storeId = { in: authorizedStoreIds.filter((id: string) => id === storeId) };
+      }
     }
 
     const [inventories, total] = await Promise.all([

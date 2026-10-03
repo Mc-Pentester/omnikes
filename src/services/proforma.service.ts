@@ -179,6 +179,7 @@ export class ProformaService {
    */
   async list(organizationId: string, options: {
     storeId?: string;
+    authorizedStoreIds?: string[] | null;
     status?: string;
     customerId?: string;
     startDate?: Date;

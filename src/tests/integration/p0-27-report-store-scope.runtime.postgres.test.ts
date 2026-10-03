@@ -4,17 +4,21 @@ import { prisma } from '@omnikes/lib/prisma';
 import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { generateToken } from '@omnikes/lib/crypto';
 import { GET as summary } from '@omnikes/app/api/reports/sales/summary/route';
+import { GET as inventoryList } from '@omnikes/app/api/inventory/route';
+import { GET as proformaList } from '@omnikes/app/api/proformas/route';
 
 describe('P0-27 - scoped report aggregation', () => {
   let userId = '';
   let organizationId = '';
   let scopedStoreId = '';
+  let otherStoreId = '';
 
   beforeAll(async () => {
-    const reportPermission = await prisma.permission.findUniqueOrThrow({
-      where: { code: 'report.read' },
-      select: { id: true },
-    });
+    const [reportPermission, inventoryPermission, proformaPermission] = await Promise.all([
+      prisma.permission.findUniqueOrThrow({ where: { code: 'report.read' }, select: { id: true } }),
+      prisma.permission.findUniqueOrThrow({ where: { code: 'inventory.read' }, select: { id: true } }),
+      prisma.permission.findUniqueOrThrow({ where: { code: 'proforma.read' }, select: { id: true } }),
+    ]);
 
     const organization = await prisma.organization.create({
       data: {
@@ -46,6 +50,60 @@ describe('P0-27 - scoped report aggregation', () => {
     });
 
     scopedStoreId = scopedStore.id;
+    otherStoreId = unauthorizedStore.id;
+
+    const product = await prisma.product.create({
+      data: {
+        organizationId,
+        name: 'P0-27 Product',
+      },
+    });
+
+    const variant = await prisma.productVariant.create({
+      data: {
+        productId: product.id,
+        sku: 'P0-27-SKU',
+        price: 10,
+        cost: 5,
+        attributes: {},
+      },
+    });
+
+    await prisma.inventory.createMany({
+      data: [
+        { storeId: scopedStore.id, variantId: variant.id, quantity: 10 },
+        { storeId: unauthorizedStore.id, variantId: variant.id, quantity: 20 },
+      ],
+    });
+
+    await prisma.proforma.createMany({
+      data: [
+        {
+          organizationId,
+          storeId: scopedStore.id,
+          proformaNumber: `P0-27-SCOPED-${Date.now()}`,
+          status: 'DRAFT',
+          subtotal: 100,
+          tax: 0,
+          taxRate: 0,
+          total: 100,
+          discount: 0,
+          applyTax: false,
+        },
+        {
+          organizationId,
+          storeId: unauthorizedStore.id,
+          proformaNumber: `P0-27-OTHER-${Date.now()}`,
+          status: 'DRAFT',
+          subtotal: 900,
+          tax: 0,
+          taxRate: 0,
+          total: 900,
+          discount: 0,
+          applyTax: false,
+        },
+      ],
+    });
 
     await prisma.sale.createMany({
       data: [
@@ -81,7 +139,11 @@ describe('P0-27 - scoped report aggregation', () => {
         isGlobal: false,
         storeId: scopedStore.id,
         rolePermissions: {
-          create: { permissionId: reportPermission.id },
+          create: [
+            { permissionId: reportPermission.id },
+            { permissionId: inventoryPermission.id },
+            { permissionId: proformaPermission.id },
+          ],
         },
       },
     });
@@ -134,6 +196,38 @@ describe('P0-27 - scoped report aggregation', () => {
     expect(actual.itemsSold).toBe(0);
   });
 
+  it('does not list inventory from unauthorized stores when storeId is omitted', async () => {
+    const response = await inventoryList(await requestFor('/api/inventory'));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.inventory).toHaveLength(1);
+    expect(body.inventory[0].storeId).toBe(scopedStoreId);
+  });
+
+  it('does not list proformas from unauthorized stores when storeId is omitted', async () => {
+    const response = await proformaList(await requestFor('/api/proformas'));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.proformas).toHaveLength(1);
+    expect(body.proformas[0].storeId).toBe(scopedStoreId);
+  });
+
+  async function requestFor(path: string) {
+    const rawToken = generateToken();
+    await sessionRepository.create(
+      {
+        user: { connect: { id: userId } },
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        ipAddress: '127.0.0.1',
+        userAgent: 'P0-27-store-scope-test',
+      },
+      rawToken,
+    );
+    return new NextRequest(`http://localhost${path}`, {
+      headers: { cookie: `auth_token=${rawToken}` },
+    });
+  }
+
   afterAll(async () => {
     if (userId) {
       await prisma.session.deleteMany({ where: { userId } });
@@ -142,6 +236,7 @@ describe('P0-27 - scoped report aggregation', () => {
       await prisma.organization.delete({ where: { id: organizationId } }).catch(() => undefined);
     }
     void scopedStoreId;
+    void otherStoreId;
     await prisma.$disconnect();
   });
 });

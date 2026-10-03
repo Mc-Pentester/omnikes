@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { inventoryService } from '@omnikes/services/inventory.service';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, getAuthorizedStoreIds } from '@omnikes/lib/auth';
 import { validatePagination } from '@omnikes/lib/pagination';
 
 /**
@@ -21,6 +21,8 @@ export async function GET(request: NextRequest) {
       await requireStoreAccess(request, storeId);
     }
 
+    const authorizedStoreIds = await getAuthorizedStoreIds(request);
+
     const { skip, take } = validatePagination(
       searchParams.get('skip'),
       searchParams.get('take')
@@ -28,6 +30,7 @@ export async function GET(request: NextRequest) {
 
     const result = await inventoryService.listByOrganization(organizationId, {
       storeId,
+      authorizedStoreIds,
       skip,
       take,
     });
