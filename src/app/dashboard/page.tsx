@@ -61,9 +61,10 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (user) {
-      fetchStats();
-    }
+    const timer = window.setTimeout(() => {
+      if (user) void fetchStats();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [user]);
 
   if (authLoading) {

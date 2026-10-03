@@ -119,9 +119,10 @@ export default function InventoryPage() {
   };
 
   useEffect(() => {
-    if (user) {
-      fetchInventory();
-    }
+    const timer = window.setTimeout(() => {
+      if (user) void fetchInventory();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [user]);
 
   const handleOpenWorkflow = (inventoryItem: Inventory, nextWorkflow: InventoryWorkflow) => {

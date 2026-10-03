@@ -82,9 +82,10 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-    if (user) {
-      fetchProducts();
-    }
+    const timer = window.setTimeout(() => {
+      if (user) void fetchProducts();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [user]);
 
   const handleCreate = () => {

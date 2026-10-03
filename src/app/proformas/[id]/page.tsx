@@ -74,9 +74,10 @@ export default function ProformaDetailPage() {
   };
 
   useEffect(() => {
-    if (user && params.id) {
-      fetchProforma();
-    }
+    const timer = window.setTimeout(() => {
+      if (user && params.id) void fetchProforma();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [user, params.id]);
 
   const handlePrint = async () => {

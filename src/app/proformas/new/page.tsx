@@ -143,12 +143,15 @@ export default function NewProformaPage() {
   };
 
   useEffect(() => {
-    if (user) {
-      setLoadingData(true);
-      Promise.all([fetchStores(), fetchCustomers(), fetchVariants()]).finally(() => {
-        setLoadingData(false);
-      });
-    }
+    const timer = window.setTimeout(() => {
+      if (user) {
+        setLoadingData(true);
+        void Promise.all([fetchStores(), fetchCustomers(), fetchVariants()]).finally(() => {
+          setLoadingData(false);
+        });
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
