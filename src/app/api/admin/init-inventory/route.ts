@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       for (const product of products) {
         if (product.variants && product.variants.length > 0) {
           for (const variant of product.variants) {
-            const inventory = await inventoryRepository.findOrCreate(store.id, variant.id);
+            const inventory = await inventoryRepository.findOrCreate(store.id, variant.id, organizationId);
             if (inventory) {
               createdCount++;
             } else {
