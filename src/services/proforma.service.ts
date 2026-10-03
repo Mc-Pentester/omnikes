@@ -1,5 +1,6 @@
 import { proformaRepository } from '@omnikes/repositories/proforma.repository';
 import { productVariantRepository } from '@omnikes/repositories/product-variant.repository';
+import { storeService } from '@omnikes/services/store.service';
 import { proformaSchema, proformaUpdateSchema, proformaItemSchema, ProformaInput, ProformaUpdateInput, ProformaItemInput } from '@omnikes/lib/validation';
 import { prisma } from '@omnikes/lib/prisma';
 import { Prisma, ProformaItem } from '@prisma/client';
@@ -13,6 +14,10 @@ export class ProformaService {
       ...data,
       organizationId,
     });
+
+    // Enforce tenant boundary before any write: a proforma store must belong
+    // to the same organization as the proforma.
+    await storeService.validateStoreBelongsToOrganization(validatedData.storeId, organizationId);
 
     // Generate proforma number if not provided
     const proformaNumber = validatedData.proformaNumber || this.generateProformaNumber();
@@ -206,6 +211,22 @@ export class ProformaService {
     }
 
     const validatedData = proformaUpdateSchema.parse(data);
+
+    // A customer reference is tenant-scoped. Never allow an update to attach
+    // a customer belonging to another organization.
+    if (validatedData.customerId !== undefined && validatedData.customerId !== null) {
+      const customer = await prisma.customer.findFirst({
+        where: {
+          id: validatedData.customerId,
+          organizationId,
+        },
+        select: { id: true },
+      });
+
+      if (!customer) {
+        throw new Error('Invalid customer');
+      }
+    }
 
     // Explicitly exclude status from update data
     const { customerId, validUntil, notes, subtotal, tax, taxRate, total, discount, applyTax } = validatedData;
