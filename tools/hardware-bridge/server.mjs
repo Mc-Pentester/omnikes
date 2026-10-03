@@ -5,6 +5,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isAuthorizedBridgeRequest } from './auth.mjs';
 
 const execFileAsync = promisify(execFile);
 const HOST = '127.0.0.1';
@@ -20,7 +21,7 @@ const MAX_BODY_BYTES = 1024 * 1024;
 const MAX_PRINT_BYTES = 512 * 1024;
 const MAX_SCALE_RAW_BYTES = 4096;
 const MAX_SCALE_READ_TIMEOUT_MS = 10000;
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 
 function json(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -30,7 +31,7 @@ function json(res, status, payload) {
     'Cache-Control': 'no-store',
     'Access-Control-Allow-Origin': res.__origin ?? 'http://localhost:3000',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Vary': 'Origin',
   });
   res.end(body);
@@ -274,7 +275,7 @@ async function handle(req, res) {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': res.__origin,
       'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Vary': 'Origin',
     });
     return res.end();
@@ -290,6 +291,10 @@ async function handle(req, res) {
       transport: 'windows-winspool-raw',
       scaleTransport: 'windows-system-serial',
     });
+  }
+
+  if (url.pathname.startsWith('/v1/') && !isAuthorizedBridgeRequest(req)) {
+    return json(res, 401, { error: 'Hardware bridge authentication required' });
   }
 
   if (req.method === 'GET' && url.pathname === '/v1/printers') {
