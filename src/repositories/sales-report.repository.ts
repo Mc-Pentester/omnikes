@@ -63,10 +63,6 @@ function buildSaleConditions(
 }
 
 export class SalesReportRepository {
-  /**
-   * All report aggregation happens in PostgreSQL.
-   * The API/service layer also applies the same 366-day ceiling.
-   */
   async getSummary(organizationId: string, options: SaleFilterOptions = {}) {
     const range = normalizeDateRange(options);
     const where = buildSaleConditions(organizationId, { ...options, ...range });
@@ -116,27 +112,27 @@ export class SalesReportRepository {
       ),
       financial_coverage AS (
         SELECT
-          COALESCE(SUM(pc."totalPaid"), 0)::double precision AS "totalPaid",
-          COALESCE(SUM(cc."authorizedCredit"), 0)::double precision AS "authorizedCredit"
+          ROUND(COALESCE(SUM(pc."totalPaid"), 0)::numeric, 2)::double precision AS "totalPaid",
+          ROUND(COALESCE(SUM(cc."authorizedCredit"), 0)::numeric, 2)::double precision AS "authorizedCredit"
         FROM filtered_sales fs
         LEFT JOIN payment_coverage pc ON pc."saleId" = fs."id"
         LEFT JOIN credit_coverage cc ON cc."saleId" = fs."id"
       )
       SELECT
         COUNT(*)::int AS "salesCount",
-        COALESCE(SUM(fs."total"), 0)::double precision AS "totalRevenue",
-        COALESCE(SUM(fs."discount"), 0)::double precision AS "totalDiscount",
-        COALESCE(SUM(fs."tax"), 0)::double precision AS "totalTax",
+        ROUND(COALESCE(SUM(fs."total"), 0)::numeric, 2)::double precision AS "totalRevenue",
+        ROUND(COALESCE(SUM(fs."discount"), 0)::numeric, 2)::double precision AS "totalDiscount",
+        ROUND(COALESCE(SUM(fs."tax"), 0)::numeric, 2)::double precision AS "totalTax",
         (SELECT "itemsSold" FROM item_totals) AS "itemsSold",
         (SELECT "totalPaid" FROM financial_coverage) AS "totalPaid",
         (SELECT "authorizedCredit" FROM financial_coverage) AS "authorizedCredit",
-        (
+        ROUND((
           SUM(fs."total")
           - (SELECT "totalPaid" + "authorizedCredit" FROM financial_coverage)
-        )::double precision AS "uncoveredAmount",
+        )::numeric, 2)::double precision AS "uncoveredAmount",
         CASE
           WHEN COUNT(*) = 0 THEN 0
-          ELSE (SUM(fs."total") / COUNT(*))::double precision
+          ELSE ROUND((SUM(fs."total") / COUNT(*))::numeric, 2)::double precision
         END AS "averageSale"
       FROM filtered_sales fs
     `);
@@ -198,10 +194,10 @@ export class SalesReportRepository {
       SELECT
         ${periodExpression} AS "period",
         COUNT(*)::int AS "salesCount",
-        SUM(fs."total")::double precision AS "revenue",
+        ROUND(SUM(fs."total")::numeric, 2)::double precision AS "revenue",
         COALESCE(SUM(it."itemsSold"), 0)::int AS "itemsSold",
-        SUM(fs."discount")::double precision AS "discount",
-        SUM(fs."tax")::double precision AS "tax"
+        ROUND(SUM(fs."discount")::numeric, 2)::double precision AS "discount",
+        ROUND(SUM(fs."tax")::numeric, 2)::double precision AS "tax"
       FROM filtered_sales fs
       INNER JOIN item_totals it ON it."saleId" = fs."id"
       GROUP BY 1
@@ -275,9 +271,9 @@ export class SalesReportRepository {
         pv."id" AS "variantId",
         pv."sku" AS "sku",
         SUM(ai."quantity")::int AS "quantitySold",
-        SUM(ai."totalPrice")::double precision AS "revenue",
-        SUM(ai."discount")::double precision AS "discount",
-        SUM(ai."allocatedTax")::double precision AS "tax"
+        ROUND(SUM(ai."totalPrice")::numeric, 2)::double precision AS "revenue",
+        ROUND(SUM(ai."discount")::numeric, 2)::double precision AS "discount",
+        ROUND(SUM(ai."allocatedTax")::numeric, 2)::double precision AS "tax"
       FROM allocated_items ai
       INNER JOIN "product_variants" pv ON pv."id" = ai."variantId"
       INNER JOIN "products" p ON p."id" = pv."productId"
@@ -303,7 +299,7 @@ export class SalesReportRepository {
       SELECT
         p."method" AS "paymentMethod",
         COUNT(*)::int AS "transactionCount",
-        SUM(p."amount")::double precision AS "amount"
+        ROUND(SUM(p."amount")::numeric, 2)::double precision AS "amount"
       FROM "payments" p
       INNER JOIN "sales" s ON s."id" = p."saleId"
       WHERE ${where} AND p."status" = 'COMPLETED' AND p."method" <> 'CREDIT'
@@ -362,7 +358,7 @@ export class SalesReportRepository {
         fs."storeId" AS "storeId",
         st."name" AS "storeName",
         COUNT(*)::int AS "salesCount",
-        SUM(fs."total")::double precision AS "revenue",
+        ROUND(SUM(fs."total")::numeric, 2)::double precision AS "revenue",
         COALESCE(SUM(it."itemsSold"), 0)::int AS "itemsSold"
       FROM filtered_sales fs
       INNER JOIN "stores" st ON st."id" = fs."storeId"

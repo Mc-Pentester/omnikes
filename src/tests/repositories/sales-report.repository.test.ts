@@ -56,3 +56,39 @@ describe('SalesReportRepository — product tax allocation', () => {
     expect(sql).toContain('SUM(\\"provisionalTax\\") OVER (PARTITION BY \\"saleId\\")');
   });
 });
+
+
+describe('SalesReportRepository — monetary output normalization', () => {
+  it('rounds report monetary aggregates to two decimals in PostgreSQL', async () => {
+    const expected = {
+      salesCount: 1,
+      totalRevenue: 100.12,
+      totalDiscount: 0.13,
+      totalTax: 18.02,
+      itemsSold: 1,
+      averageSale: 100.12,
+      totalPaid: 100.12,
+      authorizedCredit: 0,
+      uncoveredAmount: 0,
+    };
+    queryRaw.mockResolvedValueOnce([expected]);
+
+    const repository = new SalesReportRepository();
+    const result = await repository.getSummary(
+      'c523456789012345678901234',
+      {
+        startDate: new Date('2026-10-01T00:00:00.000Z'),
+        endDate: new Date('2026-10-01T23:59:59.999Z'),
+      },
+    );
+
+    expect(result).toEqual(expected);
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+
+    const sql = JSON.stringify(queryRaw.mock.calls[0][0]);
+    expect(sql).toContain('ROUND');
+    expect(sql).toContain('\\"totalRevenue\\"');
+    expect(sql).toContain('\\"uncoveredAmount\\"');
+    expect(sql).toContain('\\"averageSale\\"');
+  });
+});
