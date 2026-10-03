@@ -329,6 +329,49 @@ export async function POST(
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
+    // Two simultaneous requests can both miss the pre-transaction lookup.
+    // The database unique constraint is the final arbiter for the idempotency key.
+    // If another transaction committed the same key first, return its cached
+    // response instead of surfacing a generic 500.
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      const committedIdempotency = await prisma.checkoutIdempotency.findUnique({
+        where: {
+          organizationId_key: {
+            organizationId,
+            key: safeIdempotencyKey,
+          },
+        },
+      });
+
+      if (
+        committedIdempotency &&
+        committedIdempotency.saleId === saleId &&
+        committedIdempotency.userId === user.id &&
+        committedIdempotency.status === 'COMPLETED'
+      ) {
+        const cachedResponse = JSON.parse(committedIdempotency.responseBody || '{}') as {
+          payment?: {
+            method?: string;
+            amount?: number | string;
+            reference?: string | null;
+          };
+        };
+        const cachedPayment = cachedResponse.payment;
+
+        if (
+          cachedPayment &&
+          cachedPayment.method === paymentData.method &&
+          Number(cachedPayment.amount) === Number(paymentData.amount) &&
+          (paymentData.reference === undefined ||
+            (cachedPayment.reference ?? null) === (paymentData.reference ?? null))
+        ) {
+          return NextResponse.json(
+            cachedResponse,
+            { status: committedIdempotency.responseStatus || 200 }
+          );
+        }
+      }
+    }
     if (error instanceof ZodError) {
       return NextResponse.json(
         { error: 'Invalid request data', details: error.issues },
