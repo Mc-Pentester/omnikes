@@ -7,32 +7,79 @@ import { GET as summary } from '@omnikes/app/api/reports/sales/summary/route';
 
 describe('P0-27 - scoped report aggregation', () => {
   let userId = '';
-  let roleId = '';
   let organizationId = '';
   let scopedStoreId = '';
 
   beforeAll(async () => {
-    const store = await prisma.store.findFirstOrThrow({
-      where: { code: 'test-store-a' },
-      select: { id: true, organizationId: true },
-    });
-
     const reportPermission = await prisma.permission.findUniqueOrThrow({
       where: { code: 'report.read' },
       select: { id: true },
     });
 
-    organizationId = store.organizationId;
-    scopedStoreId = store.id;
-    roleId = `p0-27-report-scope-${Date.now()}`;
+    const organization = await prisma.organization.create({
+      data: {
+        name: `P0-27 Report Scope ${Date.now()}`,
+        slug: `p0-27-report-scope-${Date.now()}`,
+        country: 'HT',
+        currency: 'HTG',
+        locale: 'fr-HT',
+        timezone: 'America/Port-au-Prince',
+      },
+    });
+
+    organizationId = organization.id;
+
+    const scopedStore = await prisma.store.create({
+      data: {
+        organizationId,
+        name: 'Scoped Store',
+        code: 'P0-27-SCOPED',
+      },
+    });
+
+    const unauthorizedStore = await prisma.store.create({
+      data: {
+        organizationId,
+        name: 'Unauthorized Store',
+        code: 'P0-27-OTHER',
+      },
+    });
+
+    scopedStoreId = scopedStore.id;
+
+    await prisma.sale.createMany({
+      data: [
+        {
+          organizationId,
+          storeId: scopedStore.id,
+          orderNumber: `P0-27-SCOPED-${Date.now()}`,
+          status: 'COMPLETED',
+          subtotal: 100,
+          tax: 0,
+          total: 100,
+          discount: 0,
+          applyTax: false,
+        },
+        {
+          organizationId,
+          storeId: unauthorizedStore.id,
+          orderNumber: `P0-27-OTHER-${Date.now()}`,
+          status: 'COMPLETED',
+          subtotal: 900,
+          tax: 0,
+          total: 900,
+          discount: 0,
+          applyTax: false,
+        },
+      ],
+    });
 
     const role = await prisma.role.create({
       data: {
-        id: roleId,
         name: 'P0-27-REPORT-SCOPED',
         organizationId,
         isGlobal: false,
-        storeId: scopedStoreId,
+        storeId: scopedStore.id,
         rolePermissions: {
           create: { permissionId: reportPermission.id },
         },
@@ -79,47 +126,22 @@ describe('P0-27 - scoped report aggregation', () => {
 
     const actual = await response.json();
 
-    const expected = await prisma.sale.aggregate({
-      where: {
-        organizationId,
-        storeId: scopedStoreId,
-        status: 'COMPLETED',
-      },
-      _count: { id: true },
-      _sum: {
-        total: true,
-        discount: true,
-        tax: true,
-      },
-      _avg: { total: true },
-    });
-
-    const itemsSold = await prisma.saleItem.aggregate({
-      where: {
-        sale: {
-          organizationId,
-          storeId: scopedStoreId,
-          status: 'COMPLETED',
-        },
-      },
-      _sum: { quantity: true },
-    });
-
-    expect(actual.salesCount).toBe(expected._count.id);
-    expect(actual.totalRevenue).toBe(Number(expected._sum.total ?? 0));
-    expect(actual.totalDiscount).toBe(Number(expected._sum.discount ?? 0));
-    expect(actual.totalTax).toBe(Number(expected._sum.tax ?? 0));
-    expect(actual.averageSale).toBe(Number(expected._avg.total ?? 0));
-    expect(actual.itemsSold).toBe(itemsSold._sum.quantity ?? 0);
+    expect(actual.salesCount).toBe(1);
+    expect(actual.totalRevenue).toBe(100);
+    expect(actual.totalDiscount).toBe(0);
+    expect(actual.totalTax).toBe(0);
+    expect(actual.averageSale).toBe(100);
+    expect(actual.itemsSold).toBe(0);
   });
 
   afterAll(async () => {
     if (userId) {
-      await prisma.user.delete({ where: { id: userId } });
+      await prisma.session.deleteMany({ where: { userId } });
     }
-    if (roleId) {
-      await prisma.role.delete({ where: { id: roleId } }).catch(() => undefined);
+    if (organizationId) {
+      await prisma.organization.delete({ where: { id: organizationId } }).catch(() => undefined);
     }
+    void scopedStoreId;
     await prisma.$disconnect();
   });
 });
