@@ -552,7 +552,7 @@ describe('P0-24-F.1-A Payment Idempotency Tests', () => {
 
       const response = await POSTPayments(request, { params: Promise.resolve({ id: saleId }) });
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(409);
       expect(mockedPrisma.payment.create).not.toHaveBeenCalled();
     });
   });
