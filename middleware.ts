@@ -75,7 +75,7 @@ function isValidOrigin(request: NextRequest): boolean {
 function getCSP(): string {
   const directives = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Next.js requires unsafe-inline/eval
+    "script-src 'self' 'unsafe-inline'", // Keep inline support for current Next.js runtime; eval is not permitted
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", // Google Fonts
     "font-src 'self' https://fonts.gstatic.com", // Google Fonts
     "img-src 'self' data: blob:", // Images, blobs for uploads
