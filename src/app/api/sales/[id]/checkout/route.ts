@@ -93,7 +93,9 @@ export async function POST(
           !cachedPayment ||
           cachedPayment.method !== paymentData.method ||
           Number(cachedPayment.amount) !== Number(paymentData.amount) ||
+          (paymentData.reference !== undefined &&
           (cachedPayment.reference ?? null) !== (paymentData.reference ?? null)
+          )
         ) {
           return NextResponse.json(
             { error: 'Idempotency-Key already used with different payment data' },
@@ -168,7 +170,19 @@ export async function POST(
         },
       });
 
-      // Reload sale with items and payments
+      // Lock the sale row so concurrent checkout attempts cannot both
+      // validate the same pending sale and create duplicate payments/stock movements.
+      const lockedSaleRows = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM sales
+        WHERE id = ${saleId} AND "organizationId" = ${organizationId}
+        FOR UPDATE
+      `;
+
+      if (lockedSaleRows.length === 0) {
+        throw new Error('Sale not found or access denied');
+      }
+
+      // Reload sale with items and payments after acquiring the row lock.
       const sale = await tx.sale.findUnique({
         where: { id: saleId },
         include: {

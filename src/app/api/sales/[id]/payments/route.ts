@@ -165,7 +165,9 @@ export async function POST(
         if (
           cachedResponse.method !== paymentData.method ||
           Number(cachedResponse.amount) !== Number(paymentData.amount) ||
+          (paymentData.reference !== undefined &&
           (cachedResponse.reference ?? null) !== (paymentData.reference ?? null)
+          )
         ) {
           return NextResponse.json(
             { error: 'Idempotency-Key already used with different payment data' },
