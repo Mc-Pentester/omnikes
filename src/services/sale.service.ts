@@ -46,12 +46,16 @@ export class SaleService {
       ? Number(configuredRate)
       : 0;
 
-    const initialTax = validatedData.subtotal * initialTaxRate;
-    const initialTotal = validatedData.subtotal + initialTax - validatedData.discount;
+    // Financial totals are server-owned. A newly created sale has no trusted
+    // line totals yet; they are recalculated from server-priced items as items are added.
+    // Do not persist client-supplied subtotal, tax, total, or discount as authoritative values.
+    const initialTax = 0;
+    const initialTotal = 0;
 
     return saleRepository.create({
       ...validatedData,
-      orderNumber,
+      subtotal: 0,
+      discount: 0,
       tax: initialTax,
       taxRate: initialTaxRate,
       total: initialTotal,
