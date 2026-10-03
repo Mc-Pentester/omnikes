@@ -55,6 +55,7 @@ vi.mock('@omnikes/lib/prisma', () => ({
 
 vi.mock('@omnikes/repositories/sale.repository', () => ({
   saleRepository: {
+    create: vi.fn(),
     listItems: vi.fn(),
     update: vi.fn(),
     updateWithTaxRate: vi.fn(),
