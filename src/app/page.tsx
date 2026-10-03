@@ -219,7 +219,7 @@ export default function HomePage() {
       } else {
         setTaxRate(null);
       }
-    } catch (err) {
+    } catch {
       setTaxRate(null);
     }
   }, [user]);
