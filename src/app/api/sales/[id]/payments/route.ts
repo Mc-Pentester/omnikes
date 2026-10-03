@@ -28,55 +28,6 @@ export async function GET(
 
     return NextResponse.json(payments);
   } catch (error) {
-    // Two simultaneous requests can both miss the pre-transaction lookup.
-    // The unique database constraint is the final arbiter for the idempotency key.
-    // If another transaction committed the same key first, return its cached response.
-    if (
-      error &&
-      typeof error === 'object' &&
-      'code' in error &&
-      error.code === 'P2002' &&
-      organizationId &&
-      safeIdempotencyKey &&
-      saleId &&
-      authenticatedUserId &&
-      paymentData
-    ) {
-      const committedIdempotency = await prisma.paymentIdempotency.findUnique({
-        where: {
-          organizationId_key: {
-            organizationId,
-            key: safeIdempotencyKey,
-          },
-        },
-      });
-
-      if (
-        committedIdempotency &&
-        committedIdempotency.saleId === saleId &&
-        committedIdempotency.userId === authenticatedUserId &&
-        committedIdempotency.status === 'COMPLETED'
-      ) {
-        const cachedResponse = JSON.parse(committedIdempotency.responseBody || '{}') as {
-          method?: string;
-          amount?: number | string;
-          reference?: string | null;
-        };
-
-        if (
-          cachedResponse.method === paymentData.method &&
-          Number(cachedResponse.amount) === Number(paymentData.amount) &&
-          (paymentData.reference === undefined ||
-            (cachedResponse.reference ?? null) === (paymentData.reference ?? null))
-        ) {
-          return NextResponse.json(
-            cachedResponse,
-            { status: committedIdempotency.responseStatus || 200 }
-          );
-        }
-      }
-    }
-
     if (error instanceof ZodError) {
       return NextResponse.json(
         { error: 'Invalid request data', details: error.issues },
@@ -375,20 +326,20 @@ export async function POST(
       // Payment.CREDIT is rejected by paymentSchema. Only real payment
       // methods can consume the remaining financial balance after credit.
       if (Number(parsedPaymentData.amount) > remainingAmount) {
-        throw new Error(`Payment amount exceeds remaining balance. Remaining: ${remainingAmount}, Attempted: ${paymentData.amount}`);
+        throw new Error(`Payment amount exceeds remaining balance. Remaining: ${remainingAmount}, Attempted: ${parsedPaymentData.amount}`);
       }
 
       // Validate payment amount is positive
-      if (Number(paymentData.amount) <= 0) {
+      if (Number(parsedPaymentData.amount) <= 0) {
         throw new Error('Payment amount must be positive');
       }
 
       // Create payment
       const payment = await tx.payment.create({
         data: {
-          paymentSaleId,
+          saleId: paymentSaleId,
           method: parsedPaymentData.method,
-          amount: paymentData.amount,
+          amount: parsedPaymentData.amount,
           reference: parsedPaymentData.reference || `PAY-${Date.now()}`,
           status: parsedPaymentData.status || 'COMPLETED',
         },
@@ -409,6 +360,55 @@ export async function POST(
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
+    // Two simultaneous requests can both miss the pre-transaction lookup.
+    // The unique database constraint is the final arbiter for the idempotency key.
+    // If another transaction committed the same key first, return its cached response.
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      error.code === 'P2002' &&
+      organizationId &&
+      safeIdempotencyKey &&
+      saleId &&
+      authenticatedUserId &&
+      paymentData
+    ) {
+      const committedIdempotency = await prisma.paymentIdempotency.findUnique({
+        where: {
+          organizationId_key: {
+            organizationId,
+            key: safeIdempotencyKey,
+          },
+        },
+      });
+
+      if (
+        committedIdempotency &&
+        committedIdempotency.saleId === saleId &&
+        committedIdempotency.userId === authenticatedUserId &&
+        committedIdempotency.status === 'COMPLETED'
+      ) {
+        const cachedResponse = JSON.parse(committedIdempotency.responseBody || '{}') as {
+          method?: string;
+          amount?: number | string;
+          reference?: string | null;
+        };
+
+        if (
+          cachedResponse.method === paymentData.method &&
+          Number(cachedResponse.amount) === Number(paymentData.amount) &&
+          (paymentData.reference === undefined ||
+            (cachedResponse.reference ?? null) === (paymentData.reference ?? null))
+        ) {
+          return NextResponse.json(
+            cachedResponse,
+            { status: committedIdempotency.responseStatus || 200 }
+          );
+        }
+      }
+    }
+
     if (error instanceof ZodError) {
       return NextResponse.json(
         { error: 'Invalid request data', details: error.issues },
