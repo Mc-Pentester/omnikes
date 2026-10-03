@@ -94,17 +94,33 @@ export class SalesReportRepository {
         FROM "sale_items" si
         INNER JOIN filtered_sales fs ON fs."id" = si."saleId"
       ),
-      financial_coverage AS (
+      payment_coverage AS (
         SELECT
+          p."saleId",
           COALESCE(SUM(p."amount") FILTER (
             WHERE p."status" = 'COMPLETED' AND p."method" <> 'CREDIT'
-          ), 0)::double precision AS "totalPaid",
+          ), 0)::double precision AS "totalPaid"
+        FROM "payments" p
+        INNER JOIN filtered_sales fs ON fs."id" = p."saleId"
+        GROUP BY p."saleId"
+      ),
+      credit_coverage AS (
+        SELECT
+          sc."saleId",
           COALESCE(SUM(sc."amount") FILTER (
             WHERE sc."status" = 'AUTHORIZED'
           ), 0)::double precision AS "authorizedCredit"
+        FROM "sale_credits" sc
+        INNER JOIN filtered_sales fs ON fs."id" = sc."saleId"
+        GROUP BY sc."saleId"
+      ),
+      financial_coverage AS (
+        SELECT
+          COALESCE(SUM(pc."totalPaid"), 0)::double precision AS "totalPaid",
+          COALESCE(SUM(cc."authorizedCredit"), 0)::double precision AS "authorizedCredit"
         FROM filtered_sales fs
-        LEFT JOIN "payments" p ON p."saleId" = fs."id"
-        LEFT JOIN "sale_credits" sc ON sc."saleId" = fs."id"
+        LEFT JOIN payment_coverage pc ON pc."saleId" = fs."id"
+        LEFT JOIN credit_coverage cc ON cc."saleId" = fs."id"
       )
       SELECT
         COUNT(*)::int AS "salesCount",
