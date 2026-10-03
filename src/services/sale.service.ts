@@ -387,7 +387,7 @@ export class SaleService {
         : 0;
 
       const coverage = totalPaid + authorizedCredit;
-      const saleTotal = Number(sale.total);
+      const saleTotal = roundMoney(Number(sale.total));
 
       if (coverage < saleTotal) {
         throw new Error(
@@ -691,8 +691,8 @@ export class SaleService {
       throw new Error('Sale not found or access denied');
     }
     
-    const totalPaid = await saleRepository.getTotalPaid(saleId, organizationId);
-    const remainingAmount = Number(sale.total) - totalPaid;
+    const totalPaid = roundMoney(await saleRepository.getTotalPaid(saleId, organizationId));
+    const remainingAmount = roundMoney(Number(sale.total) - totalPaid);
 
     if (validatedData.amount > remainingAmount) {
       throw new Error(`Payment amount exceeds remaining balance. Remaining: ${remainingAmount}, Attempted: ${validatedData.amount}`);
@@ -749,7 +749,7 @@ export class SaleService {
     
     const totalPaid = await saleRepository.getTotalPaid(saleId, organizationId);
     
-    return Number(sale.total) - totalPaid;
+    return roundMoney(Number(sale.total) - roundMoney(totalPaid));
   }
 
   /**
