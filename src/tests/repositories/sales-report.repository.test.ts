@@ -53,6 +53,6 @@ describe('SalesReportRepository — product tax allocation', () => {
     expect(sql).toContain('provisional_tax');
     expect(sql).toContain('allocated_items');
     expect(sql).toContain('ROW_NUMBER');
-    expect(sql).toContain('SUM("provisionalTax") OVER (PARTITION BY "saleId")');
+    expect(sql).toContain('SUM(\\"provisionalTax\\") OVER (PARTITION BY \\"saleId\\")');
   });
 });
