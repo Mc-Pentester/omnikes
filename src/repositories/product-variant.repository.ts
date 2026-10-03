@@ -43,7 +43,7 @@ export class ProductVariantRepository {
   /**
    * List variants for a product
    */
-  async listByProduct(productId: string, options: {
+  async listByProduct(productId: string, organizationId: string, options: {
     isActive?: boolean;
     skip?: number;
     take?: number;
@@ -52,6 +52,7 @@ export class ProductVariantRepository {
 
     const where: Prisma.ProductVariantWhereInput = {
       productId,
+      product: { organizationId },
     };
 
     if (isActive !== undefined) {
@@ -181,9 +182,9 @@ export class ProductVariantRepository {
   /**
    * Find variant by SKU
    */
-  async findBySku(sku: string) {
-    return prisma.productVariant.findUnique({
-      where: { sku },
+  async findBySku(sku: string, organizationId: string) {
+    return prisma.productVariant.findFirst({
+      where: { sku, product: { organizationId } },
       include: {
         product: true,
       },
@@ -193,9 +194,9 @@ export class ProductVariantRepository {
   /**
    * Find variant by barcode
    */
-  async findByBarcode(barcode: string) {
+  async findByBarcode(barcode: string, organizationId: string) {
     return prisma.productVariant.findFirst({
-      where: { barcode },
+      where: { barcode, product: { organizationId } },
       include: {
         product: true,
       },
@@ -222,10 +223,11 @@ export class ProductVariantRepository {
   /**
    * Check if SKU is unique (excluding current variant)
    */
-  async isSkuUnique(sku: string, excludeId?: string): Promise<boolean> {
+  async isSkuUnique(sku: string, organizationId: string, excludeId?: string): Promise<boolean> {
     const existing = await prisma.productVariant.findFirst({
       where: {
         sku,
+        product: { organizationId },
         ...(excludeId ? { id: { not: excludeId } } : {}),
       },
       select: { id: true },
