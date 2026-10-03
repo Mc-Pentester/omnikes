@@ -152,6 +152,7 @@ export class InventoryRepository {
    */
   async listByOrganization(organizationId: string, options: {
     storeId?: string;
+    authorizedStoreIds?: string[] | null;
     skip?: number;
     take?: number;
   } = {}) {
@@ -173,7 +174,7 @@ export class InventoryRepository {
       }
       where.storeId = { in: authorizedStoreIds };
       if (storeId) {
-        where.storeId = { in: authorizedStoreIds.filter((id) => id === storeId) };
+        where.storeId = { in: authorizedStoreIds.filter((id: string) => id === storeId) };
       }
     }
 
