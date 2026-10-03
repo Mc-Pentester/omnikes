@@ -7,7 +7,27 @@ export class InventoryRepository {
    * Uses atomic upsert with the unique constraint (storeId, variantId)
    * This prevents race conditions and duplicates
    */
-  async findOrCreate(storeId: string, variantId: string) {
+  async findOrCreate(storeId: string, variantId: string, organizationId: string) {
+    // Both foreign entities must belong to the current tenant before the
+    // composite upsert is allowed to create or return an inventory row.
+    const [store, variant] = await Promise.all([
+      prisma.store.findFirst({
+        where: { id: storeId, organizationId },
+        select: { id: true },
+      }),
+      prisma.productVariant.findFirst({
+        where: {
+          id: variantId,
+          product: { organizationId },
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    if (!store || !variant) {
+      throw new Error('Store or product variant not found or access denied');
+    }
+
     return prisma.inventory.upsert({
       where: {
         storeId_variantId: {
