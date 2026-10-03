@@ -25,9 +25,9 @@ const reports: ReportCard[] = [
   {
     id: 'inventory',
     title: "Rapport d'inventaire",
-    description: 'Analyse des stocks et mouvements',
+    description: 'Consultez l’état des stocks et les mouvements depuis Gestion des stocks.',
     icon: '📦',
-    path: '/reports/inventory',
+    path: '/inventory/report',
     available: true,
   },
   {
