@@ -201,7 +201,10 @@ export class SaleService {
     // Calculate new total if quantity or price changed
     if (validatedData.quantity !== undefined || validatedData.unitPrice !== undefined || validatedData.discount !== undefined) {
       const item = await prisma.saleItem.findFirst({
-        where: { id: itemId },
+        where: {
+          id: itemId,
+          sale: { organizationId },
+        },
         include: {
           sale: true,
           variant: true,
@@ -247,8 +250,11 @@ export class SaleService {
       await saleRepository.updateItem(itemId, organizationId, validatedData as Prisma.SaleItemUpdateInput);
     }
 
-    return prisma.saleItem.findUnique({
-      where: { id: itemId },
+    return prisma.saleItem.findFirst({
+      where: {
+        id: itemId,
+        sale: { organizationId },
+      },
       include: {
         variant: {
           include: {
@@ -264,7 +270,10 @@ export class SaleService {
    */
   async removeItem(itemId: string, organizationId: string) {
     const item = await prisma.saleItem.findFirst({
-      where: { id: itemId },
+      where: {
+        id: itemId,
+        sale: { organizationId },
+      },
       include: {
         sale: true,
       },
@@ -288,8 +297,11 @@ export class SaleService {
     const discount = items.reduce((sum: number, item: SaleItem) => sum + Number(item.discount), 0);
     
     // Get tax rate from organization's tax configuration
-    const sale = await prisma.sale.findUnique({
-      where: { id: saleId },
+    const sale = await prisma.sale.findFirst({
+      where: {
+        id: saleId,
+        organizationId,
+      },
       include: {
         organization: {
           include: {
