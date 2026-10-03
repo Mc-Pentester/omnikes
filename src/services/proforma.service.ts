@@ -47,17 +47,13 @@ export class ProformaService {
       }
     }
 
-    const {
-      organizationId: _,
-      storeId: __,
-      customerId: ___,
-      items,
-      subtotal: _subtotal,
-      tax: _tax,
-      total: _total,
-      discount: _discount,
-      ...dataWithoutIds
-    } = validatedData;
+    const { items } = validatedData;
+    const dataWithoutIds = {
+      status: validatedData.status,
+      applyTax: validatedData.applyTax,
+      validUntil: validatedData.validUntil,
+      notes: validatedData.notes,
+    };
 
     // Create proforma and items in a transaction
     return prisma.$transaction(async (tx) => {
