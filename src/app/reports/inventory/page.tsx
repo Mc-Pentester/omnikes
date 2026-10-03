@@ -73,14 +73,6 @@ export default function InventoryReportPage() {
       currency: summary?.currency || 'HTG',
     }).format(value);
 
-  const formatDate = (value: string) =>
-    new Date(value).toLocaleString('fr-HT', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
 
   const loadStores = async () => {
     try {
@@ -123,11 +115,19 @@ export default function InventoryReportPage() {
   };
 
   useEffect(() => {
-    loadStores();
+    const timeoutId = window.setTimeout(() => {
+      loadStores();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {
-    loadReport();
+    const timeoutId = window.setTimeout(() => {
+      loadReport();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [startDate, endDate, storeId, lowStockThreshold]);
 
   const setToday = () => {
