@@ -67,6 +67,7 @@ export async function POST(
     const checkoutOrganizationId = organizationId;
     const checkoutUserId = user.id;
     const checkoutIdempotencyKey = safeIdempotencyKey;
+    const checkoutPaymentData = parsedPaymentData;
 
     // Check for existing idempotency record
     const existingIdempotency = await prisma.checkoutIdempotency.findUnique({
@@ -254,8 +255,8 @@ export async function POST(
       const serverTotal = subtotal - discount + tax;
 
       // Validate payment amount
-      if (Number(parsedPaymentData.amount) !== serverTotal) {
-        throw new Error(`Payment amount mismatch. Expected: ${serverTotal}, Received: ${parsedPaymentData.amount}`);
+      if (Number(checkoutPaymentData.amount) !== serverTotal) {
+        throw new Error(`Payment amount mismatch. Expected: ${serverTotal}, Received: ${checkoutPaymentData.amount}`);
       }
 
       // Verify and lock inventory for each item
@@ -302,10 +303,10 @@ export async function POST(
       // Create payment
       const payment = await tx.payment.create({
         data: {
-          saleId,
-          method: parsedPaymentData.method,
-          amount: parsedPaymentData.amount,
-          reference: parsedPaymentData.reference || `PAY-${Date.now()}`,
+          saleId: checkoutSaleId,
+          method: checkoutPaymentData.method,
+          amount: checkoutPaymentData.amount,
+          reference: checkoutPaymentData.reference || `PAY-${Date.now()}`,
           status: 'COMPLETED',
         },
       });
@@ -387,10 +388,10 @@ export async function POST(
 
         if (
           cachedPayment &&
-          cachedPayment.method === parsedPaymentData.method &&
-          Number(cachedPayment.amount) === Number(parsedPaymentData.amount) &&
-          (parsedPaymentData.reference === undefined ||
-            (cachedPayment.reference ?? null) === (parsedPaymentData.reference ?? null))
+          cachedPayment.method === paymentData.method &&
+          Number(cachedPayment.amount) === Number(paymentData.amount) &&
+          (paymentData.reference === undefined ||
+            (cachedPayment.reference ?? null) === (paymentData.reference ?? null))
         ) {
           return NextResponse.json(
             cachedResponse,
