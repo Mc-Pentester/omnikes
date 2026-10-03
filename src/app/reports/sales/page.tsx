@@ -14,6 +14,7 @@ interface SummaryData {
   totalPaid: number;
   authorizedCredit: number;
   uncoveredAmount: number;
+  currency: string;
 }
 
 interface PeriodData {
@@ -90,7 +91,7 @@ export default function SalesReportPage() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fr-HT', {
       style: 'currency',
-      currency: 'HTG',
+      currency: summary.currency || 'HTG',
     }).format(amount);
   };
 
