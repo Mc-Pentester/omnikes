@@ -2,6 +2,17 @@ import { prisma } from '@omnikes/lib/prisma';
 import { Prisma } from '@prisma/client';
 
 export class ProductRepository {
+  async create(data: Prisma.ProductCreateInput) {
+    return prisma.product.create({ data, include: { variants: true } });
+  }
+
+  async findById(id: string, organizationId: string) {
+    return prisma.product.findFirst({
+      where: { id, organizationId },
+      include: { variants: true },
+    });
+  }
+
   /**
    * List products for an organization with optional filters
    */
