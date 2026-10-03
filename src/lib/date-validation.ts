@@ -44,7 +44,7 @@ export function validateDateRange(startDate: Date, endDate: Date, maxRangeDays?:
 export function parseReportDateParam(dateString: string | null, endOfDay = false): Date | undefined {
   if (!dateString) return undefined;
 
-  const normalized = endOfDay && /^\\d{4}-\\d{2}-\\d{2}$/.test(dateString)
+  const normalized = endOfDay && /^\d{4}-\d{2}-\d{2}$/.test(dateString)
     ? dateString + 'T23:59:59.999Z'
     : dateString;
 
