@@ -298,14 +298,16 @@ export default function InventoryPage() {
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Logo size={40} />
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Inventaire</h1>
                 <p className="text-sm text-gray-500">Gérez le stock de vos magasins.</p>
               </div>
-            </div>
+            <Button variant="outline" onClick={() => router.push('/inventory/report')}>
+              📊 Rapport d&apos;inventaire
+            </Button>
           </div>
         </header>
 
