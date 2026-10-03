@@ -46,6 +46,9 @@ vi.mock('@omnikes/lib/prisma', () => ({
       findFirst: vi.fn(),
       update: vi.fn(),
     },
+    organization: {
+      findUnique: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
 }));
