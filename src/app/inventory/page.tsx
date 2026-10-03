@@ -9,7 +9,6 @@ import { Input } from '@omnikes/components/ui/input';
 import { Modal } from '@omnikes/components/ui/modal';
 import { useAuth } from '@omnikes/contexts/AuthContext';
 import { Sidebar } from '@omnikes/components/layout/Sidebar';
-import { BarcodeScannerStatus } from '@omnikes/components/hardware/BarcodeScannerStatus';
 
 interface Inventory {
   id: string;
