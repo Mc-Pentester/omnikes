@@ -1,5 +1,3 @@
-import { NextRequest } from 'next/server';
-
 const DELIVERY_TIMEOUT_MS = 5_000;
 
 function getWebhookUrl(): string | null {
