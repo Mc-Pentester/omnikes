@@ -3,27 +3,6 @@ import { Prisma } from '@prisma/client';
 
 export class ProductVariantRepository {
   /**
-   * Create a new product variant
-   */
-  async create(data: Prisma.ProductVariantCreateInput) {
-    return prisma.productVariant.create({
-      data,
-    });
-  }
-
-  /**
-   * Find a variant by ID
-   */
-  async findById(id: string) {
-    return prisma.productVariant.findUnique({
-      where: { id },
-      include: {
-        product: true,
-      },
-    });
-  }
-
-  /**
    * Find a variant by ID with organization check
    */
   async findByIdWithOrganizationCheck(id: string, organizationId: string) {
