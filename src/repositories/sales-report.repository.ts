@@ -39,7 +39,7 @@ function buildSaleConditions(
   organizationId: string,
   options: SaleFilterOptions,
 ): Prisma.Sql {
-  const { startDate, endDate, storeId } = options;
+  const { startDate, endDate, storeId, authorizedStoreIds } = options;
   const conditions: Prisma.Sql[] = [
     Prisma.sql`s."organizationId" = ${organizationId}`,
     Prisma.sql`s."status" = 'COMPLETED'`,
