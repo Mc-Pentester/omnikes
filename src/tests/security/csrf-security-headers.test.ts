@@ -214,7 +214,7 @@ describe('Security Headers', () => {
     const csp = [
       "default-src 'self'",
       `script-src 'self' 'nonce-${nonce}'`,
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "style-src 'self' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob:",
       "connect-src 'self'",
@@ -227,6 +227,7 @@ describe('Security Headers', () => {
     expect(csp).toContain("default-src 'self'");
     expect(csp).not.toContain("script-src 'self' 'unsafe-inline'");
     expect(csp).not.toContain("'unsafe-eval'");
+    expect(csp).not.toContain("style-src 'self' 'unsafe-inline'");
     expect(csp).toMatch(/script-src 'self' 'nonce-[A-Za-z0-9+/]+=*'/);
     expect(csp).toContain("object-src 'none'");
     expect(csp).toContain("frame-ancestors 'none'");
