@@ -11,6 +11,9 @@ interface SummaryData {
   totalDiscount: number;
   totalTax: number;
   averageSale: number;
+  totalPaid: number;
+  authorizedCredit: number;
+  uncoveredAmount: number;
 }
 
 interface PeriodData {
@@ -369,6 +372,7 @@ export default function SalesReportPage() {
 
             {/* KPI */}
             {summary && (
+              <>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
                 <div className="bg-white border rounded-lg p-6 shadow-sm">
                   <div className="text-sm text-gray-600 mb-1">CA Total</div>
@@ -391,6 +395,27 @@ export default function SalesReportPage() {
                   <div className="text-2xl font-bold text-red-600">{formatCurrency(summary.totalDiscount)}</div>
                 </div>
               </div>
+              <div className="bg-white border rounded-lg p-6 mb-8 shadow-sm">
+                <h2 className="text-lg font-semibold mb-4">Rapprochement financier</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <div className="text-sm text-gray-600 mb-1">Paiements réels</div>
+                    <div className="text-xl font-bold">{formatCurrency(summary.totalPaid)}</div>
+                    <div className="text-xs text-gray-500">Paiements COMPLETED hors CREDIT</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600 mb-1">Crédit autorisé</div>
+                    <div className="text-xl font-bold">{formatCurrency(summary.authorizedCredit)}</div>
+                    <div className="text-xs text-gray-500">SaleCredit AUTHORIZED</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600 mb-1">Montant non couvert</div>
+                    <div className="text-xl font-bold">{formatCurrency(summary.uncoveredAmount)}</div>
+                    <div className="text-xs text-gray-500">CA complété − paiements réels − crédit autorisé</div>
+                  </div>
+                </div>
+              </div>
+              </>
             )}
 
             {/* Évolution des ventes */}
