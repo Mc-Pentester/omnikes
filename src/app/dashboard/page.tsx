@@ -60,7 +60,13 @@ export default function DashboardPage() {
     }
   };
 
-  const loadDashboardStats = useEffectEvent(() => {\n    if (user) void fetchStats();\n  });\n\n  useEffect(() => {\n    loadDashboardStats();\n  }, [user]);
+  const loadDashboardStats = useEffectEvent(() => {
+    if (user) void fetchStats();
+  });
+
+  useEffect(() => {
+    loadDashboardStats();
+  }, [user]);
 
   if (authLoading) {
     return (
