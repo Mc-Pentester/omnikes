@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseReportDateParam } from '@omnikes/lib/date-validation';
 import { z } from 'zod';
 import { salesReportService } from '@omnikes/services/sales-report.service';
 import { salesReportStoreSchema } from '@omnikes/lib/validation';
@@ -15,8 +16,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
 
-    const startDate = searchParams.get('startDate') ? new Date(searchParams.get('startDate')!) : undefined;
-    const endDate = searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : undefined;
+    const startDate = parseReportDateParam(searchParams.get('startDate'));
+    const endDate = parseReportDateParam(searchParams.get('endDate'), true);
 
     const validatedData = salesReportStoreSchema.parse({
       startDate,
