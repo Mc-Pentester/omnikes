@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_MONEY_10_2, MAX_MONEY_12_2, hasAtMostTwoDecimalPlaces } from '@omnikes/lib/money';
 
 // Organization validation
 export const organizationSchema = z.object({
@@ -134,8 +135,8 @@ export const productVariantSchema = z.object({
   productId: z.string().cuid(),
   sku: z.string().min(1, 'SKU is required').max(100, 'SKU must be less than 100 characters'),
   barcode: z.string().max(50).optional(),
-  price: z.number().nonnegative('Price must be non-negative').refine((val) => val >= 0, 'Price must be at least 0'),
-  cost: z.number().nonnegative('Cost must be non-negative').refine((val) => val >= 0, 'Cost must be at least 0'),
+  price: z.number().finite().nonnegative('Price must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Price must have at most 2 decimal places'),
+  cost: z.number().finite().nonnegative('Cost must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Cost must have at most 2 decimal places'),
   saleUnit: productSaleUnitSchema.default('UNIT'),
   attributes: z.any().optional(),
   isActive: z.boolean().default(true),
@@ -195,10 +196,10 @@ export const saleSchema = z.object({
   customerId: z.string().cuid().optional(),
   channel: z.string().default('POS'),
   status: z.string().default('PENDING'),
-  subtotal: z.number().nonnegative('Subtotal must be non-negative'),
-  tax: z.number().nonnegative('Tax must be non-negative').default(0),
-  total: z.number().nonnegative('Total must be non-negative'),
-  discount: z.number().nonnegative('Discount must be non-negative').default(0),
+  subtotal: z.number().finite().nonnegative('Subtotal must be non-negative').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Subtotal must have at most 2 decimal places'),
+  tax: z.number().finite().nonnegative('Tax must be non-negative').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Tax must have at most 2 decimal places').default(0),
+  total: z.number().finite().nonnegative('Total must be non-negative').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Total must have at most 2 decimal places'),
+  discount: z.number().finite().nonnegative('Discount must be non-negative').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Discount must have at most 2 decimal places').default(0),
   applyTax: z.boolean().default(true),
   notes: z.string().max(1000).optional(),
 });
@@ -210,9 +211,9 @@ export const saleItemSchema = z.object({
   saleId: z.string().cuid().optional(),
   variantId: z.string().cuid(),
   quantity: z.int().positive('Quantity must be positive'),
-  unitPrice: z.number().nonnegative('Unit price must be non-negative').optional(),
-  totalPrice: z.number().nonnegative('Total price must be non-negative').optional(),
-  discount: z.number().nonnegative('Discount must be non-negative').default(0),
+  unitPrice: z.number().finite().nonnegative('Unit price must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Unit price must have at most 2 decimal places').optional(),
+  totalPrice: z.number().finite().nonnegative('Total price must be non-negative').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Total price must have at most 2 decimal places').optional(),
+  discount: z.number().finite().nonnegative('Discount must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Discount must have at most 2 decimal places').default(0),
 });
 
 export const saleItemUpdateSchema = saleItemSchema.partial().omit({ saleId: true, variantId: true });
@@ -226,7 +227,7 @@ export const paymentSchema = z.object({
   method: z.enum(['CASH', 'CARD', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CHECK'], {
     message: 'Invalid payment method',
   }),
-  amount: z.number().positive('Amount must be positive'),
+  amount: z.number().finite().positive('Amount must be positive').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Amount must have at most 2 decimal places'),
   reference: z.string().max(200).optional(),
   status: z.literal('COMPLETED').default('COMPLETED'),
 });
@@ -236,7 +237,7 @@ export const paymentUpdateSchema = paymentSchema.partial().omit({ saleId: true }
 // Explicit customer credit authorization
 export const saleCreditSchema = z.object({
   customerId: z.string().cuid(),
-  amount: z.number().positive('Credit amount must be positive'),
+  amount: z.number().finite().positive('Credit amount must be positive').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Credit amount must have at most 2 decimal places'),
   note: z.string().max(1000).optional(),
 });
 
