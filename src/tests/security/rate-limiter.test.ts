@@ -13,10 +13,8 @@ import {
 describe('rate-limiter', () => {
   beforeEach(() => {
     stopRateLimitCleanup();
-    vi.useRealTimers();
+    vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
-
-    // Clear the module-level store through unique identifiers used by each test.
     cleanupExpiredEntries();
   });
 
