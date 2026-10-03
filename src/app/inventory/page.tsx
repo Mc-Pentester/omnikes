@@ -110,8 +110,8 @@ export default function InventoryPage() {
   });
 
   useEffect(() => {
-    loadInventoryOnAuth();
-  }, [user]);
+    queueMicrotask(loadInventoryOnAuth);
+  }, [user, loadInventoryOnAuth]);
 
   const handleOpenWorkflow = (inventoryItem: Inventory, nextWorkflow: InventoryWorkflow) => {
     setSelectedInventory(inventoryItem);
