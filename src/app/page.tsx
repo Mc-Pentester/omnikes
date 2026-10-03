@@ -102,7 +102,7 @@ export default function HomePage() {
 
   const storesValidated = stores.length > 0 && Boolean(currentStoreId) && stores.some((s) => s.id === currentStoreId);
 
-  const addToCart = async (variantId: string, productId: string, productName: string, variantName: string, sku: string, price: number, saleUnit: CartItem['saleUnit'] = 'UNIT') => {
+  const addToCart = useCallback(async (variantId: string, productId: string, productName: string, variantName: string, sku: string, price: number, saleUnit: CartItem['saleUnit'] = 'UNIT') => {
     // Prevent adding to cart before stores are validated
     if (!storesValidated) {
       console.log('[POS][STORE] Stores not yet validated, ignoring addToCart');
@@ -175,7 +175,7 @@ export default function HomePage() {
         console.error('Error creating sale:', err);
       }
     }
-  };
+  }, [storesValidated, pendingScaleReading, cart, currentSaleId, currentStoreId, generateOrderNumber, selectedCustomer, applyTax]);
 
   const fetchStores = useCallback(async () => {
     if (!user) return;
@@ -258,6 +258,46 @@ export default function HomePage() {
     return () => window.clearTimeout(timer);
   }, [stores, currentStoreId, currentStore, setCurrentStore, clearCurrentStore]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F1') {
+        e.preventDefault();
+        const searchInput = document.getElementById('product-search') as HTMLInputElement;
+        searchInput?.focus();
+      }
+      if (e.key === 'F12') {
+        e.preventDefault();
+        handlePayment();
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (showPaymentModal) setShowPaymentModal(false);
+      }
+      if (e.key === 'Enter' && document.activeElement?.id === 'product-search') {
+        const firstProduct = filteredProducts[0];
+        if (firstProduct && firstProduct.variants[0]) {
+          e.preventDefault();
+          addToCart(
+            firstProduct.variants[0].id,
+            firstProduct.id,
+            firstProduct.name,
+            firstProduct.variants[0].name,
+            firstProduct.variants[0].sku,
+            firstProduct.variants[0].price
+          );
+          setSearchTerm('');
+          setTimeout(() => {
+            const searchInput = document.getElementById('product-search') as HTMLInputElement;
+            searchInput?.focus();
+          }, 100);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handlePayment, filteredProducts, showPaymentModal, addToCart]);
+
   if (authLoading || storeLoading) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-gray-600">Chargement...</p></div>;
   }
@@ -300,46 +340,6 @@ export default function HomePage() {
       </div>
     );
   }
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F1') {
-        e.preventDefault();
-        const searchInput = document.getElementById('product-search') as HTMLInputElement;
-        searchInput?.focus();
-      }
-      if (e.key === 'F12') {
-        e.preventDefault();
-        handlePayment();
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        if (showPaymentModal) setShowPaymentModal(false);
-      }
-      if (e.key === 'Enter' && document.activeElement?.id === 'product-search') {
-        const firstProduct = filteredProducts[0];
-        if (firstProduct && firstProduct.variants[0]) {
-          e.preventDefault();
-          addToCart(
-            firstProduct.variants[0].id,
-            firstProduct.id,
-            firstProduct.name,
-            firstProduct.variants[0].name,
-            firstProduct.variants[0].sku,
-            firstProduct.variants[0].price
-          );
-          setSearchTerm('');
-          setTimeout(() => {
-            const searchInput = document.getElementById('product-search') as HTMLInputElement;
-            searchInput?.focus();
-          }, 100);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePayment, filteredProducts, showPaymentModal]);
 
   const removeFromCart = (variantId: string) => {
     setCart(cart.filter(item => item.variantId !== variantId));
