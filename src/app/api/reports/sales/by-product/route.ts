@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { salesReportService } from '@omnikes/services/sales-report.service';
 import { salesReportProductSchema } from '@omnikes/lib/validation';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, getAuthorizedStoreIds } from '@omnikes/lib/auth';
 
 /**
  * GET /api/reports/sales/by-product
@@ -32,7 +32,9 @@ export async function GET(request: NextRequest) {
       limit,
     });
 
-    const result = await salesReportService.getSalesByProduct(organizationId, validatedData);
+    const authorizedStoreIds = await getAuthorizedStoreIds(request);
+
+    const result = await salesReportService.getSalesByProduct(organizationId, { ...validatedData, authorizedStoreIds });
 
     return NextResponse.json(result);
   } catch (error) {
