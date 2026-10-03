@@ -70,6 +70,7 @@ describe('SalesReportRepository — monetary output normalization', () => {
       totalPaid: 100.12,
       authorizedCredit: 0,
       uncoveredAmount: 0,
+      currency: 'HTG',
     };
     queryRaw.mockResolvedValueOnce([expected]);
 
