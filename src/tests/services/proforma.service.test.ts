@@ -8,6 +8,7 @@ vi.mock('@omnikes/lib/prisma', () => ({
     proforma: {
       create: vi.fn(),
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
       update: vi.fn(),
     },
     productVariant: {
@@ -78,7 +79,7 @@ describe('ProformaService - Acceptance', () => {
       (proformaRepository.updateStatus as any).mockResolvedValue({ ...mockProforma, status: 'ACCEPTED' });
       (proformaRepository.listItems as any).mockResolvedValue([]);
       (proformaRepository.update as any).mockResolvedValue(mockProforma);
-      (prismaMock.proforma.findUnique as any).mockResolvedValue({
+      (prismaMock.proforma.findFirst as any).mockResolvedValue({
         ...mockProforma,
         organization: {
           taxConfiguration: { taxRate: 0.1 },
@@ -254,7 +255,7 @@ describe('ProformaService - Conversion', () => {
         return callback(prisma);
       });
 
-      (prismaMock.proforma.findUnique as any).mockResolvedValue(mockProforma);
+      (prismaMock.proforma.findFirst as any).mockResolvedValue(mockProforma);
       (prismaMock.sale.findFirst as any).mockResolvedValue(null);
       (prismaMock.sale.create as any).mockResolvedValue(mockSale);
       (prismaMock.saleItem.create as any).mockResolvedValue({});
@@ -318,7 +319,7 @@ describe('ProformaService - Conversion', () => {
         return callback(prisma);
       });
 
-      (prismaMock.proforma.findUnique as any).mockResolvedValue(mockProforma);
+      (prismaMock.proforma.findFirst as any).mockResolvedValue(mockProforma);
 
       await expect(proformaService.convert(mockProformaId, mockOrganizationId))
         .rejects.toThrow('Cannot convert proforma with status DRAFT');
@@ -340,7 +341,7 @@ describe('ProformaService - Conversion', () => {
         return callback(prisma);
       });
 
-      (prismaMock.proforma.findUnique as any).mockResolvedValue(mockProforma);
+      (prismaMock.proforma.findFirst as any).mockResolvedValue(mockProforma);
       (prismaMock.sale.findFirst as any).mockResolvedValue({ id: 'sale-123' });
 
       await expect(proformaService.convert(mockProformaId, mockOrganizationId))
@@ -363,7 +364,7 @@ describe('ProformaService - Conversion', () => {
         return callback(prisma);
       });
 
-      (prismaMock.proforma.findUnique as any).mockResolvedValue(mockProforma);
+      (prismaMock.proforma.findFirst as any).mockResolvedValue(mockProforma);
       (prismaMock.sale.findFirst as any).mockResolvedValue(null);
 
       await expect(proformaService.convert(mockProformaId, mockOrganizationId))
@@ -386,7 +387,7 @@ describe('ProformaService - Conversion', () => {
         return callback(prisma);
       });
 
-      (prismaMock.proforma.findUnique as any).mockResolvedValue(mockProforma);
+      (prismaMock.proforma.findFirst as any).mockResolvedValue(mockProforma);
 
       await expect(proformaService.convert(mockProformaId, mockOrganizationId))
         .rejects.toThrow('Proforma not found or access denied');
@@ -424,7 +425,7 @@ describe('ProformaService - Conversion', () => {
         return callback(prisma);
       });
 
-      (prismaMock.proforma.findUnique as any).mockResolvedValue(mockProforma);
+      (prismaMock.proforma.findFirst as any).mockResolvedValue(mockProforma);
       (prismaMock.sale.findFirst as any).mockResolvedValue(null);
       (prismaMock.sale.create as any).mockResolvedValue({ id: 'sale-123' });
       (prismaMock.saleItem.create as any).mockResolvedValue({});
@@ -480,7 +481,7 @@ describe('ProformaService - Conversion', () => {
         return callback(prisma);
       });
 
-      (prismaMock.proforma.findUnique as any).mockResolvedValue(mockProforma);
+      (prismaMock.proforma.findFirst as any).mockResolvedValue(mockProforma);
       (prismaMock.sale.findFirst as any).mockResolvedValue(null);
       (prismaMock.sale.create as any).mockResolvedValue({ id: 'sale-123' });
       (prismaMock.saleItem.create as any).mockResolvedValue({});
@@ -562,7 +563,7 @@ describe('ProformaService - Conversion', () => {
       const mockProformaId = 'proforma-123';
       const mockOrganizationId = 'org-123';
 
-      (prismaMock.proforma.findUnique as any).mockResolvedValue({
+      (prismaMock.proforma.findFirst as any).mockResolvedValue({
         id: mockProformaId,
         applyTax: false,
         organization: {
