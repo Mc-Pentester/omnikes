@@ -65,6 +65,7 @@ describe('P0-27 - scoped report aggregation', () => {
         sku: 'P0-27-SKU',
         price: 10,
         cost: 5,
+        attributes: {},
       },
     });
 
