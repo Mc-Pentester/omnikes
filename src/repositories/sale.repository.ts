@@ -280,23 +280,20 @@ export class SaleRepository {
    * Delete a sale item
    */
   async deleteItem(id: string, organizationId: string) {
-    // First verify the item belongs to the organization
-    const item = await prisma.saleItem.findFirst({
-      where: { id },
-      include: {
+    const result = await prisma.saleItem.deleteMany({
+      where: {
+        id,
         sale: {
-          select: { organizationId: true },
+          organizationId,
         },
       },
     });
 
-    if (!item || item.sale.organizationId !== organizationId) {
+    if (result.count === 0) {
       throw new Error('Sale item not found or access denied');
     }
 
-    return prisma.saleItem.delete({
-      where: { id },
-    });
+    return result;
   }
 
   /**
