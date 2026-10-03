@@ -17,6 +17,7 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
   const [ports, setPorts] = useState<ScalePortInfo[]>([]);
   const [scaleId, setScaleId] = useState('');
   const [baudRate, setBaudRate] = useState('9600');
+  const [bridgeToken, setBridgeToken] = useState<string | null>(null);
   const [reading, setReading] = useState<{
     weight: number;
     unit: string;
@@ -26,14 +27,42 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
   const [status, setStatus] = useState<'idle' | 'loading' | 'reading' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  const bridge = useMemo(() => createLocalHardwareBridge(), []);
+  const bridge = useMemo(
+    () => (bridgeToken ? createLocalHardwareBridge({ token: bridgeToken }) : null),
+    [bridgeToken],
+  );
+
+  const loadBridgeToken = useCallback(async () => {
+    const response = await fetch('/api/hardware/bridge-token', {
+      method: 'GET',
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        response.status === 503
+          ? 'Authentification du bridge matériel non configurée'
+          : 'Authentification requise pour le bridge matériel',
+      );
+    }
+
+    const body = (await response.json()) as { token?: unknown };
+    if (typeof body.token !== 'string' || body.token.length < 32) {
+      throw new Error('Jeton du bridge matériel invalide');
+    }
+
+    setBridgeToken(body.token);
+    return body.token;
+  }, []);
 
   const discover = useCallback(async () => {
     setStatus('loading');
     setError(null);
 
     try {
-      const result = await bridge.listScales();
+      const token = bridgeToken ?? (await loadBridgeToken());
+      const client = bridge ?? createLocalHardwareBridge({ token });
+      const result = await client.listScales();
       const scales = result.scales ?? [];
       setPorts(scales);
 
@@ -51,7 +80,7 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
           : 'Bridge matériel indisponible',
       );
     }
-  }, [bridge]);
+  }, [bridge, bridgeToken, loadBridgeToken]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -71,6 +100,12 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
     setError(null);
 
     try {
+      const client =
+        bridge ??
+        createLocalHardwareBridge({
+          token: bridgeToken ?? (await loadBridgeToken()),
+        });
+
       const options: ScaleSerialOptions = {
         scaleId,
         baudRate: Number(baudRate),
@@ -81,7 +116,7 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
         settleMs: 300,
       };
 
-      const response = await bridge.readScale(options);
+      const response = await client.readScale(options);
       const parsed = parseScaleReading(response.raw);
 
       const nextReading = {
