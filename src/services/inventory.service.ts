@@ -39,7 +39,7 @@ export class InventoryService {
     return inventoryRepository.listByStore(storeId, organizationId, options);
   }
 
-  async listByOrganization(organizationId: string, options: { storeId?: string; skip?: number; take?: number } = {}) {
+  async listByOrganization(organizationId: string, options: { storeId?: string; authorizedStoreIds?: string[] | null; skip?: number; take?: number } = {}) {
     return inventoryRepository.listByOrganization(organizationId, options);
   }
 
