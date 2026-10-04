@@ -297,6 +297,8 @@ export const customerCreateSchema = z.object({
   isActive: z.boolean().optional(),
 }).strict();
 
+export const customerUpdateSchema = customerCreateSchema.partial().strict();
+
 // Sales Report validation
 // Report queries are deliberately bounded to prevent unbounded historical extraction.
 export const SALES_REPORT_MAX_RANGE_DAYS = 366;
