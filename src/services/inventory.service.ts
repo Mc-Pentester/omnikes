@@ -102,6 +102,12 @@ export class InventoryService {
       throw new Error('Movement quantity cannot be zero');
     }
 
+    // Defense in depth: directional movements must be positive.
+    // ADJUSTMENT alone may be signed because it represents an exact delta.
+    if (validatedData.type !== 'ADJUSTMENT' && validatedData.quantity < 0) {
+      throw new Error(`Quantity must be positive for ${validatedData.type} movements`);
+    }
+
     const validTypes: MovementType[] = ['SALE', 'PURCHASE', 'ADJUSTMENT', 'TRANSFER_IN', 'TRANSFER_OUT', 'RETURN'];
     if (!validTypes.includes(validatedData.type as MovementType)) {
       throw new Error(`Invalid movement type: ${validatedData.type}`);
