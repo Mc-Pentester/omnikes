@@ -94,6 +94,51 @@ describe('P0 POS financial runtime proofs', () => {
     return sale;
   }
 
+  async function createDecimalSale() {
+    const inventory = await prisma.inventory.findUniqueOrThrow({
+      where: { storeId_variantId: { storeId, variantId } },
+      select: { quantity: true },
+    });
+
+    const sale = await prisma.sale.create({
+      data: {
+        organizationId: orgId,
+        storeId,
+        orderNumber: `P2-S2-DECIMAL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        customerId,
+        status: 'PENDING',
+        subtotal: 0.2,
+        tax: 0.1,
+        taxRate: 50,
+        total: 0.3,
+        discount: 0,
+        applyTax: true,
+        items: {
+          create: [
+            {
+              variantId,
+              quantity: 1,
+              unitPrice: 0.1,
+              totalPrice: 0.1,
+              discount: 0,
+            },
+            {
+              variantId,
+              quantity: 1,
+              unitPrice: 0.1,
+              totalPrice: 0.1,
+              discount: 0,
+            },
+          ],
+        },
+      },
+    });
+
+    saleIds.push(sale.id);
+    inventorySnapshots.set(sale.id, inventory.quantity);
+    return sale;
+  }
+
   async function cleanupSale(saleId: string) {
     const sale = await prisma.sale.findUnique({
       where: { id: saleId },
@@ -227,6 +272,36 @@ describe('P0 POS financial runtime proofs', () => {
     expect(idempotencyRecords).toHaveLength(1);
     expect(idempotencyRecords[0].status).toBe('COMPLETED');
     expect(idempotencyRecords[0].responseStatus).toBe(201);
+  });
+
+  it('accepts decimal totals without floating-point equality errors', async () => {
+    const sale = await createDecimalSale();
+
+    const response = await checkout(
+      new NextRequest(`http://localhost/api/sales/${sale.id}/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': `p2-s2-decimal-${sale.id}`,
+        },
+        body: JSON.stringify({
+          method: 'CASH',
+          amount: 0.3,
+        }),
+      }),
+      { params: Promise.resolve({ id: sale.id }) },
+    );
+
+    expect(response.status).toBe(201);
+
+    const completedSale = await prisma.sale.findUniqueOrThrow({
+      where: { id: sale.id },
+      include: { payments: true },
+    });
+
+    expect(completedSale.status).toBe('COMPLETED');
+    expect(completedSale.payments).toHaveLength(1);
+    expect(Number(completedSale.payments[0].amount)).toBe(0.3);
   });
 
   it('rolls back payment, stock movement, and sale completion when checkout fails on insufficient stock', async () => {
