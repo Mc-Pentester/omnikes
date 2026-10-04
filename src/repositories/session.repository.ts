@@ -1,6 +1,6 @@
 import { prisma } from '@omnikes/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { hashToken, constantTimeCompare } from '@omnikes/lib/crypto';
+import { hashToken } from '@omnikes/lib/crypto';
 
 export class SessionRepository {
   /**
