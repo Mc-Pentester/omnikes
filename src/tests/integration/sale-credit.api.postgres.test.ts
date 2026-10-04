@@ -162,27 +162,39 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
   }
 
   afterAll(async () => {
-    await prisma.session.deleteMany({ where: { userId: scopedUser.id } });
-    await prisma.saleCredit.deleteMany({
-      where: { saleId: { in: [sameStoreSaleId, crossStoreSaleId] } },
-    });
-    await prisma.sale.deleteMany({
-      where: { id: { in: [sameStoreSaleId, crossStoreSaleId] } },
-    });
-    await prisma.userRole.deleteMany({ where: { userId: scopedUser.id } });
-    await prisma.rolePermission.deleteMany({ where: { roleId: scopedRole.id } });
-    await prisma.role.delete({ where: { id: scopedRole.id } });
-    await prisma.user.delete({ where: { id: scopedUser.id } });
-
-    const temporaryStore = await prisma.store.findUnique({
-      where: { id: storeB.id },
-      select: { code: true },
-    });
-    if (temporaryStore?.code === 'P0-F2-D-STORE-B') {
-      await prisma.store.delete({ where: { id: storeB.id } });
+    if (scopedUser?.id) {
+      await prisma.session.deleteMany({ where: { userId: scopedUser.id } });
     }
-    if (temporaryCustomerA) {
-      await prisma.customer.delete({ where: { id: customerA.id } });
+    if (sameStoreSaleId || crossStoreSaleId) {
+      await prisma.saleCredit.deleteMany({
+        where: { saleId: { in: [sameStoreSaleId, crossStoreSaleId].filter(Boolean) } },
+      });
+      await prisma.sale.deleteMany({
+        where: { id: { in: [sameStoreSaleId, crossStoreSaleId].filter(Boolean) } },
+      });
+    }
+    if (scopedUser?.id) {
+      await prisma.userRole.deleteMany({ where: { userId: scopedUser.id } });
+    }
+    if (scopedRole?.id) {
+      await prisma.rolePermission.deleteMany({ where: { roleId: scopedRole.id } });
+      await prisma.role.delete({ where: { id: scopedRole.id } }).catch(() => undefined);
+    }
+    if (scopedUser?.id) {
+      await prisma.user.delete({ where: { id: scopedUser.id } }).catch(() => undefined);
+    }
+
+    if (storeB?.id) {
+      const temporaryStore = await prisma.store.findUnique({
+        where: { id: storeB.id },
+        select: { code: true },
+      });
+      if (temporaryStore?.code === 'P0-F2-D-STORE-B') {
+        await prisma.store.delete({ where: { id: storeB.id } }).catch(() => undefined);
+      }
+    }
+    if (temporaryCustomerA && customerA?.id) {
+      await prisma.customer.delete({ where: { id: customerA.id } }).catch(() => undefined);
     }
 
     await prisma.$disconnect();
