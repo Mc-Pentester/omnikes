@@ -20,7 +20,7 @@ describe('P0 POS financial runtime proofs', () => {
   let storeId: string;
   let variantId: string;
   let userId: string;
-  let customerId: string | null = null;
+  const customerId: string | null = null;
   const saleIds: string[] = [];
   const inventorySnapshots = new Map<string, number>();
 
@@ -51,11 +51,6 @@ describe('P0 POS financial runtime proofs', () => {
     });
     variantId = variant.id;
 
-    const customer = await prisma.customer.findFirst({
-      where: { organizationId: orgId, email: 'client.a@omnikes.test' },
-      select: { id: true },
-    });
-    customerId = customer?.id ?? null;
   });
 
   async function createSale() {
