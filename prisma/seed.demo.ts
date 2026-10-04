@@ -46,33 +46,34 @@ async function main() {
   const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 
   const saleFixtures = [
-    { n: 1, customer: 0, variant: 0, qty: 2, price: 250, daysAgo: 1, status: 'COMPLETED', payment: 590 },
-    { n: 2, customer: 1, variant: 1, qty: 3, price: 150, daysAgo: 2, status: 'COMPLETED', payment: 531 },
-    { n: 3, customer: 2, variant: 2, qty: 5, price: 80, daysAgo: 4, status: 'COMPLETED', payment: 472 },
-    { n: 4, customer: 3, variant: 3, qty: 4, price: 35, daysAgo: 7, status: 'COMPLETED', payment: 165.2 },
-    { n: 5, customer: 4, variant: 4, qty: 3, price: 45, daysAgo: 12, status: 'COMPLETED', payment: 159.3 },
-    { n: 6, customer: 0, variant: 0, qty: 1, price: 250, daysAgo: 16, status: 'COMPLETED', payment: 295 },
-    { n: 7, customer: 1, variant: 1, qty: 2, price: 150, daysAgo: 20, status: 'PENDING', payment: 0 },
+    { n: 1, customer: 0, variant: 0, qty: 2, price: 250, daysAgo: 1, status: 'COMPLETED' },
+    { n: 2, customer: 1, variant: 1, qty: 3, price: 150, daysAgo: 2, status: 'COMPLETED' },
+    { n: 3, customer: 2, variant: 2, qty: 5, price: 80, daysAgo: 4, status: 'COMPLETED' },
+    { n: 4, customer: 3, variant: 3, qty: 4, price: 35, daysAgo: 7, status: 'COMPLETED' },
+    { n: 5, customer: 4, variant: 4, qty: 3, price: 45, daysAgo: 12, status: 'COMPLETED' },
+    { n: 6, customer: 0, variant: 0, qty: 1, price: 250, daysAgo: 16, status: 'COMPLETED' },
+    { n: 7, customer: 1, variant: 1, qty: 2, price: 150, daysAgo: 20, status: 'PENDING' },
   ] as const;
 
   for (const fixture of saleFixtures) {
     const orderNumber = 'DEMO-' + String(fixture.n).padStart(4, '0');
     const subtotal = fixture.qty * fixture.price;
-    const taxAmount = fixture.status === 'COMPLETED' ? roundMoney(subtotal * taxRate) : 0;
+    const applyTax = fixture.status === 'COMPLETED' && taxConfiguration !== null;
+    const taxAmount = applyTax ? roundMoney(subtotal * taxRate) : 0;
     const total = roundMoney(subtotal + taxAmount);
     const createdAt = new Date(Date.now() - fixture.daysAgo * 24 * 60 * 60 * 1000);
 
     const sale = await prisma.sale.upsert({
       where: { orderNumber },
-      update: { organizationId: organization.id, storeId: store.id, customerId: customerRecords[fixture.customer].id, channel: 'POS', status: fixture.status, subtotal, tax: taxAmount, taxRate: fixture.status === 'COMPLETED' ? taxRate : 0, total, discount: 0, applyTax: fixture.status === 'COMPLETED', notes: 'Fixture de démonstration OmniKès', createdAt },
-      create: { organizationId: organization.id, storeId: store.id, orderNumber, customerId: customerRecords[fixture.customer].id, channel: 'POS', status: fixture.status, subtotal, tax: taxAmount, taxRate: fixture.status === 'COMPLETED' ? taxRate : 0, total, discount: 0, applyTax: fixture.status === 'COMPLETED', notes: 'Fixture de démonstration OmniKès', createdAt },
+      update: { organizationId: organization.id, storeId: store.id, customerId: customerRecords[fixture.customer].id, channel: 'POS', status: fixture.status, subtotal, tax: taxAmount, taxRate: applyTax ? taxRate : 0, total, discount: 0, applyTax: fixture.status === 'COMPLETED' && taxConfiguration !== null, notes: 'Fixture de démonstration OmniKès', createdAt },
+      create: { organizationId: organization.id, storeId: store.id, orderNumber, customerId: customerRecords[fixture.customer].id, channel: 'POS', status: fixture.status, subtotal, tax: taxAmount, taxRate: applyTax ? taxRate : 0, total, discount: 0, applyTax: fixture.status === 'COMPLETED' && taxConfiguration !== null, notes: 'Fixture de démonstration OmniKès', createdAt },
     });
 
     await prisma.saleItem.deleteMany({ where: { saleId: sale.id } });
     await prisma.saleItem.create({ data: { saleId: sale.id, variantId: variants[fixture.variant].id, quantity: fixture.qty, unitPrice: fixture.price, totalPrice: subtotal, discount: 0 } });
     await prisma.payment.deleteMany({ where: { saleId: sale.id } });
-    if (fixture.payment > 0) {
-      await prisma.payment.create({ data: { saleId: sale.id, method: 'CASH', amount: fixture.payment, reference: 'DEMO-PAY-' + String(fixture.n).padStart(4, '0'), status: 'COMPLETED', createdAt } });
+    if (fixture.status === 'COMPLETED' && total > 0) {
+      await prisma.payment.create({ data: { saleId: sale.id, method: 'CASH', amount: total, reference: 'DEMO-PAY-' + String(fixture.n).padStart(4, '0'), status: 'COMPLETED', createdAt } });
     }
   }
 
@@ -84,15 +85,16 @@ async function main() {
 
   for (const fixture of proformas) {
     const subtotal = fixture.qty * fixture.price;
-    const taxAmount = roundMoney(subtotal * taxRate);
+    const applyTax = taxConfiguration !== null;
+    const taxAmount = applyTax ? roundMoney(subtotal * taxRate) : 0;
     const total = roundMoney(subtotal + taxAmount);
     const createdAt = new Date(Date.now() - fixture.daysAgo * 24 * 60 * 60 * 1000);
     const proformaNumber = 'DEMO-PF-' + String(fixture.n).padStart(4, '0');
 
     const proforma = await prisma.proforma.upsert({
       where: { id: fixture.id },
-      update: { organizationId: organization.id, storeId: store.id, proformaNumber, customerId: customerRecords[fixture.customer].id, status: fixture.status, subtotal, tax: taxAmount, taxRate, total, discount: 0, applyTax: true, validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), notes: 'Fixture de démonstration OmniKès', createdAt },
-      create: { id: fixture.id, organizationId: organization.id, storeId: store.id, proformaNumber, customerId: customerRecords[fixture.customer].id, status: fixture.status, subtotal, tax: taxAmount, taxRate, total, discount: 0, applyTax: true, validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), notes: 'Fixture de démonstration OmniKès', createdAt },
+      update: { organizationId: organization.id, storeId: store.id, proformaNumber, customerId: customerRecords[fixture.customer].id, status: fixture.status, subtotal, tax: taxAmount, taxRate, total, discount: 0, applyTax,, validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), notes: 'Fixture de démonstration OmniKès', createdAt },
+      create: { id: fixture.id, organizationId: organization.id, storeId: store.id, proformaNumber, customerId: customerRecords[fixture.customer].id, status: fixture.status, subtotal, tax: taxAmount, taxRate, total, discount: 0, applyTax,, validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), notes: 'Fixture de démonstration OmniKès', createdAt },
     });
 
     await prisma.proformaItem.deleteMany({ where: { proformaId: proforma.id } });
