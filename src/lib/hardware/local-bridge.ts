@@ -64,6 +64,16 @@ function toBase64(data: Uint8Array): string {
   return btoa(binary);
 }
 
+export class HardwareBridgeRequestError extends Error {
+  readonly status: number;
+
+  constructor(status: number) {
+    super(`Hardware bridge request failed (${status})`);
+    this.name = 'HardwareBridgeRequestError';
+    this.status = status;
+  }
+}
+
 export class LocalHardwareBridgeClient {
   private readonly baseUrl: string;
   private readonly timeoutMs: number;
@@ -125,7 +135,7 @@ export class LocalHardwareBridgeClient {
     });
 
     if (!response.ok) {
-      throw new Error(`Hardware bridge request failed (${response.status})`);
+      throw new HardwareBridgeRequestError(response.status);
     }
 
     if (response.status === 204) {
