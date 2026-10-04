@@ -10,7 +10,6 @@ describe('P0-25-B - real PostgreSQL role administration', () => {
   let adminId = '';
   let cashierId = '';
   let orgAId = '';
-  let orgBId = '';
   let storeBId = '';
   let orgBAdminRoleId = '';
   let saleReadPermissionId = '';
@@ -29,27 +28,9 @@ describe('P0-25-B - real PostgreSQL role administration', () => {
       where: { slug: 'omnikes-test-commerce-b' },
       select: { id: true },
     });
-    const storeA = await prisma.store.findFirstOrThrow({
-      where: { organizationId: admin.organizationId, code: 'STORE-A' },
-      select: { id: true },
-    });
-    const storeB = await prisma.store.findFirstOrThrow({
-      where: { organizationId: orgB.id, code: 'STORE-B' },
-      select: { id: true },
-    });
-    const orgBAdminRole = await prisma.role.findFirstOrThrow({
-      where: { organizationId: orgB.id, name: 'ADMIN' },
-      select: { id: true },
-    });
-    const permission = await prisma.permission.findUniqueOrThrow({
-      where: { code: 'sale.read' },
-      select: { id: true },
-    });
-
     adminId = admin.id;
     cashierId = cashier.id;
     orgAId = admin.organizationId;
-    orgBId = orgB.id;
     storeBId = storeB.id;
     orgBAdminRoleId = orgBAdminRole.id;
     saleReadPermissionId = permission.id;
