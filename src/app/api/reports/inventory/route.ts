@@ -14,6 +14,8 @@ const querySchema = z.object({
   endDate: z.date().optional(),
   storeId: z.string().cuid().optional(),
   lowStockThreshold: z.coerce.number().int().min(0).max(1000000).default(5),
+  page: z.coerce.number().int().min(1).max(1000000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(50),
 });
 
 export async function GET(request: NextRequest) {
@@ -26,12 +28,16 @@ export async function GET(request: NextRequest) {
     const endDate = parseReportDateParam(searchParams.get('endDate'), true);
     const storeId = searchParams.get('storeId') || undefined;
     const lowStockThreshold = searchParams.get('lowStockThreshold') || undefined;
+    const page = searchParams.get('page') || undefined;
+    const pageSize = searchParams.get('pageSize') || undefined;
 
     const validated = querySchema.parse({
       startDate,
       endDate,
       storeId,
       ...(lowStockThreshold !== undefined ? { lowStockThreshold } : {}),
+      ...(page !== undefined ? { page } : {}),
+      ...(pageSize !== undefined ? { pageSize } : {}),
     });
 
     if (validated.storeId) {
