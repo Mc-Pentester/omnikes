@@ -94,7 +94,7 @@ async function main() {
     const proforma = await prisma.proforma.upsert({
       where: { id: fixture.id },
       update: { organizationId: organization.id, storeId: store.id, proformaNumber, customerId: customerRecords[fixture.customer].id, status: fixture.status, subtotal, tax: taxAmount, taxRate: applyTax ? taxRate : 0, total, discount: 0, applyTax, validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), notes: 'Fixture de démonstration OmniKès', createdAt },
-      create: { id: fixture.id, organizationId: organization.id, storeId: store.id, proformaNumber, customerId: customerRecords[fixture.customer].id, status: fixture.status, subtotal, tax: taxAmount, taxRate, total, discount: 0, applyTax,, validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), notes: 'Fixture de démonstration OmniKès', createdAt },
+      create: { id: fixture.id, organizationId: organization.id, storeId: store.id, proformaNumber, customerId: customerRecords[fixture.customer].id, status: fixture.status, subtotal, tax: taxAmount, taxRate: applyTax ? taxRate : 0, total, discount: 0, applyTax, validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), notes: 'Fixture de démonstration OmniKès', createdAt },
     });
 
     await prisma.proformaItem.deleteMany({ where: { proformaId: proforma.id } });
