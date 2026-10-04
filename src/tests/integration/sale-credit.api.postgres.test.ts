@@ -102,7 +102,7 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
         organizationId: orgA!.id,
         storeId: storeA!.id,
         orderNumber: `P0-24-F2-D-API-A-${suffix}`,
-        customer: { connect: { id: customerA!.id } },
+        customerId: customerA!.id,
         status: 'PENDING',
         subtotal: 1000,
         tax: 0,
