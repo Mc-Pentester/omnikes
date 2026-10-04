@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createLocalHardwareBridge,
+  HardwareBridgeRequestError,
   parseScaleReading,
   type ScalePortInfo,
   type ScaleSerialOptions,
@@ -62,7 +63,14 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
     try {
       const token = bridgeToken ?? (await loadBridgeToken());
       const client = bridge ?? createLocalHardwareBridge({ token });
-      const result = await client.listScales();
+      let result;
+      try {
+        result = await client.listScales();
+      } catch (err) {
+        if (!(err instanceof HardwareBridgeRequestError) || err.status !== 401) throw err;
+        const freshToken = await loadBridgeToken();
+        result = await createLocalHardwareBridge({ token: freshToken }).listScales();
+      }
       const scales = result.scales ?? [];
       setPorts(scales);
 
@@ -116,7 +124,14 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
         settleMs: 300,
       };
 
-      const response = await client.readScale(options);
+      let response;
+      try {
+        response = await client.readScale(options);
+      } catch (err) {
+        if (!(err instanceof HardwareBridgeRequestError) || err.status !== 401) throw err;
+        const freshToken = await loadBridgeToken();
+        response = await createLocalHardwareBridge({ token: freshToken }).readScale(options);
+      }
       const parsed = parseScaleReading(response.raw);
 
       const nextReading = {
