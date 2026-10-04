@@ -8,14 +8,14 @@ import { prisma } from '@omnikes/lib/prisma';
 import { POST as creditPost } from '@omnikes/app/api/sales/[id]/credit/route';
 
 describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
-  let orgA: { id: string };
-  let storeA: { id: string };
-  let storeB: { id: string };
-  let customerA: { id: string };
+  let orgA: { id: string } | undefined;
+  let storeA: { id: string } | undefined;
+  let storeB: { id: string } | undefined;
+  let customerA: { id: string } | undefined;
   let temporaryCustomerA = false;
-  let scopedUser: { id: string; email: string };
-  let scopedRole: { id: string };
-  let permission: { id: string };
+  let scopedUser: { id: string; email: string } | undefined;
+  let scopedRole: { id: string } | undefined;
+  let permission: { id: string } | undefined;
   let sameStoreSaleId: string;
   let crossStoreSaleId: string;
 
