@@ -9,6 +9,8 @@ export class InventoryReportService {
       storeId?: string;
       authorizedStoreIds?: string[] | null;
       lowStockThreshold?: number;
+      page?: number;
+      pageSize?: number;
     } = {},
   ) {
     return inventoryReportRepository.getReport(organizationId, options);
