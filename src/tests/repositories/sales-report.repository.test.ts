@@ -94,3 +94,44 @@ describe('SalesReportRepository — monetary output normalization', () => {
     expect(sql).toContain('COALESCE(SUM(fs.\\\"total\\\"), 0)');
   });
 });
+
+describe('SalesReportRepository — organization and store scope predicates', () => {
+  it('always binds organization scope and authorized store scope into the SQL', async () => {
+    queryRaw.mockResolvedValueOnce([{
+      salesCount: 0, totalRevenue: 0, totalDiscount: 0, totalTax: 0,
+      itemsSold: 0, averageSale: 0, totalPaid: 0, authorizedCredit: 0,
+      uncoveredAmount: 0, currency: 'HTG',
+    }]);
+
+    const repository = new SalesReportRepository();
+    await repository.getSummary('c123456789012345678901234', {
+      startDate: new Date('2026-10-01T00:00:00.000Z'),
+      endDate: new Date('2026-10-01T23:59:59.999Z'),
+      storeId: 'c223456789012345678901234',
+      authorizedStoreIds: ['c223456789012345678901234', 'c323456789012345678901234'],
+    });
+
+    const sql = JSON.stringify(queryRaw.mock.calls[0][0]);
+    expect(sql).toContain('s.\\"organizationId\\"');
+    expect(sql).toContain('s.\\"storeId\\"');
+    expect(sql).toContain('IN');
+  });
+
+  it('forces an empty authorized-store scope to return no rows', async () => {
+    queryRaw.mockResolvedValueOnce([{
+      salesCount: 0, totalRevenue: 0, totalDiscount: 0, totalTax: 0,
+      itemsSold: 0, averageSale: 0, totalPaid: 0, authorizedCredit: 0,
+      uncoveredAmount: 0, currency: 'HTG',
+    }]);
+
+    const repository = new SalesReportRepository();
+    await repository.getSummary('c123456789012345678901234', {
+      startDate: new Date('2026-10-01T00:00:00.000Z'),
+      endDate: new Date('2026-10-01T23:59:59.999Z'),
+      authorizedStoreIds: [],
+    });
+
+    const sql = JSON.stringify(queryRaw.mock.calls[0][0]);
+    expect(sql).toContain('FALSE');
+  });
+});
