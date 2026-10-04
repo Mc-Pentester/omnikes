@@ -1,26 +1,74 @@
-import { timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
-const MIN_TOKEN_LENGTH = 32;
+const TOKEN_VERSION = 'v1';
+const ISSUER = 'omnikes';
+const AUDIENCE = 'omnikes-hardware-bridge';
+const MIN_SECRET_LENGTH = 32;
 
-export function getConfiguredBridgeToken() {
-  const token = process.env.OMNIKES_HARDWARE_BRIDGE_TOKEN?.trim() ?? '';
-  if (token.length < MIN_TOKEN_LENGTH) {
+function getMasterSecret() {
+  const secret = process.env.OMNIKES_HARDWARE_BRIDGE_TOKEN?.trim() ?? '';
+  if (secret.length < MIN_SECRET_LENGTH) {
     throw new Error('OMNIKES_HARDWARE_BRIDGE_TOKEN must be at least 32 characters');
   }
-  return token;
+  return secret;
+}
+
+function sign(input, secret) {
+  return createHmac('sha256', secret).update(input).digest('base64url');
+}
+
+export function verifyBridgeToken(token, nowSeconds = Math.floor(Date.now() / 1000)) {
+  const parts = token.split('.');
+  if (parts.length !== 3 || parts[0] !== TOKEN_VERSION) return false;
+
+  const [version, payload, signature] = parts;
+  const expected = Buffer.from(sign(`${version}.${payload}`, getMasterSecret()), 'utf8');
+  const actual = Buffer.from(signature, 'utf8');
+
+  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return false;
+
+  let claims;
+  try {
+    claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+  } catch {
+    return false;
+  }
+
+  if (
+    claims?.iss !== ISSUER ||
+    claims?.aud !== AUDIENCE ||
+    claims?.sub !== 'omnikes-user-session' ||
+    typeof claims?.org !== 'string' ||
+    claims.org.length === 0 ||
+    !Number.isInteger(claims?.iat) ||
+    !Number.isInteger(claims?.exp) ||
+    typeof claims?.jti !== 'string' ||
+    claims.jti.length === 0
+  ) {
+    return false;
+  }
+
+  if (claims.exp <= nowSeconds || claims.iat > nowSeconds + 30 || claims.exp - claims.iat > 300) {
+    return false;
+  }
+
+  return claims;
+}
+
+export function getConfiguredBridgeToken() {
+  throw new Error('Raw hardware bridge master secrets are no longer accepted');
 }
 
 export function isAuthorizedBridgeRequest(req) {
-  const configured = process.env.OMNIKES_HARDWARE_BRIDGE_TOKEN?.trim() ?? '';
-  if (configured.length < MIN_TOKEN_LENGTH) return false;
-
   const header = req.headers.authorization ?? '';
   if (!header.startsWith('Bearer ')) return false;
 
   const supplied = header.slice(7).trim();
-  const expected = Buffer.from(configured, 'utf8');
-  const actual = Buffer.from(supplied, 'utf8');
+  if (!supplied) return false;
 
-  if (actual.length !== expected.length) return false;
-  return timingSafeEqual(actual, expected);
+  try {
+    return Boolean(verifyBridgeToken(supplied));
+  } catch {
+    return false;
+  }
 }
