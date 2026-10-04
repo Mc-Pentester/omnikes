@@ -86,7 +86,7 @@ describe('ProformaService - Acceptance', () => {
         },
       });
 
-      const result = await proformaService.accept(mockProformaId, mockOrganizationId);
+      await proformaService.accept(mockProformaId, mockOrganizationId);
 
       expect(proformaRepository.updateStatus).toHaveBeenCalledWith(
         mockProformaId,
@@ -277,7 +277,7 @@ describe('ProformaService - Conversion', () => {
         ],
       });
 
-      const result = await proformaService.convert(mockProformaId, mockOrganizationId);
+      await proformaService.convert(mockProformaId, mockOrganizationId);
 
       expect(prisma.sale.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -378,15 +378,6 @@ describe('ProformaService - Conversion', () => {
     it('should reject conversion for wrong organization', async () => {
       const mockProformaId = 'proforma-123';
       const mockOrganizationId = 'org-123';
-      const mockProforma = {
-        id: mockProformaId,
-        organizationId: 'org-456',
-        status: 'ACCEPTED',
-        items: [],
-        organization: { id: 'org-456' },
-        store: { id: 'store-123' },
-      };
-
       (prismaMock.$transaction as any).mockImplementation(async (callback) => {
         return callback(prisma);
       });
@@ -505,7 +496,7 @@ describe('ProformaService - Conversion', () => {
         items: [],
       });
 
-      const result = await proformaService.convert(mockProformaId, mockOrganizationId);
+      await proformaService.convert(mockProformaId, mockOrganizationId);
 
       expect(prisma.sale.create).toHaveBeenCalledWith(
         expect.objectContaining({
