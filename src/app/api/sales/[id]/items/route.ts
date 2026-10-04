@@ -83,7 +83,7 @@ export async function POST(
     // Protect against invalid JSON
     try {
       body = await request.json();
-    } catch (jsonError) {
+    } catch {
       return NextResponse.json(
         { error: 'Invalid JSON in request body' },
         { status: 400 }
