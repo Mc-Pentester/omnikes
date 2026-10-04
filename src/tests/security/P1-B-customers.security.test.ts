@@ -20,7 +20,7 @@ vi.mock('@omnikes/repositories/customer.repository', () => ({
 import { GET, PATCH, DELETE } from '@omnikes/app/api/customers/[id]/route';
 
 const CUSTOMER_ID = 'ckxxxxxxxxxxxxxxxxxxxxxxx';
-const OTHER_CUSTOMER_ID = 'ckyyyyyyyyyyyyyyyyyyyyyyy';
+const MALFORMED_CUSTOMER_ID = 'not-a-cuid';
 
 function request(method: string, body?: unknown) {
   return new NextRequest(`http://localhost/api/customers/${CUSTOMER_ID}`, {
@@ -189,7 +189,7 @@ describe('P1-B Customers API security', () => {
   it('rejects malformed customer IDs before repository access', async () => {
     const response = await GET(
       request('GET'),
-      params(OTHER_CUSTOMER_ID.slice(0, -3))
+      params(MALFORMED_CUSTOMER_ID)
     );
 
     expect(response.status).toBe(400);
