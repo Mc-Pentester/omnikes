@@ -6,6 +6,7 @@ describe('P0-31-A - real PostgreSQL financial reconciliation', () => {
   let organizationId: string;
   let storeId: string;
   let customerId: string;
+  let temporaryCustomer = false;
   const createdSaleIds: string[] = [];
 
   beforeAll(async () => {
@@ -19,10 +20,25 @@ describe('P0-31-A - real PostgreSQL financial reconciliation', () => {
       select: { id: true },
     })).id;
 
-    customerId = (await prisma.customer.findFirstOrThrow({
+    const existingCustomer = await prisma.customer.findFirst({
       where: { organizationId, email: 'client.a@omnikes.test' },
       select: { id: true },
-    })).id;
+    });
+
+    if (existingCustomer) {
+      customerId = existingCustomer.id;
+    } else {
+      const createdCustomer = await prisma.customer.create({
+        data: {
+          organizationId,
+          name: 'P0-31-A Customer',
+          email: 'client.a@omnikes.test',
+        },
+        select: { id: true },
+      });
+      customerId = createdCustomer.id;
+      temporaryCustomer = true;
+    }
   });
 
   async function createCompletedSale(total: number) {
@@ -49,6 +65,9 @@ describe('P0-31-A - real PostgreSQL financial reconciliation', () => {
     await prisma.payment.deleteMany({ where: { saleId: { in: createdSaleIds } } });
     await prisma.saleCredit.deleteMany({ where: { saleId: { in: createdSaleIds } } });
     await prisma.sale.deleteMany({ where: { id: { in: createdSaleIds } } });
+    if (temporaryCustomer) {
+      await prisma.customer.delete({ where: { id: customerId } });
+    }
     await prisma.$disconnect();
   });
 
