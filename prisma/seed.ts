@@ -1267,19 +1267,6 @@ async function main() {
     },
   });
 
-  const productBiscuitB = await prisma.product.upsert({
-    where: { id: 'product-biscuit-b' },
-    update: {},
-    create: {
-      id: 'product-biscuit-b',
-      organizationId: orgB.id,
-      name: 'Produit Test B — Biscuit',
-      description: 'Biscuits paquet 200g - Test Organization B',
-      category: 'Alimentation',
-      isActive: true,
-    },
-  });
-
   console.log('✅ Products B created');
 
   // ============================================================
