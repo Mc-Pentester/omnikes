@@ -46,30 +46,23 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
       select: { id: true },
     });
 
-    const existingCustomerA = await prisma.customer.findFirst({
-      where: { organizationId: orgA!.id, email: 'client.a@omnikes.test' },
+    const suffix = Date.now().toString();
+
+    customerA = await prisma.customer.create({
+      data: {
+        organizationId: orgA!.id,
+        name: 'P0-24-F.2-D API Customer A',
+        email: `p0-24-f2-d-api-customer-${suffix}@omnikes.test`,
+      },
       select: { id: true },
     });
-    if (existingCustomerA) {
-      customerA = existingCustomerA;
-    } else {
-      customerA = await prisma.customer.create({
-        data: {
-          organizationId: orgA!.id,
-          name: 'P0-24-F.2-D API Customer A',
-          email: 'client.a@omnikes.test',
-        },
-        select: { id: true },
-      });
-      temporaryCustomerA = true;
-    }
+    temporaryCustomerA = true;
 
     permission = await prisma.permission.findUniqueOrThrow({
       where: { code: 'sale.credit' },
       select: { id: true },
     });
 
-    const suffix = Date.now().toString();
     scopedUser = await prisma.user.create({
       data: {
         organizationId: orgA!.id,
@@ -109,7 +102,7 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
         organizationId: orgA!.id,
         storeId: storeA!.id,
         orderNumber: `P0-24-F2-D-API-A-${suffix}`,
-        customerId: customerA!.id,
+        customer: { connect: { id: customerA!.id } },
         status: 'PENDING',
         subtotal: 1000,
         tax: 0,
@@ -118,8 +111,11 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
         discount: 0,
         applyTax: false,
       },
-      select: { id: true },
+      select: { id: true, customerId: true, status: true },
     });
+    if (sameStoreSale.customerId !== customerA!.id || sameStoreSale.status !== 'PENDING') {
+      throw new Error('Credit API fixture failed to persist the expected customer on the authorized-store sale');
+    }
     sameStoreSaleId = sameStoreSale.id;
 
     const crossStoreSale = await prisma.sale.create({
@@ -136,8 +132,11 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
         discount: 0,
         applyTax: false,
       },
-      select: { id: true },
+      select: { id: true, customerId: true, status: true },
     });
+    if (crossStoreSale.customerId !== customerA!.id || crossStoreSale.status !== 'PENDING') {
+      throw new Error('Credit API fixture failed to persist the expected customer on the cross-store sale');
+    }
     crossStoreSaleId = crossStoreSale.id;
   });
 
