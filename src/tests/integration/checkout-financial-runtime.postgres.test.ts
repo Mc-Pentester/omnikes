@@ -109,7 +109,7 @@ describe('P0 POS financial runtime proofs', () => {
         status: 'PENDING',
         subtotal: 0.2,
         tax: 0.1,
-        taxRate: 50,
+        taxRate: 0.5,
         total: 0.3,
         discount: 0,
         applyTax: true,
