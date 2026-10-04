@@ -541,3 +541,58 @@ describe('P1-C - Customer tenant isolation in sales', () => {
     );
   });
 });
+
+
+describe('P1-E - addPayment financial coverage', () => {
+  const tx = {
+    $queryRaw: vi.fn(),
+    sale: { findUnique: vi.fn() },
+    payment: { create: vi.fn() },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (prisma.$transaction as any).mockImplementation(async (callback: any) => callback(tx));
+  });
+
+  it('subtracts authorized SaleCredit before admitting a real payment', async () => {
+    tx.$queryRaw.mockResolvedValue([{ id: 'sale-p1e' }]);
+    tx.sale.findUnique.mockResolvedValue({
+      id: 'sale-p1e',
+      total: 100,
+      payments: [{ amount: 40, status: 'COMPLETED', method: 'CASH' }],
+      saleCredit: { amount: 40, status: 'AUTHORIZED' },
+    });
+    tx.payment.create.mockResolvedValue({ id: 'payment-p1e' });
+
+    await expect(
+      saleService.addPayment('sale-p1e', 'org-p1e', {
+        method: 'CASH',
+        amount: 20,
+        status: 'COMPLETED',
+      })
+    ).resolves.toEqual({ id: 'payment-p1e' });
+
+    expect(tx.payment.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects payment above the balance after authorized SaleCredit', async () => {
+    tx.$queryRaw.mockResolvedValue([{ id: 'sale-p1e' }]);
+    tx.sale.findUnique.mockResolvedValue({
+      id: 'sale-p1e',
+      total: 100,
+      payments: [{ amount: 40, status: 'COMPLETED', method: 'CASH' }],
+      saleCredit: { amount: 40, status: 'AUTHORIZED' },
+    });
+
+    await expect(
+      saleService.addPayment('sale-p1e', 'org-p1e', {
+        method: 'CASH',
+        amount: 21,
+        status: 'COMPLETED',
+      })
+    ).rejects.toThrow('Payment amount exceeds remaining balance');
+
+    expect(tx.payment.create).not.toHaveBeenCalled();
+  });
+});
