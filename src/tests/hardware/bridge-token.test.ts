@@ -60,8 +60,3 @@ describe('P2-S1 hardware bridge tokens', () => {
   });
 });
 
-describe('P2-S1 bridge token route contract', () => {
-  it('is covered by the route-level security suite', () => {
-    expect(true).toBe(true);
-  });
-});
