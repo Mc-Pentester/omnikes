@@ -19,8 +19,8 @@ vi.mock('@omnikes/repositories/customer.repository', () => ({
 
 import { GET, PATCH, DELETE } from '@omnikes/app/api/customers/[id]/route';
 
-const CUSTOMER_ID = 'ckxxxxxxxxxxxxxxxxxxxxxxxx';
-const OTHER_CUSTOMER_ID = 'ckyyyyyyyyyyyyyyyyyyyyyyyy';
+const CUSTOMER_ID = 'ckxxxxxxxxxxxxxxxxxxxxxxx';
+const OTHER_CUSTOMER_ID = 'ckyyyyyyyyyyyyyyyyyyyyyyy';
 
 function request(method: string, body?: unknown) {
   return new NextRequest(`http://localhost/api/customers/${CUSTOMER_ID}`, {
