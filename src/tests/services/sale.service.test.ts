@@ -49,6 +49,9 @@ vi.mock('@omnikes/lib/prisma', () => ({
     organization: {
       findUnique: vi.fn(),
     },
+    customer: {
+      findFirst: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
 }));
@@ -433,4 +436,108 @@ describe('SaleService - Tax Calculation', () => {
     });
   });
 
+});
+
+
+describe('P1-C - Customer tenant isolation in sales', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (storeService.validateStoreBelongsToOrganization as any).mockResolvedValue(undefined);
+    (prisma.organization.findUnique as any).mockResolvedValue({
+      id: 'corg1234567',
+      taxConfiguration: { taxRate: 0.10 },
+    });
+  });
+
+  it('rejects sale creation when customer belongs to another organization', async () => {
+    (prisma.customer.findFirst as any).mockResolvedValue(null);
+
+    await expect(
+      saleService.create('corg1234567', {
+        organizationId: 'corg1234567',
+        storeId: 'cstore1234567',
+        orderNumber: 'ORD-P1C',
+        status: 'PENDING',
+        customerId: 'ccustomer99999999999999999',
+        subtotal: 0,
+        tax: 0,
+        total: 0,
+        discount: 0,
+        applyTax: true,
+      })
+    ).rejects.toThrow('Invalid customer');
+
+    expect(prisma.customer.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'ccustomer99999999999999999',
+        organizationId: 'corg1234567',
+      },
+      select: { id: true },
+    });
+    expect(saleRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('allows sale creation when customer belongs to the authenticated organization', async () => {
+    (prisma.customer.findFirst as any).mockResolvedValue({ id: 'ccustomer99999999999999999' });
+    (saleRepository.create as any).mockResolvedValue({ id: 'sale-p1c' });
+
+    await expect(
+      saleService.create('corg1234567', {
+        organizationId: 'corg1234567',
+        storeId: 'cstore1234567',
+        orderNumber: 'ORD-P1C',
+        status: 'PENDING',
+        customerId: 'ccustomer99999999999999999',
+        subtotal: 0,
+        tax: 0,
+        total: 0,
+        discount: 0,
+        applyTax: true,
+      })
+    ).resolves.toEqual({ id: 'sale-p1c' });
+
+    expect(saleRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerId: 'ccustomer99999999999999999',
+        organization: { connect: { id: 'corg1234567' } },
+      })
+    );
+  });
+
+  it('rejects sale update when the new customer belongs to another organization', async () => {
+    (saleRepository.belongsToOrganization as any).mockResolvedValue(true);
+    (prisma.customer.findFirst as any).mockResolvedValue(null);
+
+    await expect(
+      saleService.update('sale-p1c', 'corg1234567', {
+        customerId: 'ccustomer99999999999999999',
+      })
+    ).rejects.toThrow('Invalid customer');
+
+    expect(saleRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('scopes customer validation to the authenticated organization on sale update', async () => {
+    (saleRepository.belongsToOrganization as any).mockResolvedValue(true);
+    (prisma.customer.findFirst as any).mockResolvedValue({ id: 'ccustomer99999999999999999' });
+    (saleRepository.update as any).mockResolvedValue({});
+    (saleRepository.findById as any).mockResolvedValue({ id: 'sale-p1c' });
+
+    await saleService.update('sale-p1c', 'corg1234567', {
+      customerId: 'ccustomer99999999999999999',
+    });
+
+    expect(prisma.customer.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'ccustomer99999999999999999',
+        organizationId: 'corg1234567',
+      },
+      select: { id: true },
+    });
+    expect(saleRepository.update).toHaveBeenCalledWith(
+      'sale-p1c',
+      'corg1234567',
+      { customerId: 'ccustomer99999999999999999' }
+    );
+  });
 });
