@@ -197,8 +197,7 @@ async function main() {
     create: {
       code: 'store.update',
       description: 'Modifier un magasin',
-      module: 'store',
-    },
+      module: 'store',    },
   });
 
   const storeActivatePermission = await prisma.permission.upsert({
@@ -397,8 +396,7 @@ async function main() {
     where: { code: 'payment.create' },
     update: {},
     create: {
-      code: 'payment.create',
-      description: 'Créer un paiement',
+      code: 'payment.create',      description: 'Créer un paiement',
       module: 'sales',
     },
   });
@@ -485,6 +483,18 @@ async function main() {
       code: 'organization.update',
       description: 'Modifier les paramètres de l’organisation',
       module: 'organization',
+    },
+  });
+
+
+  // Hardware bridge permissions
+  const hardwareBridgeReadPermission = await prisma.permission.upsert({
+    where: { code: 'hardware.bridge.read' },
+    update: {},
+    create: {
+      code: 'hardware.bridge.read',
+      description: 'Accéder au secret d’authentification du bridge matériel',
+      module: 'hardware',
     },
   });
 
@@ -597,8 +607,7 @@ async function main() {
   ];
 
   const customerPermissions = [
-    customerCreatePermission,
-    customerReadPermission,
+    customerCreatePermission,    customerReadPermission,
     customerUpdatePermission,
     customerDeletePermission,
   ];
@@ -698,7 +707,7 @@ async function main() {
     });
   }
 
-  for (const permission of [organizationReadPermission, organizationUpdatePermission, userReadPermission, userCreatePermission, userUpdatePermission, roleReadPermission, roleCreatePermission, roleUpdatePermission, auditReadPermission]) {
+  for (const permission of [organizationReadPermission, organizationUpdatePermission, userReadPermission, userCreatePermission, userUpdatePermission, roleReadPermission, roleCreatePermission, roleUpdatePermission, auditReadPermission, hardwareBridgeReadPermission]) {
     await prisma.rolePermission.upsert({
       where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
       update: {},
@@ -797,8 +806,7 @@ async function main() {
 
   // Assign organization administration permissions to ADMIN roles
   for (const permission of [organizationReadPermission, organizationUpdatePermission]) {
-    await prisma.rolePermission.upsert({
-      where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
+    await prisma.rolePermission.upsert({      where: { roleId_permissionId: { roleId: adminRoleA.id, permissionId: permission.id } },
       update: {},
       create: { roleId: adminRoleA.id, permissionId: permission.id },
     });
@@ -997,8 +1005,7 @@ async function main() {
       isActive: true,
     },
     create: {
-      organizationId: orgB.id,
-      name: 'OmniKès Test Store B',
+      organizationId: orgB.id,      name: 'OmniKès Test Store B',
       code: 'STORE-B',
       address: '456 Test Street B',
       city: 'Port-au-Prince',
@@ -1197,8 +1204,7 @@ async function main() {
   });
 
   const variantOilB = await prisma.productVariant.upsert({
-    where: { sku: 'OIL-B-2L' },
-    update: {},
+    where: { sku: 'OIL-B-2L' },    update: {},
     create: {
       productId: productOilB.id,
       sku: 'OIL-B-2L',
@@ -1398,539 +1404,3 @@ async function main() {
       storeId: storeB.id,
       variantId: variantMilkB.id,
       quantity: 100,
-      reservedQuantity: 0,
-    },
-  });
-
-  await prisma.inventory.upsert({
-    where: { storeId_variantId: { storeId: storeB.id, variantId: variantBiscuitB.id } },
-    update: { quantity: 150 },
-    create: {
-      storeId: storeB.id,
-      variantId: variantBiscuitB.id,
-      quantity: 150,
-      reservedQuantity: 0,
-    },
-  });
-
-  console.log('✅ Inventory B created');
-
-  // ============================================================
-  // CUSTOMERS
-  // ============================================================
-
-  const customerA =
-    (await prisma.customer.findFirst({
-      where: {
-        organizationId: orgA.id,
-        email: 'client.a@omnikes.test',
-      },
-    })) ??
-    (await prisma.customer.create({
-      data: {
-        organizationId: orgA.id,
-        name: 'Client Test A',
-        email: 'client.a@omnikes.test',
-        phone: '+509 1111 1111',
-        address: '789 Customer Street A',
-        city: 'Port-au-Prince',
-        country: 'HT',
-        isActive: true,
-      },
-    }));
-
-  const customerB =
-    (await prisma.customer.findFirst({
-      where: {
-        organizationId: orgB.id,
-        email: 'client.b@omnikes.test',
-      },
-    })) ??
-    (await prisma.customer.create({
-      data: {
-        organizationId: orgB.id,
-        name: 'Client Test B',
-        email: 'client.b@omnikes.test',
-        phone: '+509 2222 2222',
-        address: '321 Customer Street B',
-        city: 'Port-au-Prince',
-        country: 'HT',
-        isActive: true,
-      },
-    }));
-
-  console.log('✅ Customers created');
-
-  // ============================================================
-  // SALES - ORGANIZATION A (Historical data with different dates)
-  // ============================================================
-
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const twoDaysAgo = new Date(today);
-  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-  const lastWeek = new Date(today);
-  lastWeek.setDate(lastWeek.getDate() - 7);
-
-  // Sale A1 - Today
-  const saleA1 = await prisma.sale.upsert({
-    where: { orderNumber: 'SALE-A-001' },
-    update: {},
-    create: {
-      id: 'sale-a-001',
-      organizationId: orgA.id,
-      storeId: storeA.id,
-      orderNumber: 'SALE-A-001',
-      customerId: customerA.id,
-      channel: 'POS',
-      status: 'COMPLETED',
-      subtotal: 335.00,
-      tax: 60.30,
-      total: 395.30,
-      discount: 0,
-      createdAt: today,
-      updatedAt: today,
-    },
-  });
-
-  await prisma.saleItem.upsert({
-    where: { id: 'sale-item-a1-1' },
-    update: {},
-    create: {
-      id: 'sale-item-a1-1',
-      saleId: saleA1.id,
-      variantId: variantRiceA.id,
-      quantity: 1,
-      unitPrice: 250.00,
-      totalPrice: 250.00,
-      discount: 0,
-    },
-  });
-
-  await prisma.saleItem.upsert({
-    where: { id: 'sale-item-a1-2' },
-    update: {},
-    create: {
-      id: 'sale-item-a1-2',
-      saleId: saleA1.id,
-      variantId: variantWaterA.id,
-      quantity: 2,
-      unitPrice: 35.00,
-      totalPrice: 70.00,
-      discount: 0,
-    },
-  });
-
-  await prisma.saleItem.upsert({
-    where: { id: 'sale-item-a1-3' },
-    update: {},
-    create: {
-      id: 'sale-item-a1-3',
-      saleId: saleA1.id,
-      variantId: variantSoapA.id,
-      quantity: 1,
-      unitPrice: 45.00,
-      totalPrice: 45.00,
-      discount: 0,
-    },
-  });
-
-  await prisma.payment.upsert({
-    where: { id: 'payment-a1' },
-    update: {},
-    create: {
-      id: 'payment-a1',
-      saleId: saleA1.id,
-      method: 'CASH',
-      amount: 395.30,
-      reference: 'CASH-A-001',
-      status: 'COMPLETED',
-      createdAt: today,
-    },
-  });
-
-  // Sale A2 - Yesterday
-  const saleA2 = await prisma.sale.upsert({
-    where: { orderNumber: 'SALE-A-002' },
-    update: {},
-    create: {
-      id: 'sale-a-002',
-      organizationId: orgA.id,
-      storeId: storeA.id,
-      orderNumber: 'SALE-A-002',
-      customerId: customerA.id,
-      channel: 'POS',
-      status: 'COMPLETED',
-      subtotal: 230.00,
-      tax: 41.40,
-      total: 271.40,
-      discount: 0,
-      createdAt: yesterday,
-      updatedAt: yesterday,
-    },
-  });
-
-  await prisma.saleItem.upsert({
-    where: { id: 'sale-item-a2-1' },
-    update: {},
-    create: {
-      id: 'sale-item-a2-1',
-      saleId: saleA2.id,
-      variantId: variantOilA.id,
-      quantity: 1,
-      unitPrice: 150.00,
-      totalPrice: 150.00,
-      discount: 0,
-    },
-  });
-
-  await prisma.saleItem.upsert({
-    where: { id: 'sale-item-a2-2' },
-    update: {},
-    create: {
-      id: 'sale-item-a2-2',
-      saleId: saleA2.id,
-      variantId: variantSugarA.id,
-      quantity: 1,
-      unitPrice: 80.00,
-      totalPrice: 80.00,
-      discount: 0,
-    },
-  });
-
-  await prisma.payment.upsert({
-    where: { id: 'payment-a2' },
-    update: {},
-    create: {
-      id: 'payment-a2',
-      saleId: saleA2.id,
-      method: 'CARD',
-      amount: 271.40,
-      reference: 'CARD-A-002',
-      status: 'COMPLETED',
-      createdAt: yesterday,
-    },
-  });
-
-  // Sale A3 - Last week
-  const saleA3 = await prisma.sale.upsert({
-    where: { orderNumber: 'SALE-A-003' },
-    update: {},
-    create: {
-      id: 'sale-a-003',
-      organizationId: orgA.id,
-      storeId: storeA.id,
-      orderNumber: 'SALE-A-003',
-      channel: 'POS',
-      status: 'COMPLETED',
-      subtotal: 500.00,
-      tax: 90.00,
-      total: 590.00,
-      discount: 0,
-      createdAt: lastWeek,
-      updatedAt: lastWeek,
-    },
-  });
-
-  await prisma.saleItem.upsert({
-    where: { id: 'sale-item-a3-1' },
-    update: {},
-    create: {
-      id: 'sale-item-a3-1',
-      saleId: saleA3.id,
-      variantId: variantRiceA.id,
-      quantity: 2,
-      unitPrice: 250.00,
-      totalPrice: 500.00,
-      discount: 0,
-    },
-  });
-
-  await prisma.payment.upsert({
-    where: { id: 'payment-a3' },
-    update: {},
-    create: {
-      id: 'payment-a3',
-      saleId: saleA3.id,
-      method: 'CASH',
-      amount: 590.00,
-      reference: 'CASH-A-003',
-      status: 'COMPLETED',
-      createdAt: lastWeek,
-    },
-  });
-
-  console.log('✅ Sales A created');
-
-  // ============================================================
-  // SALES - ORGANIZATION B (Historical data with different dates)
-  // ============================================================
-
-  // Sale B1 - Today
-  const saleB1 = await prisma.sale.upsert({
-    where: { orderNumber: 'SALE-B-001' },
-    update: {},
-    create: {
-      id: 'sale-b-001',
-      organizationId: orgB.id,
-      storeId: storeB.id,
-      orderNumber: 'SALE-B-001',
-      customerId: customerB.id,
-      channel: 'POS',
-      status: 'COMPLETED',
-      subtotal: 730.00,
-      tax: 131.40,
-      total: 861.40,
-      discount: 0,
-      createdAt: today,
-      updatedAt: today,
-    },
-  });
-
-  await prisma.saleItem.upsert({
-    where: { id: 'sale-item-b1-1' },
-    update: {},
-    create: {
-      id: 'sale-item-b1-1',
-      saleId: saleB1.id,
-      variantId: variantRiceB.id,
-      quantity: 1,
-      unitPrice: 450.00,
-      totalPrice: 450.00,
-      discount: 0,
-    },
-  });
-
-  await prisma.saleItem.upsert({
-    where: { id: 'sale-item-b1-2' },
-    update: {},
-    create: {
-      id: 'sale-item-b1-2',
-      saleId: saleB1.id,
-      variantId: variantCoffeeB.id,
-      quantity: 1,
-      unitPrice: 350.00,
-      totalPrice: 350.00,
-      discount: 0,
-    },
-  });
-
-  await prisma.payment.upsert({
-    where: { id: 'payment-b1' },
-    update: {},
-    create: {
-      id: 'payment-b1',
-      saleId: saleB1.id,
-      method: 'CASH',
-      amount: 861.40,
-      reference: 'CASH-B-001',
-      status: 'COMPLETED',
-      createdAt: today,
-    },
-  });
-
-  // Sale B2 - Yesterday
-  const saleB2 = await prisma.sale.upsert({
-    where: { orderNumber: 'SALE-B-002' },
-    update: {},
-    create: {
-      id: 'sale-b-002',
-      organizationId: orgB.id,
-      storeId: storeB.id,
-      orderNumber: 'SALE-B-002',
-      customerId: customerB.id,
-      channel: 'POS',
-      status: 'COMPLETED',
-      subtotal: 495.00,
-      tax: 89.10,
-      total: 584.10,
-      discount: 0,
-      createdAt: yesterday,
-      updatedAt: yesterday,
-    },
-  });
-
-  await prisma.saleItem.upsert({
-    where: { id: 'sale-item-b2-1' },
-    update: {},
-    create: {
-      id: 'sale-item-b2-1',
-      saleId: saleB2.id,
-      variantId: variantMilkB.id,
-      quantity: 1,
-      unitPrice: 420.00,
-      totalPrice: 420.00,
-      discount: 0,
-    },
-  });
-
-  await prisma.saleItem.upsert({
-    where: { id: 'sale-item-b2-2' },
-    update: {},
-    create: {
-      id: 'sale-item-b2-2',
-      saleId: saleB2.id,
-      variantId: variantBiscuitB.id,
-      quantity: 1,
-      unitPrice: 75.00,
-      totalPrice: 75.00,
-      discount: 0,
-    },
-  });
-
-  await prisma.payment.upsert({
-    where: { id: 'payment-b2' },
-    update: {},
-    create: {
-      id: 'payment-b2',
-      saleId: saleB2.id,
-      method: 'CARD',
-      amount: 584.10,
-      reference: 'CARD-B-002',
-      status: 'COMPLETED',
-      createdAt: yesterday,
-    },
-  });
-
-  // Sale B3 - Two days ago
-  const saleB3 = await prisma.sale.upsert({
-    where: { orderNumber: 'SALE-B-003' },
-    update: {},
-    create: {
-      id: 'sale-b-003',
-      organizationId: orgB.id,
-      storeId: storeB.id,
-      orderNumber: 'SALE-B-003',
-      channel: 'POS',
-      status: 'COMPLETED',
-      subtotal: 280.00,
-      tax: 50.40,
-      total: 330.40,
-      discount: 0,
-      createdAt: twoDaysAgo,
-      updatedAt: twoDaysAgo,
-    },
-  });
-
-  await prisma.saleItem.upsert({
-    where: { id: 'sale-item-b3-1' },
-    update: {},
-    create: {
-      id: 'sale-item-b3-1',
-      saleId: saleB3.id,
-      variantId: variantOilB.id,
-      quantity: 1,
-      unitPrice: 280.00,
-      totalPrice: 280.00,
-      discount: 0,
-    },
-  });
-
-  await prisma.payment.upsert({
-    where: { id: 'payment-b3' },
-    update: {},
-    create: {
-      id: 'payment-b3',
-      saleId: saleB3.id,
-      method: 'CASH',
-      amount: 330.40,
-      reference: 'CASH-B-003',
-      status: 'COMPLETED',
-      createdAt: twoDaysAgo,
-    },
-  });
-
-  console.log('✅ Sales B created');
-
-  // ============================================================
-  // PROFORMAS - ORGANIZATION A
-  // ============================================================
-
-  const proformaA1 = await prisma.proforma.upsert({
-    where: { proformaNumber: 'PROF-A-001' },
-    update: {},
-    create: {
-      id: 'proforma-a-001',
-      organizationId: orgA.id,
-      storeId: storeA.id,
-      proformaNumber: 'PROF-A-001',
-      customerId: customerA.id,
-      status: 'SENT',
-      subtotal: 250.00,
-      tax: 45.00,
-      total: 295.00,
-      discount: 0,
-      validUntil: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000),
-      createdAt: yesterday,
-      updatedAt: yesterday,
-    },
-  });
-
-  await prisma.proformaItem.upsert({
-    where: { id: 'proforma-item-a1-1' },
-    update: {},
-    create: {
-      id: 'proforma-item-a1-1',
-      proformaId: proformaA1.id,
-      variantId: variantRiceA.id,
-      quantity: 1,
-      unitPrice: 250.00,
-      totalPrice: 250.00,
-      discount: 0,
-    },
-  });
-
-  console.log('✅ Proformas A created');
-
-  // ============================================================
-  // PROFORMAS - ORGANIZATION B
-  // ============================================================
-
-  const proformaB1 = await prisma.proforma.upsert({
-    where: { proformaNumber: 'PROF-B-001' },
-    update: {},
-    create: {
-      id: 'proforma-b-001',
-      organizationId: orgB.id,
-      storeId: storeB.id,
-      proformaNumber: 'PROF-B-001',
-      customerId: customerB.id,
-      status: 'SENT',
-      subtotal: 450.00,
-      tax: 81.00,
-      total: 531.00,
-      discount: 0,
-      validUntil: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000),
-      createdAt: yesterday,
-      updatedAt: yesterday,
-    },
-  });
-
-  await prisma.proformaItem.upsert({
-    where: { id: 'proforma-item-b1-1' },
-    update: {},
-    create: {
-      id: 'proforma-item-b1-1',
-      proformaId: proformaB1.id,
-      variantId: variantRiceB.id,
-      quantity: 1,
-      unitPrice: 450.00,
-      totalPrice: 450.00,
-      discount: 0,
-    },
-  });
-
-  console.log('✅ Proformas B created');
-
-  console.log('🎉 Seed completed successfully!');
-}
-
-main()
-  .catch((e) => {
-    console.error('❌ Seed failed:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
