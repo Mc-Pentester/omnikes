@@ -12,6 +12,7 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
   let storeA: { id: string };
   let storeB: { id: string };
   let customerA: { id: string };
+  let temporaryCustomerA = false;
   let scopedUser: { id: string; email: string };
   let scopedRole: { id: string };
   let permission: { id: string };
@@ -45,10 +46,23 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
       select: { id: true },
     });
 
-    customerA = await prisma.customer.findFirstOrThrow({
+    const existingCustomerA = await prisma.customer.findFirst({
       where: { organizationId: orgA.id, email: 'client.a@omnikes.test' },
       select: { id: true },
     });
+    if (existingCustomerA) {
+      customerA = existingCustomerA;
+    } else {
+      customerA = await prisma.customer.create({
+        data: {
+          organizationId: orgA.id,
+          name: 'P0-24-F.2-D API Customer A',
+          email: 'client.a@omnikes.test',
+        },
+        select: { id: true },
+      });
+      temporaryCustomerA = true;
+    }
 
     permission = await prisma.permission.findUniqueOrThrow({
       where: { code: 'sale.credit' },
@@ -166,6 +180,9 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     });
     if (temporaryStore?.code === 'P0-F2-D-STORE-B') {
       await prisma.store.delete({ where: { id: storeB.id } });
+    }
+    if (temporaryCustomerA) {
+      await prisma.customer.delete({ where: { id: customerA.id } });
     }
 
     await prisma.$disconnect();
