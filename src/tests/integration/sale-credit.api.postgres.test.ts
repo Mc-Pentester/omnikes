@@ -223,7 +223,8 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
       params: Promise.resolve({ id: sameStoreSaleId }),
     });
 
-    expect(response.status).toBe(201);
+    const responseBody = await response.json();
+    expect(response.status, JSON.stringify(responseBody)).toBe(201);
 
     const credit = await prisma.saleCredit.findUnique({
       where: { saleId: sameStoreSaleId },
