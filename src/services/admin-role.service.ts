@@ -1,4 +1,3 @@
-import { Prisma } from '@prisma/client';
 import { prisma } from '@omnikes/lib/prisma';
 import { roleRepository } from '@omnikes/repositories/role.repository';
 import {
