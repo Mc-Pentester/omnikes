@@ -136,6 +136,8 @@ export default function InventoryReportPage() {
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
+    // loadReport intentionally captures report filters; it is invoked by this filter-driven effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate, storeId, lowStockThreshold, page, pageSize]);
 
   const setToday = () => {
