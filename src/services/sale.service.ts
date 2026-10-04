@@ -33,6 +33,22 @@ export class SaleService {
     // CRITICAL: Validate that the store belongs to the organization
     await storeService.validateStoreBelongsToOrganization(validatedData.storeId, organizationId);
 
+    // Customer references are tenant-scoped. Never allow a sale in one
+    // organization to attach a customer belonging to another organization.
+    if (validatedData.customerId) {
+      const customer = await prisma.customer.findFirst({
+        where: {
+          id: validatedData.customerId,
+          organizationId,
+        },
+        select: { id: true },
+      });
+
+      if (!customer) {
+        throw new Error('Invalid customer');
+      }
+    }
+
     // Generate order number if not provided
     const orderNumber = validatedData.orderNumber || this.generateOrderNumber();
 
@@ -115,6 +131,22 @@ export class SaleService {
     // CRITICAL: If storeId is being updated, validate it belongs to the organization
     if (validatedData.storeId) {
       await storeService.validateStoreBelongsToOrganization(validatedData.storeId, organizationId);
+    }
+
+    // Customer references are tenant-scoped. Never allow a sale to be updated
+    // with a customer belonging to another organization.
+    if (validatedData.customerId !== undefined && validatedData.customerId !== null) {
+      const customer = await prisma.customer.findFirst({
+        where: {
+          id: validatedData.customerId,
+          organizationId,
+        },
+        select: { id: true },
+      });
+
+      if (!customer) {
+        throw new Error('Invalid customer');
+      }
     }
 
     // If applyTax is being updated, recalculate totals after the update
