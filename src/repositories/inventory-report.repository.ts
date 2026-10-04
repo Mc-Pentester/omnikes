@@ -9,6 +9,8 @@ type InventoryReportOptions = {
   storeId?: string;
   authorizedStoreIds?: string[] | null;
   lowStockThreshold?: number;
+  page?: number;
+  pageSize?: number;
 };
 
 function normalizeDateRange(options: InventoryReportOptions) {
@@ -56,6 +58,9 @@ export class InventoryReportRepository {
     const { startDate, endDate } = normalizeDateRange(options);
     const where = buildInventoryConditions(organizationId, options);
     const threshold = Math.max(0, Math.min(1000000, Math.trunc(options.lowStockThreshold ?? 5)));
+    const pageSize = Math.max(1, Math.min(100, Math.trunc(options.pageSize ?? 50)));
+    const page = Math.max(1, Math.trunc(options.page ?? 1));
+    const offset = (page - 1) * pageSize;
 
     type SummaryRow = {
       totalItems: number;
@@ -90,7 +95,7 @@ export class InventoryReportRepository {
       quantity: number;
     };
 
-    const [summaryRows, stockRows, movementRows] = await Promise.all([
+    const [summaryRows, stockRows, stockCountRows, movementRows] = await Promise.all([
       prisma.$queryRaw<SummaryRow[]>(Prisma.sql`
         WITH filtered_inventory AS (
           SELECT i."quantity", i."reservedQuantity", pv."cost"
@@ -135,6 +140,16 @@ export class InventoryReportRepository {
         INNER JOIN "products" p ON p."id" = pv."productId"
         WHERE ${where}
         ORDER BY "lowStock" DESC, "availableQuantity" ASC, p."name" ASC, pv."sku" ASC
+        LIMIT ${pageSize}
+        OFFSET ${offset}
+      `),
+      prisma.$queryRaw<Array<{ total: number }>>(Prisma.sql`
+        SELECT COUNT(*)::int AS "total"
+        FROM "inventories" i
+        INNER JOIN "stores" s ON s."id" = i."storeId"
+        INNER JOIN "product_variants" pv ON pv."id" = i."variantId"
+        INNER JOIN "products" p ON p."id" = pv."productId"
+        WHERE ${where}
       `),
       prisma.$queryRaw<MovementRow[]>(Prisma.sql`
         SELECT
@@ -156,6 +171,10 @@ export class InventoryReportRepository {
       startDate,
       endDate,
       lowStockThreshold: threshold,
+      page,
+      pageSize,
+      totalStockRows: stockCountRows[0]?.total ?? 0,
+      totalPages: Math.ceil((stockCountRows[0]?.total ?? 0) / pageSize),
       summary: summaryRows[0] ?? {
         totalItems: 0,
         totalQuantity: 0,
