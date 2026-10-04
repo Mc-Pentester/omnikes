@@ -76,12 +76,23 @@ export class CustomerRepository {
    * Update a customer
    */
   async update(id: string, organizationId: string, data: Prisma.CustomerUpdateInput) {
-    return prisma.customer.updateMany({
+    const result = await prisma.customer.updateMany({
       where: {
         id,
         organizationId,
       },
       data,
+    });
+
+    if (result.count === 0) {
+      return null;
+    }
+
+    return prisma.customer.findFirst({
+      where: {
+        id,
+        organizationId,
+      },
     });
   }
 
@@ -89,13 +100,25 @@ export class CustomerRepository {
    * Delete (soft delete) a customer
    */
   async delete(id: string, organizationId: string) {
-    return prisma.customer.updateMany({
+    const result = await prisma.customer.updateMany({
       where: {
         id,
         organizationId,
+        isActive: true,
       },
       data: {
         isActive: false,
+      },
+    });
+
+    if (result.count === 0) {
+      return null;
+    }
+
+    return prisma.customer.findFirst({
+      where: {
+        id,
+        organizationId,
       },
     });
   }
