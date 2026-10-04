@@ -184,6 +184,17 @@ export const inventoryMovementSchema = z.object({
   referenceId: z.string().optional(),
   referenceType: z.string().optional(),
   notes: z.string().max(500).optional(),
+}).superRefine(({ type, quantity }, ctx) => {
+  // Directional movements always carry a positive magnitude.
+  // ADJUSTMENT is the only movement that may be signed because its
+  // quantity represents the exact stock delta.
+  if (type !== 'ADJUSTMENT' && quantity < 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['quantity'],
+      message: `Quantity must be positive for ${type} movements`,
+    });
+  }
 });
 
 export const inventoryMovementUpdateSchema = inventoryMovementSchema.partial().omit({ inventoryId: true });
