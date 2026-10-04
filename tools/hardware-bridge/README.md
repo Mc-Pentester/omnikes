@@ -24,9 +24,10 @@ Il ne simule pas une impression et ne génère pas de fichier à imprimer.
 - écoute uniquement sur `127.0.0.1`
 - aucune connexion cloud
 - origine navigateur limitée à localhost
-- endpoints matériels `/v1/*` protégés par Bearer token
-- token de 32 caractères minimum
-- comparaison du token en temps constant
+- endpoints matériels `/v1/*` protégés par des Bearer tokens signés HMAC-SHA-256
+- jetons éphémères de 5 minutes avec `iss`, `aud`, `org`, `iat`, `exp` et `jti`
+- le secret maître n'est jamais envoyé au navigateur ni accepté comme Bearer token
+- rotation du secret maître invalide immédiatement les anciens jetons
 - payload limité à 512 KiB
 - nom d'imprimante transmis comme argument, sans shell interpolation
 - données temporaires supprimées après l'impression
@@ -37,8 +38,8 @@ Le token doit être défini dans **le processus Next.js et le processus du bridg
 $env:OMNIKES_HARDWARE_BRIDGE_TOKEN = "GENERER_UN_SECRET_DE_32_CARACTERES_OU_PLUS"
 ```
 
-Le navigateur ne reçoit le token qu'après authentification à OmniKès via `GET /api/hardware/bridge-token`.
-Le token n'est pas stocké dans la base de données.
+Le navigateur reçoit uniquement un jeton éphémère après authentification à OmniKès via `GET /api/hardware/bridge-token`.
+Le jeton est conservé en mémoire uniquement et n'est pas stocké dans la base de données, localStorage, sessionStorage ou cookie.
 
 ## Installation
 
@@ -68,14 +69,16 @@ Le health check reste disponible sans token :
 Invoke-RestMethod http://127.0.0.1:8765/health
 ```
 
-Les endpoints matériels exigent maintenant le token :
+Les endpoints matériels exigent un jeton éphémère signé. En pratique, l'application OmniKès l'obtient via `GET /api/hardware/bridge-token` et l'envoie ensuite comme Bearer token au bridge.
+
+Un appel direct avec le secret maître est volontairement refusé :
 
 ```powershell
 $headers = @{ Authorization = "Bearer $env:OMNIKES_HARDWARE_BRIDGE_TOKEN" }
 Invoke-RestMethod http://127.0.0.1:8765/v1/printers -Headers $headers
 ```
 
-Sans token valide, le bridge retourne HTTP 401.
+Le bridge retourne HTTP 401 pour un Bearer token absent, expiré, falsifié ou correspondant au secret maître.
 
 ## Impression réelle
 
