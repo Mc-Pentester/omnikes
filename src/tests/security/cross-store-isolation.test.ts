@@ -114,7 +114,7 @@ describe('P0-21-A Cross-Store Isolation Repository Tests', () => {
       ]);
       (prisma.sale.count as any).mockResolvedValue(1);
 
-      const result = await saleRepository.listByOrganization(mockOrganizationId, {
+      await saleRepository.listByOrganization(mockOrganizationId, {
         storeId: storeA,
         authorizedStoreIds: [storeB], // Should be ignored when storeId is explicit
       });
