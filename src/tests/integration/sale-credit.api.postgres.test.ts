@@ -26,18 +26,18 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     });
 
     storeA = await prisma.store.findFirstOrThrow({
-      where: { organizationId: orgA.id, code: 'STORE-A' },
+      where: { organizationId: orgA!.id, code: 'STORE-A' },
       select: { id: true },
     });
 
     const existingStoreB = await prisma.store.findFirst({
-      where: { organizationId: orgA.id, code: 'P0-F2-D-STORE-B' },
+      where: { organizationId: orgA!.id, code: 'P0-F2-D-STORE-B' },
       select: { id: true },
     });
 
     storeB = existingStoreB ?? await prisma.store.create({
       data: {
-        organizationId: orgA.id,
+        organizationId: orgA!.id,
         name: 'P0-24-F.2-D Store B',
         code: 'P0-F2-D-STORE-B',
         country: 'HT',
@@ -47,7 +47,7 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     });
 
     const existingCustomerA = await prisma.customer.findFirst({
-      where: { organizationId: orgA.id, email: 'client.a@omnikes.test' },
+      where: { organizationId: orgA!.id, email: 'client.a@omnikes.test' },
       select: { id: true },
     });
     if (existingCustomerA) {
@@ -55,7 +55,7 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     } else {
       customerA = await prisma.customer.create({
         data: {
-          organizationId: orgA.id,
+          organizationId: orgA!.id,
           name: 'P0-24-F.2-D API Customer A',
           email: 'client.a@omnikes.test',
         },
@@ -72,7 +72,7 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     const suffix = Date.now().toString();
     scopedUser = await prisma.user.create({
       data: {
-        organizationId: orgA.id,
+        organizationId: orgA!.id,
         email: `p0-24-f2-d-api-${suffix}@omnikes.test`,
         name: 'P0-24-F.2-D API Scoped User',
         password: await bcrypt.hash('P0F2D-Api-Test!2026', 10),
@@ -83,14 +83,14 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
 
     scopedRole = await prisma.role.create({
       data: {
-        organizationId: orgA.id,
+        organizationId: orgA!.id,
         name: `P0-F2-D-STORE-A-${suffix}`,
         description: 'P0-24-F.2-D temporary scoped API proof role',
         isGlobal: false,
-        storeId: storeA.id,
+        storeId: storeA!.id,
         rolePermissions: {
           create: {
-            permissionId: permission.id,
+            permissionId: permission!.id,
           },
         },
       },
@@ -99,17 +99,17 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
 
     await prisma.userRole.create({
       data: {
-        userId: scopedUser.id,
-        roleId: scopedRole.id,
+        userId: scopedUser!.id,
+        roleId: scopedRole!.id,
       },
     });
 
     const sameStoreSale = await prisma.sale.create({
       data: {
-        organizationId: orgA.id,
-        storeId: storeA.id,
+        organizationId: orgA!.id,
+        storeId: storeA!.id,
         orderNumber: `P0-24-F2-D-API-A-${suffix}`,
-        customerId: customerA.id,
+        customerId: customerA!.id,
         status: 'PENDING',
         subtotal: 1000,
         tax: 0,
@@ -124,10 +124,10 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
 
     const crossStoreSale = await prisma.sale.create({
       data: {
-        organizationId: orgA.id,
-        storeId: storeB.id,
+        organizationId: orgA!.id,
+        storeId: storeB!.id,
         orderNumber: `P0-24-F2-D-API-B-${suffix}`,
-        customerId: customerA.id,
+        customerId: customerA!.id,
         status: 'PENDING',
         subtotal: 1000,
         tax: 0,
@@ -149,7 +149,7 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     await sessionRepository.create(
       {
         user: {
-          connect: { id: scopedUser.id },
+          connect: { id: scopedUser!.id },
         },
         expiresAt,
         ipAddress: '127.0.0.1',
@@ -163,7 +163,7 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
 
   afterAll(async () => {
     if (scopedUser?.id) {
-      await prisma.session.deleteMany({ where: { userId: scopedUser.id } });
+      await prisma.session.deleteMany({ where: { userId: scopedUser!.id } });
     }
     if (sameStoreSaleId || crossStoreSaleId) {
       await prisma.saleCredit.deleteMany({
@@ -174,27 +174,27 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
       });
     }
     if (scopedUser?.id) {
-      await prisma.userRole.deleteMany({ where: { userId: scopedUser.id } });
+      await prisma.userRole.deleteMany({ where: { userId: scopedUser!.id } });
     }
     if (scopedRole?.id) {
-      await prisma.rolePermission.deleteMany({ where: { roleId: scopedRole.id } });
-      await prisma.role.delete({ where: { id: scopedRole.id } }).catch(() => undefined);
+      await prisma.rolePermission.deleteMany({ where: { roleId: scopedRole!.id } });
+      await prisma.role.delete({ where: { id: scopedRole!.id } }).catch(() => undefined);
     }
     if (scopedUser?.id) {
-      await prisma.user.delete({ where: { id: scopedUser.id } }).catch(() => undefined);
+      await prisma.user.delete({ where: { id: scopedUser!.id } }).catch(() => undefined);
     }
 
     if (storeB?.id) {
       const temporaryStore = await prisma.store.findUnique({
-        where: { id: storeB.id },
+        where: { id: storeB!.id },
         select: { code: true },
       });
       if (temporaryStore?.code === 'P0-F2-D-STORE-B') {
-        await prisma.store.delete({ where: { id: storeB.id } }).catch(() => undefined);
+        await prisma.store.delete({ where: { id: storeB!.id } }).catch(() => undefined);
       }
     }
     if (temporaryCustomerA && customerA?.id) {
-      await prisma.customer.delete({ where: { id: customerA.id } }).catch(() => undefined);
+      await prisma.customer.delete({ where: { id: customerA!.id } }).catch(() => undefined);
     }
 
     await prisma.$disconnect();
@@ -213,7 +213,7 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
           origin: 'http://localhost',
         },
         body: JSON.stringify({
-          customerId: customerA.id,
+          customerId: customerA!.id,
           amount: 1000,
         }),
       },
@@ -249,7 +249,7 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
           origin: 'http://localhost',
         },
         body: JSON.stringify({
-          customerId: customerA.id,
+          customerId: customerA!.id,
           amount: 1000,
         }),
       },
