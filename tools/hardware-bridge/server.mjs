@@ -21,7 +21,7 @@ const MAX_BODY_BYTES = 1024 * 1024;
 const MAX_PRINT_BYTES = 512 * 1024;
 const MAX_SCALE_RAW_BYTES = 4096;
 const MAX_SCALE_READ_TIMEOUT_MS = 10000;
-const VERSION = '1.3.0';
+const VERSION = '1.4.0';
 
 function json(res, status, payload) {
   const body = JSON.stringify(payload);
