@@ -1280,20 +1280,6 @@ async function main() {
     },
   });
 
-  const variantBiscuitB = await prisma.productVariant.upsert({
-    where: { sku: 'BISCUIT-B-200G' },
-    update: {},
-    create: {
-      productId: productBiscuitB.id,
-      sku: 'BISCUIT-B-200G',
-      barcode: '2222222222225',
-      price: 75.00,
-      cost: 45.00,
-      attributes: { size: '200g' },
-      isActive: true,
-    },
-  });
-
   console.log('✅ Products B created');
 
   // ============================================================
