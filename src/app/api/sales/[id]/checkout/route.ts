@@ -248,16 +248,24 @@ export async function POST(
         throw new Error('Sale has no items');
       }
 
-      // Recalculate server total
-      // SaleItem.totalPrice is already net of each line discount.
-      // Do not subtract the aggregate discount a second time at checkout.
-      const subtotal = sale.items.reduce((sum, item) => sum + Number(item.totalPrice), 0);
-      const tax = Number(sale.tax);
-      const serverTotal = subtotal + tax;
+      // Validate payment against the persisted sale total using integer cents.
+      // Decimal money values must never be compared with raw JavaScript floating-point equality.
+      // sale.total is the authoritative persisted financial total (Decimal(12,2)).
+      const toCents = (value: number | string | { toString(): string }): number => {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+          throw new Error('Invalid monetary amount');
+        }
+        return Math.round((numericValue + Number.EPSILON) * 100);
+      };
 
-      // Validate payment amount
-      if (Number(checkoutPaymentData.amount) !== serverTotal) {
-        throw new Error(`Payment amount mismatch. Expected: ${serverTotal}, Received: ${checkoutPaymentData.amount}`);
+      const expectedTotalCents = toCents(sale.total);
+      const receivedAmountCents = toCents(checkoutPaymentData.amount);
+
+      if (receivedAmountCents !== expectedTotalCents) {
+        throw new Error(
+          `Payment amount mismatch. Expected: ${Number(sale.total).toFixed(2)}, Received: ${Number(checkoutPaymentData.amount).toFixed(2)}`,
+        );
       }
 
       // Verify and lock inventory for each item
