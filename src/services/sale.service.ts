@@ -700,12 +700,6 @@ export class SaleService {
    * Add a payment to a sale
    */
   async addPayment(saleId: string, organizationId: string, data: PaymentInput) {
-    const exists = await saleRepository.belongsToOrganization(saleId, organizationId);
-    
-    if (!exists) {
-      throw new Error('Sale not found or access denied');
-    }
-
     const validatedData = paymentSchema.parse(data);
 
     // CREDIT is intentionally absent from paymentSchema. Historical CREDIT
@@ -716,31 +710,70 @@ export class SaleService {
       throw new Error('Payment amount must be positive');
     }
 
-    // INVARIANT: real payment cannot exceed the remaining balance
-    const sale = await saleRepository.findById(saleId, organizationId);
-    
-    if (!sale) {
-      throw new Error('Sale not found or access denied');
-    }
-    
-    const totalPaid = roundMoney(await saleRepository.getTotalPaid(saleId, organizationId));
-    const remainingAmount = roundMoney(Number(sale.total) - totalPaid);
+    // Payment admission is serialized at the service layer as well as at the
+    // API layer. This prevents two callers from both observing the same
+    // remaining balance and creating an overpayment.
+    return prisma.$transaction(async (tx) => {
+      const lockedSaleRows = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM sales
+        WHERE id = ${saleId} AND "organizationId" = ${organizationId}
+        FOR UPDATE
+      `;
 
-    if (validatedData.amount > remainingAmount) {
-      throw new Error(`Payment amount exceeds remaining balance. Remaining: ${remainingAmount}, Attempted: ${validatedData.amount}`);
-    }
+      if (lockedSaleRows.length === 0) {
+        throw new Error('Sale not found or access denied');
+      }
 
-    const payment = await saleRepository.createPayment({
-      method: validatedData.method,
-      amount: validatedData.amount,
-      reference: validatedData.reference,
-      status: validatedData.status,
-      sale: {
-        connect: { id: saleId },
-      },
+      const sale = await tx.sale.findUnique({
+        where: { id: saleId },
+        include: {
+          payments: true,
+          saleCredit: true,
+        },
+      });
+
+      if (!sale) {
+        throw new Error('Sale not found or access denied');
+      }
+
+      // Only completed real payments reduce the monetary balance. An
+      // authorized SaleCredit covers the remainder and must therefore be
+      // deducted before admitting another real payment.
+      const totalPaid = roundMoney(sale.payments
+        .filter(p => p.status === 'COMPLETED' && p.method !== 'CREDIT')
+        .reduce((sum: number, p: Payment) => sum + Number(p.amount), 0));
+
+      const authorizedCredit = sale.saleCredit?.status === 'AUTHORIZED'
+        ? roundMoney(Number(sale.saleCredit.amount))
+        : 0;
+
+      const remainingAmount = roundMoney(
+        Number(sale.total) - totalPaid - authorizedCredit
+      );
+
+      if (remainingAmount < 0) {
+        throw new Error(`Sale financial coverage is already exceeded. Remaining: ${remainingAmount}`);
+      }
+
+      if (validatedData.amount > remainingAmount) {
+        throw new Error(`Payment amount exceeds remaining balance. Remaining: ${remainingAmount}, Attempted: ${validatedData.amount}`);
+      }
+
+      return tx.payment.create({
+        data: {
+          method: validatedData.method,
+          amount: validatedData.amount,
+          reference: validatedData.reference,
+          status: validatedData.status,
+          sale: {
+            connect: { id: saleId },
+          },
+        },
+        include: {
+          sale: true,
+        },
+      });
     });
-
-    return payment;
   }
 
   /**
