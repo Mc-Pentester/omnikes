@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "seed": "npx ts-node prisma/seed.ts",
-    "hardware:bridge": "node tools/hardware-bridge/server.mjs"
+    "hardware:bridge": "node tools/hardware-bridge/server.mjs",
+    "seed:demo": "npx ts-node prisma/seed.demo.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
