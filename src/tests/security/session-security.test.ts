@@ -108,7 +108,7 @@ describe('Session Security Tests - P0-24-A', () => {
   // TEST 4 — Ancien OR supprimé
   it('TEST 4 — Ancien OR supprimé: code ne fait plus OR token/tokenHash', async () => {
     const rawToken = generateToken();
-    const tokenHash = hashToken(rawToken);
+    hashToken(rawToken);
 
     (prisma.session.findFirst as any).mockResolvedValue(null);
 
@@ -159,7 +159,7 @@ describe('Session Security Tests - P0-24-A', () => {
   // TEST 7 — Token inconnu
   it('TEST 7 — Token inconnu: token sans correspondance tokenHash refusé', async () => {
     const rawToken = generateToken();
-    const tokenHash = hashToken(rawToken);
+    hashToken(rawToken);
 
     (prisma.session.findFirst as any).mockResolvedValue(null);
 
