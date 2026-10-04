@@ -22,8 +22,12 @@ export async function POST(request: NextRequest) {
     const userAgent = request.headers.get('user-agent') || undefined;
 
     // Remove confirmPassword before passing to service
-    const registrationData = { ...validatedData };
-    delete registrationData.confirmPassword;
+    const registrationData = {
+      organizationName: validatedData.organizationName,
+      name: validatedData.name,
+      email: validatedData.email,
+      password: validatedData.password,
+    };
 
     const result = await registrationService.register(
       registrationData,
