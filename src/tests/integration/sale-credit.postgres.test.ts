@@ -8,6 +8,7 @@ describe('P0-24-F.2-D - real PostgreSQL sale credit runtime', () => {
   let storeA: { id: string };
   let customerA: { id: string };
   let customerB: { id: string };
+  let temporaryCustomerA = false;
   let temporaryCustomerB = false;
   let adminA: { id: string };
   let variantA: { id: string };
@@ -31,10 +32,23 @@ describe('P0-24-F.2-D - real PostgreSQL sale credit runtime', () => {
       select: { id: true },
     });
 
-    customerA = await prisma.customer.findFirstOrThrow({
+    const existingCustomerA = await prisma.customer.findFirst({
       where: { organizationId: orgA.id, email: 'client.a@omnikes.test' },
       select: { id: true },
     });
+    if (existingCustomerA) {
+      customerA = existingCustomerA;
+    } else {
+      customerA = await prisma.customer.create({
+        data: {
+          organizationId: orgA.id,
+          name: 'P0-24-F.2-D Customer A',
+          email: 'client.a@omnikes.test',
+        },
+        select: { id: true },
+      });
+      temporaryCustomerA = true;
+    }
 
     const existingCustomerB = await prisma.customer.findFirst({
       where: { organizationId: orgA.id, email: 'p0-24-f2-d.customer-b@omnikes.test' },
@@ -129,6 +143,9 @@ describe('P0-24-F.2-D - real PostgreSQL sale credit runtime', () => {
     }
     if (temporaryCustomerB) {
       await prisma.customer.delete({ where: { id: customerB.id } });
+    }
+    if (temporaryCustomerA) {
+      await prisma.customer.delete({ where: { id: customerA.id } });
     }
     await prisma.$disconnect();
   });
