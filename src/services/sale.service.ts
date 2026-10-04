@@ -50,8 +50,6 @@ export class SaleService {
     }
 
     // Generate order number if not provided
-    const orderNumber = validatedData.orderNumber || this.generateOrderNumber();
-
     // Get tax configuration for initial tax rate
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },
