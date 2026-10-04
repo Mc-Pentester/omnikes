@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: error.message },
+        { error: 'Invalid report parameters' },
         { status: 400 }
       );
     }
