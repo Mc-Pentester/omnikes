@@ -175,7 +175,7 @@ export const inventoryTransferSchema = z.object({
 });
 
 // InventoryMovement validation
-export const inventoryMovementSchema = z.object({
+const inventoryMovementBaseSchema = z.object({
   inventoryId: z.string().cuid(),
   type: z.enum(['SALE', 'PURCHASE', 'ADJUSTMENT', 'TRANSFER_IN', 'TRANSFER_OUT', 'RETURN'], {
     message: 'Invalid movement type',
@@ -184,7 +184,9 @@ export const inventoryMovementSchema = z.object({
   referenceId: z.string().optional(),
   referenceType: z.string().optional(),
   notes: z.string().max(500).optional(),
-}).superRefine(({ type, quantity }, ctx) => {
+});
+
+export const inventoryMovementSchema = inventoryMovementBaseSchema.superRefine(({ type, quantity }, ctx) => {
   // Directional movements always carry a positive magnitude.
   // ADJUSTMENT is the only movement that may be signed because its
   // quantity represents the exact stock delta.
@@ -197,7 +199,7 @@ export const inventoryMovementSchema = z.object({
   }
 });
 
-export const inventoryMovementUpdateSchema = inventoryMovementSchema.partial().omit({ inventoryId: true });
+export const inventoryMovementUpdateSchema = inventoryMovementBaseSchema.partial().omit({ inventoryId: true });
 
 // Sale validation
 export const saleSchema = z.object({
