@@ -9,6 +9,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/tests/setup.ts'],
     exclude: ['**/node_modules/**', '**/e2e/**', '**/dist/**'],
+    // PostgreSQL integration tests share one test database. Running files concurrently
+    // creates independent Prisma pools and causes connection contention/timeouts.
+    fileParallelism: false,
   },
   resolve: {
     alias: {
