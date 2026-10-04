@@ -137,6 +137,13 @@ export async function POST(
 
     return NextResponse.json(movement, { status: 201 });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid movement data', details: error.flatten() },
+        { status: 400 },
+      );
+    }
+
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },
