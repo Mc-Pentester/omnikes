@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuthenticatedUser } from '@omnikes/lib/auth';
+import {
+  requireCurrentOrganizationId,
+  requirePermission,
+} from '@omnikes/lib/auth';
 
 const MIN_TOKEN_LENGTH = 32;
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuthenticatedUser(request);
+    await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'hardware.bridge.read');
 
     const token = process.env.OMNIKES_HARDWARE_BRIDGE_TOKEN?.trim() ?? '';
     if (token.length < MIN_TOKEN_LENGTH) {
