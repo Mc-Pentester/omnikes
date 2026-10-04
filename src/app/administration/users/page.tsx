@@ -78,6 +78,8 @@ export default function AdministrationUsersPage() {
         void load();
       }, 0);
     }
+    // load intentionally captures the current search state; it is triggered by auth changes and manual search.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user]);
 
   const selectUser = (item: UserItem) => {
