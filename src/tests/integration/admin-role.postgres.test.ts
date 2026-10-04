@@ -28,6 +28,19 @@ describe('P0-25-B - real PostgreSQL role administration', () => {
       where: { slug: 'omnikes-test-commerce-b' },
       select: { id: true },
     });
+    const storeB = await prisma.store.findFirstOrThrow({
+      where: { organizationId: orgB.id, code: 'STORE-B' },
+      select: { id: true },
+    });
+    const orgBAdminRole = await prisma.role.findFirstOrThrow({
+      where: { organizationId: orgB.id, name: 'ADMIN' },
+      select: { id: true },
+    });
+    const permission = await prisma.permission.findUniqueOrThrow({
+      where: { code: 'sale.read' },
+      select: { id: true },
+    });
+
     adminId = admin.id;
     cashierId = cashier.id;
     orgAId = admin.organizationId;
