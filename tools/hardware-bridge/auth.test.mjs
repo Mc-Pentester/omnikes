@@ -36,21 +36,21 @@ test('rejects the raw master secret', () => {
 });
 
 test('rejects an expired token', () => {
-  assert.equal(verifyBridgeToken(makeToken({}, 1_800_000_000), 1_800_000_300), false);
+  assert.throws(() => verifyBridgeToken(makeToken({}, 1_800_000_000), 1_800_000_300));
 });
 
 test('rejects a tampered signature', () => {
   const token = makeToken();
   const tampered = token.slice(0, -1) + (token.endsWith('a') ? 'b' : 'a');
-  assert.equal(verifyBridgeToken(tampered, 1_800_000_001), false);
+  assert.throws(() => verifyBridgeToken(tampered, 1_800_000_001));
 });
 
 test('rejects an invalid audience', () => {
-  assert.equal(verifyBridgeToken(makeToken({ aud: 'wrong' }), 1_800_000_001), false);
+  assert.throws(() => verifyBridgeToken(makeToken({ aud: 'wrong' }), 1_800_000_001));
 });
 
 test('rotation invalidates previously issued tokens', () => {
   const token = makeToken();
   process.env.OMNIKES_HARDWARE_BRIDGE_TOKEN = 'rotated-master-secret-for-omnikes-bridge-9876543210';
-  assert.equal(verifyBridgeToken(token, 1_800_000_001), false);
+  assert.throws(() => verifyBridgeToken(token, 1_800_000_001));
 });
