@@ -63,6 +63,10 @@ export default function InventoryReportPage() {
   const [endDate, setEndDate] = useState('');
   const [storeId, setStoreId] = useState('');
   const [lowStockThreshold, setLowStockThreshold] = useState('5');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [totalStockRows, setTotalStockRows] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
   const formatNumber = (value: number) =>
     new Intl.NumberFormat('fr-HT', { maximumFractionDigits: 2 }).format(value);
@@ -96,6 +100,8 @@ export default function InventoryReportPage() {
       if (endDate) params.set('endDate', endDate);
       if (storeId) params.set('storeId', storeId);
       params.set('lowStockThreshold', lowStockThreshold || '5');
+      params.set('page', String(page));
+      params.set('pageSize', String(pageSize));
 
       const response = await fetch(`/api/reports/inventory?${params.toString()}`);
       if (!response.ok) {
@@ -107,6 +113,8 @@ export default function InventoryReportPage() {
       setSummary(data.summary);
       setStock(data.stock || []);
       setMovements(data.movements || []);
+      setTotalStockRows(data.totalStockRows || 0);
+      setTotalPages(data.totalPages || 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
     } finally {
@@ -128,7 +136,7 @@ export default function InventoryReportPage() {
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [startDate, endDate, storeId, lowStockThreshold]);
+  }, [startDate, endDate, storeId, lowStockThreshold, page, pageSize]);
 
   const setToday = () => {
     const today = new Date().toISOString().split('T')[0];
@@ -169,7 +177,7 @@ export default function InventoryReportPage() {
                   <input
                     type="date"
                     value={startDate}
-                    onChange={(event) => setStartDate(event.target.value)}
+                    onChange={(event) => { setStartDate(event.target.value); setPage(1); }}
                     className="w-full border rounded px-3 py-2"
                   />
                 </div>
@@ -178,7 +186,7 @@ export default function InventoryReportPage() {
                   <input
                     type="date"
                     value={endDate}
-                    onChange={(event) => setEndDate(event.target.value)}
+                    onChange={(event) => { setEndDate(event.target.value); setPage(1); }}
                     className="w-full border rounded px-3 py-2"
                   />
                 </div>
@@ -186,7 +194,7 @@ export default function InventoryReportPage() {
                   <label className="block text-sm font-medium mb-1">Magasin</label>
                   <select
                     value={storeId}
-                    onChange={(event) => setStoreId(event.target.value)}
+                    onChange={(event) => { setStoreId(event.target.value); setPage(1); }}
                     className="w-full border rounded px-3 py-2"
                   >
                     <option value="">Tous les magasins autorisés</option>
@@ -204,20 +212,20 @@ export default function InventoryReportPage() {
                     min="0"
                     max="1000000"
                     value={lowStockThreshold}
-                    onChange={(event) => setLowStockThreshold(event.target.value)}
+                    onChange={(event) => { setLowStockThreshold(event.target.value); setPage(1); }}
                     className="w-full border rounded px-3 py-2"
                   />
                 </div>
               </div>
               <div className="flex gap-2 mt-4">
-                <button onClick={setToday} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                <button onClick={() => { setToday(); setPage(1); }} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
                   Aujourd’hui
                 </button>
-                <button onClick={setLast30Days} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                <button onClick={() => { setLast30Days(); setPage(1); }} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
                   30 jours
                 </button>
                 <button
-                  onClick={() => { setStartDate(''); setEndDate(''); }}
+                  onClick={() => { setStartDate(''); setEndDate(''); setPage(1); }}
                   className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
                 >
                   Réinitialiser
@@ -281,7 +289,10 @@ export default function InventoryReportPage() {
                       <h2 className="text-lg font-semibold">État des stocks</h2>
                       <p className="text-sm text-gray-500">Le stock affiché est l’état actuel; les dates filtrent les mouvements.</p>
                     </div>
-                    <span className="text-sm text-gray-500">{stock.length} référence(s)</span>
+                    <div className="flex items-center gap-3 text-sm text-gray-500">
+                      <span>{totalStockRows} référence(s)</span>
+                      <label className="flex items-center gap-2"><span>Par page</span><select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className="border rounded px-2 py-1 bg-white"><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option></select></label>
+                    </div>
                   </div>
 
                   {stock.length === 0 ? (
@@ -322,6 +333,14 @@ export default function InventoryReportPage() {
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  )}
+
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))} className="border rounded px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed">← Précédent</button>
+                      <span className="text-sm text-gray-600">Page {page} / {totalPages}</span>
+                      <button type="button" disabled={page >= totalPages || loading} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="border rounded px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed">Suivant →</button>
                     </div>
                   )}
                 </div>
