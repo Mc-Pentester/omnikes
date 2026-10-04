@@ -71,6 +71,8 @@ export default function AdministrationAuditPage() {
 
   useEffect(() => {
     if (!authLoading && user) setTimeout(() => void load(1), 0);
+    // load intentionally captures the current filters; it is not a stable dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user, search, action, module, storeId]);
 
   if (authLoading || loading && !data) return <main className="p-8">Chargement de l’administration…</main>;
