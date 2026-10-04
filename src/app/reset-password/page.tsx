@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
