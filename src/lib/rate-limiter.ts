@@ -141,11 +141,9 @@ export function getClientIP(headers: Headers): string | undefined {
  */
 export function cleanupExpiredEntries(): void {
   const now = Date.now();
-  let deleted = 0;
   for (const [key, entry] of rateLimitStore.entries()) {
     if (entry.resetTime < now) {
       rateLimitStore.delete(key);
-      deleted++;
     }
   }
 }
