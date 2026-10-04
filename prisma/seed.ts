@@ -347,8 +347,7 @@ async function main() {
     create: {
       code: 'sale.read',
       description: 'Consulter les ventes',
-      module: 'sales',
-    },
+      module: 'sales',    },
   });
 
   const saleUpdatePermission = await prisma.permission.upsert({
@@ -697,8 +696,7 @@ async function main() {
       },
     });
 
-    await prisma.rolePermission.upsert({
-      where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: permission.id } },
+    await prisma.rolePermission.upsert({      where: { roleId_permissionId: { roleId: adminRoleB.id, permissionId: permission.id } },
       update: {},
       create: {
         roleId: adminRoleB.id,
@@ -1048,7 +1046,6 @@ async function main() {
       isActive: true,
     },
   });
-
   const productOilA = await prisma.product.upsert({
     where: { id: 'product-oil-a' },
     update: {},
@@ -1404,3 +1401,19 @@ async function main() {
       storeId: storeB.id,
       variantId: variantMilkB.id,
       quantity: 100,
+      reservedQuantity: 0,
+    },
+  });
+
+  console.log('✅ Inventory B created');
+  console.log('🎉 Seed completed successfully!');
+}
+
+main()
+  .catch((e) => {
+    console.error('❌ Seed failed:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
