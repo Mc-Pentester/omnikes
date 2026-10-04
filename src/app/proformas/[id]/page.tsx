@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useEffectEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
@@ -78,6 +78,8 @@ export default function ProformaDetailPage() {
       if (user && params.id) void fetchProforma();
     }, 0);
     return () => window.clearTimeout(timer);
+    // fetchProforma intentionally captures the current route id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, params.id]);
 
   const handlePrint = async () => {
