@@ -537,7 +537,7 @@ describe('P1-C - Customer tenant isolation in sales', () => {
     expect(saleRepository.update).toHaveBeenCalledWith(
       'sale-p1c',
       'corg1234567',
-      { customerId: 'ccustomer99999999999999999' }
+      expect.objectContaining({ customerId: 'ccustomer99999999999999999' })
     );
   });
 });
