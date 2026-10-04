@@ -31,6 +31,7 @@ import {
   requireStoreAccess,
 } from '@omnikes/lib/auth';
 import { inventoryService } from '@omnikes/services/inventory.service';
+import { inventoryMovementSchema } from '@omnikes/lib/validation';
 import { GET, POST } from '@omnikes/app/api/inventory/[id]/movements/route';
 
 const inventoryId = 'c123456789012345678901234';
