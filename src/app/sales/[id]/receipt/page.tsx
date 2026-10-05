@@ -185,8 +185,7 @@ export default function ReceiptPrintPage() {
       </div>
 
       <header className="text-center border-b border-dashed border-gray-700 pb-3 mb-3">
-        <h1 className="text-lg font-bold">OMNIKÈS</h1>
-        <p className="font-semibold">{sale.store?.name || 'Magasin'}</p>
+        <h1 className="text-lg font-bold">{sale.store?.name || 'Magasin'}</h1>
         {sale.store?.code && <p>{sale.store.code}</p>}
         {sale.store?.address && <p>{sale.store.address}</p>}
         {(sale.store?.city || sale.store?.country) && <p>{[sale.store.city, sale.store.country].filter(Boolean).join(', ')}</p>}
@@ -259,7 +258,6 @@ export default function ReceiptPrintPage() {
 
       <footer className="border-t border-dashed border-gray-700 mt-3 pt-3 text-center text-[10px]">
         <p>Merci pour votre achat !</p>
-        <p>Document généré par OmniKès</p>
       </footer>
     </main>
   );
