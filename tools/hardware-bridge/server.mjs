@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isAuthorizedBridgeRequest } from './auth.mjs';
+import { isOriginAllowed } from './origin-policy.mjs';
 
 const execFileAsync = promisify(execFile);
 const HOST = '127.0.0.1';
@@ -43,7 +44,7 @@ function originAllowed(req, res) {
     res.__origin = 'http://localhost:3000';
     return true;
   }
-  if (!ALLOWED_ORIGINS.has(origin)) return false;
+  if (!isOriginAllowed(origin, ALLOWED_ORIGINS)) return false;
   res.__origin = origin;
   return true;
 }
