@@ -62,18 +62,41 @@ export default function PlatformSubscriptionsPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && user) void load();
-  }, [authLoading, user]);
+    if (authLoading || !user) return;
 
-  useEffect(() => {
-    if (!selected) return;
-    setPlan(
-      PLANS.some((item) => item.value === selected.subscriptionPlan)
-        ? selected.subscriptionPlan as (typeof PLANS)[number]['value']
-        : 'OMNIKES_249',
-    );
-    setExpiresAt(toDateInputValue(selected.subscriptionExpiresAt));
-  }, [selectedId, selected?.subscriptionPlan, selected?.subscriptionExpiresAt]);
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+
+    void fetch('/api/platform/subscriptions', { cache: 'no-store' })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || 'Accès plateforme refusé');
+        if (cancelled) return;
+        const nextOrganizations = body.organizations ?? [];
+        setOrganizations(nextOrganizations);
+        const first = nextOrganizations[0] as Organization | undefined;
+        if (!selectedId && first) {
+          setSelectedId(first.id);
+          setPlan(
+            PLANS.some((item) => item.value === first.subscriptionPlan)
+              ? first.subscriptionPlan as (typeof PLANS)[number]['value']
+              : 'OMNIKES_249',
+          );
+          setExpiresAt(toDateInputValue(first.subscriptionExpiresAt));
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Erreur de chargement');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user, selectedId]);
 
   const save = async (action: 'ACTIVATE' | 'CANCEL') => {
     if (!selectedId) return;
