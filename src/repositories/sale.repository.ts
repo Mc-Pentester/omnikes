@@ -38,6 +38,9 @@ export class SaleRepository {
         organizationId,
       },
       include: {
+        organization: {
+          select: { subscriptionStatus: true, subscriptionExpiresAt: true },
+        },
         store: true,
         customer: true,
         items: {

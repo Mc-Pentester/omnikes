@@ -15,6 +15,7 @@ interface Proforma {
   proformaNumber: string;
   customer?: { name: string };
   store?: { name: string };
+  organization?: { subscriptionStatus?: string; subscriptionExpiresAt?: string | null };
   status: string;
   subtotal: number;
   tax: number;
@@ -34,6 +35,7 @@ export default function ProformaPrintPage() {
   const params = useParams();
   const [proforma, setProforma] = useState<Proforma | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [now] = useState(() => Date.now());
 
   useEffect(() => {
     const load = async () => {
@@ -68,6 +70,9 @@ export default function ProformaPrintPage() {
 
   if (error) return <main className="p-8 text-red-600">{error}</main>;
   if (!proforma) return <main className="p-8">Préparation de l’impression...</main>;
+
+  const hasActiveSubscription = proforma.organization?.subscriptionStatus === 'ACTIVE'
+    && (!proforma.organization.subscriptionExpiresAt || new Date(proforma.organization.subscriptionExpiresAt).getTime() > now);
 
   return (
     <main className="print-page bg-white text-gray-900">
@@ -118,7 +123,7 @@ export default function ProformaPrintPage() {
 
       <header className="mb-8 flex items-start justify-between border-b pb-5">
         <div>
-          <h1 className="text-2xl font-bold">{proforma.store?.name || 'Magasin'}</h1>
+          {hasActiveSubscription && <h1 className="text-2xl font-bold">{proforma.store?.name || 'Magasin'}</h1>}
         </div>
         <div className="text-right">
           <h2 className="text-2xl font-bold">PROFORMA</h2>

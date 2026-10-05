@@ -166,6 +166,19 @@ async function main() {
   });
 
   console.log('✅ Roles created');
+  const platformOperatorRole = await prisma.platformRole.upsert({
+    where: { name: 'OMNIKES_PLATFORM_OPERATOR' },
+    update: {
+      description: 'Opérateur OmniKès autorisé à gérer les entitlements commerciaux',
+      isActive: true,
+    },
+    create: {
+      name: 'OMNIKES_PLATFORM_OPERATOR',
+      description: 'Opérateur OmniKès autorisé à gérer les entitlements commerciaux',
+      isActive: true,
+    },
+  });
+
 
   // ============================================================
   // PERMISSIONS
@@ -475,6 +488,19 @@ async function main() {
     },
   });
 
+  const platformSubscriptionManagePermission = await prisma.platformPermission.upsert({
+    where: { code: 'organization.subscription.manage' },
+    update: {
+      description: 'Activer, renouveler ou annuler l’abonnement OmniKès pour une organisation',
+      module: 'subscription',
+    },
+    create: {
+      code: 'organization.subscription.manage',
+      description: 'Activer, renouveler ou annuler l’abonnement OmniKès pour une organisation',
+      module: 'subscription',
+    },
+  });
+
   const organizationUpdatePermission = await prisma.permission.upsert({
     where: { code: 'organization.update' },
     update: {},
@@ -484,7 +510,6 @@ async function main() {
       module: 'organization',
     },
   });
-
 
   // Hardware bridge permissions
   const hardwareBridgeReadPermission = await prisma.permission.upsert({
@@ -894,6 +919,20 @@ async function main() {
       create: { roleId: adminRoleB.id, permissionId: permission.id },
     });
   }
+
+  await prisma.platformRolePermission.upsert({
+    where: {
+      platformRoleId_platformPermissionId: {
+        platformRoleId: platformOperatorRole.id,
+        platformPermissionId: platformSubscriptionManagePermission.id,
+      },
+    },
+    update: {},
+    create: {
+      platformRoleId: platformOperatorRole.id,
+      platformPermissionId: platformSubscriptionManagePermission.id,
+    },
+  });
 
   console.log('✅ Role permissions assigned');
 

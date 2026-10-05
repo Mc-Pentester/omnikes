@@ -22,6 +22,12 @@ model Organization {
   locale   String @default("en-US")
   timezone String @default("UTC")
 
+  // Subscription / commercial entitlement
+  // Identity is shown on customer documents only while the subscription is active.
+  subscriptionStatus    String    @default("NONE")
+  subscriptionPlan      String?
+  subscriptionExpiresAt DateTime?
+
   // Configuration flags
   cloudEnabled       Boolean @default(false)
   onlineStoreEnabled Boolean @default(false)
@@ -106,8 +112,9 @@ model User {
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  userRoles    UserRole[]
-  sessions     Session[]
+  userRoles          UserRole[]
+  platformUserRoles  PlatformUserRole[]
+  sessions           Session[]
   auditLogs             AuditLog[]
   authorizedSaleCredits SaleCredit[] @relation("SaleCreditAuthorizedBy")
 
@@ -145,6 +152,79 @@ model Role {
 
 // ============================================================
 // USER_ROLE (Many-to-many User <-> Role)
+// ============================================================
+
+model PlatformRole {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userRoles       PlatformUserRole[]
+  rolePermissions PlatformRolePermission[]
+
+  @@map("platform_roles")
+}
+
+// ============================================================
+// PLATFORM_USER_ROLE (Platform operator membership; never tenant-scoped)
+// ============================================================
+
+model PlatformUserRole {
+  id           String   @id @default(cuid())
+  userId       String
+  platformRoleId String
+  createdAt    DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platformRole PlatformRole @relation(fields: [platformRoleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platformRoleId])
+  @@index([userId])
+  @@index([platformRoleId])
+  @@map("platform_user_roles")
+}
+
+// ============================================================
+// PLATFORM_PERMISSION (Explicitly separate from tenant Permission)
+// ============================================================
+
+model PlatformPermission {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  description String?
+  module      String
+  createdAt   DateTime @default(now())
+
+  rolePermissions PlatformRolePermission[]
+
+  @@index([module])
+  @@map("platform_permissions")
+}
+
+// ============================================================
+// PLATFORM_ROLE_PERMISSION
+// ============================================================
+
+model PlatformRolePermission {
+  id                 String            @id @default(cuid())
+  platformRoleId     String
+  platformPermissionId String
+  createdAt          DateTime          @default(now())
+
+  platformRole       PlatformRole      @relation(fields: [platformRoleId], references: [id], onDelete: Cascade)
+  platformPermission PlatformPermission @relation(fields: [platformPermissionId], references: [id], onDelete: Cascade)
+
+  @@unique([platformRoleId, platformPermissionId])
+  @@index([platformRoleId])
+  @@index([platformPermissionId])
+  @@map("platform_role_permissions")
+}
+
+// ============================================================
+// USER_ROLE (Many-to-many User <-> Tenant Role)
 // ============================================================
 
 model UserRole {
