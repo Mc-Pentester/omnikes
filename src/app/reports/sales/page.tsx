@@ -619,12 +619,24 @@ export default function SalesReportPage() {
                                 </span>
                               </td>
                               <td className="py-2">
-                                <Link
-                                  href={`/reports/sales/${sale.id}`}
-                                  className="text-blue-500 hover:underline"
-                                >
-                                  Voir
-                                </Link>
+                                <div className="flex flex-wrap gap-2">
+                                  <Link
+                                    href={`/reports/sales/${sale.id}`}
+                                    className="text-blue-500 hover:underline"
+                                  >
+                                    Voir
+                                  </Link>
+                                  {sale.status === 'COMPLETED' && (
+                                    <Link
+                                      href={`/sales/${sale.id}/receipt`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-green-600 hover:text-green-700 hover:underline font-medium"
+                                    >
+                                      🧾 Réimprimer
+                                    </Link>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           ))}
