@@ -1,7 +1,8 @@
 name: P2-06 lock regeneration
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
   regenerate:
