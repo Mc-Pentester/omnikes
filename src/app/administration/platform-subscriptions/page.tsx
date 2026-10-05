@@ -20,6 +20,14 @@ const PLANS = [
   { value: 'OMNIKES_299', label: 'OmniKès 299 USD' },
 ] as const;
 
+type Plan = (typeof PLANS)[number]['value'];
+
+function normalizePlan(value: string | null): Plan {
+  return PLANS.some((item) => item.value === value)
+    ? value as Plan
+    : 'OMNIKES_249';
+}
+
 function formatDate(value: string | null) {
   if (!value) return '—';
   return new Intl.DateTimeFormat('fr-HT', {
@@ -36,7 +44,7 @@ export default function PlatformSubscriptionsPage() {
   const { user, loading: authLoading } = useAuth();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedId, setSelectedId] = useState('');
-  const [plan, setPlan] = useState<(typeof PLANS)[number]['value']>('OMNIKES_249');
+  const [plan, setPlan] = useState<Plan>('OMNIKES_249');
   const [expiresAt, setExpiresAt] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,6 +52,14 @@ export default function PlatformSubscriptionsPage() {
   const [message, setMessage] = useState('');
 
   const selected = organizations.find((item) => item.id === selectedId) ?? null;
+
+  const selectOrganization = (organization: Organization) => {
+    setSelectedId(organization.id);
+    setPlan(normalizePlan(organization.subscriptionPlan));
+    setExpiresAt(toDateInputValue(organization.subscriptionExpiresAt));
+    setError('');
+    setMessage('');
+  };
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -59,11 +75,7 @@ export default function PlatformSubscriptionsPage() {
         const first = nextOrganizations[0] as Organization | undefined;
         if (!selectedId && first) {
           setSelectedId(first.id);
-          setPlan(
-            PLANS.some((item) => item.value === first.subscriptionPlan)
-              ? first.subscriptionPlan as (typeof PLANS)[number]['value']
-              : 'OMNIKES_249',
-          );
+          setPlan(normalizePlan(first.subscriptionPlan));
           setExpiresAt(toDateInputValue(first.subscriptionExpiresAt));
         }
       })
@@ -140,7 +152,7 @@ export default function PlatformSubscriptionsPage() {
               <button
                 key={organization.id}
                 type="button"
-                onClick={() => setSelectedId(organization.id)}
+                onClick={() => selectOrganization(organization)}
                 className={`w-full px-5 py-4 text-left hover:bg-gray-50 ${selectedId === organization.id ? 'bg-blue-50' : ''}`}
               >
                 <div className="flex items-center justify-between gap-4">
@@ -170,7 +182,7 @@ export default function PlatformSubscriptionsPage() {
               <div className="mt-6 space-y-4">
                 <label className="block text-sm font-medium">
                   Plan
-                  <select value={plan} onChange={(event) => setPlan(event.target.value as (typeof PLANS)[number]['value'])} className="mt-1 w-full rounded-lg border px-3 py-2">
+                  <select value={plan} onChange={(event) => setPlan(event.target.value as Plan)} className="mt-1 w-full rounded-lg border px-3 py-2">
                     {PLANS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                   </select>
                 </label>
