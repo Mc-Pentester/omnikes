@@ -118,8 +118,7 @@ export default function ProformaPrintPage() {
 
       <header className="mb-8 flex items-start justify-between border-b pb-5">
         <div>
-          <h1 className="text-2xl font-bold">OMNIKÈS</h1>
-          <p className="text-sm text-gray-600">{proforma.store?.name || 'Magasin'}</p>
+          <h1 className="text-2xl font-bold">{proforma.store?.name || 'Magasin'}</h1>
         </div>
         <div className="text-right">
           <h2 className="text-2xl font-bold">PROFORMA</h2>
@@ -174,9 +173,6 @@ export default function ProformaPrintPage() {
         </section>
       )}
 
-      <footer className="mt-12 border-t pt-4 text-center text-xs text-gray-500">
-        Document généré par OmniKès
-      </footer>
     </main>
   );
 }
