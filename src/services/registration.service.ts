@@ -4,7 +4,7 @@ import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { userRepository } from '@omnikes/repositories/user.repository';
 import { organizationRepository } from '@omnikes/repositories/organization.repository';
 import { generateUniqueSlug } from '@omnikes/lib/slug';
-import { checkRateLimit, getIpRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
+import { checkRateLimit, getRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
 import { randomBytes } from 'crypto';
 
 export interface RegisterInput {
@@ -48,7 +48,7 @@ export class RegistrationService {
     const { organizationName, name, email, password } = data;
 
     // Check rate limit by IP to prevent mass registration
-    const rateLimitId = getIpRateLimitIdentifier(ipAddress);
+    const rateLimitId = getRateLimitIdentifier(normalizedEmailForRateLimit(email), ipAddress);
     const rateLimitResult = checkRateLimit(rateLimitId);
     
     if (!rateLimitResult.allowed) {
@@ -58,8 +58,11 @@ export class RegistrationService {
       );
     }
 
-    // Normalize email
-    const normalizedEmail = this.normalizeEmail(email);
+    // Normalize email before applying the registration quota. When no trusted
+    // proxy IP is available, the quota remains per email instead of becoming
+    // one global ip:unknown bucket for the whole instance.
+    const normalizedEmailForRateLimit = this.normalizeEmail(email);
+    const normalizedEmail = normalizedEmailForRateLimit;
 
     // Check if email already exists
     const existingUser = await userRepository.findByEmail(normalizedEmail);
