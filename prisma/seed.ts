@@ -485,6 +485,16 @@ async function main() {
     },
   });
 
+  const organizationSubscriptionManagePermission = await prisma.permission.upsert({
+    where: { code: 'organization.subscription.manage' },
+    update: {},
+    create: {
+      code: 'organization.subscription.manage',
+      description: 'Activer, renouveler ou annuler l’abonnement OmniKès',
+      module: 'subscription',
+    },
+  });
+
 
   // Hardware bridge permissions
   const hardwareBridgeReadPermission = await prisma.permission.upsert({
