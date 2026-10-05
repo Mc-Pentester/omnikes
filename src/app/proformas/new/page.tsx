@@ -76,6 +76,7 @@ export default function NewProformaPage() {
   const [items, setItems] = useState<ProformaItemDraft[]>([]);
   const [selectedVariantId, setSelectedVariantId] = useState('');
   const [itemQuantity, setItemQuantity] = useState(1);
+  const [taxRate, setTaxRate] = useState(0);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -104,6 +105,21 @@ export default function NewProformaPage() {
       }
     } catch (err) {
       console.error('Error fetching customers:', err);
+    }
+  };
+
+  const fetchTaxRate = async () => {
+    try {
+      const response = await fetch('/api/tax');
+      if (response.ok) {
+        const data = await response.json();
+        setTaxRate(typeof data.taxRate === 'number' ? data.taxRate : 0);
+      } else {
+        setTaxRate(0);
+      }
+    } catch (err) {
+      console.error('Error fetching tax configuration:', err);
+      setTaxRate(0);
     }
   };
 
@@ -146,7 +162,7 @@ export default function NewProformaPage() {
     const timer = window.setTimeout(() => {
       if (user) {
         setLoadingData(true);
-        void Promise.all([fetchStores(), fetchCustomers(), fetchVariants()]).finally(() => {
+        void Promise.all([fetchStores(), fetchCustomers(), fetchVariants(), fetchTaxRate()]).finally(() => {
           setLoadingData(false);
         });
       }
@@ -265,10 +281,10 @@ export default function NewProformaPage() {
 
   const { subtotal, tax, total } = useMemo(() => {
     const subtotal = items.reduce((sum, item) => sum + (Number(item.variant.price) * item.quantity), 0);
-    const tax = subtotal * 0.1; // TODO: Use organization tax rate
+    const tax = subtotal * taxRate;
     const total = subtotal + tax;
     return { subtotal, tax, total };
-  }, [items]);
+  }, [items, taxRate]);
 
   if (authLoading || loadingData) {
     return (
@@ -495,7 +511,7 @@ export default function NewProformaPage() {
                           <span>{subtotal.toFixed(2)} HTG</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Taxe:</span>
+                          <span>Taxe ({(taxRate * 100).toFixed(2)}%):</span>
                           <span>{tax.toFixed(2)} HTG</span>
                         </div>
                         <div className="flex justify-between font-bold">
