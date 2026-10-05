@@ -204,10 +204,25 @@ export default function SaleDetailPage() {
               </Link>
             </div>
             
-            <h1 className="text-3xl font-bold mb-2">Vente #{sale.orderNumber}</h1>
-            <p className="text-gray-600 mb-8">
-              {formatDate(sale.createdAt)} — {sale.store.name} ({sale.store.code})
-            </p>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
+              <div>
+                <h1 className="text-3xl font-bold">Vente #{sale.orderNumber}</h1>
+                <p className="text-gray-600 mt-1">
+                  {formatDate(sale.createdAt)} — {sale.store.name} ({sale.store.code})
+                </p>
+              </div>
+              {sale.status === 'COMPLETED' && (
+                <Link
+                  href={`/sales/${sale.id}/receipt`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-lg bg-green-600 px-5 py-3 font-semibold text-white hover:bg-green-700"
+                >
+                  🧾 Réimprimer le ticket
+                </Link>
+              )}
+            </div>
+            <div className="mb-8" />
 
             {/* Informations générales */}
             <div className="bg-white border rounded-lg p-6 mb-8">
