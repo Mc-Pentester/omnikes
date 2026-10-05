@@ -72,8 +72,8 @@ const paymentLabel = (method: string) => {
 
 export default function ReceiptPrintPage() {
   const params = useParams();
-  const [sale, setSale] = useStatehSale | null>(null);
-  const [error, setError] = useStatehstring | null>(null);
+  const [sale, setSale] = useState<Sale | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
