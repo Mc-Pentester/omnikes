@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { passwordResetService } from '@omnikes/services/password-reset.service';
 import { z } from 'zod';
 import { getClientIP } from '@omnikes/lib/rate-limiter';
+import { RateLimitError } from '@omnikes/services/password-reset.service';
 
 const resetPasswordSchema = z.object({
   token: z.string().min(1, 'Token is required'),
@@ -29,6 +30,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Invalid input', details: error.issues },
         { status: 400 }
+      );
+    }
+
+    if (error instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 429, headers: error.resetTime ? { 'Retry-After': String(Math.max(1, Math.ceil((error.resetTime - Date.now()) / 1000))) } : undefined },
       );
     }
 
