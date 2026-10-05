@@ -35,6 +35,7 @@ export default function ProformaPrintPage() {
   const params = useParams();
   const [proforma, setProforma] = useState<Proforma | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [now] = useState(() => Date.now());
 
   useEffect(() => {
     const load = async () => {
@@ -70,7 +71,6 @@ export default function ProformaPrintPage() {
   if (error) return <main className="p-8 text-red-600">{error}</main>;
   if (!proforma) return <main className="p-8">Préparation de l’impression...</main>;
 
-  const [now] = useState(() => Date.now());
   const hasActiveSubscription = proforma.organization?.subscriptionStatus === 'ACTIVE'
     && (!proforma.organization.subscriptionExpiresAt || new Date(proforma.organization.subscriptionExpiresAt).getTime() > now);
 
