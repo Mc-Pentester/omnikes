@@ -49,9 +49,6 @@ export default function PlatformSubscriptionsPage() {
     if (authLoading || !user) return;
 
     let cancelled = false;
-    setLoading(true);
-    setError('');
-
     void fetch('/api/platform/subscriptions', { cache: 'no-store' })
       .then(async (response) => {
         const body = await response.json();
@@ -80,7 +77,7 @@ export default function PlatformSubscriptionsPage() {
     return () => {
       cancelled = true;
     };
-  }, [authLoading, user, selectedId]);
+  }, [authLoading, user]);
 
   const save = async (action: 'ACTIVATE' | 'CANCEL') => {
     if (!selectedId) return;
