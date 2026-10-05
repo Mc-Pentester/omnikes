@@ -45,22 +45,6 @@ export default function PlatformSubscriptionsPage() {
 
   const selected = organizations.find((item) => item.id === selectedId) ?? null;
 
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const response = await fetch('/api/platform/subscriptions', { cache: 'no-store' });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error || 'Accès plateforme refusé');
-      setOrganizations(body.organizations ?? []);
-      if (!selectedId && body.organizations?.[0]) setSelectedId(body.organizations[0].id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
     if (authLoading || !user) return;
 
