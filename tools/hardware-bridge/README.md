@@ -32,10 +32,11 @@ Il ne simule pas une impression et ne génère pas de fichier à imprimer.
 - nom d'imprimante transmis comme argument, sans shell interpolation
 - données temporaires supprimées après l'impression
 
-Le token doit être défini dans **le processus Next.js et le processus du bridge** avec la même valeur :
+Le token doit être défini dans **le processus Next.js et le processus du bridge** avec la même valeur. Le bridge doit également être lié à l'organisation locale attendue via `OMNIKES_HARDWARE_BRIDGE_ORGANIZATION_ID` :
 
 ```powershell
 $env:OMNIKES_HARDWARE_BRIDGE_TOKEN = "GENERER_UN_SECRET_DE_32_CARACTERES_OU_PLUS"
+$env:OMNIKES_HARDWARE_BRIDGE_ORGANIZATION_ID = "ORG_ID_LOCAL"
 ```
 
 Le navigateur reçoit uniquement un jeton éphémère après authentification à OmniKès via `GET /api/hardware/bridge-token`.
@@ -78,7 +79,7 @@ $headers = @{ Authorization = "Bearer $env:OMNIKES_HARDWARE_BRIDGE_TOKEN" }
 Invoke-RestMethod http://127.0.0.1:8765/v1/printers -Headers $headers
 ```
 
-Le bridge retourne HTTP 401 pour un Bearer token absent, expiré, falsifié ou correspondant au secret maître.
+Le bridge retourne HTTP 401 pour un Bearer token absent, expiré, falsifié, correspondant au secret maître ou appartenant à une autre organisation.
 
 ## Impression réelle
 
