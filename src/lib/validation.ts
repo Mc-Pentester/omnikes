@@ -26,6 +26,23 @@ export const adminOrganizationUpdateSchema = z.object({
 });
 
 export type AdminOrganizationUpdateInput = z.infer<typeof adminOrganizationUpdateSchema>;
+
+export const OMNIKES_SUBSCRIPTION_PLANS = ['OMNIKES_149', 'OMNIKES_249', 'OMNIKES_299'] as const;
+export const adminSubscriptionPlanSchema = z.enum(OMNIKES_SUBSCRIPTION_PLANS);
+
+export const adminSubscriptionUpdateSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('ACTIVATE'),
+    plan: adminSubscriptionPlanSchema,
+    expiresAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expiration date must be YYYY-MM-DD'),
+  }),
+  z.object({
+    action: z.literal('CANCEL'),
+  }),
+]);
+
+export type AdminSubscriptionUpdateInput = z.infer<typeof adminSubscriptionUpdateSchema>;
+
 // Store validation
 export const storeSchema = z.object({
   organizationId: z.string().cuid(),
