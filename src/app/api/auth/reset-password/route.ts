@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { passwordResetService } from '@omnikes/services/password-reset.service';
 import { z } from 'zod';
+import { getClientIP } from '@omnikes/lib/rate-limiter';
 
 const resetPasswordSchema = z.object({
   token: z.string().min(1, 'Token is required'),
@@ -18,7 +19,8 @@ export async function POST(request: NextRequest) {
 
     const result = await passwordResetService.resetPassword(
       validatedData.token,
-      validatedData.newPassword
+      validatedData.newPassword,
+      getClientIP(request.headers),
     );
 
     return NextResponse.json(result);
