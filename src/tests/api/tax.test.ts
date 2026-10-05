@@ -77,7 +77,6 @@ describe('GET /api/tax', () => {
     const mockOrganizationId = 'org-123';
 
     (requireCurrentOrganizationId as any).mockResolvedValue(mockOrganizationId);
-    (requirePermission as any).mockResolvedValue(undefined);
     (prisma.organization.findUnique as any).mockResolvedValue(null);
 
     const request = new NextRequest('http://localhost/api/tax');
