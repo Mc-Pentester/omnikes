@@ -66,6 +66,7 @@ export default function HomePage() {
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentSaleId, setCurrentSaleId] = useState<string | null>(null);
+  const [completedSaleId, setCompletedSaleId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -481,12 +482,13 @@ export default function HomePage() {
         throw new Error(errorMessage);
       }
       
+      const completedId = currentSaleId;
       setCart([]);
       setCurrentSaleId(null);
+      setCompletedSaleId(completedId);
       setShowPaymentModal(false);
       setAmountReceived('');
       setServerTotals(null);
-      alert('Vente complétée avec succès!');
       setTimeout(() => {
         const searchInput = document.getElementById('product-search') as HTMLInputElement;
         searchInput?.focus();
@@ -507,6 +509,38 @@ export default function HomePage() {
 
   if (loading) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-gray-600">Chargement...</p></div>;
+  }
+
+  if (completedSaleId) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="w-full max-w-lg rounded-xl bg-white p-8 shadow-sm border border-gray-200 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl">✓</div>
+          <h1 className="text-2xl font-bold text-gray-900">Vente complétée</h1>
+          <p className="mt-2 text-gray-600">La vente a été enregistrée avec succès.</p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <a
+              href={'/sales/' + encodeURIComponent(completedSaleId) + '/receipt'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-12 items-center justify-center rounded-lg bg-blue-600 px-6 text-base font-bold text-white hover:bg-blue-700"
+            >
+              🧾 Imprimer le ticket
+            </a>
+            <Button
+              onClick={() => {
+                setCompletedSaleId(null);
+                setTimeout(() => document.getElementById('product-search')?.focus(), 100);
+              }}
+              variant="outline"
+              className="h-12 px-6 text-base font-medium"
+            >
+              Nouvelle vente
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
