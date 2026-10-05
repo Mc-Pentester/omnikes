@@ -32,8 +32,8 @@ const money = (value: number) => Number(value).toFixed(2);
 
 export default function ProformaPrintPage() {
   const params = useParams();
-  const [proforma, setProforma] = useState<Proforma | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [proforma, setProforma] = useStatehProforma | null>(null);
+  const [error, setError] = useStatehstring | null>(null);
 
   useEffect(() => {
     const load = async () => {
