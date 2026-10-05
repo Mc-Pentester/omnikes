@@ -20,7 +20,7 @@ async function main() {
     orderBy: { sku: 'asc' },
     take: 5,
   });
-  if (variants.length < 3) throw new Error('Demo fixtures require at least 3 seeded product variants');
+  if (variants.length < 5) throw new Error('Demo fixtures require at least 5 seeded product variants');
 
   const customers = [
     ['demo-customer-1', 'Jean Pierre', 'jean.pierre@demo.omnikes.test', '+509 3700 1001'],
