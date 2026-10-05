@@ -5,8 +5,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isAuthorizedBridgeRequest } from './auth.mjs';
-import { isOriginAllowed } from './origin-policy.mjs';
+import { isAuthorizedBridgeRequest, isOriginAllowed } from './auth.mjs';
 
 const execFileAsync = promisify(execFile);
 const HOST = '127.0.0.1';
