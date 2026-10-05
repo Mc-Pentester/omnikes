@@ -105,6 +105,14 @@ export class PasswordResetService {
    */
   async resetPassword(token: string, newPassword: string, ipAddress?: string): Promise<{ success: boolean; message: string }> {
     const tokenHash = hashToken(token);
+    const rateLimitId = getRateLimitIdentifier(`reset-consume:${tokenHash}`, ipAddress);
+    const rateLimitResult = checkRateLimit(rateLimitId);
+    if (!rateLimitResult.allowed) {
+      throw new RateLimitError(
+        'Too many password reset attempts. Please try again later.',
+        rateLimitResult.resetTime,
+      );
+    }
 
     // Find user with valid reset token
     const user = await userRepository.findByResetToken(tokenHash);
