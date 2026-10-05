@@ -50,10 +50,20 @@ export default function ProformaPrintPage() {
   }, [params.id]);
 
   useEffect(() => {
-    if (proforma) {
-      const timer = window.setTimeout(() => window.print(), 250);
-      return () => window.clearTimeout(timer);
-    }
+    if (!proforma) return;
+
+    const handleAfterPrint = () => {
+      window.setTimeout(() => window.close(), 100);
+    };
+
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    const timer = window.setTimeout(() => window.print(), 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
   }, [proforma]);
 
   if (error) return <main className="p-8 text-red-600">{error}</main>;
