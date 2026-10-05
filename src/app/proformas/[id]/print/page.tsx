@@ -70,8 +70,9 @@ export default function ProformaPrintPage() {
   if (error) return <main className="p-8 text-red-600">{error}</main>;
   if (!proforma) return <main className="p-8">Préparation de l’impression...</main>;
 
+  const [now] = useState(() => Date.now());
   const hasActiveSubscription = proforma.organization?.subscriptionStatus === 'ACTIVE'
-    && (!proforma.organization.subscriptionExpiresAt || new Date(proforma.organization.subscriptionExpiresAt).getTime() > Date.now());
+    && (!proforma.organization.subscriptionExpiresAt || new Date(proforma.organization.subscriptionExpiresAt).getTime() > now);
 
   return (
     <main className="print-page bg-white text-gray-900">
