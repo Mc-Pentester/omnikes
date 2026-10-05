@@ -5,7 +5,6 @@ import { NextRequest } from 'next/server';
 // Mock dependencies
 vi.mock('@omnikes/lib/auth', () => ({
   requireCurrentOrganizationId: vi.fn(),
-  requirePermission: vi.fn(),
 }));
 
 vi.mock('@omnikes/lib/prisma', () => ({
@@ -16,7 +15,7 @@ vi.mock('@omnikes/lib/prisma', () => ({
   },
 }));
 
-import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
 import { prisma } from '@omnikes/lib/prisma';
 
 describe('GET /api/tax', () => {
@@ -30,7 +29,6 @@ describe('GET /api/tax', () => {
     const mockCountry = 'HT';
 
     (requireCurrentOrganizationId as any).mockResolvedValue(mockOrganizationId);
-    (requirePermission as any).mockResolvedValue(undefined);
     (prisma.organization.findUnique as any).mockResolvedValue({
       id: mockOrganizationId,
       taxConfiguration: {
@@ -59,7 +57,6 @@ describe('GET /api/tax', () => {
     const mockOrganizationId = 'org-123';
 
     (requireCurrentOrganizationId as any).mockResolvedValue(mockOrganizationId);
-    (requirePermission as any).mockResolvedValue(undefined);
     (prisma.organization.findUnique as any).mockResolvedValue({
       id: mockOrganizationId,
       taxConfiguration: null,
