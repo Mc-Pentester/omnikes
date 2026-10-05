@@ -3,6 +3,7 @@ import { createHmac, randomUUID } from 'node:crypto';
 import { isAuthorizedBridgeRequest, verifyBridgeToken } from './auth.mjs';
 
 process.env.OMNIKES_HARDWARE_BRIDGE_TOKEN = 'test-master-secret-for-omnikes-bridge-0123456789';
+process.env.OMNIKES_HARDWARE_BRIDGE_ORGANIZATION_ID = 'org-a';
 
 function makeToken(overrides = {}, now = 1_800_000_000) {
   const claims = {
@@ -27,6 +28,19 @@ test('accepts a valid signed token', () => {
   const token = makeToken();
   const claims = verifyBridgeToken(token, 1_800_000_001);
   expect(claims.org).toBe('org-a');
+});
+
+test('rejects a token issued for another organization', () => {
+  const token = makeToken({ org: 'org-b' });
+  expect(isAuthorizedBridgeRequest({ headers: { authorization: `Bearer ${token}` } })).toBe(false);
+});
+
+test('rejects authorization when the bridge organization is not configured', () => {
+  const token = makeToken();
+  const previous = process.env.OMNIKES_HARDWARE_BRIDGE_ORGANIZATION_ID;
+  delete process.env.OMNIKES_HARDWARE_BRIDGE_ORGANIZATION_ID;
+  expect(isAuthorizedBridgeRequest({ headers: { authorization: `Bearer ${token}` } })).toBe(false);
+  process.env.OMNIKES_HARDWARE_BRIDGE_ORGANIZATION_ID = previous;
 });
 
 test('rejects the raw master secret', () => {
