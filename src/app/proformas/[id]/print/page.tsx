@@ -70,13 +70,44 @@ export default function ProformaPrintPage() {
   if (!proforma) return <main className="p-8">Préparation de l’impression...</main>;
 
   return (
-    <main className="print-page mx-auto max-w-4xl bg-white p-8 text-gray-900">
+    <main className="print-page bg-white text-gray-900">
       <style jsx global>{`
         @media print {
-          @page { size: Letter portrait; margin: 0.5in; }
-          body { background: white !important; }
-          html, body { width: 100% !important; min-width: 0 !important; background: white !important; }\n          .print-page { width: 7.5in !important; max-width: 7.5in !important; min-height: 10in !important; margin: 0 auto !important; box-sizing: border-box !important; padding: 0 !important; }\n          table { width: 100% !important; }\n          .print-page * { max-width: none; }
-          .no-print { display: none !important; }
+          @page {
+            size: 8.5in 11in;
+            margin: 0;
+          }
+
+          html,
+          body {
+            width: 8.5in !important;
+            min-width: 8.5in !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+
+          .print-page {
+            width: 8.5in !important;
+            max-width: 8.5in !important;
+            min-width: 8.5in !important;
+            height: 11in !important;
+            min-height: 11in !important;
+            margin: 0 !important;
+            padding: 0.5in !important;
+            box-sizing: border-box !important;
+            background: white !important;
+            overflow: hidden !important;
+          }
+
+          .print-page table {
+            width: 100% !important;
+            table-layout: auto !important;
+          }
+
+          .no-print {
+            display: none !important;
+          }
         }
       `}</style>
 
