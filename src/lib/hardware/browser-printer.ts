@@ -21,11 +21,17 @@ export class BrowserPrinterAdapter implements PrinterAdapter {
       throw new Error('Printing is only available in the browser');
     }
 
-    const printWindow = window.open(this.printUrl, '_blank', 'noopener,noreferrer');
+    // Open the window immediately from the user's click gesture.
+    // Loading the print URL afterwards avoids browser popup-blocking
+    // caused by navigation/loading timing.
+    const printWindow = window.open('', '_blank');
+
     if (!printWindow) {
       throw new Error('La fenêtre d’impression a été bloquée par le navigateur');
     }
 
+    printWindow.opener = null;
+    printWindow.location.href = this.printUrl;
     printWindow.focus();
   }
 }
