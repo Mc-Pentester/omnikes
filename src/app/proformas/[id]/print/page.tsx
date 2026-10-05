@@ -73,9 +73,9 @@ export default function ProformaPrintPage() {
     <main className="print-page mx-auto max-w-4xl bg-white p-8 text-gray-900">
       <style jsx global>{`
         @media print {
-          @page { size: A4; margin: 14mm; }
+          @page { size: Letter portrait; margin: 0.5in; }
           body { background: white !important; }
-          .print-page { max-width: none !important; padding: 0 !important; }
+          .print-page { width: auto !important; max-width: none !important; min-height: 0 !important; padding: 0 !important; }
           .no-print { display: none !important; }
         }
       `}</style>
