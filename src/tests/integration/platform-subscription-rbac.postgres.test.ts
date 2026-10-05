@@ -22,7 +22,7 @@ describe('P0-Platform-RBAC - strict platform/tenant separation', () => {
   beforeAll(async () => {
     const adminA = await prisma.user.findUniqueOrThrow({
       where: { email: 'admin.a@omnikes.test' },
-      select: { id: true },
+      select: { id: true, organizationId: true },
     });
     const orgB = await prisma.organization.findUniqueOrThrow({
       where: { slug: 'omnikes-test-commerce-b' },
