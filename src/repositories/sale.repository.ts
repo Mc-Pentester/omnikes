@@ -11,9 +11,6 @@ export class SaleRepository {
     return prisma.sale.create({
       data: createData,
       include: {
-        organization: {
-          select: { subscriptionStatus: true, subscriptionExpiresAt: true },
-        },
         store: true,
         customer: true,
         items: {
@@ -41,6 +38,9 @@ export class SaleRepository {
         organizationId,
       },
       include: {
+        organization: {
+          select: { subscriptionStatus: true, subscriptionExpiresAt: true },
+        },
         store: true,
         customer: true,
         items: {
