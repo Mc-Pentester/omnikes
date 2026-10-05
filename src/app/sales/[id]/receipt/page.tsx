@@ -75,6 +75,7 @@ export default function ReceiptPrintPage() {
   const params = useParams();
   const [sale, setSale] = useState<Sale | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [now] = useState(() => Date.now());
 
   useEffect(() => {
     const load = async () => {
@@ -114,7 +115,6 @@ export default function ReceiptPrintPage() {
     return <main className="p-6 text-center text-sm">Préparation du ticket...</main>;
   }
 
-  const [now] = useState(() => Date.now());
   const hasActiveSubscription = sale.organization?.subscriptionStatus === 'ACTIVE'
     && (!sale.organization.subscriptionExpiresAt || new Date(sale.organization.subscriptionExpiresAt).getTime() > now);
 
