@@ -49,7 +49,6 @@
   "overrides": {
     "deepmerge-ts": "^8.0.2",
     "serialize-javascript": "^7.0.5",
-    "brace-expansion": "1.1.21",
     "filelist": {
       "brace-expansion": "2.1.7"
     },
