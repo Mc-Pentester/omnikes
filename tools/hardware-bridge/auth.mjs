@@ -13,6 +13,14 @@ function getMasterSecret() {
   return secret;
 }
 
+function getExpectedOrganizationId() {
+  const organizationId = process.env.OMNIKES_HARDWARE_BRIDGE_ORGANIZATION_ID?.trim() ?? '';
+  if (!organizationId) {
+    throw new Error('OMNIKES_HARDWARE_BRIDGE_ORGANIZATION_ID must be configured');
+  }
+  return organizationId;
+}
+
 function sign(input, secret) {
   return createHmac('sha256', secret).update(input).digest('base64url');
 }
@@ -67,7 +75,8 @@ export function isAuthorizedBridgeRequest(req) {
   if (!supplied) return false;
 
   try {
-    return Boolean(verifyBridgeToken(supplied));
+    const claims = verifyBridgeToken(supplied);
+    return claims.org === getExpectedOrganizationId();
   } catch {
     return false;
   }
