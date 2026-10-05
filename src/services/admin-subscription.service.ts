@@ -12,6 +12,9 @@ function parseExpirationDate(value: string): Date {
   if (Number.isNaN(date.getTime())) {
     throw new Error('Invalid expiration date');
   }
+  if (date.getTime() <= Date.now()) {
+    throw new Error('Expiration date must be in the future');
+  }
   return date;
 }
 
