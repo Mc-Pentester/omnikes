@@ -59,6 +59,7 @@ jobs:
 
       - name: Dependency vulnerability audit (production)
         continue-on-error: true
+        # P2-06 validation: observe the production dependency audit before closure.
         run: npm audit --omit=dev
 
       - name: Apply PostgreSQL migrations
@@ -97,5 +98,5 @@ jobs:
           fi
 
       - name: Build
-        # Trigger verification run after the weighted-pricing test fix.
+        # P2-06 validation trigger: dependency audit and full CI proof.
         run: npm run build
