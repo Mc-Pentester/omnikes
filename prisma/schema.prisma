@@ -22,6 +22,12 @@ model Organization {
   locale   String @default("en-US")
   timezone String @default("UTC")
 
+  // Subscription / commercial entitlement
+  // Identity is shown on customer documents only while the subscription is active.
+  subscriptionStatus    String    @default("NONE")
+  subscriptionPlan      String?
+  subscriptionExpiresAt DateTime?
+
   // Configuration flags
   cloudEnabled       Boolean @default(false)
   onlineStoreEnabled Boolean @default(false)
