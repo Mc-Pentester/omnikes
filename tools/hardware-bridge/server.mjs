@@ -5,7 +5,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isAuthorizedBridgeRequest, isOriginAllowed } from './auth.mjs';
+import { isAuthorizedBridgeRequest, isRequestOriginAllowed } from './auth.mjs';
 
 const execFileAsync = promisify(execFile);
 const HOST = '127.0.0.1';
@@ -43,7 +43,7 @@ function originAllowed(req, res) {
     res.__origin = 'http://localhost:3000';
     return true;
   }
-  if (!isOriginAllowed(origin, ALLOWED_ORIGINS)) return false;
+  if (!isRequestOriginAllowed(req, ALLOWED_ORIGINS)) return false;
   res.__origin = origin;
   return true;
 }
