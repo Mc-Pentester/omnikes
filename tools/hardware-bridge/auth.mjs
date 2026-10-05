@@ -63,6 +63,10 @@ export function verifyBridgeToken(token, nowSeconds = Math.floor(Date.now() / 10
   return claims;
 }
 
+export function isOriginAllowed(origin, allowedOrigins) {
+  return typeof origin === 'string' && allowedOrigins instanceof Set && allowedOrigins.has(origin);
+}
+
 export function getConfiguredBridgeToken() {
   throw new Error('Raw hardware bridge master secrets are no longer accepted');
 }
