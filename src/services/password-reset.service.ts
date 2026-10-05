@@ -1,7 +1,7 @@
 import { userRepository } from '@omnikes/repositories/user.repository';
 import { authService } from '@omnikes/services/auth.service';
 import { generateToken, hashToken } from '@omnikes/lib/crypto';
-import { checkRateLimit, getRateLimitIdentifier } from '@omnikes/lib/rate-limiter';
+import { checkRateLimit, getIpRateLimitIdentifier, getRateLimitIdentifier } from '@omnikes/lib/rate-limiter';
 import { securityLogger } from '@omnikes/lib/security-logger';
 import { deliverPasswordResetLink, isPasswordResetDeliveryConfigured } from '@omnikes/lib/password-reset-delivery';
 
@@ -105,17 +105,33 @@ export class PasswordResetService {
    */
   async resetPassword(token: string, newPassword: string, ipAddress?: string): Promise<{ success: boolean; message: string }> {
     const tokenHash = hashToken(token);
-    const rateLimitId = getRateLimitIdentifier(`reset-consume:${tokenHash}`, ipAddress);
-    const rateLimitResult = checkRateLimit(rateLimitId);
-    if (!rateLimitResult.allowed) {
+
+    // The previous limiter used the token hash as the primary key. Because an
+    // attacker can rotate invalid tokens, that allowed the attacker to obtain
+    // a fresh bucket for every token. Use a stable IP bucket first, then add a
+    // stable user bucket after the token lookup succeeds.
+    const ipRateLimitId = getIpRateLimitIdentifier(ipAddress);
+    const ipRateLimitResult = checkRateLimit(ipRateLimitId);
+    if (!ipRateLimitResult.allowed) {
       throw new RateLimitError(
         'Too many password reset attempts. Please try again later.',
-        rateLimitResult.resetTime,
+        ipRateLimitResult.resetTime,
       );
     }
 
     // Find user with valid reset token
     const user = await userRepository.findByResetToken(tokenHash);
+
+    if (user) {
+      const userRateLimitId = getRateLimitIdentifier(`reset-consume-user:${user.id}`, ipAddress);
+      const userRateLimitResult = checkRateLimit(userRateLimitId);
+      if (!userRateLimitResult.allowed) {
+        throw new RateLimitError(
+          'Too many password reset attempts. Please try again later.',
+          userRateLimitResult.resetTime,
+        );
+      }
+    }
 
     if (!user) {
       securityLogger.passwordResetFailed(null, null, ipAddress, 'Invalid or expired token');
