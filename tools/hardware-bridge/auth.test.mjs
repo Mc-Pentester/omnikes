@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { createHmac, randomUUID } from 'node:crypto';
-import { isAuthorizedBridgeRequest, verifyBridgeToken } from './auth.mjs';
+import { isAuthorizedBridgeRequest, isOriginAllowed, isRequestOriginAllowed, verifyBridgeToken } from './auth.mjs';
 
 process.env.OMNIKES_HARDWARE_BRIDGE_TOKEN = 'test-master-secret-for-omnikes-bridge-0123456789';
 process.env.OMNIKES_HARDWARE_BRIDGE_ORGANIZATION_ID = 'org-a';
@@ -41,6 +41,27 @@ test('rejects authorization when the bridge organization is not configured', () 
   delete process.env.OMNIKES_HARDWARE_BRIDGE_ORGANIZATION_ID;
   expect(isAuthorizedBridgeRequest({ headers: { authorization: `Bearer ${token}` } })).toBe(false);
   process.env.OMNIKES_HARDWARE_BRIDGE_ORGANIZATION_ID = previous;
+});
+
+
+test('allows an explicitly configured browser origin', () => {
+  const allowedOrigins = new Set(['http://localhost:3000']);
+  expect(isOriginAllowed('http://localhost:3000', allowedOrigins)).toBe(true);
+});
+
+test('rejects an unconfigured browser origin', () => {
+  const allowedOrigins = new Set(['http://localhost:3000']);
+  expect(isOriginAllowed('http://evil.example', allowedOrigins)).toBe(false);
+});
+
+test('allows requests with no Origin header for native/local clients', () => {
+  const allowedOrigins = new Set(['http://localhost:3000']);
+  expect(isRequestOriginAllowed({ headers: {} }, allowedOrigins)).toBe(true);
+});
+
+test('rejects requests with a forbidden Origin header', () => {
+  const allowedOrigins = new Set(['http://localhost:3000']);
+  expect(isRequestOriginAllowed({ headers: { origin: 'http://evil.example' } }, allowedOrigins)).toBe(false);
 });
 
 test('rejects the raw master secret', () => {
