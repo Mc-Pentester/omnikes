@@ -47,22 +47,19 @@ export class RegistrationService {
   async register(data: RegisterInput, ipAddress?: string, userAgent?: string): Promise<RegisterResult> {
     const { organizationName, name, email, password } = data;
 
-    // Check rate limit by IP to prevent mass registration
-    const rateLimitId = getRateLimitIdentifier(normalizedEmailForRateLimit(email), ipAddress);
+    // Normalize email before applying the registration quota. When no trusted
+    // proxy IP is available, the quota remains per email instead of becoming
+    // one global ip:unknown bucket for the whole instance.
+    const normalizedEmail = this.normalizeEmail(email);
+    const rateLimitId = getRateLimitIdentifier(normalizedEmail, ipAddress);
     const rateLimitResult = checkRateLimit(rateLimitId);
-    
+
     if (!rateLimitResult.allowed) {
       throw new RateLimitError(
         'Too many registration attempts. Please try again later.',
         rateLimitResult.resetTime
       );
     }
-
-    // Normalize email before applying the registration quota. When no trusted
-    // proxy IP is available, the quota remains per email instead of becoming
-    // one global ip:unknown bucket for the whole instance.
-    const normalizedEmailForRateLimit = this.normalizeEmail(email);
-    const normalizedEmail = normalizedEmailForRateLimit;
 
     // Check if email already exists
     const existingUser = await userRepository.findByEmail(normalizedEmail);
