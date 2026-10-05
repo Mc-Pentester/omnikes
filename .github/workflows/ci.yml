@@ -58,8 +58,7 @@ jobs:
         run: npm run typecheck
 
       - name: Dependency vulnerability audit (production)
-        continue-on-error: true
-        # P2-06 validation: observe the production dependency audit before closure.
+        # Production dependency vulnerabilities must block the release gate.
         run: npm audit --omit=dev
 
       - name: Apply PostgreSQL migrations
