@@ -9,9 +9,6 @@ export class ProformaRepository {
     return prisma.proforma.create({
       data,
       include: {
-        organization: {
-          select: { subscriptionStatus: true, subscriptionExpiresAt: true },
-        },
         store: true,
         customer: true,
         items: {
@@ -37,6 +34,9 @@ export class ProformaRepository {
         organizationId,
       },
       include: {
+        organization: {
+          select: { subscriptionStatus: true, subscriptionExpiresAt: true },
+        },
         store: true,
         customer: true,
         items: {
