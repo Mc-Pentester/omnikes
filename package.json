@@ -48,6 +48,9 @@
     "deepmerge-ts": "^8.0.2",
     "serialize-javascript": "^7.0.5",
     "brace-expansion": "1.1.21",
+    "filelist": {
+      "brace-expansion": "2.1.7"
+    },
     "fast-uri": "3.1.8",
     "mysql2": "3.24.4"
   }
