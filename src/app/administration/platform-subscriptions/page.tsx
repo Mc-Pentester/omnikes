@@ -89,7 +89,7 @@ export default function PlatformSubscriptionsPage() {
     return () => {
       cancelled = true;
     };
-  }, [authLoading, user]);
+  }, [authLoading, user?.id]);
 
   const save = async (action: 'ACTIVATE' | 'CANCEL') => {
     if (!selectedId) return;
