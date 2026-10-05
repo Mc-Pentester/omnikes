@@ -114,8 +114,9 @@ export default function ReceiptPrintPage() {
     return <main className="p-6 text-center text-sm">Préparation du ticket...</main>;
   }
 
+  const [now] = useState(() => Date.now());
   const hasActiveSubscription = sale.organization?.subscriptionStatus === 'ACTIVE'
-    && (!sale.organization.subscriptionExpiresAt || new Date(sale.organization.subscriptionExpiresAt).getTime() > Date.now());
+    && (!sale.organization.subscriptionExpiresAt || new Date(sale.organization.subscriptionExpiresAt).getTime() > now);
 
   const payment = sale.payments?.find((item) => item.status === 'COMPLETED') ?? sale.payments?.[0];
   const taxRate = Number(sale.taxRate ?? 0) * 100;
