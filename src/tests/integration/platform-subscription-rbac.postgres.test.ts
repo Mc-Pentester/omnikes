@@ -6,7 +6,7 @@ import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { roleRepository } from '@omnikes/repositories/role.repository';
 import { platformRoleRepository } from '@omnikes/repositories/platform-role.repository';
 import { platformSubscriptionService } from '@omnikes/services/platform-subscription.service';
-import { GET, PATCH } from '@omnikes/app/api/platform/subscriptions/[organizationId]/route';
+import { PATCH } from '@omnikes/app/api/platform/subscriptions/[organizationId]/route';
 import { GET as LIST } from '@omnikes/app/api/platform/subscriptions/route';
 
 describe('P0-Platform-RBAC - strict platform/tenant separation', () => {
