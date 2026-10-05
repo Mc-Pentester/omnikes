@@ -1,7 +1,7 @@
 import { userRepository } from '@omnikes/repositories/user.repository';
 import { authService } from '@omnikes/services/auth.service';
 import { generateToken, hashToken } from '@omnikes/lib/crypto';
-import { checkRateLimit, getIpRateLimitIdentifier } from '@omnikes/lib/rate-limiter';
+import { checkRateLimit, getRateLimitIdentifier } from '@omnikes/lib/rate-limiter';
 import { securityLogger } from '@omnikes/lib/security-logger';
 import { deliverPasswordResetLink, isPasswordResetDeliveryConfigured } from '@omnikes/lib/password-reset-delivery';
 
@@ -25,8 +25,10 @@ export class PasswordResetService {
    * remains fully Local-First when no email transport is configured.
    */
   async requestPasswordReset(email: string, ipAddress?: string): Promise<{ success: boolean; message: string }> {
-    // Check rate limit by IP to prevent abuse
-    const rateLimitId = getIpRateLimitIdentifier(ipAddress);
+    // Combine normalized email and IP. Without a trusted proxy IP, this stays
+    // per email instead of sharing one global ip:unknown bucket.
+    const normalizedEmail = email.trim().toLowerCase();
+    const rateLimitId = getRateLimitIdentifier(`reset:${normalizedEmail}`, ipAddress);
     const rateLimitResult = checkRateLimit(rateLimitId);
     
     if (!rateLimitResult.allowed) {
@@ -37,7 +39,7 @@ export class PasswordResetService {
     }
 
     // Find user by email
-    const user = await userRepository.findByEmail(email);
+    const user = await userRepository.findByEmail(normalizedEmail);
 
     // Always return success to prevent email enumeration
     // Even if user doesn't exist, we don't reveal that
