@@ -75,7 +75,7 @@ export default function ProformaPrintPage() {
         @media print {
           @page { size: Letter portrait; margin: 0.5in; }
           body { background: white !important; }
-          .print-page { width: auto !important; max-width: none !important; min-height: 0 !important; padding: 0 !important; }
+          html, body { width: 100% !important; min-width: 0 !important; background: white !important; }\n          .print-page { width: 7.5in !important; max-width: 7.5in !important; min-height: 10in !important; margin: 0 auto !important; box-sizing: border-box !important; padding: 0 !important; }\n          table { width: 100% !important; }\n          .print-page * { max-width: none; }
           .no-print { display: none !important; }
         }
       `}</style>
