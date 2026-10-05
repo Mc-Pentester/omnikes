@@ -35,6 +35,7 @@ interface Sale {
   discount: number;
   applyTax: boolean;
   createdAt: string;
+  organization?: { subscriptionStatus?: string; subscriptionExpiresAt?: string | null };
   store?: {
     name?: string;
     code?: string;
@@ -113,6 +114,9 @@ export default function ReceiptPrintPage() {
     return <main className="p-6 text-center text-sm">Préparation du ticket...</main>;
   }
 
+  const hasActiveSubscription = sale.organization?.subscriptionStatus === 'ACTIVE'
+    && (!sale.organization.subscriptionExpiresAt || new Date(sale.organization.subscriptionExpiresAt).getTime() > Date.now());
+
   const payment = sale.payments?.find((item) => item.status === 'COMPLETED') ?? sale.payments?.[0];
   const taxRate = Number(sale.taxRate ?? 0) * 100;
 
@@ -185,7 +189,7 @@ export default function ReceiptPrintPage() {
       </div>
 
       <header className="text-center border-b border-dashed border-gray-700 pb-3 mb-3">
-        <h1 className="text-lg font-bold">{sale.store?.name || 'Magasin'}</h1>
+        {hasActiveSubscription && <h1 className="text-lg font-bold">{sale.store?.name || 'Magasin'}</h1>}
         {sale.store?.code && <p>{sale.store.code}</p>}
         {sale.store?.address && <p>{sale.store.address}</p>}
         {(sale.store?.city || sale.store?.country) && <p>{[sale.store.city, sale.store.country].filter(Boolean).join(', ')}</p>}
