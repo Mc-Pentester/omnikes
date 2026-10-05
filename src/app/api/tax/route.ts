@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
 import { prisma } from '@omnikes/lib/prisma';
 
 /**
@@ -9,8 +9,6 @@ import { prisma } from '@omnikes/lib/prisma';
 export async function GET(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
-    await requirePermission(request, 'tax.manage');
-
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },
       include: {
@@ -27,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     if (!organization.taxConfiguration) {
       // Return null tax rate if no configuration exists
-      // Backend will use fallback 0.18 in SaleService.recalculateTotals()
+      // No organization tax configuration means taxation is disabled.
       return NextResponse.json({
         taxRate: null,
         country: null,
@@ -43,13 +41,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
-      );
-    }
-
-    if (error instanceof Error && (error.message === 'Permission required: tax.manage' || error.message.startsWith('Permission required'))) {
-      return NextResponse.json(
-        { error: 'Permission required' },
-        { status: 403 }
       );
     }
 
