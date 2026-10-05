@@ -1,121 +1,23 @@
-import { prisma } from '@omnikes/lib/prisma';
-import {
-  adminSubscriptionUpdateSchema,
-  AdminSubscriptionUpdateInput,
-} from '@omnikes/lib/validation';
-import { roleRepository } from '@omnikes/repositories/role.repository';
+import { platformSubscriptionService } from '@omnikes/services/platform-subscription.service';
 
-const PERMISSION = 'organization.subscription.manage';
-
-function parseExpirationDate(value: string): Date {
-  const date = new Date(`${value}T23:59:59.999Z`);
-  if (Number.isNaN(date.getTime())) {
-    throw new Error('Invalid expiration date');
-  }
-  if (date.getTime() <= Date.now()) {
-    throw new Error('Expiration date must be in the future');
-  }
-  return date;
-}
-
+/**
+ * Compatibility facade.
+ *
+ * Subscription entitlement is platform-only. Tenant RBAC is intentionally
+ * not consulted here. New callers must use platformSubscriptionService.
+ */
 export class AdminSubscriptionService {
   async get(organizationId: string, actorUserId: string) {
-    const canRead = await roleRepository.hasPermission(actorUserId, 'organization.read');
-    if (!canRead) throw new Error('Permission required: organization.read');
-
-    const canManage = await roleRepository.hasPermission(actorUserId, PERMISSION);
-    const organization = await prisma.organization.findUnique({
-      where: { id: organizationId },
-      select: {
-        id: true,
-        name: true,
-        subscriptionStatus: true,
-        subscriptionPlan: true,
-        subscriptionExpiresAt: true,
-      },
-    });
-
-    if (!organization) throw new Error('Organization not found');
-
-    return { organization, canManage };
+    const organization = await platformSubscriptionService.get(organizationId, actorUserId);
+    return { organization, canManage: true };
   }
 
   async update(
     organizationId: string,
     actorUserId: string,
-    input: AdminSubscriptionUpdateInput,
+    input: Parameters<typeof platformSubscriptionService.update>[2],
   ) {
-    const allowed = await roleRepository.hasPermission(actorUserId, PERMISSION);
-    if (!allowed) throw new Error(`Permission required: ${PERMISSION}`);
-
-    const data = adminSubscriptionUpdateSchema.parse(input);
-
-    const existing = await prisma.organization.findUnique({
-      where: { id: organizationId },
-      select: {
-        id: true,
-        name: true,
-        subscriptionStatus: true,
-        subscriptionPlan: true,
-        subscriptionExpiresAt: true,
-      },
-    });
-
-    if (!existing) throw new Error('Organization not found');
-
-    const next =
-      data.action === 'ACTIVATE'
-        ? {
-            subscriptionStatus: 'ACTIVE',
-            subscriptionPlan: data.plan,
-            subscriptionExpiresAt: parseExpirationDate(data.expiresAt),
-          }
-        : {
-            subscriptionStatus: 'CANCELLED',
-            subscriptionPlan: existing.subscriptionPlan,
-            subscriptionExpiresAt: existing.subscriptionExpiresAt,
-          };
-
-    const updated = await prisma.$transaction(async (tx) => {
-      const organization = await tx.organization.update({
-        where: { id: organizationId },
-        data: next,
-        select: {
-          id: true,
-          name: true,
-          subscriptionStatus: true,
-          subscriptionPlan: true,
-          subscriptionExpiresAt: true,
-        },
-      });
-
-      await tx.auditLog.create({
-        data: {
-          userId: actorUserId,
-          organizationId,
-          action: data.action === 'ACTIVATE'
-            ? 'ORGANIZATION_SUBSCRIPTION_ACTIVATED'
-            : 'ORGANIZATION_SUBSCRIPTION_CANCELLED',
-          module: 'subscription',
-          entityId: organizationId,
-          entityType: 'Organization',
-          oldValues: {
-            subscriptionStatus: existing.subscriptionStatus,
-            subscriptionPlan: existing.subscriptionPlan,
-            subscriptionExpiresAt: existing.subscriptionExpiresAt,
-          },
-          newValues: {
-            subscriptionStatus: organization.subscriptionStatus,
-            subscriptionPlan: organization.subscriptionPlan,
-            subscriptionExpiresAt: organization.subscriptionExpiresAt,
-          },
-        },
-      });
-
-      return organization;
-    });
-
-    return updated;
+    return platformSubscriptionService.update(organizationId, actorUserId, input);
   }
 }
 
