@@ -6,7 +6,6 @@ import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
 import { useAuth } from '@omnikes/contexts/AuthContext';
 import { Sidebar } from '@omnikes/components/layout/Sidebar';
-import { createProformaPrinter } from '@omnikes/lib/hardware/browser-printer';
 
 interface Proforma {
   id: string;
@@ -81,18 +80,6 @@ export default function ProformaDetailPage() {
     // fetchProforma intentionally captures the current route id.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, params.id]);
-
-  const handlePrint = async () => {
-    if (!proforma) return;
-
-    try {
-      const printer = createProformaPrinter(proforma.id);
-      await printer.print();
-    } catch (err) {
-      console.error('Error printing proforma:', err);
-      alert(err instanceof Error ? err.message : 'Impossible de lancer l’impression.');
-    }
-  };
 
   const handleValidate = async () => {
     if (!confirm('Valider et envoyer cette proforma ?')) {
@@ -283,9 +270,14 @@ export default function ProformaDetailPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handlePrint}>
+              <a
+                href={`/proformas/${encodeURIComponent(proforma.id)}/print`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-10 items-center justify-center rounded-md border border-zinc-200 bg-white px-4 py-2 font-medium transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+              >
                 Imprimer
-              </Button>
+              </a>
               {proforma.status === 'DRAFT' && (
                 <Button onClick={handleValidate}>
                   Valider
