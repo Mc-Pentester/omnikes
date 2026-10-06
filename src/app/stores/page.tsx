@@ -177,7 +177,7 @@ export default function StoresPage() {
       }
     } catch (err) {
       console.error('Error deactivating store:', err);
-      alert('Erreur lors de la suppression du magasin.');
+      alert('Erreur lors de la désactivation du magasin.');
     }
   };
 
