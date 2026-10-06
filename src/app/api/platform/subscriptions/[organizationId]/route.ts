@@ -54,7 +54,7 @@ export async function PATCH(
     if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json({ error: 'Invalid subscription data', details: error.message }, { status: 400 });
     }
-    if (error instanceof Error && error.message === 'Invalid expiration date') {
+    if (error instanceof Error && (error.message === 'Invalid expiration date' || error.message === 'Expiration date must be in the future')) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     if (error instanceof Error && error.message === 'Organization not found') {
