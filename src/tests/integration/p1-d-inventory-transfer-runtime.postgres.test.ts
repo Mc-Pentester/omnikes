@@ -7,6 +7,7 @@ describe('P1-D - Inventory transfer movement runtime coherence', () => {
   let sourceId = '';
   let targetId = '';
   let createdTargetId = '';
+  let createdStoreId = '';
   let referenceId = '';
   let sourceQuantity = 0;
   let targetQuantity = 0;
@@ -50,13 +51,24 @@ describe('P1-D - Inventory transfer movement runtime coherence', () => {
         select: { id: true },
       });
 
-      if (!targetStore) {
-        throw new Error('P1-D runtime fixture requires a second store in the same organization');
+      let targetStoreId = targetStore?.id ?? '';
+
+      if (!targetStoreId) {
+        const createdStore = await prisma.store.create({
+          data: {
+            organizationId,
+            name: 'P1-D Runtime Temporary Store',
+            code: `P1-D-${Date.now()}`,
+          },
+          select: { id: true },
+        });
+        targetStoreId = createdStore.id;
+        createdStoreId = createdStore.id;
       }
 
       const createdTarget = await prisma.inventory.create({
         data: {
-          storeId: targetStore.id,
+          storeId: targetStoreId,
           variantId: source.variantId,
           quantity: 0,
           reservedQuantity: 0,
@@ -126,6 +138,9 @@ describe('P1-D - Inventory transfer movement runtime coherence', () => {
       } else {
         await prisma.inventory.update({ where: { id: targetId }, data: { quantity: targetQuantity } }).catch(() => undefined);
       }
+    }
+    if (createdStoreId) {
+      await prisma.store.delete({ where: { id: createdStoreId } }).catch(() => undefined);
     }
     await prisma.$disconnect();
   });
