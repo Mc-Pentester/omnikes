@@ -5,7 +5,8 @@ import { inventoryService } from '@omnikes/services/inventory.service';
 describe('P1-E - Inventory movement runtime coherence', () => {
   let organizationId = '';
   let inventoryId = '';
-  let initialQuantity = 0;
+  let baselineQuantity = 0;
+  let currentQuantity = 0;
   const referenceIds: string[] = [];
 
   beforeAll(async () => {
@@ -25,7 +26,8 @@ describe('P1-E - Inventory movement runtime coherence', () => {
     });
 
     inventoryId = inventory.id;
-    initialQuantity = inventory.quantity;
+    baselineQuantity = inventory.quantity;
+    currentQuantity = inventory.quantity;
   });
 
   it('applies positive directional movements and signed adjustments consistently', async () => {
@@ -60,8 +62,8 @@ describe('P1-E - Inventory movement runtime coherence', () => {
 
       expect(persisted.type).toBe(movement.type);
       expect(persisted.quantity).toBe(1);
-      expect(inventory.quantity).toBe(initialQuantity + movement.delta);
-      initialQuantity = inventory.quantity;
+      expect(inventory.quantity).toBe(currentQuantity + movement.delta);
+      currentQuantity = inventory.quantity;
     }
 
     const increaseReference = `P1-E-ADJUST-UP-${Date.now()}`;
@@ -78,8 +80,8 @@ describe('P1-E - Inventory movement runtime coherence', () => {
       where: { id: inventoryId },
       select: { quantity: true },
     });
-    expect(afterIncrease.quantity).toBe(initialQuantity + 2);
-    initialQuantity = afterIncrease.quantity;
+    expect(afterIncrease.quantity).toBe(currentQuantity + 2);
+    currentQuantity = afterIncrease.quantity;
 
     const decreaseReference = `P1-E-ADJUST-DOWN-${Date.now()}`;
     referenceIds.push(decreaseReference);
@@ -102,12 +104,11 @@ describe('P1-E - Inventory movement runtime coherence', () => {
       }),
     ]);
 
-    expect(afterDecrease.quantity).toBe(initialQuantity - 2);
+    expect(afterDecrease.quantity).toBe(currentQuantity - 2);
     expect(adjustmentRows).toEqual([
       expect.objectContaining({ type: 'ADJUSTMENT', quantity: -2 }),
     ]);
-
-    initialQuantity = afterDecrease.quantity;
+    currentQuantity = afterDecrease.quantity;
   });
 
   it.each(['SALE', 'PURCHASE', 'TRANSFER_IN', 'TRANSFER_OUT', 'RETURN'] as const)(
@@ -143,12 +144,7 @@ describe('P1-E - Inventory movement runtime coherence', () => {
     if (inventoryId) {
       await prisma.inventory.update({
         where: { id: inventoryId },
-        data: { quantity: initialQuantity },
-      }).catch(() => undefined);
-
-      await prisma.inventory.update({
-        where: { id: inventoryId },
-        data: { quantity: initialQuantity },
+        data: { quantity: baselineQuantity },
       }).catch(() => undefined);
     }
 
