@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { platformOperatorBootstrapService } from '@omnikes/services/platform-operator-bootstrap.service';
 import { prisma } from '@omnikes/lib/prisma';
 
