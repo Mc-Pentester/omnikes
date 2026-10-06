@@ -7,7 +7,7 @@ describe('P1-F - Inventory adjustment runtime coherence', () => {
   let inventoryId = '';
   let baselineQuantity = 0;
   let baselineReservedQuantity = 0;
-  let testNotes: string[] = [];
+  const testNotes: string[] = [];
 
   beforeAll(async () => {
     const admin = await prisma.user.findUniqueOrThrow({
