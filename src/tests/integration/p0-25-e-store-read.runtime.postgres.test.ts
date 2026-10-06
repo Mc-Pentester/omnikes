@@ -98,6 +98,7 @@ describe('P0-25-E - real PostgreSQL permission runtime proof for store reads', (
 
   afterAll(async () => {
     if (restrictedUserId) {
+      await prisma.session.deleteMany({ where: { userId: restrictedUserId } }).catch(() => undefined);
       await prisma.user.delete({ where: { id: restrictedUserId } }).catch(() => undefined);
     }
     await prisma.$disconnect();
