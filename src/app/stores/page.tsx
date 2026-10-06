@@ -273,7 +273,9 @@ export default function StoresPage() {
                 <p className="text-sm text-gray-500">Gérez les magasins de votre organisation.</p>
               </div>
             </div>
-            <Button onClick={handleCreate}>+ Nouveau magasin</Button>
+            {user.canCreateStores && (
+              <Button onClick={handleCreate}>+ Nouveau magasin</Button>
+            )}
           </div>
         </header>
 
@@ -282,7 +284,9 @@ export default function StoresPage() {
             <Card className="p-12 text-center">
               <h2 className="text-xl font-bold text-gray-900 mb-2">Aucun magasin</h2>
               <p className="text-gray-600 mb-6">Aucun magasin n&apos;est encore configuré pour votre organisation.</p>
-              <Button onClick={handleCreate}>+ Créer un magasin</Button>
+              {user.canCreateStores && (
+                <Button onClick={handleCreate}>+ Créer un magasin</Button>
+              )}
             </Card>
           ) : (
             <Card className="overflow-hidden">
@@ -316,30 +320,34 @@ export default function StoresPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(store)}
-                            >
-                              Modifier
-                            </Button>
-                            {store.isActive ? (
+                            {user.canUpdateStores && (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleDeactivate(store.id)}
+                                onClick={() => handleEdit(store)}
                               >
-                                Désactiver
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleActivate(store.id)}
-                              >
-                                Activer
+                                Modifier
                               </Button>
                             )}
+                            {store.isActive
+                              ? user.canDeactivateStores && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDeactivate(store.id)}
+                                  >
+                                    Désactiver
+                                  </Button>
+                                )
+                              : user.canActivateStores && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleActivate(store.id)}
+                                  >
+                                    Activer
+                                  </Button>
+                                )}
                           </div>
                         </td>
                       </tr>
