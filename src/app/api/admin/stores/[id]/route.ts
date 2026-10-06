@@ -54,7 +54,7 @@ export async function DELETE(
 ) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
-    await requirePermission(request, 'store.delete');
+    await requirePermission(request, 'store.deactivate');
     const actor = await requireAuthenticatedUser(request);
     const { id } = await params;
 
@@ -77,7 +77,7 @@ export async function POST(
 ) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
-    await requirePermission(request, 'store.update');
+    await requirePermission(request, 'store.activate');
     const actor = await requireAuthenticatedUser(request);
     const { id } = await params;
 
