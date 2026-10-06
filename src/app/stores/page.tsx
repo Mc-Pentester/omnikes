@@ -158,29 +158,6 @@ export default function StoresPage() {
     }
   };
 
-  const handleDelete = async (storeId: string) => {
-    if (!confirm('Voulez-vous vraiment désactiver ce magasin ?')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/stores/${storeId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        await fetchStores();
-      } else if (response.status === 403) {
-        alert('Vous n\'avez pas les droits nécessaires pour effectuer cette action.');
-      } else {
-        alert('Erreur lors de la désactivation du magasin.');
-      }
-    } catch (err) {
-      console.error('Error deactivating store:', err);
-      alert('Erreur lors de la désactivation du magasin.');
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -363,13 +340,6 @@ export default function StoresPage() {
                                 Activer
                               </Button>
                             )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDelete(store.id)}
-                            >
-                              Désactiver
-                            </Button>
                           </div>
                         </td>
                       </tr>
