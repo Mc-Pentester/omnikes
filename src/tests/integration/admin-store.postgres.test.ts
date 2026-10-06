@@ -8,7 +8,7 @@ import { PATCH, DELETE, POST as activateStore } from '@omnikes/app/api/admin/sto
 
 describe('P0-25-C - real PostgreSQL store administration', () => {
   let adminId = '';
-  let cashierId = '';
+  let restrictedUserId = '';
   let orgAId = '';
   let orgBStoreId = '';
   let createdStoreId = '';
@@ -18,8 +18,14 @@ describe('P0-25-C - real PostgreSQL store administration', () => {
       where: { email: 'admin.a@omnikes.test' },
       select: { id: true, organizationId: true },
     });
-    const cashier = await prisma.user.findUniqueOrThrow({
-      where: { email: 'cashier.a@omnikes.test' },
+    const restrictedUser = await prisma.user.create({
+      data: {
+        email: `p0-25-c-no-store-read-${Date.now()}@omnikes.test`,
+        name: 'P0-25-C Restricted User',
+        password: 'unused-in-runtime-test',
+        organizationId: admin.organizationId,
+        isActive: true,
+      },
       select: { id: true },
     });
     const orgB = await prisma.organization.findUniqueOrThrow({
@@ -32,7 +38,7 @@ describe('P0-25-C - real PostgreSQL store administration', () => {
     });
 
     adminId = admin.id;
-    cashierId = cashier.id;
+    restrictedUserId = restrictedUser.id;
     orgAId = admin.organizationId;
     orgBStoreId = storeB.id;
   });
@@ -68,9 +74,9 @@ describe('P0-25-C - real PostgreSQL store administration', () => {
     expect(body.stores.length).toBeGreaterThan(0);
   });
 
-  it('denies store administration to CASHIER', async () => {
+  it('denies store administration without store.read', async () => {
     const request = new NextRequest('http://localhost/api/admin/stores', {
-      headers: { cookie: await cookieFor(cashierId) },
+      headers: { cookie: await cookieFor(restrictedUserId) },
     });
 
     const response = await GET(request as never);
@@ -163,6 +169,9 @@ describe('P0-25-C - real PostgreSQL store administration', () => {
   afterAll(async () => {
     if (createdStoreId) {
       await prisma.store.delete({ where: { id: createdStoreId } }).catch(() => undefined);
+    }
+    if (restrictedUserId) {
+      await prisma.user.delete({ where: { id: restrictedUserId } }).catch(() => undefined);
     }
     await prisma.$disconnect();
   });
