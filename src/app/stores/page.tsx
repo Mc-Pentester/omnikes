@@ -159,7 +159,7 @@ export default function StoresPage() {
   };
 
   const handleDelete = async (storeId: string) => {
-    if (!confirm('Voulez-vous vraiment SUPPRIMER définitivement ce magasin ? Cette action est irréversible et supprimera toutes les données associées.')) {
+    if (!confirm('Voulez-vous vraiment désactiver ce magasin ?')) {
       return;
     }
 
@@ -173,10 +173,10 @@ export default function StoresPage() {
       } else if (response.status === 403) {
         alert('Vous n\'avez pas les droits nécessaires pour effectuer cette action.');
       } else {
-        alert('Erreur lors de la suppression du magasin.');
+        alert('Erreur lors de la désactivation du magasin.');
       }
     } catch (err) {
-      console.error('Error deleting store:', err);
+      console.error('Error deactivating store:', err);
       alert('Erreur lors de la suppression du magasin.');
     }
   };
@@ -368,7 +368,7 @@ export default function StoresPage() {
                               size="sm"
                               onClick={() => handleDelete(store.id)}
                             >
-                              Supprimer
+                              Désactiver
                             </Button>
                           </div>
                         </td>
