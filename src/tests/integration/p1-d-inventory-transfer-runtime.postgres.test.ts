@@ -6,6 +6,7 @@ describe('P1-D - Inventory transfer movement runtime coherence', () => {
   let organizationId = '';
   let sourceId = '';
   let targetId = '';
+  let createdTargetId = '';
   let referenceId = '';
   let sourceQuantity = 0;
   let targetQuantity = 0;
@@ -17,33 +18,57 @@ describe('P1-D - Inventory transfer movement runtime coherence', () => {
     });
     organizationId = admin.organizationId;
 
-    const inventories = await prisma.inventory.findMany({
+    const source = await prisma.inventory.findFirstOrThrow({
       where: { store: { organizationId }, quantity: { gt: 0 } },
       orderBy: { id: 'asc' },
-      select: { id: true, variantId: true, quantity: true },
+      select: { id: true, storeId: true, variantId: true, quantity: true },
     });
 
-    const source = inventories.find((candidate) =>
-      inventories.some(
-        (targetCandidate) =>
-          targetCandidate.id !== candidate.id && targetCandidate.variantId === candidate.variantId,
-      ),
-    );
+    sourceId = source.id;
+    sourceQuantity = source.quantity;
 
-    const target = source
-      ? inventories.find(
-          (candidate) => candidate.id !== source.id && candidate.variantId === source.variantId,
-        )
-      : undefined;
+    const existingTarget = await prisma.inventory.findFirst({
+      where: {
+        variantId: source.variantId,
+        store: { organizationId },
+        id: { not: source.id },
+      },
+      orderBy: { id: 'asc' },
+      select: { id: true, quantity: true },
+    });
 
-    if (!source || !target) {
-      throw new Error('P1-D runtime fixture requires two inventories for the same variant in one organization');
+    if (existingTarget) {
+      targetId = existingTarget.id;
+      targetQuantity = existingTarget.quantity;
+    } else {
+      const targetStore = await prisma.store.findFirst({
+        where: {
+          organizationId,
+          id: { not: source.storeId },
+        },
+        orderBy: { id: 'asc' },
+        select: { id: true },
+      });
+
+      if (!targetStore) {
+        throw new Error('P1-D runtime fixture requires a second store in the same organization');
+      }
+
+      const createdTarget = await prisma.inventory.create({
+        data: {
+          storeId: targetStore.id,
+          variantId: source.variantId,
+          quantity: 0,
+          reservedQuantity: 0,
+        },
+        select: { id: true, quantity: true },
+      });
+
+      targetId = createdTarget.id;
+      createdTargetId = createdTarget.id;
+      targetQuantity = createdTarget.quantity;
     }
 
-    sourceId = source.id;
-    targetId = target.id;
-    sourceQuantity = source.quantity;
-    targetQuantity = target.quantity;
     referenceId = `P1-D-TRANSFER-${Date.now()}`;
   });
 
@@ -96,7 +121,11 @@ describe('P1-D - Inventory transfer movement runtime coherence', () => {
       await prisma.inventory.update({ where: { id: sourceId }, data: { quantity: sourceQuantity } }).catch(() => undefined);
     }
     if (targetId) {
-      await prisma.inventory.update({ where: { id: targetId }, data: { quantity: targetQuantity } }).catch(() => undefined);
+      if (createdTargetId === targetId) {
+        await prisma.inventory.delete({ where: { id: targetId } }).catch(() => undefined);
+      } else {
+        await prisma.inventory.update({ where: { id: targetId }, data: { quantity: targetQuantity } }).catch(() => undefined);
+      }
     }
     await prisma.$disconnect();
   });
