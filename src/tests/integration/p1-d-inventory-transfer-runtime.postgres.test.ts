@@ -17,22 +17,26 @@ describe('P1-D - Inventory transfer movement runtime coherence', () => {
     });
     organizationId = admin.organizationId;
 
-    const source = await prisma.inventory.findFirstOrThrow({
-      where: { store: { organizationId } },
+    const inventories = await prisma.inventory.findMany({
+      where: { store: { organizationId }, quantity: { gt: 0 } },
       orderBy: { id: 'asc' },
       select: { id: true, variantId: true, quantity: true },
     });
 
-    const target = await prisma.inventory.findFirst({
-      where: {
-        store: { organizationId },
-        variantId: source.variantId,
-        id: { not: source.id },
-      },
-      select: { id: true, quantity: true },
-    });
+    const source = inventories.find((candidate) =>
+      inventories.some(
+        (targetCandidate) =>
+          targetCandidate.id !== candidate.id && targetCandidate.variantId === candidate.variantId,
+      ),
+    );
 
-    if (!target) {
+    const target = source
+      ? inventories.find(
+          (candidate) => candidate.id !== source.id && candidate.variantId === source.variantId,
+        )
+      : undefined;
+
+    if (!source || !target) {
       throw new Error('P1-D runtime fixture requires two inventories for the same variant in one organization');
     }
 
