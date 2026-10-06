@@ -12,22 +12,21 @@ describe('P0-25-E - real PostgreSQL permission runtime proof for store reads', (
   let authorizedStoreId = '';
 
   beforeAll(async () => {
-    const [admin, cashier] = await Promise.all([
-      prisma.user.findUniqueOrThrow({
-        where: { email: 'admin.b@omnikes.test' },
-        select: { id: true, organizationId: true },
-      }),
-      prisma.user.create({
-        data: {
-          email: `p0-25-e-no-store-read-${Date.now()}@omnikes.test`,
-          name: 'P0-25-E Restricted User',
-          password: 'unused-in-runtime-test',
-          organizationId: adminIdPlaceholder,
-          isActive: true,
-        },
-        select: { id: true },
-      }),
-    ]);
+    const admin = await prisma.user.findUniqueOrThrow({
+      where: { email: 'admin.b@omnikes.test' },
+      select: { id: true, organizationId: true },
+    });
+
+    const restrictedUser = await prisma.user.create({
+      data: {
+        email: `p0-25-e-no-store-read-${Date.now()}@omnikes.test`,
+        name: 'P0-25-E Restricted User',
+        password: 'unused-in-runtime-test',
+        organizationId: admin.organizationId,
+        isActive: true,
+      },
+      select: { id: true },
+    });
 
     const store = await prisma.store.findFirstOrThrow({
       where: { organizationId: admin.organizationId, isActive: true },
@@ -35,7 +34,7 @@ describe('P0-25-E - real PostgreSQL permission runtime proof for store reads', (
     });
 
     adminId = admin.id;
-    cashierId = cashier.id;
+    restrictedUserId = restrictedUser.id;
     authorizedStoreId = store.id;
   });
 
@@ -85,10 +84,10 @@ describe('P0-25-E - real PostgreSQL permission runtime proof for store reads', (
     expect(body.store.id).toBe(authorizedStoreId);
   });
 
-  it('GET /api/stores/[id] denies CASHIER without store.read with HTTP 403', async () => {
+  it('GET /api/stores/[id] denies a user without store.read with HTTP 403', async () => {
     const response = await getStore(
       new NextRequest(`http://localhost/api/stores/${authorizedStoreId}`, {
-        headers: { cookie: await cookieFor(cashierId) },
+        headers: { cookie: await cookieFor(restrictedUserId) },
       }),
       { params: Promise.resolve({ id: authorizedStoreId }) },
     );
