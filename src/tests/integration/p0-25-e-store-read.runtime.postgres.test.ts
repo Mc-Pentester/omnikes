@@ -8,7 +8,7 @@ import { GET as getStore } from '@omnikes/app/api/stores/[id]/route';
 
 describe('P0-25-E - real PostgreSQL permission runtime proof for store reads', () => {
   let adminId = '';
-  let cashierId = '';
+  let restrictedUserId = '';
   let authorizedStoreId = '';
 
   beforeAll(async () => {
@@ -17,8 +17,14 @@ describe('P0-25-E - real PostgreSQL permission runtime proof for store reads', (
         where: { email: 'admin.b@omnikes.test' },
         select: { id: true, organizationId: true },
       }),
-      prisma.user.findUniqueOrThrow({
-        where: { email: 'cashier.a@omnikes.test' },
+      prisma.user.create({
+        data: {
+          email: `p0-25-e-no-store-read-${Date.now()}@omnikes.test`,
+          name: 'P0-25-E Restricted User',
+          password: 'unused-in-runtime-test',
+          organizationId: adminIdPlaceholder,
+          isActive: true,
+        },
         select: { id: true },
       }),
     ]);
@@ -57,9 +63,9 @@ describe('P0-25-E - real PostgreSQL permission runtime proof for store reads', (
     expect(Array.isArray(body.stores)).toBe(true);
   });
 
-  it('GET /api/stores denies CASHIER without store.read with HTTP 403', async () => {
+  it('GET /api/stores denies a user without store.read with HTTP 403', async () => {
     const response = await listStores(new NextRequest('http://localhost/api/stores', {
-      headers: { cookie: await cookieFor(cashierId) },
+      headers: { cookie: await cookieFor(restrictedUserId) },
     }));
 
     expect(response.status).toBe(403);
@@ -92,6 +98,9 @@ describe('P0-25-E - real PostgreSQL permission runtime proof for store reads', (
   });
 
   afterAll(async () => {
+    if (restrictedUserId) {
+      await prisma.user.delete({ where: { id: restrictedUserId } }).catch(() => undefined);
+    }
     await prisma.$disconnect();
   });
 });
