@@ -8,6 +8,13 @@ interface User {
   name: string | null;
   organizationId: string;
   organizationName: string;
+  canManageUsers?: boolean;
+  canManageStores?: boolean;
+  canManageRoles?: boolean;
+  canCreateStores?: boolean;
+  canUpdateStores?: boolean;
+  canActivateStores?: boolean;
+  canDeactivateStores?: boolean;
 }
 
 interface AuthContextType {
@@ -62,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await response.json();
       setUser(data.user);
+      await refreshUser();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed';
       setError(message);
