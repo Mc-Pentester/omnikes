@@ -10,12 +10,12 @@ describe('P1-Platform-Subscriptions-UI-Audit', () => {
   let platformUserId = '';
   let orgAId = '';
   let orgBId = '';
-  const originalOrgA: {
+  let originalOrgA: {
     subscriptionStatus: string;
     subscriptionPlan: string | null;
     subscriptionExpiresAt: Date | null;
   } | null = null;
-  const originalOrgB: {
+  let originalOrgB: {
     subscriptionStatus: string;
     subscriptionPlan: string | null;
     subscriptionExpiresAt: Date | null;
