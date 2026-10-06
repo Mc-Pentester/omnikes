@@ -102,8 +102,6 @@ export class InventoryService {
       throw new Error('Movement quantity cannot be zero');
     }
 
-    // Defense in depth: directional movements must be positive.
-    // ADJUSTMENT alone may be signed because it represents an exact delta.
     if (validatedData.type !== 'ADJUSTMENT' && validatedData.quantity < 0) {
       throw new Error(`Quantity must be positive for ${validatedData.type} movements`);
     }
@@ -211,7 +209,7 @@ export class InventoryService {
           data: {
             inventoryId: source.id,
             type: 'TRANSFER_OUT',
-            quantity: -data.quantity,
+            quantity: data.quantity,
             referenceId,
             referenceType: 'INVENTORY_TRANSFER',
             notes: data.notes,
