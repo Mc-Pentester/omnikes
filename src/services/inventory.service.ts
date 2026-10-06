@@ -367,7 +367,12 @@ export class InventoryService {
       const current = await this.getLockedInventory(tx, inventoryId, organizationId);
       if (!current) throw new Error('Inventory not found or access denied');
 
+      if (newQuantity < current.reservedQuantity) {
+        throw new Error('Adjusted quantity cannot be below reserved quantity');
+      }
+
       const difference = newQuantity - current.quantity;
+      if (difference === 0) throw new Error('No inventory adjustment is required');
 
       await tx.inventory.update({
         where: { id: inventoryId },
