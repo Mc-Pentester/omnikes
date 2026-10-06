@@ -14,7 +14,7 @@
     "hardware:bridge": "node tools/hardware-bridge/server.mjs",
     "seed:demo": "npx ts-node prisma/seed.demo.ts",
     "build:preflight": "node -e \"if (!process.env.DATABASE_URL) { console.error('DATABASE_URL is required for a production build.'); process.exit(1); }\"",
-    "bootstrap:platform-operator": "npx ts-node scripts/bootstrap-platform-operator.ts"
+    "bootstrap:platform-operator": "npx ts-node -r tsconfig-paths/register --project tsconfig.bootstrap.json scripts/bootstrap-platform-operator.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
@@ -47,7 +47,8 @@
     "vite": "^8.2.2",
     "vitest": "^5.0.0",
     "@serwist/next": "^9.5.12",
-    "serwist": "^9.5.12"
+    "serwist": "^9.5.12",
+    "tsconfig-paths": "^4.2.0"
   },
   "overrides": {
     "deepmerge-ts": "^8.0.2",
