@@ -171,6 +171,7 @@ describe('P0-25-C - real PostgreSQL store administration', () => {
       await prisma.store.delete({ where: { id: createdStoreId } }).catch(() => undefined);
     }
     if (restrictedUserId) {
+      await prisma.session.deleteMany({ where: { userId: restrictedUserId } }).catch(() => undefined);
       await prisma.user.delete({ where: { id: restrictedUserId } }).catch(() => undefined);
     }
     await prisma.$disconnect();
