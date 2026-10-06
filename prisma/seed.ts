@@ -893,6 +893,7 @@ async function main() {
     inventoryReadPermission,
     productReadPermission,
     reportReadPermission,
+    storeReadPermission,
   ];
 
   for (const permission of cashierPermissions) {

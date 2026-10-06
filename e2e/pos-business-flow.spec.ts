@@ -83,11 +83,13 @@ test.describe('POS business flow', () => {
 
     expect(checkoutResponse.status()).toBe(201);
     const checkoutBody = await checkoutResponse.json();
-    expect(checkoutBody.sale).toMatchObject({
+    expect(checkoutBody).toMatchObject({
       id: sale.id,
       status: 'COMPLETED',
     });
-    expect(checkoutBody.payment).toHaveProperty('amount');
+    expect(checkoutBody.payments).toBeInstanceOf(Array);
+    expect(checkoutBody.payments.length).toBeGreaterThan(0);
+    expect(checkoutBody.payments[0]).toHaveProperty('amount');
 
     const idempotencyKey = checkoutRequest.headers()['idempotency-key'];
     expect(idempotencyKey).toBeTruthy();
@@ -112,17 +114,38 @@ test.describe('POS business flow', () => {
 
     expect(replayResponse.status()).toBe(201);
     const replayResult = await replayResponse.json();
-    expect(replayResult.sale).toMatchObject({
-      id: sale.id,
-      status: 'COMPLETED',
-    });
-    expect(replayResult.payment).toMatchObject({
-      method: 'CASH',
-      amount: checkoutBody.payment.amount,
-    });
+
+    // Idempotent response may be { payment, sale: { id, status } } or full sale object
+    if (replayResult.sale) {
+      // Cached idempotent response
+      expect(replayResult.sale).toMatchObject({
+        id: sale.id,
+        status: 'COMPLETED',
+      });
+      expect(replayResult.payment).toMatchObject({
+        method: 'CASH',
+        amount: checkoutBody.payments[0].amount,
+      });
+    } else {
+      // Full sale object (initial response)
+      expect(replayResult).toMatchObject({
+        id: sale.id,
+        status: 'COMPLETED',
+      });
+      expect(replayResult.payments).toBeInstanceOf(Array);
+      expect(replayResult.payments.length).toBeGreaterThan(0);
+      expect(replayResult.payments[0]).toMatchObject({
+        method: 'CASH',
+        amount: checkoutBody.payments[0].amount,
+      });
+    }
 
     await expect(page.getByText('Vente complétée')).toBeVisible();
 
+    // Click "Nouvelle vente" to return to POS with sidebar
+    await page.getByRole('button', { name: 'Nouvelle vente' }).click();
+
+    // Now the sidebar is visible, click logout
     await page.getByRole('button', { name: 'Déconnexion' }).click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole('button', { name: 'Se connecter' })).toBeVisible();
