@@ -15,6 +15,7 @@ interface User {
   canUpdateStores?: boolean;
   canActivateStores?: boolean;
   canDeactivateStores?: boolean;
+  canAuthorizeCredit?: boolean;
 }
 
 interface AuthContextType {
