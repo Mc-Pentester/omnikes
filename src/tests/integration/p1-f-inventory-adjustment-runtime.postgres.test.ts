@@ -43,7 +43,7 @@ describe('P1-F - Inventory adjustment runtime coherence', () => {
     testNotes.push(notes);
 
     await expect(
-      inventoryService.adjustQuantity(inventoryId, before.quantity - 1, organizationId, notes),
+      inventoryService.adjustQuantity(inventoryId, before.reservedQuantity - 1, organizationId, notes),
     ).rejects.toThrow('Adjusted quantity cannot be below reserved quantity');
 
     const [after, movement] = await Promise.all([
