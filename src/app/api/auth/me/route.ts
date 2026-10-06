@@ -17,10 +17,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const [canManageUsers, canManageStores, canManageRoles] = await Promise.all([
+    const [canManageUsers, canManageStores, canManageRoles, canCreateStores, canUpdateStores, canActivateStores, canDeactivateStores] = await Promise.all([
       roleRepository.hasPermission(user.id, 'user.read'),
       roleRepository.hasPermission(user.id, 'store.read'),
       roleRepository.hasPermission(user.id, 'role.read'),
+      roleRepository.hasPermission(user.id, 'store.create'),
+      roleRepository.hasPermission(user.id, 'store.update'),
+      roleRepository.hasPermission(user.id, 'store.activate'),
+      roleRepository.hasPermission(user.id, 'store.deactivate'),
     ]);
 
     return NextResponse.json({
@@ -29,6 +33,10 @@ export async function GET(request: NextRequest) {
         canManageUsers,
         canManageStores,
         canManageRoles,
+        canCreateStores,
+        canUpdateStores,
+        canActivateStores,
+        canDeactivateStores,
       },
     });
   } catch (error) {
