@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authService, RateLimitError } from '@omnikes/services/auth.service';
+import { roleRepository } from '@omnikes/repositories/role.repository';
 import { getClientIP } from '@omnikes/lib/rate-limiter';
 import { z } from 'zod';
 
@@ -27,9 +28,17 @@ export async function POST(request: NextRequest) {
       userAgent
     );
 
+    const canAuthorizeCredit = await roleRepository.hasPermission(
+      result.user.id,
+      'sale.credit'
+    );
+
     // Set token as HTTP-only cookie
     const response = NextResponse.json({
-      user: result.user,
+      user: {
+        ...result.user,
+        canAuthorizeCredit,
+      },
       expiresAt: result.expiresAt,
     });
 
@@ -55,7 +64,6 @@ export async function POST(request: NextRequest) {
         { status: 429 }
       );
       
-      // Add Retry-After header if reset time is available
       if (error.resetTime) {
         const retryAfterSeconds = Math.ceil((error.resetTime - Date.now()) / 1000);
         if (retryAfterSeconds > 0) {
