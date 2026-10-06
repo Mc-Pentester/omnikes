@@ -17,7 +17,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const [canManageUsers, canManageStores, canManageRoles, canCreateStores, canUpdateStores, canActivateStores, canDeactivateStores] = await Promise.all([
+    const [
+      canManageUsers,
+      canManageStores,
+      canManageRoles,
+      canCreateStores,
+      canUpdateStores,
+      canActivateStores,
+      canDeactivateStores,
+      canAuthorizeCredit,
+    ] = await Promise.all([
       roleRepository.hasPermission(user.id, 'user.read'),
       roleRepository.hasPermission(user.id, 'store.read'),
       roleRepository.hasPermission(user.id, 'role.read'),
@@ -25,6 +34,7 @@ export async function GET(request: NextRequest) {
       roleRepository.hasPermission(user.id, 'store.update'),
       roleRepository.hasPermission(user.id, 'store.activate'),
       roleRepository.hasPermission(user.id, 'store.deactivate'),
+      roleRepository.hasPermission(user.id, 'sale.credit'),
     ]);
 
     return NextResponse.json({
@@ -37,6 +47,7 @@ export async function GET(request: NextRequest) {
         canUpdateStores,
         canActivateStores,
         canDeactivateStores,
+        canAuthorizeCredit,
       },
     });
   } catch (error) {
