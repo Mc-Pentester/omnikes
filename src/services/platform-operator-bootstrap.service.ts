@@ -41,7 +41,7 @@ export class PlatformOperatorBootstrapService {
         async (tx) => {
           // PostgreSQL transaction-scoped advisory lock serializes bootstrap
           // attempts even when two local processes start simultaneously.
-          await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(81427361)`);
+          await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(81427361)`);
 
           const activeOperator = await tx.platformUserRole.findFirst({
             where: {
