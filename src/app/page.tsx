@@ -106,7 +106,6 @@ export default function HomePage() {
   const addToCart = useCallback(async (variantId: string, productId: string, productName: string, variantName: string, sku: string, price: number, saleUnit: CartItem['saleUnit'] = 'UNIT') => {
     // Prevent adding to cart before stores are validated
     if (!storesValidated) {
-      console.log('[POS][STORE] Stores not yet validated, ignoring addToCart');
       return;
     }
 
@@ -148,7 +147,6 @@ export default function HomePage() {
         return;
       }
       try {
-        console.log('[POS][STORE] Creating sale with storeId:', currentStoreId);
         const response = await fetch('/api/sales', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -166,7 +164,6 @@ export default function HomePage() {
         });
         if (response.ok) {
           const sale = await response.json();
-          console.log('[POS][STORE] Sale created successfully:', sale.id);
           setCurrentSaleId(sale.id);
         } else {
           const errorText = await response.text();
@@ -245,12 +242,10 @@ export default function HomePage() {
       if (currentStoreId) {
         const isValidStore = stores.some((s: Store) => s.id === currentStoreId);
         if (!isValidStore) {
-          console.log('[POS][STORE] Invalid storeId in localStorage, clearing:', currentStoreId);
           clearCurrentStore();
         } else if (currentStore && (!currentStore.name || !currentStore.code)) {
           const store = stores.find((s) => s.id === currentStoreId);
           if (store) {
-            console.log('[POS][STORE] Enriching store data for:', currentStoreId);
             setCurrentStore(store);
           }
         }
