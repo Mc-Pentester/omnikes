@@ -78,6 +78,41 @@ describe('P0-Platform-RBAC - strict platform/tenant separation', () => {
     return `auth_token=${rawToken}`;
   }
 
+  it('denies unauthenticated platform subscription access', async () => {
+    const listResponse = await LIST(
+      new NextRequest('http://localhost/api/platform/subscriptions'),
+    );
+    expect(listResponse.status).toBe(401);
+
+    const patchResponse = await PATCH(
+      new NextRequest(
+        `http://localhost/api/platform/subscriptions/${orgBId}`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            action: 'ACTIVATE',
+            plan: 'OMNIKES_149',
+            expiresAt: '2099-12-31',
+          }),
+        },
+      ),
+      { params: Promise.resolve({ organizationId: orgBId }) },
+    );
+
+    expect(patchResponse.status).toBe(401);
+  });
+
+  it('denies tenant ADMIN from listing platform organizations', async () => {
+    const response = await LIST(
+      new NextRequest('http://localhost/api/platform/subscriptions', {
+        headers: { cookie: await cookieFor(adminAId) },
+      }),
+    );
+
+    expect(response.status).toBe(403);
+  });
+
   it('removes the legacy tenant permission entirely', async () => {
     const legacy = await prisma.permission.findUnique({
       where: { code: 'organization.subscription.manage' },
