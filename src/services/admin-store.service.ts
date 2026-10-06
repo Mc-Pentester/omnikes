@@ -126,7 +126,7 @@ export class AdminStoreService {
     storeId: string,
     isActive: boolean,
   ) {
-    await this.requireGlobalStoreAdmin(actorUserId, isActive ? 'store.update' : 'store.delete');
+    await this.requireGlobalStoreAdmin(actorUserId, isActive ? 'store.activate' : 'store.deactivate');
 
     const existing = await storeRepository.findById(storeId, organizationId);
     if (!existing) throw new Error('Store not found or access denied');
