@@ -570,6 +570,7 @@ export default function PendingSalesPage() {
                       </div>
                     </section>
 
+                  {user.canAuthorizeCredit === true && (
                     <section className="border rounded-lg p-4">
                       <h3 className="font-semibold text-gray-900 mb-3">Accorder un crédit</h3>
                       {!selectedSale.customer ? (
@@ -605,7 +606,7 @@ export default function PendingSalesPage() {
                           </Button>
                         </div>
                       )}
-                    </section>
+                    </section>                  )}
                   </div>
 
                   <div className="mt-6 p-4 rounded-lg bg-gray-900 text-white flex flex-col md:flex-row md:items-center md:justify-between gap-3">
