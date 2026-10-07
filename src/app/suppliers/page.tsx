@@ -247,7 +247,7 @@ export default function SuppliersPage() {
                 <td className="px-5 py-4 text-sm"><div>{supplier.phone || '-'}</div><div className="text-xs text-gray-500">{supplier.email || '-'}</div></td>
                 <td className="px-5 py-4 text-sm font-semibold">{balance[supplier.id] === undefined ? '—' : balance[supplier.id].toFixed(2) + ' HTG'}</td>
                 <td className="px-5 py-4"><span className={'px-2 py-1 rounded-full text-xs font-semibold ' + (supplier.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700')}>{supplier.isActive ? 'Actif' : 'Inactif'}</span></td>
-                <td className="px-5 py-4"><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => openEdit(supplier)}>Modifier</Button><Button size="sm" variant="outline" onClick={() => openPayment(supplier)}>Payer</Button><Button size="sm" variant="outline" onClick={() => void toggleActive(supplier)}>{supplier.isActive ? 'Désactiver' : 'Activer'}</Button></div></td>
+                <td className="px-5 py-4"><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => router.push(`/suppliers/${supplier.id}`)}>Détails</Button><Button size="sm" variant="outline" onClick={() => openEdit(supplier)}>Modifier</Button><Button size="sm" variant="outline" onClick={() => openPayment(supplier)}>Payer</Button><Button size="sm" variant="outline" onClick={() => void toggleActive(supplier)}>{supplier.isActive ? 'Désactiver' : 'Activer'}</Button></div></td>
               </tr>)}
             </tbody></table></div></Card>
           )}
