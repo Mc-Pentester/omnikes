@@ -46,7 +46,7 @@ export default function CashPage() {
       if (!detail.ok) throw new Error('Impossible de charger le détail de la caisse');
       setSession(await detail.json());
     }
-  };
+  }, [storeId]);
 
   useEffect(() => {
     loadStores()
