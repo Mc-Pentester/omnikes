@@ -339,6 +339,24 @@ export async function POST(
         throw new Error('Payment amount must be positive');
       }
 
+      // CASH payments are tied to the store's open cash session.
+      // The cash ledger entry is committed atomically with the payment.
+      let openCashSessionId: string | null = null;
+      if (parsedPaymentData.method === 'CASH') {
+        const cashSession = await tx.cashSession.findFirst({
+          where: {
+            organizationId: paymentOrganizationId,
+            storeId: sale.storeId,
+            status: 'OPEN',
+          },
+          select: { id: true },
+        });
+        if (!cashSession) {
+          throw new Error('An open cash session is required for CASH payments');
+        }
+        openCashSessionId = cashSession.id;
+      }
+
       // Create payment
       const payment = await tx.payment.create({
         data: {
@@ -349,6 +367,22 @@ export async function POST(
           status: parsedPaymentData.status || 'COMPLETED',
         },
       });
+
+      if (openCashSessionId) {
+        await tx.cashMovement.create({
+          data: {
+            organizationId: paymentOrganizationId,
+            storeId: sale.storeId,
+            cashSessionId: openCashSessionId,
+            createdBy: paymentUserId,
+            type: 'SALE_CASH',
+            amount: parsedPaymentData.amount,
+            referenceId: payment.id,
+            referenceType: 'PAYMENT',
+            note: `Cash payment for sale ${sale.orderNumber}`,
+          },
+        });
+      }
 
       // Update idempotency record with success
       await tx.paymentIdempotency.update({
