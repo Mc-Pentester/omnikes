@@ -98,7 +98,7 @@ export default function CashPage() {
     if (!res.ok) return setMessage(data.error ?? 'Clôture impossible');
     setCounted('');
     setMessage('Caisse clôturée.');
-    await loadSession();
+    setSession(data);
   };
 
   if (loading) return <main className="p-6">Chargement…</main>;
