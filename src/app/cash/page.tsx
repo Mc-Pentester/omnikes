@@ -48,12 +48,14 @@ export default function CashPage() {
     }
   }, [storeId]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     loadStores()
       .catch(e => setMessage(e instanceof Error ? e.message : 'Erreur'))
       .finally(() => setLoading(false));
   }, [loadStores]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (!storeId) return;
     loadSession().catch(e => setMessage(e instanceof Error ? e.message : 'Erreur'));
