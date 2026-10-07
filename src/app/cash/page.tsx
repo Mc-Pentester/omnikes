@@ -48,16 +48,18 @@ export default function CashPage() {
     }
   }, [storeId]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
+    // The effect intentionally triggers an async state synchronization from an external API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadStores()
       .catch(e => setMessage(e instanceof Error ? e.message : 'Erreur'))
       .finally(() => setLoading(false));
   }, [loadStores]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (!storeId) return;
+    // The effect intentionally triggers an async state synchronization from an external API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadSession().catch(e => setMessage(e instanceof Error ? e.message : 'Erreur'));
   }, [storeId, loadSession]);
 
