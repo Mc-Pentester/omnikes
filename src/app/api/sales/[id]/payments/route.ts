@@ -377,8 +377,8 @@ export async function POST(
             createdBy: paymentUserId,
             type: 'SALE_CASH',
             amount: parsedPaymentData.amount,
-            referenceId: payment.id,
-            referenceType: 'PAYMENT',
+            referenceId: paymentSaleId,
+            referenceType: 'SALE_PAYMENT',
             note: `Cash payment for sale ${sale.orderNumber}`,
           },
         });
