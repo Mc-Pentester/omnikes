@@ -68,7 +68,7 @@ export default function SuppliersPage() {
 
   useEffect(() => {
     if (user) void load();
-  }, [user, includeInactive]);
+  }, [user, load]);
 
   const openCreate = () => {
     setEditing(null);
