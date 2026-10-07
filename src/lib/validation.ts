@@ -369,6 +369,29 @@ export const customerCreateSchema = z.object({
 
 export const customerUpdateSchema = customerCreateSchema.partial().strict();
 
+export const supplierCreateSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  code: z.string().trim().max(50).optional().or(z.literal('')),
+  email: z.string().trim().email().max(320).optional().or(z.literal('')),
+  phone: z.string().trim().max(50).optional().or(z.literal('')),
+  address: z.string().trim().max(500).optional().or(z.literal('')),
+  city: z.string().trim().max(120).optional().or(z.literal('')),
+  country: z.string().trim().length(2).toUpperCase().optional().or(z.literal('')),
+  notes: z.string().trim().max(1000).optional().or(z.literal('')),
+  isActive: z.boolean().optional(),
+}).strict();
+
+export const supplierUpdateSchema = supplierCreateSchema.partial().strict();
+
+export const supplierListQuerySchema = z.object({
+  search: z.string().trim().max(200).optional(),
+  includeInactive: z.coerce.boolean().default(false),
+  skip: z.coerce.number().int().min(0).default(0),
+  take: z.coerce.number().int().min(1).max(100).default(50),
+}).strict();
+
+
+
 // Sales Report validation
 // Report queries are deliberately bounded to prevent unbounded historical extraction.
 export const SALES_REPORT_MAX_RANGE_DAYS = 366;
