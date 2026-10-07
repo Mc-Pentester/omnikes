@@ -68,7 +68,7 @@ jobs:
         run: npx ts-node prisma/seed.ts
 
       - name: Run real PostgreSQL runtime proof
-        run: npx vitest run --config vitest.integration.config.ts src/tests/integration/sale-credit.postgres.test.ts src/tests/integration/sale-credit.api.postgres.test.ts src/tests/integration/cash-management.postgres.test.ts
+        run: npx vitest run --config vitest.integration.config.ts src/tests/integration/sale-credit.postgres.test.ts src/tests/integration/sale-credit.api.postgres.test.ts src/tests/integration/cash-management.postgres.test.ts src/tests/integration/pos-cash-e2e.postgres.test.ts
 
       - name: Run tests
         run: npm test
