@@ -425,6 +425,27 @@ export const purchaseReceiveSchema = z.object({
   }).strict()).min(1).max(500),
 }).strict();
 
+
+export const supplierPaymentCreateSchema = z.object({
+  storeId: z.string().cuid(),
+  supplierId: z.string().cuid(),
+  purchaseId: z.string().cuid().optional(),
+  cashSessionId: z.string().cuid().optional(),
+  amount: z.number().finite().positive().max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Payment amount must have at most 2 decimal places'),
+  method: z.enum(['CASH', 'BANK', 'MONCASH', 'NATCASH', 'OTHER']),
+  reference: z.string().trim().max(150).optional(),
+  note: z.string().trim().max(1000).optional(),
+  paidAt: z.coerce.date().optional(),
+}).strict();
+
+export const supplierPaymentListQuerySchema = z.object({
+  supplierId: z.string().cuid().optional(),
+  purchaseId: z.string().cuid().optional(),
+  storeId: z.string().cuid().optional(),
+  skip: z.coerce.number().int().min(0).default(0),
+  take: z.coerce.number().int().min(1).max(100).default(50),
+}).strict();
+
 // Sales Report validation
 // Report queries are deliberately bounded to prevent unbounded historical extraction.
 export const SALES_REPORT_MAX_RANGE_DAYS = 366;
