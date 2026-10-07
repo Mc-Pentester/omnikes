@@ -47,6 +47,8 @@ model Organization {
   proformas        Proforma[]
   saleCredits      SaleCredit[]
   roles            Role[]
+  cashSessions     CashSession[]
+  cashMovements    CashMovement[]
   taxConfiguration TaxConfiguration? @relation(fields: [taxConfigurationId], references: [id])
 
   @@index([slug])
@@ -567,7 +569,6 @@ model CashSession {
   openedByUser User         @relation("CashSessionOpenedBy", fields: [openedBy], references: [id], onDelete: Restrict)
   closedByUser User?        @relation("CashSessionClosedBy", fields: [closedBy], references: [id], onDelete: Restrict)
   movements    CashMovement[]
-  sales        Sale[]
 
   @@index([organizationId])
   @@index([storeId])
