@@ -3,9 +3,6 @@ import { z } from 'zod';
 import { purchaseService } from '@omnikes/services/purchase.service';
 import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
 type RouteContext = { params: Promise<{ id: string }> };
-import { NextRequest, NextResponse } from 'next/server';
-import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
-
 export function authErrorResponse(error: unknown) {
   if (!(error instanceof Error)) return null;
   if (error.message === 'Authentication required' || error.message === 'Invalid or expired session') return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
