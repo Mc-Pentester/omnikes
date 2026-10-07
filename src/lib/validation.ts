@@ -305,6 +305,7 @@ export type ReturnItemInput = z.infer<typeof returnItemSchema>;
 
 // Refund validation
 export const refundSchema = z.object({
+  returnId: z.string().cuid('Return ID is required'),
   paymentId: z.string().cuid(),
   amount: z.number().finite().positive('Amount must be positive').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Amount must have at most 2 decimal places'),
   reference: z.string().max(200).optional(),

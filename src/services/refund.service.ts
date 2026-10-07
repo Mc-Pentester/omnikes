@@ -11,6 +11,20 @@ export class RefundService {
     const validatedData = refundSchema.parse(data);
 
     return prisma.$transaction(async (tx) => {
+      // Lock the return row first
+      const lockedReturnRows = await tx.$queryRaw<Array<{ id: string; saleId: string; totalRefunded: number }>>`
+        SELECT r.id, r."saleId", r."totalRefunded"
+        FROM returns r
+        WHERE r.id = ${validatedData.returnId} AND r."organizationId" = ${organizationId}
+        FOR UPDATE
+      `;
+
+      if (lockedReturnRows.length === 0) {
+        throw new Error('Return not found or access denied');
+      }
+
+      const returnRecord = lockedReturnRows[0];
+
       // Lock the payment row
       const lockedPaymentRows = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT p.id
@@ -45,22 +59,41 @@ export class RefundService {
         throw new Error('Store does not belong to the organization');
       }
 
-      // Calculate remaining refundable amount
+      // Verify that the return belongs to the same sale as the payment
+      if (returnRecord.saleId !== payment.saleId) {
+        throw new Error('Return does not belong to the same sale as the payment');
+      }
+
+      // Calculate remaining refundable amount for the payment
       const paidAmount = Number(payment.amount);
       const alreadyRefunded = Number(payment.refundedAmount || 0);
-      const remainingRefundable = roundMoney(paidAmount - alreadyRefunded);
+      const paymentRemainingRefundable = roundMoney(paidAmount - alreadyRefunded);
 
-      if (validatedData.amount > remainingRefundable) {
+      // Calculate remaining refundable amount for the return
+      const returnTotal = Number(returnRecord.totalRefunded);
+      const returnRefunds = await tx.refund.findMany({
+        where: { returnId: validatedData.returnId },
+        select: { amount: true },
+      });
+      const returnAlreadyRefunded = returnRefunds.reduce((sum, r) => sum + Number(r.amount), 0);
+      const returnRemainingRefundable = roundMoney(returnTotal - returnAlreadyRefunded);
+
+      // Apply the minimum of the two limits
+      const effectiveRemaining = Math.min(paymentRemainingRefundable, returnRemainingRefundable);
+
+      if (validatedData.amount > effectiveRemaining) {
         throw new Error(
           `Refund amount exceeds remaining refundable amount. ` +
-          `Paid: ${paidAmount}, Already refunded: ${alreadyRefunded}, ` +
-          `Remaining: ${remainingRefundable}, Requested: ${validatedData.amount}`
+          `Payment remaining: ${paymentRemainingRefundable}, ` +
+          `Return remaining: ${returnRemainingRefundable}, ` +
+          `Effective limit: ${effectiveRemaining}, Requested: ${validatedData.amount}`
         );
       }
 
-      // Create the refund record
+      // Create the refund record with returnId
       const refund = await tx.refund.create({
         data: {
+          returnId: validatedData.returnId,
           paymentId: validatedData.paymentId,
           amount: validatedData.amount,
           method: payment.method,
@@ -123,6 +156,7 @@ export class RefundService {
           entityType: 'Payment',
           metadata: {
             refundId: refund.id,
+            returnId: validatedData.returnId,
             refundAmount: validatedData.amount,
             paymentMethod: payment.method,
             totalRefunded: newRefundedAmount,

@@ -54,6 +54,43 @@ export async function POST(
       paymentId,
     });
 
+    // Verify return exists and belongs to the same sale as the payment
+    const returnRecord = await prisma.return.findFirst({
+      where: {
+        id: refundData.returnId,
+        organizationId,
+      },
+      include: {
+        sale: true,
+      },
+    });
+
+    if (!returnRecord) {
+      return NextResponse.json(
+        { error: 'Return not found or access denied' },
+        { status: 404 }
+      );
+    }
+
+    if (returnRecord.saleId !== payment.sale.id) {
+      return NextResponse.json(
+        { error: 'Return does not belong to the same sale as the payment' },
+        { status: 400 }
+      );
+    }
+
+    // Verify store access for the return's store
+    if (returnRecord.storeId) {
+      try {
+        await requireStoreAccess(request, returnRecord.storeId);
+      } catch {
+        return NextResponse.json(
+          { error: 'Not authorized to access this store' },
+          { status: 403 }
+        );
+      }
+    }
+
     // Process refund
     const refund = await refundService.process(organizationId, user.id, refundData);
 

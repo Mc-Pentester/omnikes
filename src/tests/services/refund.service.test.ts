@@ -26,18 +26,27 @@ describe('RefundService', () => {
     },
   };
 
+  const mockReturn = {
+    id: 'clh1234567890op',
+    saleId: 'clh1234567890cd',
+    totalRefunded: 500,
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('processes a valid partial refund', async () => {
+  it('processes a valid partial refund with returnId', async () => {
     const tx = {
-      $queryRaw: vi.fn().mockResolvedValue([{ id: 'clh1234567890ab' }]),
+      $queryRaw: vi.fn()
+        .mockResolvedValueOnce([{ id: mockReturn.id, saleId: mockReturn.saleId, totalRefunded: mockReturn.totalRefunded }])
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }]),
       payment: {
         findUnique: vi.fn().mockResolvedValue(mockPayment),
         update: vi.fn().mockResolvedValue({}),
       },
       refund: {
+        findMany: vi.fn().mockResolvedValue([]),
         create: vi.fn().mockResolvedValue({
           id: 'clh1234567890ij',
           amount: 500,
@@ -58,6 +67,7 @@ describe('RefundService', () => {
     vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
 
     const result = await refundService.process('clh1234567890ef', 'clh1234567890mn', {
+      returnId: 'clh1234567890op',
       paymentId: 'clh1234567890ab',
       amount: 500,
     });
@@ -69,14 +79,25 @@ describe('RefundService', () => {
         status: 'COMPLETED',
       },
     });
-    expect(tx.refund.create).toHaveBeenCalled();
+    expect(tx.refund.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        returnId: 'clh1234567890op',
+        paymentId: 'clh1234567890ab',
+        amount: 500,
+      }),
+    });
   });
 
-  it('rejects refund when amount exceeds remaining refundable', async () => {
+  it('rejects refund when return does not belong to same sale as payment', async () => {
     const tx = {
-      $queryRaw: vi.fn().mockResolvedValue([{ id: 'clh1234567890ab' }]),
+      $queryRaw: vi.fn()
+        .mockResolvedValueOnce([{ id: 'clh1234567890op', saleId: 'different-sale-id', totalRefunded: 500 }])
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }]),
       payment: {
         findUnique: vi.fn().mockResolvedValue(mockPayment),
+      },
+      refund: {
+        findMany: vi.fn().mockResolvedValue([]),
       },
     };
 
@@ -84,21 +105,65 @@ describe('RefundService', () => {
 
     await expect(
       refundService.process('clh1234567890ef', 'clh1234567890mn', {
+        returnId: 'clh1234567890op',
         paymentId: 'clh1234567890ab',
-        amount: 1500,
+        amount: 500,
+      })
+    ).rejects.toThrow('Return does not belong to the same sale as the payment');
+  });
+
+  it('rejects refund when amount exceeds return remaining refundable', async () => {
+    const tx = {
+      $queryRaw: vi.fn()
+        .mockResolvedValueOnce([{ id: mockReturn.id, saleId: mockReturn.saleId, totalRefunded: 250 }])
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }]),
+      payment: {
+        findUnique: vi.fn().mockResolvedValue(mockPayment),
+      },
+      refund: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+    };
+
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+
+    await expect(
+      refundService.process('clh1234567890ef', 'clh1234567890mn', {
+        returnId: 'clh1234567890op',
+        paymentId: 'clh1234567890ab',
+        amount: 500,
       })
     ).rejects.toThrow('Refund amount exceeds remaining refundable amount');
+  });
+
+  it('rejects refund when return not found', async () => {
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([]),
+    };
+
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+
+    await expect(
+      refundService.process('clh1234567890ef', 'clh1234567890mn', {
+        returnId: 'clh1234567890op',
+        paymentId: 'clh1234567890ab',
+        amount: 500,
+      })
+    ).rejects.toThrow('Return not found or access denied');
   });
 
   it('sets payment status to REFUNDED when fully refunded', async () => {
     const cardPayment = { ...mockPayment, method: 'CARD' };
     const tx = {
-      $queryRaw: vi.fn().mockResolvedValue([{ id: 'clh1234567890ab' }]),
+      $queryRaw: vi.fn()
+        .mockResolvedValueOnce([{ id: mockReturn.id, saleId: mockReturn.saleId, totalRefunded: 1000 }])
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }]),
       payment: {
         findUnique: vi.fn().mockResolvedValue(cardPayment),
         update: vi.fn().mockResolvedValue({}),
       },
       refund: {
+        findMany: vi.fn().mockResolvedValue([]),
         create: vi.fn().mockResolvedValue({
           id: 'clh1234567890ij',
           amount: 1000,
@@ -113,6 +178,7 @@ describe('RefundService', () => {
     vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
 
     await refundService.process('clh1234567890ef', 'clh1234567890mn', {
+      returnId: 'clh1234567890op',
       paymentId: 'clh1234567890ab',
       amount: 1000,
     });
@@ -128,12 +194,15 @@ describe('RefundService', () => {
 
   it('requires open cash session for CASH refunds', async () => {
     const tx = {
-      $queryRaw: vi.fn().mockResolvedValue([{ id: 'clh1234567890ab' }]),
+      $queryRaw: vi.fn()
+        .mockResolvedValueOnce([{ id: mockReturn.id, saleId: mockReturn.saleId, totalRefunded: 500 }])
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }]),
       payment: {
         findUnique: vi.fn().mockResolvedValue(mockPayment),
         update: vi.fn().mockResolvedValue({}),
       },
       refund: {
+        findMany: vi.fn().mockResolvedValue([]),
         create: vi.fn().mockResolvedValue({}),
       },
       cashSession: {
@@ -148,6 +217,7 @@ describe('RefundService', () => {
 
     await expect(
       refundService.process('clh1234567890ef', 'clh1234567890mn', {
+        returnId: 'clh1234567890op',
         paymentId: 'clh1234567890ab',
         amount: 500,
       })
@@ -156,13 +226,16 @@ describe('RefundService', () => {
 
   it('rejects refund when payment does not belong to organization', async () => {
     const tx = {
-      $queryRaw: vi.fn().mockResolvedValue([]),
+      $queryRaw: vi.fn()
+        .mockResolvedValueOnce([{ id: mockReturn.id, saleId: mockReturn.saleId, totalRefunded: 500 }])
+        .mockResolvedValueOnce([]),
     };
 
     vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
 
     await expect(
       refundService.process('clh1234567890ef', 'clh1234567890mn', {
+        returnId: 'clh1234567890op',
         paymentId: 'clh1234567890ab',
         amount: 500,
       })

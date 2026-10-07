@@ -241,6 +241,7 @@ describe('P0 Returns/Refunds PostgreSQL Runtime Test', () => {
 
     // Process refund
     const refund = await refundService.process(organizationId, userId, {
+      returnId: returnRecord.id,
       paymentId,
       amount: Number(initialSale!.items[0].unitPrice),
       reference: 'TEST-RETURN-REFUND',
@@ -296,10 +297,32 @@ describe('P0 Returns/Refunds PostgreSQL Runtime Test', () => {
 
     const remainingRefundable = Number(payment!.amount) - Number(payment!.refundedAmount);
 
+    // Get the return created in the first test
+    const returnRecord = await prisma.return.findFirst({
+      where: { saleId },
+    });
+
     await expect(
       refundService.process(organizationId, userId, {
+        returnId: returnRecord!.id,
         paymentId,
         amount: remainingRefundable + 1,
+      })
+    ).rejects.toThrow('Refund amount exceeds remaining refundable amount');
+  });
+
+  it('prevents refunding more than return total', async () => {
+    // Get the return created in the first test
+    const returnRecord = await prisma.return.findFirst({
+      where: { saleId },
+    });
+
+    // Try to refund more than the return total (even if payment has enough)
+    await expect(
+      refundService.process(organizationId, userId, {
+        returnId: returnRecord!.id,
+        paymentId,
+        amount: Number(returnRecord!.totalRefunded) + 1000,
       })
     ).rejects.toThrow('Refund amount exceeds remaining refundable amount');
   });
