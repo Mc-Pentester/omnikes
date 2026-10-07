@@ -58,7 +58,6 @@ export default function PurchaseDetailPage() {
   useEffect(() => {
     if (!user || !params.id) return;
     let active = true;
-    setLoading(true);
     fetch('/api/purchases/' + encodeURIComponent(params.id))
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -86,7 +85,7 @@ export default function PurchaseDetailPage() {
           <div className="flex items-center gap-4">
             <Logo size={40} />
             <div>
-              <h1 className="text-2xl font-bold">Détail de l'achat</h1>
+              <h1 className="text-2xl font-bold">Détail de l&apos;achat</h1>
               <p className="text-sm text-gray-500">{purchase?.reference || 'Commande fournisseur'}</p>
             </div>
           </div>
