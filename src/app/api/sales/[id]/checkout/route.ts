@@ -301,7 +301,7 @@ export async function POST(
           data: {
             inventoryId: currentInventory.id,
             type: 'SALE',
-            quantity: -item.quantity,
+            quantity: item.quantity,
             referenceId: checkoutSaleId,
             referenceType: 'SALE',
             notes: `Sale ${sale.orderNumber}`,
