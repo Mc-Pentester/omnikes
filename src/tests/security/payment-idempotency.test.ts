@@ -28,7 +28,13 @@ vi.mock('../../lib/prisma', () => ({
     payment: {
       create: vi.fn(),
     },
-    cashSession: {\n      findFirst: vi.fn(),\n    },\n    cashMovement: {\n      create: vi.fn(),\n    },\n    $queryRaw: vi.fn(),
+    cashSession: {
+      findFirst: vi.fn(),
+    },
+    cashMovement: {
+      create: vi.fn(),
+    },
+    $queryRaw: vi.fn(),
     $transaction: vi.fn(),
   },
 }));
@@ -57,7 +63,13 @@ const mockedPrisma = prisma as {
   payment: {
     create: ReturnType<typeof vi.fn>;
   };
-  cashSession: {\n    findFirst: ReturnType<typeof vi.fn>;\n  };\n  cashMovement: {\n    create: ReturnType<typeof vi.fn>;\n  };\n  $queryRaw: ReturnType<typeof vi.fn>;
+  cashSession: {
+    findFirst: ReturnType<typeof vi.fn>;
+  };
+  cashMovement: {
+    create: ReturnType<typeof vi.fn>;
+  };
+  $queryRaw: ReturnType<typeof vi.fn>;
   $transaction: ReturnType<typeof vi.fn>;
 };
 
