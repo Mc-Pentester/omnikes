@@ -100,7 +100,7 @@ describe('P0 payment overpayment concurrency runtime proof', () => {
           'Idempotency-Key': key,
         },
         body: JSON.stringify({
-          method: 'CASH',
+          method: 'CARD',
           amount: 600,
         }),
       });

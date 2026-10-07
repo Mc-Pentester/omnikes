@@ -309,6 +309,17 @@ export async function POST(
         });
       }
 
+      // CASH checkout requires an open cash session for the sale's store.
+      let openCashSessionId: string | null = null;
+      if (checkoutPaymentData.method === 'CASH') {
+        const cashSession = await tx.cashSession.findFirst({
+          where: { organizationId: checkoutOrganizationId, storeId: sale.storeId, status: 'OPEN' },
+          select: { id: true },
+        });
+        if (!cashSession) throw new Error('An open cash session is required for CASH payments');
+        openCashSessionId = cashSession.id;
+      }
+
       // Create payment
       const payment = await tx.payment.create({
         data: {
@@ -319,6 +330,22 @@ export async function POST(
           status: 'COMPLETED',
         },
       });
+
+      if (openCashSessionId) {
+        await tx.cashMovement.create({
+          data: {
+            organizationId: checkoutOrganizationId,
+            storeId: sale.storeId,
+            cashSessionId: openCashSessionId,
+            createdBy: checkoutUserId,
+            type: 'SALE_CASH',
+            amount: checkoutPaymentData.amount,
+            referenceId: checkoutSaleId,
+            referenceType: 'SALE_PAYMENT',
+            note: `Cash checkout for sale ${sale.orderNumber}`,
+          },
+        });
+      }
 
       // Update sale status to COMPLETED
       await tx.sale.update({
