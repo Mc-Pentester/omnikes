@@ -99,14 +99,22 @@ describe('P1 achats / fournisseurs PostgreSQL runtime proof', () => {
   });
 
   it('rejects a supplier payment above the outstanding purchase balance', async () => {
+    const purchase = await purchaseService.create(ids.org, ids.user, {
+      storeId: ids.store,
+      supplierId: ids.supplier,
+      reference: `PUR-OVERPAY-${suffix}`,
+      items: [{ variantId: ids.variant, orderedQuantity: 2, unitCost: 100 }],
+    });
+    await purchaseService.order(purchase.id, ids.org);
+
     await expect(
       supplierPaymentService.create(ids.org, ids.user, {
         storeId: ids.store,
         supplierId: ids.supplier,
-        purchaseId: 'cmissingpurchase000000000000',
-        amount: 999999,
+        purchaseId: purchase.id,
+        amount: 1000,
         method: 'BANK',
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow('Payment exceeds purchase outstanding balance');
   });
 });
