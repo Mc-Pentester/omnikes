@@ -1,0 +1,209 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Logo } from '@omnikes/components/branding/Logo';
+import { Button } from '@omnikes/components/ui/button';
+import { Card } from '@omnikes/components/ui/card';
+import { useAuth } from '@omnikes/contexts/AuthContext';
+import { Sidebar } from '@omnikes/components/layout/Sidebar';
+
+interface Supplier {
+  id: string;
+  code: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  isActive: boolean;
+}
+
+interface Purchase {
+  id: string;
+  reference: string;
+  status: string;
+  total: number | string;
+  orderedAt?: string | null;
+  receivedAt?: string | null;
+}
+
+interface Payment {
+  id: string;
+  amount: number | string;
+  method: string;
+  reference?: string | null;
+  note?: string | null;
+  paidAt: string;
+  purchase?: { id: string; reference: string; total: number | string } | null;
+}
+
+interface Balance {
+  totalPurchases: number | string;
+  totalPaid: number | string;
+  balance: number | string;
+}
+
+const money = (value: number | string) => Number(value || 0).toFixed(2) + ' HTG';
+
+const statusLabel: Record<string, string> = {
+  DRAFT: 'Brouillon',
+  ORDERED: 'Commandée',
+  PARTIALLY_RECEIVED: 'Partiellement reçue',
+  RECEIVED: 'Reçue',
+  CANCELLED: 'Annulée',
+};
+
+export default function SupplierDetailPage() {
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const { user, loading: authLoading } = useAuth();
+  const [supplier, setSupplier] = useState<Supplier | null>(null);
+  const [balance, setBalance] = useState<Balance | null>(null);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [compact, setCompact] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !user) router.push('/login');
+  }, [authLoading, user, router]);
+
+  const load = useCallback(async () => {
+    if (!params.id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const [supplierResponse, balanceResponse, purchasesResponse, paymentsResponse] = await Promise.all([
+        fetch('/api/suppliers/' + params.id),
+        fetch('/api/suppliers/' + params.id + '/balance'),
+        fetch('/api/purchases?supplierId=' + encodeURIComponent(params.id) + '&take=100'),
+        fetch('/api/supplier-payments?supplierId=' + encodeURIComponent(params.id) + '&take=100'),
+      ]);
+
+      const [supplierData, balanceData, purchasesData, paymentsData] = await Promise.all([
+        supplierResponse.json().catch(() => ({})),
+        balanceResponse.json().catch(() => ({})),
+        purchasesResponse.json().catch(() => ({})),
+        paymentsResponse.json().catch(() => ({})),
+      ]);
+
+      if (!supplierResponse.ok) throw new Error(supplierData.error || 'Fournisseur introuvable');
+      if (!balanceResponse.ok) throw new Error(balanceData.error || 'Impossible de charger le solde');
+      if (!purchasesResponse.ok) throw new Error(purchasesData.error || 'Impossible de charger les achats');
+      if (!paymentsResponse.ok) throw new Error(paymentsData.error || 'Impossible de charger les paiements');
+
+      setSupplier(supplierData);
+      setBalance(balanceData);
+      setPurchases(purchasesData.purchases || []);
+      setPayments(paymentsData.payments || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Impossible de charger le fournisseur');
+    } finally {
+      setLoading(false);
+    }
+  }, [params.id]);
+
+  useEffect(() => {
+    if (user) void load();
+  }, [user, load]);
+
+  if (authLoading || !user) return authLoading ? <div className="min-h-screen flex items-center justify-center">Chargement...</div> : null;
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      <Sidebar compact={compact} onToggleCompact={() => setCompact(!compact)} />
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Logo size={40} />
+            <div>
+              <h1 className="text-2xl font-bold">{supplier?.name || 'Fournisseur'}</h1>
+              <p className="text-sm text-gray-500">{supplier?.code || 'Détail fournisseur'}</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => router.push('/suppliers')}>Retour</Button>
+            <Button onClick={() => router.push('/suppliers')}>Payer</Button>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-6 space-y-5">
+          {error && (
+            <Card className="p-4 text-red-600">
+              {error}
+              <Button className="ml-3" variant="outline" onClick={() => void load()}>Réessayer</Button>
+            </Card>
+          )}
+
+          {loading ? (
+            <Card className="p-12 text-center">Chargement du fournisseur...</Card>
+          ) : supplier ? (
+            <>
+              <Card className="p-5">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div><div className="text-xs uppercase text-gray-500">Fournisseur</div><div className="font-semibold">{supplier.name}</div></div>
+                  <div><div className="text-xs uppercase text-gray-500">Téléphone</div><div>{supplier.phone || '-'}</div></div>
+                  <div><div className="text-xs uppercase text-gray-500">Email</div><div>{supplier.email || '-'}</div></div>
+                  <div><div className="text-xs uppercase text-gray-500">Statut</div><div>{supplier.isActive ? 'Actif' : 'Inactif'}</div></div>
+                </div>
+                {supplier.address && <div className="mt-4 text-sm text-gray-600">{supplier.address}</div>}
+              </Card>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="p-5"><div className="text-sm text-gray-500">Total achats</div><div className="text-2xl font-bold mt-1">{money(balance?.totalPurchases || 0)}</div></Card>
+                <Card className="p-5"><div className="text-sm text-gray-500">Total payé</div><div className="text-2xl font-bold mt-1">{money(balance?.totalPaid || 0)}</div></Card>
+                <Card className="p-5"><div className="text-sm text-gray-500">Solde dû</div><div className="text-2xl font-bold mt-1">{money(balance?.balance || 0)}</div></Card>
+              </div>
+
+              <Card className="overflow-hidden">
+                <div className="px-5 py-4 border-b"><h2 className="font-semibold">Historique des achats</h2></div>
+                {purchases.length === 0 ? <div className="p-8 text-center text-gray-500">Aucun achat pour ce fournisseur.</div> : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b"><tr>
+                        {['Référence', 'Statut', 'Commandé le', 'Reçu le', 'Total', ''].map((h) => <th key={h} className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>)}
+                      </tr></thead>
+                      <tbody className="divide-y">
+                        {purchases.map((purchase) => <tr key={purchase.id}>
+                          <td className="px-5 py-4 font-medium">{purchase.reference}</td>
+                          <td className="px-5 py-4 text-sm">{statusLabel[purchase.status] || purchase.status}</td>
+                          <td className="px-5 py-4 text-sm">{purchase.orderedAt ? new Date(purchase.orderedAt).toLocaleDateString('fr-FR') : '-'}</td>
+                          <td className="px-5 py-4 text-sm">{purchase.receivedAt ? new Date(purchase.receivedAt).toLocaleDateString('fr-FR') : '-'}</td>
+                          <td className="px-5 py-4 text-sm font-semibold">{money(purchase.total)}</td>
+                          <td className="px-5 py-4"><Button size="sm" variant="outline" onClick={() => router.push('/purchases/' + purchase.id)}>Détails</Button></td>
+                        </tr>)}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+
+              <Card className="overflow-hidden">
+                <div className="px-5 py-4 border-b"><h2 className="font-semibold">Historique des paiements</h2></div>
+                {payments.length === 0 ? <div className="p-8 text-center text-gray-500">Aucun paiement enregistré.</div> : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b"><tr>
+                        {['Date', 'Méthode', 'Achat', 'Référence', 'Montant'].map((h) => <th key={h} className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>)}
+                      </tr></thead>
+                      <tbody className="divide-y">
+                        {payments.map((payment) => <tr key={payment.id}>
+                          <td className="px-5 py-4 text-sm">{new Date(payment.paidAt).toLocaleString('fr-FR')}</td>
+                          <td className="px-5 py-4 text-sm">{payment.method}</td>
+                          <td className="px-5 py-4 text-sm">{payment.purchase?.reference || 'Solde fournisseur'}</td>
+                          <td className="px-5 py-4 text-sm">{payment.reference || '-'}</td>
+                          <td className="px-5 py-4 text-sm font-semibold">{money(payment.amount)}</td>
+                        </tr>)}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+            </>
+          ) : null}
+        </main>
+      </div>
+    </div>
+  );
+}
