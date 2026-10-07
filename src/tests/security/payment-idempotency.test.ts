@@ -115,7 +115,7 @@ describe('P0-24-F.1-A Payment Idempotency Tests', () => {
       mockedPrisma.payment.create.mockResolvedValue({
         id: 'payment-1',
         saleId,
-        method: 'CASH',
+        method: 'CARD',
         amount: 100,
         status: 'COMPLETED',
       });
@@ -126,7 +126,7 @@ describe('P0-24-F.1-A Payment Idempotency Tests', () => {
         headers: {
           'Idempotency-Key': idempotencyKey,
         },
-        body: JSON.stringify({ method: 'CASH', amount: 100 }),
+        body: JSON.stringify({ method: 'CARD', amount: 100 }),
       });
 
       const response = await POSTPayments(request, { params: Promise.resolve({ id: saleId }) });
@@ -357,7 +357,7 @@ describe('P0-24-F.1-A Payment Idempotency Tests', () => {
         headers: {
           'Idempotency-Key': 'key-1',
         },
-        body: JSON.stringify({ method: 'CASH', amount: 100 }),
+        body: JSON.stringify({ method: 'CARD', amount: 100 }),
       });
 
       const response1 = await POSTPayments(request1, { params: Promise.resolve({ id: saleId }) });
@@ -662,7 +662,7 @@ describe('P0-24-F.1-A Payment Idempotency Tests', () => {
       mockedPrisma.payment.create.mockResolvedValue({
         id: 'payment-1',
         saleId,
-        method: 'CASH',
+        method: 'CARD',
         amount: 100,
         status: 'COMPLETED',
       });
@@ -673,7 +673,7 @@ describe('P0-24-F.1-A Payment Idempotency Tests', () => {
         headers: {
           'Idempotency-Key': idempotencyKey,
         },
-        body: JSON.stringify({ method: 'CASH', amount: 100 }),
+        body: JSON.stringify({ method: 'CARD', amount: 100 }),
       });
 
       const response = await POSTPayments(request, { params: Promise.resolve({ id: saleId }) });
