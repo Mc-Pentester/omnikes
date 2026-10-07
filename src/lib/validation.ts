@@ -288,6 +288,30 @@ export const saleCreditSchema = z.object({
 
 export type SaleCreditInput = z.infer<typeof saleCreditSchema>;
 
+// Return validation
+export const returnItemSchema = z.object({
+  saleItemId: z.string().cuid(),
+  quantity: z.int().positive('Quantity must be positive'),
+});
+
+export const returnSchema = z.object({
+  saleId: z.string().cuid(),
+  items: z.array(returnItemSchema).min(1, 'At least one item must be returned'),
+  reason: z.string().max(1000).optional(),
+});
+
+export type ReturnInput = z.infer<typeof returnSchema>;
+export type ReturnItemInput = z.infer<typeof returnItemSchema>;
+
+// Refund validation
+export const refundSchema = z.object({
+  paymentId: z.string().cuid(),
+  amount: z.number().finite().positive('Amount must be positive').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Amount must have at most 2 decimal places'),
+  reference: z.string().max(200).optional(),
+});
+
+export type RefundInput = z.infer<typeof refundSchema>;
+
 // Proforma validation
 export const proformaSchema = z.object({
   organizationId: z.string().cuid(),

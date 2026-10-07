@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@omnikes/contexts/AuthContext';
 
 type Organization = {
@@ -50,6 +50,7 @@ export default function PlatformSubscriptionsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const initialSelectionDone = useRef(false);
 
   const selected = organizations.find((item) => item.id === selectedId) ?? null;
 
@@ -62,7 +63,7 @@ export default function PlatformSubscriptionsPage() {
   };
 
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (authLoading || !user?.id) return;
 
     let cancelled = false;
     void fetch('/api/platform/subscriptions', { cache: 'no-store' })
@@ -73,7 +74,8 @@ export default function PlatformSubscriptionsPage() {
         const nextOrganizations = body.organizations ?? [];
         setOrganizations(nextOrganizations);
         const first = nextOrganizations[0] as Organization | undefined;
-        if (!selectedId && first) {
+        if (!initialSelectionDone.current && first) {
+          initialSelectionDone.current = true;
           setSelectedId(first.id);
           setPlan(normalizePlan(first.subscriptionPlan));
           setExpiresAt(toDateInputValue(first.subscriptionExpiresAt));

@@ -403,6 +403,16 @@ async function main() {
     },
   });
 
+  const saleReturnPermission = await prisma.permission.upsert({
+    where: { code: 'sale.return' },
+    update: {},
+    create: {
+      code: 'sale.return',
+      description: 'Retourner des articles d\'une vente',
+      module: 'sales',
+    },
+  });
+
   // Payment permissions
   const paymentCreatePermission = await prisma.permission.upsert({
     where: { code: 'payment.create' },
@@ -419,6 +429,16 @@ async function main() {
     create: {
       code: 'payment.read',
       description: 'Consulter les paiements',
+      module: 'sales',
+    },
+  });
+
+  const paymentRefundPermission = await prisma.permission.upsert({
+    where: { code: 'payment.refund' },
+    update: {},
+    create: {
+      code: 'payment.refund',
+      description: 'Rembourser un paiement',
       module: 'sales',
     },
   });
@@ -686,8 +706,10 @@ async function main() {
     saleCompletePermission,
     saleCreditPermission,
     saleCancelPermission,
+    saleReturnPermission,
     paymentCreatePermission,
     paymentReadPermission,
+    paymentRefundPermission,
   ];
 
   const cashPermissions = [cashReadPermission, cashOpenPermission, cashClosePermission, cashMovementPermission];
@@ -955,8 +977,10 @@ async function main() {
     saleReadPermission,
     saleUpdatePermission,
     saleCompletePermission,
+    saleReturnPermission,
     paymentCreatePermission,
     paymentReadPermission,
+    paymentRefundPermission,
     inventoryReadPermission,
     productReadPermission,
     reportReadPermission,
