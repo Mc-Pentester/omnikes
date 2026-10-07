@@ -226,7 +226,7 @@ describe('P0-22 — Real PostgreSQL Runtime Validation', () => {
           'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify({
-          method: 'CASH',
+          method: 'CARD',
           amount: 1000,
         }),
       });
@@ -292,7 +292,7 @@ describe('P0-22 — Real PostgreSQL Runtime Validation', () => {
           'Idempotency-Key': key,
         },
         body: JSON.stringify({
-          method: 'CASH',
+          method: 'CARD',
           amount: 1000,
         }),
       });
@@ -350,7 +350,7 @@ describe('P0-22 — Real PostgreSQL Runtime Validation', () => {
           'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify({
-          method: 'CASH',
+          method: 'CARD',
           amount: 1000,
         }),
       });
@@ -415,7 +415,7 @@ describe('P0-22 — Real PostgreSQL Runtime Validation', () => {
           'Idempotency-Key': `${testPrefix}-atomicity-${sale.id}`,
         },
         body: JSON.stringify({
-          method: 'CASH',
+          method: 'CARD',
           amount: 1000,
         }),
       }),
@@ -471,7 +471,7 @@ describe('P0-22 — Real PostgreSQL Runtime Validation', () => {
           'Idempotency-Key': `${testPrefix}-double-checkout-1-${sale.id}`,
         },
         body: JSON.stringify({
-          method: 'CASH',
+          method: 'CARD',
           amount: 1000,
         }),
       }),
@@ -489,7 +489,7 @@ describe('P0-22 — Real PostgreSQL Runtime Validation', () => {
           'Idempotency-Key': `${testPrefix}-double-checkout-2-${sale.id}`,
         },
         body: JSON.stringify({
-          method: 'CASH',
+          method: 'CARD',
           amount: 1000,
         }),
       }),
