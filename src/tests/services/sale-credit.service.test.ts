@@ -52,7 +52,7 @@ describe('SaleService - explicit credit and completion coverage', () => {
   };
 
   const makeTx = (sale: typeof baseSale) => ({
-    $queryRaw: vi.fn().mockResolvedValue([{ id: sale.id, quantity: 10, reservedQuantity: 0 }]),
+    $queryRaw: vi.fn().mockResolvedValue([{ id: 'cmovementinventory000001', quantity: 10, reservedQuantity: 0 }]),
     sale: {
       findUnique: vi.fn().mockResolvedValue(sale),
       update: vi.fn().mockResolvedValue({ ...sale, status: 'COMPLETED' }),
