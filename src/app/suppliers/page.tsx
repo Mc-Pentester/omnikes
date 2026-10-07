@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
@@ -48,7 +48,7 @@ export default function SuppliersPage() {
     if (!authLoading && !user) router.push('/login');
   }, [authLoading, user, router]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
