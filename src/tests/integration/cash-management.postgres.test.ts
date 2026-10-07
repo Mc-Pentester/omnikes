@@ -2,10 +2,11 @@ import { describe, expect, it, afterAll } from 'vitest';
 import { prisma } from '@omnikes/lib/prisma';
 import { cashService } from '@omnikes/services/cash.service';
 
+const run = Date.now().toString(36).slice(-9).padStart(9, '0');
 const ids = {
-  org: `ccashorg${Date.now().toString().slice(-10)}`,
-  store: `ccashstore${Date.now().toString().slice(-10)}`,
-  user: `ccashuser${Date.now().toString().slice(-10)}`,
+  org: `c${run}cashorg000000000`,
+  store: `c${run}cashstore00000000`,
+  user: `c${run}cashuser000000000`,
 };
 
 describe('cash management PostgreSQL runtime proof', () => {
