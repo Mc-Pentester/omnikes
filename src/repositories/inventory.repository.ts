@@ -207,20 +207,44 @@ export class InventoryRepository {
   }
 
   /**
-   * Update inventory quantity (transactional)
+   * Update inventory quantities while preserving the core stock invariants.
+   * The row is locked before calculating the resulting quantity/reservation
+   * pair, so callers cannot bypass reserved-stock coherence.
    */
   async updateQuantity(id: string, organizationId: string, data: {
     quantity?: number;
     reservedQuantity?: number;
   }) {
-    return prisma.inventory.updateMany({
-      where: {
-        id,
-        store: {
-          organizationId,
-        },
-      },
-      data,
+    if (data.quantity == null && data.reservedQuantity == null) {
+      throw new Error('At least one inventory quantity field is required');
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<Array<{ quantity: number; reservedQuantity: number }>>`
+        SELECT i."quantity", i."reservedQuantity"
+        FROM "inventories" i
+        INNER JOIN "stores" s ON s."id" = i."storeId"
+        WHERE i."id" = ${id}
+          AND s."organizationId" = ${organizationId}
+        FOR UPDATE
+      `;
+
+      const current = rows[0];
+      if (!current) throw new Error('Inventory not found or access denied');
+
+      const quantity = data.quantity ?? current.quantity;
+      const reservedQuantity = data.reservedQuantity ?? current.reservedQuantity;
+
+      if (quantity < 0) throw new Error('Quantity cannot be negative');
+      if (reservedQuantity < 0) throw new Error('Reserved quantity cannot be negative');
+      if (reservedQuantity > quantity) {
+        throw new Error('Reserved quantity cannot exceed quantity');
+      }
+
+      return tx.inventory.update({
+        where: { id },
+        data: { quantity, reservedQuantity },
+      });
     });
   }
 
