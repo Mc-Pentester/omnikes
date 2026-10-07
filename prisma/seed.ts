@@ -440,7 +440,8 @@ async function main() {
     create: { code: 'cash.close', description: 'Clôturer une caisse', module: 'cash' },
   });
   const cashMovementPermission = await prisma.permission.upsert({
-    where: { code: 'cash.movement', update: {},
+    where: { code: 'cash.movement' },
+    update: {},
     create: { code: 'cash.movement', description: 'Enregistrer une entrée ou sortie de caisse', module: 'cash' },
   });
 
