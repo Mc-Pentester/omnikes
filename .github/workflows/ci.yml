@@ -46,6 +46,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client-18
 
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+          export PATH="/usr/lib/postgresql/18/bin:$PATH"
+
+          echo "pg_dump: $(pg_dump --version)"
+          echo "pg_restore: $(pg_restore --version)"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
