@@ -533,6 +533,27 @@ async function main() {
     },
   });
 
+  // Local backup permissions
+  const backupCreatePermission = await prisma.permission.upsert({
+    where: { code: 'backup.create' },
+    update: {},
+    create: {
+      code: 'backup.create',
+      description: 'Créer une sauvegarde locale de la base',
+      module: 'backup',
+    },
+  });
+
+  const backupRestorePermission = await prisma.permission.upsert({
+    where: { code: 'backup.restore' },
+    update: {},
+    create: {
+      code: 'backup.restore',
+      description: 'Restaurer une sauvegarde locale de la base',
+      module: 'backup',
+    },
+  });
+
   // Hardware bridge permissions
   const hardwareBridgeReadPermission = await prisma.permission.upsert({
     where: { code: 'hardware.bridge.read' },
@@ -873,6 +894,17 @@ async function main() {
       update: {},
       create: { roleId: adminRoleB.id, permissionId: permission.id },
     });
+  }
+
+  // Assign local backup permissions to ADMIN roles only
+  for (const permission of [backupCreatePermission, backupRestorePermission]) {
+    for (const roleId of [adminRoleA.id, adminRoleB.id]) {
+      await prisma.rolePermission.upsert({
+        where: { roleId_permissionId: { roleId, permissionId: permission.id } },
+        update: {},
+        create: { roleId, permissionId: permission.id },
+      });
+    }
   }
 
   // Assign all tax permissions to ADMIN roles
