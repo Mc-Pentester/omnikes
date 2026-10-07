@@ -22,6 +22,8 @@ function databaseConnection() {
   const url = new URL(raw);
   const password = url.password;
   url.password = '';
+  // pg_dump does not accept schema parameter in connection string
+  url.searchParams.delete('schema');
   return {
     connection: url.toString(),
     password,
@@ -30,6 +32,86 @@ function databaseConnection() {
 
 function toolEnvironment(password: string) {
   return password ? { ...process.env, PGPASSWORD: password } : { ...process.env };
+}
+
+export async function resolvePostgresTool(toolName: 'pg_dump' | 'pg_restore', envVar: string): Promise<string> {
+  // 1. Check explicit environment variable override
+  if (process.env[envVar]) {
+    const envPath = process.env[envVar]!;
+    try {
+      await fs.access(envPath);
+      return envPath;
+    } catch {
+      throw new Error(
+        `PostgreSQL tool specified in ${envVar} not found: ${envPath}. Please verify the path is correct.`,
+      );
+    }
+  }
+
+  // 2. Check if tool is available in PATH
+  if (process.platform !== 'win32') {
+    // On Unix-like systems, try the command directly
+    return toolName;
+  }
+
+  // 3. Windows-specific detection
+  const windowsPaths = [
+    'C:\\Program Files\\PostgreSQL',
+    'C:\\Program Files (x86)\\PostgreSQL',
+  ];
+
+  interface Candidate {
+    toolPath: string;
+    version: string;
+  }
+
+  let candidates: Candidate[] = [];
+
+  for (const basePath of windowsPaths) {
+    try {
+      const entries = await fs.readdir(basePath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const versionPath = path.join(basePath, entry.name, 'bin');
+          const toolPath = path.join(versionPath, `${toolName}.exe`);
+          candidates.push({ toolPath, version: entry.name });
+        }
+      }
+    } catch {
+      // Directory doesn't exist or is not accessible, skip
+    }
+  }
+
+  // Sort by version (newest first) - PostgreSQL versions are numeric
+  candidates.sort((a, b) => {
+    const aNum = parseFloat(a.version);
+    const bNum = parseFloat(b.version);
+    return bNum - aNum; // Descending
+  });
+
+  // Try candidates from newest to oldest
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate.toolPath);
+      return candidate.toolPath;
+    } catch {
+      // File doesn't exist, try next
+    }
+  }
+
+  // 4. Not found - provide explicit error
+  const availableVersions = candidates
+    .map((c) => `  - PostgreSQL ${c.version}: ${c.toolPath}`)
+    .join('\n');
+
+  throw new Error(
+    `PostgreSQL tool '${toolName}' not found.\n` +
+      `Solutions:\n` +
+      `  1. Set ${envVar} environment variable to the full path (e.g., C:\\Program Files\\PostgreSQL\\18\\bin\\${toolName}.exe)\n` +
+      `  2. Add PostgreSQL bin directory to your system PATH\n` +
+      `  3. Ensure PostgreSQL is installed in a standard location\n` +
+      (availableVersions ? `\nDetected PostgreSQL installations (binary may be missing):\n${availableVersions}` : ''),
+  );
 }
 
 function runTool(command: string, args: string[], env: NodeJS.ProcessEnv): Promise<ToolResult> {
@@ -67,8 +149,10 @@ async function runBackup(prefix = 'omnikes') {
   const filePath = path.join(backupDir(), fileName);
   const { connection, password } = databaseConnection();
 
+  const pgDumpPath = await resolvePostgresTool('pg_dump', 'PG_DUMP_PATH');
+
   await runTool(
-    process.env.PG_DUMP_PATH || 'pg_dump',
+    pgDumpPath,
     ['--format=custom', '--no-owner', '--no-acl', '--file', filePath, connection],
     toolEnvironment(password),
   );
@@ -110,8 +194,10 @@ export class LocalBackupService {
       }
 
       const { connection, password } = databaseConnection();
+      const pgRestorePath = await resolvePostgresTool('pg_restore', 'PG_RESTORE_PATH');
+
       await runTool(
-        process.env.PG_RESTORE_PATH || 'pg_restore',
+        pgRestorePath,
         ['--list', sourcePath],
         toolEnvironment(password),
       );
@@ -120,7 +206,7 @@ export class LocalBackupService {
 
       try {
         await runTool(
-          process.env.PG_RESTORE_PATH || 'pg_restore',
+          pgRestorePath,
           [
             '--exit-on-error',
             '--single-transaction',
