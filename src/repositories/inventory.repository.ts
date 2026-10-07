@@ -266,27 +266,6 @@ export class InventoryRepository {
   }
 
   /**
-   * Create inventory movement
-   */
-  async createMovement(data: Prisma.InventoryMovementCreateInput) {
-    return prisma.inventoryMovement.create({
-      data,
-      include: {
-        inventory: {
-          include: {
-            store: true,
-            variant: {
-              include: {
-                product: true,
-              },
-            },
-          },
-        },
-      },
-    });
-  }
-
-  /**
    * List movements for an inventory
    */
   async listMovements(inventoryId: string, organizationId: string, options: {
