@@ -50,3 +50,5 @@ CREATE INDEX "cash_movements_cashSessionId_idx" ON "cash_movements"("cashSession
 CREATE INDEX "cash_movements_type_idx" ON "cash_movements"("type");
 CREATE INDEX "cash_movements_referenceId_idx" ON "cash_movements"("referenceId");
 CREATE INDEX "cash_movements_createdAt_idx" ON "cash_movements"("createdAt");
+
+CREATE UNIQUE INDEX "cash_sessions_one_open_per_store" ON "cash_sessions"("organizationId", "storeId") WHERE "status" = 'OPEN';
