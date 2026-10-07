@@ -4,9 +4,9 @@ import { cashService } from '@omnikes/services/cash.service';
 
 const run = Date.now().toString(36).slice(-9).padStart(9, '0');
 const ids = {
-  org: `c${run}cashorg000000000`,
-  store: `c${run}cashstore00000000`,
-  user: `c${run}cashuser000000000`,
+  org: `c${run}cashorg00000000`,
+  store: `c${run}cashstore000000`,
+  user: `c${run}cashuser0000000`,
 };
 
 describe('cash management PostgreSQL runtime proof', () => {
