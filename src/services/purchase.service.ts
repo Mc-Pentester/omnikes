@@ -142,19 +142,47 @@ export class PurchaseService {
           throw new Error(`Cannot receive more than remaining quantity for purchase item ${item.id}`);
         }
 
-        await tx.$executeRaw`
-          INSERT INTO "inventories" ("id", "storeId", "variantId", "quantity", "reservedQuantity", "createdAt", "updatedAt")
-          VALUES (gen_random_uuid()::text, ${purchase.storeId}, ${item.variantId}, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-          ON CONFLICT ("storeId", "variantId") DO NOTHING
-        `;
+        let existingInventory = await tx.inventory.findUnique({
+          where: { storeId_variantId: { storeId: purchase.storeId, variantId: item.variantId } },
+          select: { id: true },
+        });
+
+        if (!existingInventory) {
+          try {
+            existingInventory = await tx.inventory.create({
+              data: {
+                storeId: purchase.storeId,
+                variantId: item.variantId,
+                quantity: 0,
+                reservedQuantity: 0,
+              },
+              select: { id: true },
+            });
+          } catch (error) {
+            if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+              throw error;
+            }
+            existingInventory = await tx.inventory.findUnique({
+              where: { storeId_variantId: { storeId: purchase.storeId, variantId: item.variantId } },
+              select: { id: true },
+            });
+          }
+        }
+
+        if (!existingInventory) throw new Error('Inventory row could not be initialized');
 
         const locked = await tx.$queryRaw<Array<{ id: string; quantity: number; reservedQuantity: number }>>`
+          SELECT "id", "quantity", "reservedQuantity"
+          FROM "inventories"
+          WHERE "id" = ${existingInventory.id}
+          FOR UPDATE
+        `;
           SELECT "id", "quantity", "reservedQuantity"
           FROM "inventories"
           WHERE "storeId" = ${purchase.storeId} AND "variantId" = ${item.variantId}
           FOR UPDATE
         `;
-        if (!locked[0]) throw new Error('Inventory row could not be initialized');
+        if (!locked[0]) throw new Error('Inventory row could not be locked');
 
         await tx.inventory.update({
           where: { id: locked[0].id },
