@@ -76,13 +76,15 @@ describe('P1-G - Inventory reservation runtime coherence', () => {
     await inventoryService.releaseReservedStock(inventoryId, 2, organizationId);
   });
 
-  it('serializes concurrent reservations so reserved stock never exceeds quantity', async () => {
+  it('serializes concurrent reservations and never exceeds available stock', async () => {
     const before = await prisma.inventory.findUniqueOrThrow({
       where: { id: inventoryId },
       select: { quantity: true, reservedQuantity: true },
     });
 
-    const request = 3;
+    const availableBefore = before.quantity - before.reservedQuantity;
+    const request = Math.floor(availableBefore / 2) + 1;
+
     const results = await Promise.allSettled([
       inventoryService.reserveStock(inventoryId, request, organizationId),
       inventoryService.reserveStock(inventoryId, request, organizationId),
@@ -91,6 +93,7 @@ describe('P1-G - Inventory reservation runtime coherence', () => {
     const fulfilled = results.filter((result) => result.status === 'fulfilled');
     const rejected = results.filter((result) => result.status === 'rejected');
 
+    expect(2 * request).toBeGreaterThan(availableBefore);
     expect(fulfilled).toHaveLength(1);
     expect(rejected).toHaveLength(1);
 
