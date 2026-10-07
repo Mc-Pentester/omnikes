@@ -252,6 +252,21 @@ export const saleItemUpdateSchema = saleItemSchema.partial().omit({ saleId: true
 export const IDEMPOTENCY_KEY_MAX_LENGTH = 200;
 export const idempotencyKeySchema = z.string().trim().min(1).max(IDEMPOTENCY_KEY_MAX_LENGTH);
 
+export const cashSessionOpenSchema = z.object({
+  storeId: z.string().cuid(),
+  openingAmount: z.number().finite().nonnegative().max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Opening amount must have at most 2 decimal places'),
+});
+
+export const cashSessionCloseSchema = z.object({
+  countedAmount: z.number().finite().nonnegative().max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Counted amount must have at most 2 decimal places'),
+});
+
+export const cashMovementSchema = z.object({
+  type: z.enum(['CASH_IN', 'CASH_OUT']),
+  amount: z.number().finite().positive().max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Amount must have at most 2 decimal places'),
+  note: z.string().trim().max(500).optional(),
+});
+
 export const paymentSchema = z.object({
   saleId: z.string().cuid().optional(),
   method: z.enum(['CASH', 'CARD', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CHECK'], {
