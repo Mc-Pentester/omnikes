@@ -159,7 +159,7 @@ describe('V1-01 - real PostgreSQL business consistency: stock -> sale -> payment
           'Idempotency-Key': `${testPrefix}-CHECKOUT`,
         },
         body: JSON.stringify({
-          method: 'CASH',
+          method: 'CARD',
           amount: 2000,
           reference: `${testPrefix}-PAYMENT`,
         }),
