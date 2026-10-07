@@ -39,6 +39,33 @@ export async function recordInventoryMovement(
   });
 }
 
+export async function updateInventoryQuantity(
+  tx: InventoryTransaction,
+  inventoryId: string,
+  quantity: number,
+  reservedQuantity?: number,
+) {
+  if (!Number.isInteger(quantity) || quantity < 0) {
+    throw new Error('Quantity cannot be negative');
+  }
+  if (reservedQuantity !== undefined) {
+    if (!Number.isInteger(reservedQuantity) || reservedQuantity < 0) {
+      throw new Error('Reserved quantity cannot be negative');
+    }
+    if (reservedQuantity > quantity) {
+      throw new Error('Reserved quantity cannot exceed quantity');
+    }
+  }
+
+  return tx.inventory.update({
+    where: { id: inventoryId },
+    data: {
+      quantity,
+      ...(reservedQuantity !== undefined ? { reservedQuantity } : {}),
+    },
+  });
+}
+
 export class InventoryService {
   async getById(id: string, organizationId: string) {
     const inventory = await inventoryRepository.findById(id, organizationId);

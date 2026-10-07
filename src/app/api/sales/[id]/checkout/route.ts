@@ -3,7 +3,7 @@ import { ZodError } from 'zod';
 import { prisma } from '@omnikes/lib/prisma';
 import { requireCurrentOrganizationId, requirePermission, getAuthenticatedUser, requireStoreAccess } from '@omnikes/lib/auth';
 import { idempotencyKeySchema, paymentSchema } from '@omnikes/lib/validation';
-import { recordInventoryMovement } from '@omnikes/services/inventory.service';
+import { recordInventoryMovement, updateInventoryQuantity } from '@omnikes/services/inventory.service';
 
 /**
  * POST /api/sales/[id]/checkout
@@ -290,12 +290,11 @@ export async function POST(
         }
 
         // Deduct stock
-        await tx.inventory.update({
-          where: { id: currentInventory.id },
-          data: {
-            quantity: currentInventory.quantity - item.quantity,
-          },
-        });
+        await updateInventoryQuantity(
+          tx,
+          currentInventory.id,
+          currentInventory.quantity - item.quantity,
+        );
 
         // Create SALE movement
         await recordInventoryMovement(tx,{

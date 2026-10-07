@@ -5,7 +5,7 @@ import { saleSchema, saleUpdateSchema, saleItemSchema, paymentSchema, saleCredit
 import { prisma } from '@omnikes/lib/prisma';
 import { Prisma, SaleItem, Payment } from '@prisma/client';
 import { roundMoney } from '@omnikes/lib/money';
-import { recordInventoryMovement } from '@omnikes/services/inventory.service';
+import { recordInventoryMovement, updateInventoryQuantity } from '@omnikes/services/inventory.service';
 
 const SALE_UNIT_TO_GRAMS: Record<string, number> = {
   G: 1,
@@ -447,10 +447,11 @@ export class SaleService {
           throw new Error(`Insufficient stock for ${item.variant.sku}. Available: ${available}, Required: ${item.quantity}`);
         }
 
-        await tx.inventory.update({
-          where: { id: currentInventory.id },
-          data: { quantity: currentInventory.quantity - item.quantity },
-        });
+        await updateInventoryQuantity(
+          tx,
+          currentInventory.id,
+          currentInventory.quantity - item.quantity,
+        );
 
         await recordInventoryMovement(tx,{
           data: {
@@ -556,12 +557,11 @@ export class SaleService {
 
           const inventory = inventoryRows[0];
 
-          await tx.inventory.update({
-            where: { id: inventory.id },
-            data: {
-              quantity: inventory.quantity + item.quantity,
-            },
-          });
+          await updateInventoryQuantity(
+            tx,
+            inventory.id,
+            inventory.quantity + item.quantity,
+          );
 
           await recordInventoryMovement(tx,{
             data: {
