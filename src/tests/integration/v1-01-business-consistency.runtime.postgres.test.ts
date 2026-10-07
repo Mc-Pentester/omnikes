@@ -4,6 +4,7 @@ import { prisma } from '@omnikes/lib/prisma';
 import { POST as checkout } from '@omnikes/app/api/sales/[id]/checkout/route';
 import { salesReportRepository } from '@omnikes/repositories/sales-report.repository';
 import { inventoryReportRepository } from '@omnikes/repositories/inventory-report.repository';
+import { cashService } from '@omnikes/services/cash.service';
 
 const authState = vi.hoisted(() => ({
   organizationId: '',
@@ -27,6 +28,7 @@ describe('V1-01 - real PostgreSQL business consistency: stock -> sale -> payment
   let originalQuantity: number;
   let originalReservedQuantity: number;
   let saleId: string | undefined;
+  let cashSessionId: string | undefined;
 
   const testPrefix = `V1_01_RUNTIME_${Date.now()}`;
   const startDate = new Date(Date.now() - 5000);
@@ -79,6 +81,13 @@ describe('V1-01 - real PostgreSQL business consistency: stock -> sale -> payment
       where: { id: inventoryId },
       data: { quantity: 10, reservedQuantity: 0 },
     });
+
+    // Create an open cash session for CASH payments
+    const cashSession = await cashService.open(organizationId, userId, {
+      storeId,
+      openingAmount: 5000,
+    });
+    cashSessionId = cashSession.id;
   });
 
   afterAll(async () => {
@@ -88,6 +97,11 @@ describe('V1-01 - real PostgreSQL business consistency: stock -> sale -> payment
       await prisma.inventoryMovement.deleteMany({ where: { referenceId: saleId } });
       await prisma.saleItem.deleteMany({ where: { saleId } });
       await prisma.sale.deleteMany({ where: { id: saleId } });
+    }
+
+    if (cashSessionId) {
+      await prisma.cashMovement.deleteMany({ where: { cashSessionId } });
+      await prisma.cashSession.deleteMany({ where: { id: cashSessionId, organizationId } });
     }
 
     if (inventoryId) {
