@@ -423,6 +423,27 @@ async function main() {
     },
   });
 
+  // Cash register permissions
+  const cashReadPermission = await prisma.permission.upsert({
+    where: { code: 'cash.read' },
+    update: {},
+    create: { code: 'cash.read', description: 'Consulter la caisse', module: 'cash' },
+  });
+  const cashOpenPermission = await prisma.permission.upsert({
+    where: { code: 'cash.open' },
+    update: {},
+    create: { code: 'cash.open', description: 'Ouvrir une caisse', module: 'cash' },
+  });
+  const cashClosePermission = await prisma.permission.upsert({
+    where: { code: 'cash.close' },
+    update: {},
+    create: { code: 'cash.close', description: 'Clôturer une caisse', module: 'cash' },
+  });
+  const cashMovementPermission = await prisma.permission.upsert({
+    where: { code: 'cash.movement', update: {},
+    create: { code: 'cash.movement', description: 'Enregistrer une entrée ou sortie de caisse', module: 'cash' },
+  });
+
   // Inventory permissions
   const inventoryReadPermission = await prisma.permission.upsert({
     where: { code: 'inventory.read' },
@@ -647,6 +668,8 @@ async function main() {
     paymentReadPermission,
   ];
 
+  const cashPermissions = [cashReadPermission, cashOpenPermission, cashClosePermission, cashMovementPermission];
+
   const inventoryPermissions = [
     inventoryReadPermission,
     inventoryAdjustPermission,
@@ -762,6 +785,17 @@ async function main() {
         permissionId: permission.id,
       },
     });
+  }
+
+  // Assign all cash permissions to ADMIN roles
+  for (const permission of cashPermissions) {
+    for (const roleId of [adminRoleA.id, adminRoleB.id]) {
+      await prisma.rolePermission.upsert({
+        where: { roleId_permissionId: { roleId: roleId, permissionId: permission.id } },
+        update: {},
+        create: { roleId: roleId, permissionId: permission.id },
+      });
+    }
   }
 
   // Assign all inventory permissions to ADMIN roles
@@ -894,6 +928,10 @@ async function main() {
     productReadPermission,
     reportReadPermission,
     storeReadPermission,
+    cashReadPermission,
+    cashOpenPermission,
+    cashClosePermission,
+    cashMovementPermission,
   ];
 
   for (const permission of cashierPermissions) {
