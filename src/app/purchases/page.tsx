@@ -42,14 +42,14 @@ export default function PurchasesPage() {
   const loadPurchases=useCallback(async()=>{setLoading(true);setError(null);try{
     const p=new URLSearchParams({take:'100'}); if(search.trim())p.set('search',search.trim()); if(status)p.set('status',status);
     const r=await fetch('/api/purchases?'+p.toString()); const d=await r.json().catch(()=>({})); if(!r.ok)throw new Error(d.error||'Impossible de charger les achats'); setPurchases(d.purchases||[]);
-  }catch(e){setError(e instanceof Error?e.message:'Impossible de charger les achats');}finally{setLoading(false);}};
-  const loadRefs=async()=>{try{
+  }catch(e){setError(e instanceof Error?e.message:'Impossible de charger les achats');}finally{setLoading(false);}},[search,status]);
+  const loadRefs=useCallback(async()=>{try{
     const [s,v,i]=await Promise.all([fetch('/api/suppliers?take=100'),fetch('/api/stores?take=100'),fetch('/api/inventory?skip=0&take=100')]);
     const sd=await s.json(); const vd=await v.json(); const id=await i.json();
     setSuppliers(sd.suppliers||[]); setStores(vd.stores||[]);
     const rows=(id.inventory||[]) as InventoryOption[]; setInventory(rows);
     setForm(f=>({...f,storeId:f.storeId||vd.stores?.[0]?.id||'',supplierId:f.supplierId||sd.suppliers?.find((x:Supplier)=>x.isActive)?.id||''}));
-  }catch(e){console.error(e);}};
+  }catch(e){console.error(e);}},[]);
   useEffect(()=>{if(!authLoading&&!user)router.push('/login');},[authLoading,user,router]);
   useEffect(()=>{if(user){void loadRefs();void loadPurchases();}},[user, loadRefs, loadPurchases]);
   const action=async(id:string,path:string)=>{const r=await fetch('/api/purchases/'+id+'/'+path,{method:'POST'});const d=await r.json().catch(()=>({}));if(!r.ok){alert(d.error||'Action impossible');return;}await loadPurchases();};
