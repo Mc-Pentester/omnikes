@@ -696,6 +696,17 @@ async function main() {
     create: { code: 'purchase.receive', description: 'Réceptionner les marchandises d’un achat', module: 'purchase' },
   });
 
+  const supplierPaymentManagePermission = await prisma.permission.upsert({
+    where: { code: 'supplier.payment.manage' },
+    update: {},
+    create: { code: 'supplier.payment.manage', description: 'Enregistrer et gérer les paiements fournisseurs', module: 'supplier' },
+  });
+  const supplierPaymentReadPermission = await prisma.permission.upsert({
+    where: { code: 'supplier.payment.read' },
+    update: {},
+    create: { code: 'supplier.payment.read', description: 'Consulter les paiements fournisseurs', module: 'supplier' },
+  });
+
   console.log('✅ Permissions created');
 
   // ============================================================
@@ -1038,6 +1049,8 @@ async function main() {
     purchaseReadPermission,
     purchaseManagePermission,
     purchaseReceivePermission,
+    supplierPaymentReadPermission,
+    supplierPaymentManagePermission,
   ];
   for (const permission of supplierPurchasePermissions) {
     for (const roleId of [adminRoleA.id, adminRoleB.id]) {
