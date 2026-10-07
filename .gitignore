@@ -43,4 +43,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-\n# local OmniKès database backups and temporary restore files\n/.omnikes/backups/\n/.omnikes/tmp/\n
+
+# local OmniKès database backups and temporary restore files
+/.omnikes/backups/
+/.omnikes/tmp/
