@@ -177,11 +177,6 @@ export class PurchaseService {
           WHERE "id" = ${existingInventory.id}
           FOR UPDATE
         `;
-          SELECT "id", "quantity", "reservedQuantity"
-          FROM "inventories"
-          WHERE "storeId" = ${purchase.storeId} AND "variantId" = ${item.variantId}
-          FOR UPDATE
-        `;
         if (!locked[0]) throw new Error('Inventory row could not be locked');
 
         await tx.inventory.update({
