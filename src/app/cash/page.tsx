@@ -57,7 +57,7 @@ export default function CashPage() {
   useEffect(() => {
     if (!storeId) return;
     loadSession().catch(e => setMessage(e instanceof Error ? e.message : 'Erreur'));
-  }, [storeId]);
+  }, [storeId, loadSession]);
 
   const openCash = async () => {
     const res = await fetch('/api/cash-sessions', {
