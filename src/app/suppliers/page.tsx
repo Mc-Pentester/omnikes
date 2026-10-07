@@ -111,8 +111,8 @@ export default function SuppliersPage() {
     const loadCashSession = async () => {
       const response = await fetch('/api/cash-sessions?storeId=' + encodeURIComponent(paymentStoreId));
       const data = await response.json().catch(() => ({}));
-      setCashSessionId(response.ok && data.session?.id ? data.session.id : '');
-      if (!response.ok || !data.session?.id) setPaymentError('Aucune caisse ouverte pour ce magasin. Ouvrez une caisse avant un paiement en espèces.');
+      setCashSessionId(response.ok && data?.id ? data.id : '');
+      if (!response.ok || !data?.id) setPaymentError('Aucune caisse ouverte pour ce magasin. Ouvrez une caisse avant un paiement en espèces.');
     };
     void loadCashSession();
   }, [paymentSupplier, paymentMethod, paymentStoreId]);
