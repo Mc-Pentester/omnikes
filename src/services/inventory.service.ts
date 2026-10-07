@@ -22,6 +22,23 @@ const inventoryWithRelations = {
   },
 } satisfies Prisma.InventoryInclude;
 
+export async function recordInventoryMovement(
+  tx: InventoryTransaction,
+  args: { data: InventoryMovementInput; include?: Prisma.InventoryMovementInclude },
+) {
+  const validatedData = inventoryMovementSchema.parse(args.data);
+  if (validatedData.quantity === 0) {
+    throw new Error('Movement quantity cannot be zero');
+  }
+  if (validatedData.type !== 'ADJUSTMENT' && validatedData.quantity < 0) {
+    throw new Error(`Quantity must be positive for ${validatedData.type} movements`);
+  }
+  return recordInventoryMovement(tx,{
+    ...args,
+    data: validatedData,
+  });
+}
+
 export class InventoryService {
   async getById(id: string, organizationId: string) {
     const inventory = await inventoryRepository.findById(id, organizationId);
@@ -153,7 +170,7 @@ export class InventoryService {
         data: { quantity: newQuantity },
       });
 
-      return tx.inventoryMovement.create({
+      return recordInventoryMovement(tx,{
         data: {
           inventoryId,
           type: validatedData.type,
@@ -210,7 +227,7 @@ export class InventoryService {
 
       const referenceId = data.referenceId || `TRANSFER-${Date.now()}`;
       const [outMovement] = await Promise.all([
-        tx.inventoryMovement.create({
+        recordInventoryMovement(tx,{
           data: {
             inventoryId: source.id,
             type: 'TRANSFER_OUT',
@@ -220,7 +237,7 @@ export class InventoryService {
             notes: data.notes,
           },
         }),
-        tx.inventoryMovement.create({
+        recordInventoryMovement(tx,{
           data: {
             inventoryId: target.id,
             type: 'TRANSFER_IN',
@@ -264,7 +281,7 @@ export class InventoryService {
         data: { quantity: data.newQuantity },
       });
 
-      await tx.inventoryMovement.create({
+      await recordInventoryMovement(tx,{
         data: {
           inventoryId,
           type: 'ADJUSTMENT',
@@ -294,7 +311,7 @@ export class InventoryService {
         data: { quantity: current.quantity + data.quantity },
       });
 
-      await tx.inventoryMovement.create({
+      await recordInventoryMovement(tx,{
         data: {
           inventoryId,
           type: 'PURCHASE',
@@ -384,7 +401,7 @@ export class InventoryService {
         data: { quantity: newQuantity },
       });
 
-      await tx.inventoryMovement.create({
+      await recordInventoryMovement(tx,{
         data: {
           inventoryId,
           type: 'ADJUSTMENT',
