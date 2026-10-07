@@ -5,6 +5,7 @@ import { saleSchema, saleUpdateSchema, saleItemSchema, paymentSchema, saleCredit
 import { prisma } from '@omnikes/lib/prisma';
 import { Prisma, SaleItem, Payment } from '@prisma/client';
 import { roundMoney } from '@omnikes/lib/money';
+import { recordInventoryMovement } from '@omnikes/services/inventory.service';
 
 const SALE_UNIT_TO_GRAMS: Record<string, number> = {
   G: 1,
@@ -451,7 +452,7 @@ export class SaleService {
           data: { quantity: currentInventory.quantity - item.quantity },
         });
 
-        await tx.inventoryMovement.create({
+        await recordInventoryMovement(tx,{
           data: {
             inventoryId: currentInventory.id,
             type: 'SALE',
@@ -562,7 +563,7 @@ export class SaleService {
             },
           });
 
-          await tx.inventoryMovement.create({
+          await recordInventoryMovement(tx,{
             data: {
               inventoryId: inventory.id,
               type: 'RETURN',
