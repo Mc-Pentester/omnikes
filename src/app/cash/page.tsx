@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 type Store = { id: string; name: string; code: string };
 type Summary = {
@@ -35,7 +35,7 @@ export default function CashPage() {
     if (!storeId && list[0]) setStoreId(list[0].id);
   };
 
-  const loadSession = async (id = storeId) => {
+  const loadSession = useCallback(async (id = storeId) => {
     if (!id) return;
     const res = await fetch('/api/cash-sessions?storeId=' + encodeURIComponent(id));
     if (!res.ok) throw new Error('Impossible de charger la caisse');
