@@ -48,7 +48,7 @@ export class SupplierPaymentService {
         throw new Error('cashSessionId is only valid for CASH payments');
       }
 
-      let purchaseId = data.purchaseId;
+      const purchaseId = data.purchaseId;
       if (purchaseId) {
         const purchase = await tx.purchase.findFirst({
           where: { id: purchaseId, organizationId, storeId: data.storeId, supplierId: data.supplierId },
