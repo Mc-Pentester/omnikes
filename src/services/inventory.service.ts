@@ -128,10 +128,15 @@ export class InventoryService {
           newQuantity = currentInventory.quantity + Math.abs(quantity);
           break;
         case 'SALE':
-        case 'TRANSFER_OUT':
+        case 'TRANSFER_OUT': {
+          const available = currentInventory.quantity - currentInventory.reservedQuantity;
+          if (available < Math.abs(quantity)) {
+            throw new Error('Insufficient available stock');
+          }
           newQuantity = currentInventory.quantity - Math.abs(quantity);
           if (newQuantity < 0) throw new Error('Insufficient stock for this operation');
           break;
+        }
         case 'ADJUSTMENT':
           newQuantity = currentInventory.quantity + quantity;
           if (newQuantity < 0) throw new Error('Adjustment would result in negative stock');
