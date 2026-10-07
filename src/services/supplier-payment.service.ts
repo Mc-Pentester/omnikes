@@ -55,13 +55,14 @@ export class SupplierPaymentService {
           select: { id: true, total: true, status: true },
         });
         if (!purchase) throw new Error('Purchase not found or does not belong to the supplier/store');
-        if (purchase.status === 'CANCELLED') throw new Error('Cancelled purchase cannot receive a payment');
+        if (!['ORDERED', 'PARTIALLY_RECEIVED', 'RECEIVED'].includes(purchase.status)) throw new Error('Purchase is not payable in its current status');
 
         await tx.$queryRaw`SELECT "id" FROM "purchases" WHERE "id" = ${purchase.id} FOR UPDATE`;
         const paid = await tx.supplierPayment.aggregate({ where: { purchaseId: purchase.id }, _sum: { amount: true } });
         const outstanding = purchase.total.minus(paid._sum.amount ?? new Prisma.Decimal(0));
         if (amount.gt(outstanding)) throw new Error('Payment exceeds purchase outstanding balance');
       } else {
+        await tx.$queryRaw`SELECT "id" FROM "purchases" WHERE "organizationId" = ${organizationId} AND "storeId" = ${data.storeId} AND "supplierId" = ${data.supplierId} AND "status" <> 'CANCELLED' FOR UPDATE`;
         const purchases = await tx.purchase.findMany({
           where: { organizationId, storeId: data.storeId, supplierId: data.supplierId, status: { not: 'CANCELLED' } },
           select: { id: true, total: true },
