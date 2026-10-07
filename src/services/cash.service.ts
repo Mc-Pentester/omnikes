@@ -16,14 +16,21 @@ export class CashService {
   async open(organizationId: string, openedBy: string, input: unknown) {
     const data = cashSessionOpenSchema.parse(input);
     await storeService.validateStoreBelongsToOrganization(data.storeId, organizationId);
-    return prisma.$transaction(async (tx) => {
+    try {
+      return await prisma.$transaction(async (tx) => {
       const existing = await tx.cashSession.findFirst({
         where: { organizationId, storeId: data.storeId, status: 'OPEN' },
         select: { id: true },
       });
       if (existing) throw new Error('A cash session is already open for this store');
       return tx.cashSession.create({ data: { organizationId, storeId: data.storeId, openedBy, openingAmount: data.openingAmount } });
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new Error('A cash session is already open for this store');
+      }
+      throw error;
+    }
   }
 
   async getById(organizationId: string, sessionId: string) {
