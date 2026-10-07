@@ -64,7 +64,7 @@ export default function SuppliersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [includeInactive]);
 
   useEffect(() => {
     if (user) void load();
