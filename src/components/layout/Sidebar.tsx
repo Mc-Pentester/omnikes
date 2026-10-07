@@ -17,6 +17,7 @@ const menuItems: MenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊', path: '/dashboard', available: true },
   { id: 'products', label: 'Produits', icon: '📦', path: '/products', available: true },
   { id: 'sales', label: 'Ventes en attente', icon: '🧾', path: '/sales', available: true },
+  { id: 'cash', label: 'Caisse', icon: '💵', path: '/cash', available: true },
   { id: 'proformas', label: 'Proformas', icon: '📄', path: '/proformas', available: true },
   { id: 'reports', label: 'Rapports', icon: '📊', path: '/reports', available: true },
   { id: 'inventory', label: 'Gestion des stocks', icon: '📦', path: '/inventory', available: true },
