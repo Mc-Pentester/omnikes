@@ -52,6 +52,7 @@ model Organization {
   returns          Return[]
   suppliers        Supplier[]
   purchases        Purchase[]
+  supplierPayments SupplierPayment[]
   taxConfiguration TaxConfiguration? @relation(fields: [taxConfigurationId], references: [id])
 
   @@index([slug])
@@ -88,6 +89,7 @@ model Store {
   saleCredits  SaleCredit[]
   returns      Return[]
   purchases    Purchase[]
+  payments     SupplierPayment[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -131,6 +133,7 @@ model User {
   cashMovements CashMovement[] @relation("CashMovementCreatedBy")
   returnedReturns Return[] @relation("ReturnReturnedBy")
   createdPurchases Purchase[] @relation("PurchaseCreatedBy")
+  createdSupplierPayments SupplierPayment[] @relation("SupplierPaymentCreatedBy")
 
   @@index([organizationId])
   @@index([email])
@@ -706,6 +709,7 @@ model Purchase {
   supplier      Supplier     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   createdByUser User         @relation("PurchaseCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
   items         PurchaseItem[]
+  payments      SupplierPayment[]
 
   @@unique([organizationId, reference])
   @@index([organizationId])
@@ -738,6 +742,42 @@ model PurchaseItem {
   @@index([purchaseId])
   @@index([variantId])
   @@map("purchase_items")
+}
+
+
+// ============================================================
+// SUPPLIER PAYMENT (Supplier settlement)
+// ============================================================
+
+model SupplierPayment {
+  id             String   @id @default(cuid())
+  organizationId String
+  storeId        String
+  supplierId     String
+  purchaseId     String?
+  cashSessionId  String?
+  createdBy      String
+  amount         Decimal  @db.Decimal(12, 2)
+  method         String   // CASH, BANK, MONCASH, NATCASH, OTHER
+  reference      String?
+  note           String?
+  paidAt         DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  store        Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  supplier     Supplier     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchase     Purchase?    @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  cashSession  CashSession? @relation(fields: [cashSessionId], references: [id], onDelete: Restrict)
+  createdByUser User        @relation("SupplierPaymentCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([organizationId])
+  @@index([storeId])
+  @@index([supplierId])
+  @@index([purchaseId])
+  @@index([cashSessionId])
+  @@index([paidAt])
+  @@map("supplier_payments")
 }
 
 // ============================================================
