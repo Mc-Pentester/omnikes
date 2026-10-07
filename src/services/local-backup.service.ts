@@ -152,7 +152,7 @@ export class LocalBackupService {
         action,
         module: 'backup',
         entityType: 'DATABASE',
-        metadata,
+        metadata: metadata as import('@prisma/client').Prisma.InputJsonValue,
       },
     });
   }
