@@ -64,10 +64,13 @@ export default function SuppliersPage() {
     } finally {
       setLoading(false);
     }
-  }, [includeInactive]);
+  }, [includeInactive, search]);
 
   useEffect(() => {
-    if (user) void load();
+    if (user) {
+      const timer = window.setTimeout(() => void load(), 0);
+      return () => window.clearTimeout(timer);
+    }
   }, [user, load]);
 
   const openCreate = () => {
