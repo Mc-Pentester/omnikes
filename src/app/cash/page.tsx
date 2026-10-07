@@ -26,14 +26,14 @@ export default function CashPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
-  const loadStores = async () => {
+  const loadStores = useCallback(async () => {
     const res = await fetch('/api/stores');
     if (!res.ok) throw new Error('Impossible de charger les magasins');
     const data = await res.json();
     const list = Array.isArray(data) ? data : data.stores ?? data.data ?? [];
     setStores(list);
     if (!storeId && list[0]) setStoreId(list[0].id);
-  };
+  }, [storeId]);
 
   const loadSession = useCallback(async (id = storeId) => {
     if (!id) return;
@@ -49,11 +49,10 @@ export default function CashPage() {
   };
 
   useEffect(() => {
-    (async () => {
-      try { await loadStores(); } catch (e) { setMessage(e instanceof Error ? e.message : 'Erreur'); }
-      finally { setLoading(false); }
-    })();
-  }, []);
+    loadStores()
+      .catch(e => setMessage(e instanceof Error ? e.message : 'Erreur'))
+      .finally(() => setLoading(false));
+  }, [loadStores]);
 
   useEffect(() => {
     if (!storeId) return;
