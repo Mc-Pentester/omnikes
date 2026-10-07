@@ -20,6 +20,12 @@ interface Supplier {
   isActive: boolean;
 }
 
+interface Store {
+  id: string;
+  name: string;
+  code: string;
+}
+
 interface FormData {
   code: string;
   name: string;
@@ -43,6 +49,15 @@ export default function SuppliersPage() {
   const [saving, setSaving] = useState(false);
   const [balance, setBalance] = useState<Record<string, number>>({});
   const [compact, setCompact] = useState(false);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [paymentSupplier, setPaymentSupplier] = useState<Supplier | null>(null);
+  const [paymentStoreId, setPaymentStoreId] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'BANK' | 'MONCASH' | 'NATCASH' | 'OTHER' | 'CASH'>('BANK');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentNote, setPaymentNote] = useState('');
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentSaving, setPaymentSaving] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -72,6 +87,63 @@ export default function SuppliersPage() {
       return () => window.clearTimeout(timer);
     }
   }, [user, load]);
+
+  useEffect(() => {
+    if (!user) return;
+    const loadStores = async () => {
+      const response = await fetch('/api/stores?isActive=true&take=100');
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        const availableStores = data.stores || [];
+        setStores(availableStores);
+        if (availableStores.length && !paymentStoreId) setPaymentStoreId(availableStores[0].id);
+      }
+    };
+    void loadStores();
+  }, [user, paymentStoreId]);
+
+  const openPayment = (supplier: Supplier) => {
+    setPaymentSupplier(supplier);
+    setPaymentStoreId(stores[0]?.id || '');
+    setPaymentAmount('');
+    setPaymentMethod('BANK');
+    setPaymentReference('');
+    setPaymentNote('');
+    setPaymentError(null);
+  };
+
+  const savePayment = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setPaymentError(null);
+    const amount = Number(paymentAmount);
+    if (!paymentSupplier || !paymentStoreId || !Number.isFinite(amount) || amount <= 0) {
+      setPaymentError('Le magasin et un montant positif sont obligatoires.');
+      return;
+    }
+    setPaymentSaving(true);
+    try {
+      const response = await fetch('/api/supplier-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({
+          supplierId: paymentSupplier.id,
+          storeId: paymentStoreId,
+          amount: paymentAmount,
+          method: paymentMethod,
+          reference: paymentReference.trim() || undefined,
+          note: paymentNote.trim() || undefined,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Impossible d’enregistrer le paiement');
+      setPaymentSupplier(null);
+      await load();
+    } catch (e) {
+      setPaymentError(e instanceof Error ? e.message : 'Impossible d’enregistrer le paiement');
+    } finally {
+      setPaymentSaving(false);
+    }
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -175,12 +247,33 @@ export default function SuppliersPage() {
                 <td className="px-5 py-4 text-sm"><div>{supplier.phone || '-'}</div><div className="text-xs text-gray-500">{supplier.email || '-'}</div></td>
                 <td className="px-5 py-4 text-sm font-semibold">{balance[supplier.id] === undefined ? '—' : balance[supplier.id].toFixed(2) + ' HTG'}</td>
                 <td className="px-5 py-4"><span className={'px-2 py-1 rounded-full text-xs font-semibold ' + (supplier.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700')}>{supplier.isActive ? 'Actif' : 'Inactif'}</span></td>
-                <td className="px-5 py-4"><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => openEdit(supplier)}>Modifier</Button><Button size="sm" variant="outline" onClick={() => void toggleActive(supplier)}>{supplier.isActive ? 'Désactiver' : 'Activer'}</Button></div></td>
+                <td className="px-5 py-4"><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => openEdit(supplier)}>Modifier</Button><Button size="sm" variant="outline" onClick={() => openPayment(supplier)}>Payer</Button><Button size="sm" variant="outline" onClick={() => void toggleActive(supplier)}>{supplier.isActive ? 'Désactiver' : 'Activer'}</Button></div></td>
               </tr>)}
             </tbody></table></div></Card>
           )}
         </main>
       </div>
+      <Modal isOpen={paymentSupplier !== null} onClose={() => setPaymentSupplier(null)} title={paymentSupplier ? 'Payer le fournisseur' : 'Paiement fournisseur'}>
+        <form onSubmit={savePayment} className="space-y-4">
+          {paymentError && <div className="p-3 rounded bg-red-50 text-red-700 text-sm">{paymentError}</div>}
+          <div className="text-sm text-gray-600">Fournisseur : <span className="font-semibold text-gray-900">{paymentSupplier?.name}</span></div>
+          <select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" value={paymentStoreId} onChange={(e) => setPaymentStoreId(e.target.value)}>
+            <option value="">Sélectionner un magasin</option>
+            {stores.map((store) => <option key={store.id} value={store.id}>{store.name} ({store.code})</option>)}
+          </select>
+          <Input placeholder="Montant *" type="number" min="0.01" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} />
+          <select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}>
+            <option value="BANK">Banque</option>
+            <option value="MONCASH">MonCash</option>
+            <option value="NATCASH">NatCash</option>
+            <option value="CASH">Espèces</option>
+            <option value="OTHER">Autre</option>
+          </select>
+          <Input placeholder="Référence" value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} />
+          <Input placeholder="Note" value={paymentNote} onChange={(e) => setPaymentNote(e.target.value)} />
+          <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setPaymentSupplier(null)}>Annuler</Button><Button type="submit" disabled={paymentSaving || !stores.length}>{paymentSaving ? 'Enregistrement...' : 'Enregistrer le paiement'}</Button></div>
+        </form>
+      </Modal>
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editing ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}>
         <form onSubmit={save} className="space-y-4">
           {formError && <div className="p-3 rounded bg-red-50 text-red-700 text-sm">{formError}</div>}
