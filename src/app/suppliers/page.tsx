@@ -58,6 +58,7 @@ export default function SuppliersPage() {
   const [paymentNote, setPaymentNote] = useState('');
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentSaving, setPaymentSaving] = useState(false);
+  const [cashSessionId, setCashSessionId] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -96,17 +97,32 @@ export default function SuppliersPage() {
       if (response.ok) {
         const availableStores = data.stores || [];
         setStores(availableStores);
-        if (availableStores.length && !paymentStoreId) setPaymentStoreId(availableStores[0].id);
+        setPaymentStoreId((current) => current || availableStores[0]?.id || '');
       }
     };
     void loadStores();
-  }, [user, paymentStoreId]);
+  }, [user]);
+
+  useEffect(() => {
+    if (!paymentSupplier || paymentMethod !== 'CASH' || !paymentStoreId) {
+      setCashSessionId('');
+      return;
+    }
+    const loadCashSession = async () => {
+      const response = await fetch('/api/cash-sessions?storeId=' + encodeURIComponent(paymentStoreId));
+      const data = await response.json().catch(() => ({}));
+      setCashSessionId(response.ok && data.session?.id ? data.session.id : '');
+      if (!response.ok || !data.session?.id) setPaymentError('Aucune caisse ouverte pour ce magasin. Ouvrez une caisse avant un paiement en espèces.');
+    };
+    void loadCashSession();
+  }, [paymentSupplier, paymentMethod, paymentStoreId]);
 
   const openPayment = (supplier: Supplier) => {
     setPaymentSupplier(supplier);
     setPaymentStoreId(stores[0]?.id || '');
     setPaymentAmount('');
     setPaymentMethod('BANK');
+    setCashSessionId('');
     setPaymentReference('');
     setPaymentNote('');
     setPaymentError(null);
@@ -120,6 +136,10 @@ export default function SuppliersPage() {
       setPaymentError('Le magasin et un montant positif sont obligatoires.');
       return;
     }
+    if (paymentMethod === 'CASH' && !cashSessionId) {
+      setPaymentError('Aucune caisse ouverte pour ce magasin. Ouvrez une caisse avant de payer en espèces.');
+      return;
+    }
     setPaymentSaving(true);
     try {
       const response = await fetch('/api/supplier-payments', {
@@ -130,6 +150,7 @@ export default function SuppliersPage() {
           storeId: paymentStoreId,
           amount: paymentAmount,
           method: paymentMethod,
+          cashSessionId: paymentMethod === 'CASH' ? cashSessionId : undefined,
           reference: paymentReference.trim() || undefined,
           note: paymentNote.trim() || undefined,
         }),
@@ -269,6 +290,7 @@ export default function SuppliersPage() {
             <option value="CASH">Espèces</option>
             <option value="OTHER">Autre</option>
           </select>
+          {paymentMethod === 'CASH' && <div className={cashSessionId ? 'text-sm text-green-700' : 'text-sm text-amber-700'}>{cashSessionId ? 'Caisse ouverte : paiement en espèces autorisé.' : 'Aucune caisse ouverte pour ce magasin.'}</div>}
           <Input placeholder="Référence" value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} />
           <Input placeholder="Note" value={paymentNote} onChange={(e) => setPaymentNote(e.target.value)} />
           <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setPaymentSupplier(null)}>Annuler</Button><Button type="submit" disabled={paymentSaving || !stores.length}>{paymentSaving ? 'Enregistrement...' : 'Enregistrer le paiement'}</Button></div>
