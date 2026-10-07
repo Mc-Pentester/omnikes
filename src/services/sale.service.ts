@@ -455,7 +455,7 @@ export class SaleService {
           data: {
             inventoryId: currentInventory.id,
             type: 'SALE',
-            quantity: -item.quantity,
+            quantity: item.quantity,
             referenceId: saleId,
             referenceType: 'SALE',
             notes: `Sale ${sale.orderNumber}`,

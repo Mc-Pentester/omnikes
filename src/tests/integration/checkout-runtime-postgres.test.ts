@@ -263,6 +263,11 @@ describe('P0-22 — Real PostgreSQL Runtime Validation', () => {
     expect(finalSale.status).toBe('COMPLETED');
     expect(paymentCount).toBe(1); // Un seul paiement
     expect(movementCount).toBe(1); // Un seul mouvement
+    const saleMovement = await prisma.inventoryMovement.findFirstOrThrow({
+      where: { referenceId: sale.id, type: 'SALE' },
+      select: { quantity: true },
+    });
+    expect(saleMovement.quantity).toBe(1); // Les sorties sont stockées comme magnitudes positives
     expect(idempotencyRecords).toHaveLength(1); // Un seul record idempotency
     expect(idempotencyRecords[0].status).toBe('COMPLETED');
     expect(idempotencyRecords[0].key).toBe(idempotencyKey);
