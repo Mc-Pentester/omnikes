@@ -184,7 +184,7 @@ describe('P0 POS financial runtime proofs', () => {
           'Idempotency-Key': key,
         },
         body: JSON.stringify({
-          method: 'CASH',
+          method: 'CARD',
           amount: 1000,
         }),
       });
@@ -235,7 +235,7 @@ describe('P0 POS financial runtime proofs', () => {
           'Idempotency-Key': key,
         },
         body: JSON.stringify({
-          method: 'CASH',
+          method: 'CARD',
           amount: 1000,
         }),
       });
@@ -280,7 +280,7 @@ describe('P0 POS financial runtime proofs', () => {
           'Idempotency-Key': `p2-s2-decimal-${sale.id}`,
         },
         body: JSON.stringify({
-          method: 'CASH',
+          method: 'CARD',
           amount: 0.3,
         }),
       }),
@@ -315,7 +315,7 @@ describe('P0 POS financial runtime proofs', () => {
           'Idempotency-Key': `p0-runtime-rollback-${sale.id}`,
         },
         body: JSON.stringify({
-          method: 'CASH',
+          method: 'CARD',
           amount: 1000,
         }),
       }),
