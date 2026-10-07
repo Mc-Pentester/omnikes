@@ -580,6 +580,7 @@ model CashSession {
   openedByUser User         @relation("CashSessionOpenedBy", fields: [openedBy], references: [id], onDelete: Restrict)
   closedByUser User?        @relation("CashSessionClosedBy", fields: [closedBy], references: [id], onDelete: Restrict)
   movements    CashMovement[]
+  supplierPayments SupplierPayment[]
 
   @@index([organizationId])
   @@index([storeId])
@@ -674,6 +675,7 @@ model Supplier {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   purchases    Purchase[]
+  payments     SupplierPayment[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
