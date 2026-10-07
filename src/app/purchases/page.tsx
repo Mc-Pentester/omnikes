@@ -51,7 +51,7 @@ export default function PurchasesPage() {
     setForm(f=>({...f,storeId:f.storeId||vd.stores?.[0]?.id||'',supplierId:f.supplierId||sd.suppliers?.find((x:Supplier)=>x.isActive)?.id||''}));
   }catch(e){console.error(e);}},[]);
   useEffect(()=>{if(!authLoading&&!user)router.push('/login');},[authLoading,user,router]);
-  useEffect(()=>{if(user){void loadRefs();void loadPurchases();}},[user, loadRefs, loadPurchases]);
+  useEffect(()=>{if(user){const timer=window.setTimeout(()=>{void loadRefs();void loadPurchases();},0);return()=>window.clearTimeout(timer);}},[user, loadRefs, loadPurchases]);
   const action=async(id:string,path:string)=>{const r=await fetch('/api/purchases/'+id+'/'+path,{method:'POST'});const d=await r.json().catch(()=>({}));if(!r.ok){alert(d.error||'Action impossible');return;}await loadPurchases();};
   const create=async(e:React.FormEvent)=>{e.preventDefault();setFormError(null);if(!form.storeId||!form.supplierId||!form.reference||!form.variantId){setFormError('Magasin, fournisseur, référence et article sont obligatoires.');return;}setSaving(true);try{
     const r=await fetch('/api/purchases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({storeId:form.storeId,supplierId:form.supplierId,reference:form.reference,tax:Number(form.tax||0),discount:Number(form.discount||0),notes:form.notes||undefined,items:[{variantId:form.variantId,orderedQuantity:Number(form.quantity),unitCost:Number(form.unitCost)}]})});
