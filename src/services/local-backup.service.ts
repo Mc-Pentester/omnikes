@@ -65,7 +65,7 @@ export async function resolvePostgresTool(toolName: 'pg_dump' | 'pg_restore', en
     version: string;
   }
 
-  let candidates: Candidate[] = [];
+  const candidates: Candidate[] = [];
 
   for (const basePath of windowsPaths) {
     try {
