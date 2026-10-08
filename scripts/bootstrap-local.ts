@@ -25,11 +25,11 @@ function adminUrlFor(databaseUrl: string): string {
   return url.toString();
 }
 
-function ensureEnvFile(): void {
+function ensureEnvFile(): string {
   const envPath = path.resolve('.env');
   if (existsSync(envPath)) {
     console.log('.env already exists: preserved without modification.');
-    return;
+    return process.env.DATABASE_URL?.trim() || required('DATABASE_URL');
   }
 
   const databaseUrl = process.env.OMNIKES_BOOTSTRAP_DATABASE_URL?.trim() || process.env.DATABASE_URL?.trim();
@@ -40,7 +40,7 @@ function ensureEnvFile(): void {
   }
 
   const lines = [
-    `DATABASE_URL="${databaseUrl.replace(/"/g, '\\"')}"`,
+    `DATABASE_URL="${databaseUrl.replace(/"/g, '\\\"')}"`,
     'NODE_ENV="production"',
     'NEXT_PUBLIC_APP_URL="http://localhost:3000"',
     `SESSION_SECRET="${secret()}"`,
@@ -49,11 +49,12 @@ function ensureEnvFile(): void {
   ];
 
   writeFileSync(envPath, lines.join('\n'), { encoding: 'utf8', flag: 'wx' });
+  process.env.DATABASE_URL = databaseUrl;
   console.log('.env created safely (existing .env would never be overwritten).');
+  return databaseUrl;
 }
 
-async function ensureDatabase(): Promise<void> {
-  const databaseUrl = required('DATABASE_URL');
+async function ensureDatabase(databaseUrl: string): Promise<void> {
   const target = new URL(databaseUrl);
   const databaseName = decodeURIComponent(target.pathname.replace(/^\//, ''));
   if (!databaseName) throw new Error('DATABASE_URL must contain a database name');
@@ -81,15 +82,18 @@ async function ensureDatabase(): Promise<void> {
 }
 
 function run(command: string, args: string[]): void {
-  console.log(`> ${command} ${args.join(' ')}`);
-  execFileSync(command, args, { stdio: 'inherit', env: process.env, windowsHide: false });
+  const executable = process.platform === 'win32' && (command === 'npm' || command === 'npx')
+    ? `${command}.cmd`
+    : command;
+  console.log(`> ${executable} ${args.join(' ')}`);
+  execFileSync(executable, args, { stdio: 'inherit', env: process.env, windowsHide: false });
 }
 
 async function main() {
-  ensureEnvFile();
-  process.env.DATABASE_URL = required('DATABASE_URL');
+  const databaseUrl = ensureEnvFile();
+  process.env.DATABASE_URL = databaseUrl;
 
-  await ensureDatabase();
+  await ensureDatabase(databaseUrl);
 
   run('npx', ['prisma', 'migrate', 'deploy']);
   run('npm', ['run', 'install:local']);
