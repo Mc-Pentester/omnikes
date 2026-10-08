@@ -6,6 +6,7 @@ import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
 import { Input } from '@omnikes/components/ui/input';
+import { Badge } from '@omnikes/components/ui/badge';
 import { Modal } from '@omnikes/components/ui/modal';
 import { useAuth } from '@omnikes/contexts/AuthContext';
 import { Sidebar } from '@omnikes/components/layout/Sidebar';
@@ -53,6 +54,8 @@ export default function ProductsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSidebarCompact, setIsSidebarCompact] = useState(false);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -64,7 +67,7 @@ export default function ProductsPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/products?isActive=true');
+      const response = await fetch('/api/products');
       
       if (!response.ok) {
         throw new Error('Failed to fetch products');
@@ -87,6 +90,14 @@ export default function ProductsPage() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [user]);
+
+  const categories = Array.from(new Set(products.map((product) => product.category).filter(Boolean))) as string[];
+  const filteredProducts = products.filter((product) => {
+    const q = search.trim().toLowerCase();
+    const matchesSearch = !q || product.name.toLowerCase().includes(q) || product.variants.some((variant) => variant.sku.toLowerCase().includes(q));
+    return matchesSearch && (!categoryFilter || product.category === categoryFilter);
+  });
+  const activeCount = products.filter((product) => product.isActive).length;
 
   const handleCreate = () => {
     setModalMode('create');
@@ -261,8 +272,8 @@ export default function ProductsPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Chargement...</p>
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
+        <p className="text-muted">Chargement...</p>
       </div>
     );
   }
@@ -273,17 +284,17 @@ export default function ProductsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Chargement des produits...</p>
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
+        <p className="text-muted">Chargement des produits...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-danger mb-4">{error}</p>
           <Button onClick={fetchProducts}>Réessayer</Button>
         </div>
       </div>
@@ -291,20 +302,21 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-surface-muted flex">
       <Sidebar 
         compact={isSidebarCompact} 
         onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)} 
       />
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <header className="bg-surface border-b border-border px-6 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Logo size={40} />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Produits</h1>
-                <p className="text-sm text-gray-500">Gérez les produits de votre organisation.</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Catalogue</p>
+                <h1 className="mt-1 text-2xl font-bold text-foreground">Produits</h1>
+                <p className="mt-1 text-sm text-muted">Votre catalogue, vos prix et vos références au même endroit.</p>
               </div>
             </div>
             <Button onClick={handleCreate}>+ Nouveau produit</Button>
@@ -314,43 +326,63 @@ export default function ProductsPage() {
         <main className="flex-1 overflow-y-auto p-6">
           {products.length === 0 ? (
             <Card className="p-12 text-center">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Aucun produit</h2>
-              <p className="text-gray-600 mb-6">Aucun produit n&apos;est encore configuré pour votre organisation.</p>
+              <h2 className="text-xl font-bold text-foreground mb-2">Aucun produit</h2>
+              <p className="text-muted mb-6">Aucun produit n&apos;est encore configuré pour votre organisation.</p>
               <Button onClick={handleCreate}>+ Créer un produit</Button>
             </Card>
           ) : (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Card className="p-5"><p className="text-sm text-muted">Références</p><p className="mt-1 text-2xl font-bold text-foreground">{products.length}</p><p className="mt-1 text-xs text-muted">{filteredProducts.length} affichée(s)</p></Card>
+                <Card className="p-5"><p className="text-sm text-muted">Produits actifs</p><p className="mt-1 text-2xl font-bold text-success">{activeCount}</p><p className="mt-1 text-xs text-muted">Disponibles dans le catalogue</p></Card>
+                <Card className="p-5"><p className="text-sm text-muted">Produits inactifs</p><p className="mt-1 text-2xl font-bold text-muted">{products.length - activeCount}</p><p className="mt-1 text-xs text-muted">À réactiver si nécessaire</p></Card>
+              </div>
+              <Card className="p-4">
+                <div className="flex flex-col md:flex-row gap-3">
+                  <div className="flex-1"><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un produit ou un SKU..." /></div>
+                  <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="h-10 rounded-md border border-border bg-surface px-3 text-sm text-foreground">
+                    <option value="">Toutes les catégories</option>
+                    {categories.map((category) => <option key={category} value={category}>{category}</option>)}
+                  </select>
+                  <Button variant="outline" onClick={() => { setSearch(''); setCategoryFilter(''); }}>Réinitialiser</Button>
+                </div>
+              </Card>
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-surface-muted border-b border-border">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catégorie</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prix</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Nom</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Catégorie</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">SKU</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Prix</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider">Stock</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Statut</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {products.map((product) => (
-                      <tr key={product.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.variants[0]?.sku || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {product.variants[0]?.price ? `${parseFloat(String(product.variants[0].price)).toFixed(2)} HTG` : '-'}
+                  <tbody className="bg-surface divide-y divide-border">
+                    {filteredProducts.map((product) => (
+                      <tr key={product.id} className="hover:bg-surface-muted">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">{product.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{product.category || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{product.variants[0]?.sku || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
+                          {product.variants[0]?.price != null ? `${parseFloat(String(product.variants[0].price)).toFixed(2)} HTG` : '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                          {product.variants[0]?.stock != null ? (
+                            <span className={`font-semibold ${product.variants[0].stock <= 0 ? 'text-danger' : product.variants[0].stock < 5 ? 'text-warning' : 'text-success'}`}>
+                              {product.variants[0].stock}
+                            </span>
+                          ) : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            product.isActive 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
+                          <Badge variant={product.isActive ? 'success' : 'neutral'}>
                             {product.isActive ? 'Actif' : 'Inactif'}
-                          </span>
+                          </Badge>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                           <div className="flex gap-2">
                             <Button
                               variant="outline"
@@ -391,6 +423,14 @@ export default function ProductsPage() {
                 </table>
               </div>
             </Card>
+              {filteredProducts.length === 0 && (
+                <Card className="p-8 text-center">
+                  <p className="font-medium text-foreground">Aucun produit trouvé</p>
+                  <p className="mt-1 text-sm text-muted">Essayez un autre terme ou réinitialisez les filtres.</p>
+                  <Button className="mt-4" variant="outline" onClick={() => { setSearch(''); setCategoryFilter(''); }}>Réinitialiser les filtres</Button>
+                </Card>
+              )}
+            </div>
           )}
         </main>
       </div>
@@ -419,14 +459,14 @@ export default function ProductsPage() {
         }
       >
         {formError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+          <div className="mb-4 p-3 bg-danger-soft border border-danger rounded-lg text-sm text-danger">
             {formError}
           </div>
         )}
 
         <form id="product-form" onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="name" className="block text-sm font-medium text-foreground mb-1">
               Nom du produit *
             </label>
             <Input
@@ -439,7 +479,7 @@ export default function ProductsPage() {
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="description" className="block text-sm font-medium text-foreground mb-1">
               Description
             </label>
             <Input
@@ -451,7 +491,7 @@ export default function ProductsPage() {
           </div>
 
           <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="category" className="block text-sm font-medium text-foreground mb-1">
               Catégorie
             </label>
             <Input
@@ -465,7 +505,7 @@ export default function ProductsPage() {
           {modalMode === 'create' && (
             <>
               <div>
-                <label htmlFor="sku" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="sku" className="block text-sm font-medium text-foreground mb-1">
                   SKU *
                 </label>
                 <Input
@@ -478,7 +518,7 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">
                   Prix (HTG) *
                 </label>
                 <Input

@@ -5,6 +5,24 @@ import { roundMoney } from '@omnikes/lib/money';
 import { storeService } from '@omnikes/services/store.service';
 
 export class CashService {
+  private async withTransactionRetry<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await prisma.$transaction(operation);
+      } catch (error) {
+        if (
+          !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+          error.code !== 'P2034' ||
+          attempt === maxAttempts
+        ) {
+          throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, attempt * 100));
+      }
+    }
+    throw new Error('Transaction retry exhausted');
+  }
   async getOpenSession(organizationId: string, storeId: string) {
     return prisma.cashSession.findFirst({
       where: { organizationId, storeId, status: 'OPEN' },
@@ -71,7 +89,7 @@ export class CashService {
 
   async addMovement(organizationId: string, storeId: string, sessionId: string, createdBy: string, input: unknown) {
     const data = cashMovementSchema.parse(input);
-    return prisma.$transaction(async (tx) => {
+    return this.withTransactionRetry(async (tx) => {
       const locked = await tx.$queryRaw<Array<{ id: string; storeId: string; status: string }>>`
         SELECT id, "storeId", status FROM cash_sessions
         WHERE id = ${sessionId} AND "organizationId" = ${organizationId}
@@ -88,7 +106,7 @@ export class CashService {
 
   async close(organizationId: string, sessionId: string, closedBy: string, input: unknown) {
     const data = cashSessionCloseSchema.parse(input);
-    return prisma.$transaction(async (tx) => {
+    return this.withTransactionRetry(async (tx) => {
       const rows = await tx.$queryRaw<Array<{ id: string; storeId: string; openingAmount: number }>>`
         SELECT id, "storeId", "openingAmount" FROM cash_sessions
         WHERE id = ${sessionId} AND "organizationId" = ${organizationId}
