@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
+import { EmptyState } from '@omnikes/components/ui/empty-state';
 import { Input } from '@omnikes/components/ui/input';
 import { Modal } from '@omnikes/components/ui/modal';
 import { useAuth } from '@omnikes/contexts/AuthContext';
@@ -316,15 +317,16 @@ export default function InventoryPage() {
 
         <main className="flex-1 overflow-y-auto p-6">
           {inventory.length === 0 ? (
-            <Card className="p-12 text-center">
-              <h2 className="text-xl font-bold text-foreground mb-2">Aucun inventaire</h2>
-              <p className="text-muted mb-4">L&apos;inventaire est créé automatiquement lorsque vous ajoutez du stock.</p>
-              <p className="text-sm text-muted mb-6">Prérequis : créez d&apos;abord un magasin et un produit avec une variante.</p>
-              <div className="flex gap-4 justify-center">
-                <Button onClick={() => router.push('/stores')}>Gérer les magasins</Button>
-                <Button onClick={() => router.push('/products')}>Gérer les produits</Button>
-              </div>
-            </Card>
+            <EmptyState
+              title="Votre stock sera prêt en quelques étapes"
+              description="Créez d&apos;abord un magasin et un produit. OmniKès créera ensuite le suivi de stock lorsque vous commencerez à approvisionner vos références."
+              actionLabel="Gérer les produits"
+              onAction={() => router.push('/products')}
+              secondaryActionLabel="Gérer les magasins"
+              onSecondaryAction={() => router.push('/stores')}
+              icon="store"
+              tone="info"
+            />
           ) : (
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -431,7 +433,16 @@ export default function InventoryPage() {
                   </table>
                 </div>
                 {filteredInventory.length === 0 && (
-                  <div className="p-8 text-center text-sm text-muted">Aucun stock ne correspond aux filtres.</div>
+                  <div className="p-8">
+                    <EmptyState
+                      title="Aucun stock ne correspond"
+                      description="Modifiez votre recherche ou vos filtres pour afficher d&apos;autres références."
+                      actionLabel="Réinitialiser les filtres"
+                      onAction={() => { setSearch(''); setStoreFilter(''); setStockFilter('all'); }}
+                      icon="search"
+                      tone="info"
+                    />
+                  </div>
                 )}
               </Card>
             </div>
