@@ -58,15 +58,15 @@ function ResetPasswordContent() {
 
   if (!tokenValid) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <Card className="w-full max-w-md p-8">
           <div className="flex flex-col items-center mb-8">
             <Logo size={80} />
-            <h1 className="text-2xl font-bold text-gray-900 mt-4">OmniKès</h1>
+            <h1 className="text-2xl font-bold text-foreground mt-4">OmniKès</h1>
           </div>
           <div className="text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Invalid Reset Link</h2>
-            <p className="text-sm text-gray-600 mb-6">
+            <h2 className="text-xl font-semibold text-foreground mb-2">Invalid Reset Link</h2>
+            <p className="text-sm text-muted mb-6">
               {error || 'Invalid reset link. Please request a new password reset.'}
             </p>
             <Button
@@ -82,21 +82,21 @@ function ResetPasswordContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <Card className="w-full max-w-md p-8">
         <div className="flex flex-col items-center mb-8">
           <Logo size={80} />
-          <h1 className="text-2xl font-bold text-gray-900 mt-4">OmniKès</h1>
-          <p className="text-sm text-gray-500">Système de Gestion Commerciale</p>
+          <h1 className="text-2xl font-bold text-foreground mt-4">OmniKès</h1>
+          <p className="text-sm text-muted">Système de Gestion Commerciale</p>
         </div>
 
         {!success ? (
           <>
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Reset Password</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-6">Reset Password</h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="newPassword" className="block text-sm font-medium text-foreground mb-2">
                   New Password
                 </label>
                 <Input
@@ -112,7 +112,7 @@ function ResetPasswordContent() {
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground mb-2">
                   Confirm Password
                 </label>
                 <Input
@@ -128,7 +128,7 @@ function ResetPasswordContent() {
               </div>
 
               {error && (
-                <div className="text-red-600 text-sm">{error}</div>
+                <div className="text-danger text-sm">{error}</div>
               )}
 
               <Button
@@ -140,8 +140,8 @@ function ResetPasswordContent() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-gray-500">
-              <a href="/login" className="text-blue-600 hover:text-blue-800">
+            <div className="mt-6 text-center text-sm text-muted">
+              <a href="/login" className="text-primary hover:text-primary-hover">
                 Back to Login
               </a>
             </div>
@@ -150,7 +150,7 @@ function ResetPasswordContent() {
           <div className="text-center">
             <div className="mb-4">
               <svg
-                className="mx-auto h-12 w-12 text-green-500"
+                className="mx-auto h-12 w-12 text-success"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -163,8 +163,8 @@ function ResetPasswordContent() {
                 />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Password Reset Successful</h2>
-            <p className="text-sm text-gray-600 mb-6">
+            <h2 className="text-xl font-semibold text-foreground mb-2">Password Reset Successful</h2>
+            <p className="text-sm text-muted mb-6">
               Your password has been reset successfully. Please login with your new password.
             </p>
             <Button

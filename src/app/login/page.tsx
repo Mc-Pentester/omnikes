@@ -29,17 +29,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <Card className="w-full max-w-md p-8">
         <div className="flex flex-col items-center mb-8">
           <Logo size={80} />
-          <h1 className="text-2xl font-bold text-gray-900 mt-4">OmniKès</h1>
-          <p className="text-sm text-gray-500">Système de Gestion Commerciale</p>
+          <h1 className="text-2xl font-bold text-foreground mt-4">OmniKès</h1>
+          <p className="text-sm text-muted">Système de Gestion Commerciale</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
               Email
             </label>
             <Input
@@ -54,7 +54,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
               Mot de passe
             </label>
             <Input
@@ -69,7 +69,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="text-red-600 text-sm">{error}</div>
+            <div className="text-danger text-sm">{error}</div>
           )}
 
           <Button
@@ -81,16 +81,16 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-gray-500">
+        <div className="mt-6 text-center text-sm text-muted">
           <p>Utilisez votre compte utilisateur existant.</p>
           <p className="mt-2">
             Pas encore de compte?{' '}
-            <a href="/register" className="text-blue-600 hover:text-blue-800">
+            <a href="/register" className="text-primary hover:text-primary-hover">
               Créer un compte
             </a>
           </p>
           <p className="mt-2">
-            <a href="/forgot-password" className="text-blue-600 hover:text-blue-800">
+            <a href="/forgot-password" className="text-primary hover:text-primary-hover">
               Mot de passe oublié?
             </a>
           </p>
