@@ -184,28 +184,28 @@ jobs:
             cloud_enabled boolean;
             online_store_enabled boolean;
           BEGIN
-            SELECT count(*) INTO organization_count FROM "Organization";
-            SELECT count(*) INTO store_count FROM "Store";
+            SELECT count(*) INTO organization_count FROM organizations;
+            SELECT count(*) INTO store_count FROM stores;
             SELECT count(*) INTO user_count
-              FROM "User"
+              FROM users
               WHERE email = 'bootstrap-admin@omnikes.local';
             SELECT count(*) INTO admin_role_count
-              FROM "Role"
+              FROM roles
               WHERE name = 'ADMIN'
                 AND "isGlobal" = false;
-            SELECT count(*) INTO permission_count FROM "Permission";
+            SELECT count(*) INTO permission_count FROM permissions;
             SELECT count(*) INTO user_role_count
-              FROM "UserRole" ur
+              FROM user_roles ur
               JOIN "User" u ON u.id = ur."userId"
               JOIN "Role" r ON r.id = ur."roleId"
               WHERE u.email = 'bootstrap-admin@omnikes.local'
                 AND r.name = 'ADMIN';
             SELECT count(*) INTO audit_count
-              FROM "AuditLog"
+              FROM audit_logs
               WHERE action = 'LOCAL_INSTALLATION_COMPLETED';
             SELECT "cloudEnabled", "onlineStoreEnabled"
               INTO cloud_enabled, online_store_enabled
-              FROM "Organization"
+              FROM organizations
               LIMIT 1;
 
             IF organization_count <> 1 THEN
