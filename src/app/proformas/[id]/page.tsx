@@ -180,21 +180,21 @@ export default function ProformaDetailPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-foreground';
       case 'SENT':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-info-soft text-info';
       case 'ACCEPTED':
-        return 'bg-green-100 text-green-800';
+        return 'bg-success-soft text-success';
       case 'REJECTED':
-        return 'bg-red-100 text-red-800';
+        return 'bg-danger-soft text-danger';
       case 'EXPIRED':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-warning-soft text-warning';
       case 'CONVERTED':
-        return 'bg-purple-100 text-purple-800';
+        return 'bg-primary-soft text-primary';
       case 'CANCELLED':
-        return 'bg-gray-100 text-gray-600';
+        return 'bg-gray-100 text-muted';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-foreground';
     }
   };
 
@@ -221,8 +221,8 @@ export default function ProformaDetailPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Chargement...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted">Chargement...</p>
       </div>
     );
   }
@@ -233,17 +233,17 @@ export default function ProformaDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Chargement de la proforma...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted">Chargement de la proforma...</p>
       </div>
     );
   }
 
   if (error || !proforma) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error || 'Proforma non trouvée'}</p>
+          <p className="text-danger mb-4">{error || 'Proforma non trouvée'}</p>
           <Button onClick={() => router.push('/proformas')}>Retour</Button>
         </div>
       </div>
@@ -251,22 +251,22 @@ export default function ProformaDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background flex">
       <Sidebar
         compact={isSidebarCompact}
         onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)}
       />
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <header className="bg-surface border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button variant="outline" onClick={() => router.push('/proformas')}>
                 ← Retour
               </Button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Proforma {proforma.proformaNumber}</h1>
-                <p className="text-sm text-gray-500">Détails de la proforma</p>
+                <h1 className="text-2xl font-bold text-foreground">Proforma {proforma.proformaNumber}</h1>
+                <p className="text-sm text-muted">Détails de la proforma</p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -274,7 +274,7 @@ export default function ProformaDetailPage() {
                 href={`/proformas/${encodeURIComponent(proforma.id)}/print`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-10 items-center justify-center rounded-md border border-zinc-200 bg-white px-4 py-2 font-medium transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                className="inline-flex h-10 items-center justify-center rounded-md border border-zinc-200 bg-surface px-4 py-2 font-medium transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               >
                 Imprimer
               </a>
@@ -309,37 +309,37 @@ export default function ProformaDetailPage() {
                 <h2 className="text-lg font-semibold mb-4">Informations générales</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-gray-500">Numéro</p>
+                    <p className="text-sm text-muted">Numéro</p>
                     <p className="font-medium">{proforma.proformaNumber}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Statut</p>
+                    <p className="text-sm text-muted">Statut</p>
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(proforma.status)}`}>
                       {getStatusLabel(proforma.status)}
                     </span>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Client</p>
+                    <p className="text-sm text-muted">Client</p>
                     <p className="font-medium">{proforma.customer?.name || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Magasin</p>
+                    <p className="text-sm text-muted">Magasin</p>
                     <p className="font-medium">{proforma.store?.name || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Date de création</p>
+                    <p className="text-sm text-muted">Date de création</p>
                     <p className="font-medium">{new Date(proforma.createdAt).toLocaleDateString('fr-FR')}</p>
                   </div>
                   {proforma.validUntil && (
                     <div>
-                      <p className="text-sm text-gray-500">Valide jusqu&apos;au</p>
+                      <p className="text-sm text-muted">Valide jusqu&apos;au</p>
                       <p className="font-medium">{new Date(proforma.validUntil).toLocaleDateString('fr-FR')}</p>
                     </div>
                   )}
                 </div>
                 {proforma.notes && (
                   <div className="mt-4">
-                    <p className="text-sm text-gray-500">Notes</p>
+                    <p className="text-sm text-muted">Notes</p>
                     <p className="font-medium">{proforma.notes}</p>
                   </div>
                 )}
@@ -348,16 +348,16 @@ export default function ProformaDetailPage() {
               <Card className="p-6">
                 <h2 className="text-lg font-semibold mb-4">Articles</h2>
                 {proforma.items.length === 0 ? (
-                  <p className="text-gray-500">Aucun article</p>
+                  <p className="text-muted">Aucun article</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead className="bg-gray-50 border-b border-gray-200">
+                      <thead className="bg-background border-b border-border">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produit</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Quantité</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Prix unitaire</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-muted uppercase">Produit</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-muted uppercase">Quantité</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-muted uppercase">Prix unitaire</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-muted uppercase">Total</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -389,13 +389,13 @@ export default function ProformaDetailPage() {
                 <h2 className="text-lg font-semibold mb-4">Totaux</h2>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Sous-total</span>
+                    <span className="text-muted">Sous-total</span>
                     <span className="font-medium">
                       {typeof proforma.subtotal === 'number' ? proforma.subtotal.toFixed(2) : Number(proforma.subtotal).toFixed(2)}
                     </span>
                   </div>
                   {proforma.discount > 0 && (
-                    <div className="flex justify-between text-red-600">
+                    <div className="flex justify-between text-danger">
                       <span>Remise</span>
                       <span className="font-medium">
                         -{typeof proforma.discount === 'number' ? proforma.discount.toFixed(2) : Number(proforma.discount).toFixed(2)}
@@ -404,7 +404,7 @@ export default function ProformaDetailPage() {
                   )}
                   {proforma.applyTax && (
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Taxe ({(Number(proforma.taxRate) * 100).toFixed(0)}%)</span>
+                      <span className="text-muted">Taxe ({(Number(proforma.taxRate) * 100).toFixed(0)}%)</span>
                       <span className="font-medium">
                         {typeof proforma.tax === 'number' ? proforma.tax.toFixed(2) : Number(proforma.tax).toFixed(2)}
                       </span>
@@ -423,11 +423,11 @@ export default function ProformaDetailPage() {
                 <h2 className="text-lg font-semibold mb-4">Informations fiscales</h2>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Appliquer taxe</span>
+                    <span className="text-muted">Appliquer taxe</span>
                     <span className="font-medium">{proforma.applyTax ? 'Oui' : 'Non'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Taux de taxe</span>
+                    <span className="text-muted">Taux de taxe</span>
                     <span className="font-medium">{(Number(proforma.taxRate) * 100).toFixed(0)}%</span>
                   </div>
                 </div>
