@@ -411,7 +411,7 @@ export default function PendingSalesPage() {
                         </div>
                         <div className="flex justify-between gap-3 mt-2 text-sm">
                           <span className="text-muted">{sale.customer?.name || 'Client anonyme'}</span>
-                          <span className={fullyCovered ? 'text-amber-700 font-semibold' : 'text-orange-600 font-medium'}>
+                          <span className={fullyCovered ? 'text-warning font-semibold' : 'text-orange-600 font-medium'}>
                             {fullyCovered ? 'Paiement complet — finalisation en attente' : 'Reste ' + money(remaining) + ' HTG'}
                           </span>
                         </div>
@@ -447,7 +447,7 @@ export default function PendingSalesPage() {
                     </div>
                     <span className={
                       'px-3 py-1 rounded-full text-sm font-semibold w-fit ' +
-                      (totals.remaining <= 0 ? 'bg-amber-100 text-amber-800' : 'bg-orange-100 text-orange-700')
+                      (totals.remaining <= 0 ? 'bg-amber-100 text-warning' : 'bg-orange-100 text-orange-700')
                     }>
                       {totals.remaining <= 0 ? 'PAIEMENT COMPLET · FINALISATION' : 'PENDING'}
                     </span>
@@ -501,10 +501,10 @@ export default function PendingSalesPage() {
                   )}
 
                   {selectedSale.saleCredit && (
-                    <div className="mb-6 p-4 rounded-lg border border-amber-200 bg-amber-50">
-                      <p className="font-semibold text-amber-900">Crédit autorisé</p>
-                      <p className="text-sm text-amber-800 mt-1">{money(selectedSale.saleCredit.amount)} HTG pour {selectedSale.customer?.name || 'le client'}</p>
-                      {selectedSale.saleCredit.note && <p className="text-sm text-amber-700 mt-1">{selectedSale.saleCredit.note}</p>}
+                    <div className="mb-6 p-4 rounded-lg border border-border bg-warning-soft">
+                      <p className="font-semibold text-warning">Crédit autorisé</p>
+                      <p className="text-sm text-warning mt-1">{money(selectedSale.saleCredit.amount)} HTG pour {selectedSale.customer?.name || 'le client'}</p>
+                      {selectedSale.saleCredit.note && <p className="text-sm text-warning mt-1">{selectedSale.saleCredit.note}</p>}
                     </div>
                   )}
 
@@ -520,11 +520,11 @@ export default function PendingSalesPage() {
                   </div>
 
                   {totals.remaining <= 0 && (
-                    <div className="mb-6 p-4 rounded-lg border border-amber-200 bg-amber-50">
+                    <div className="mb-6 p-4 rounded-lg border border-border bg-warning-soft">
                       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                          <p className="font-semibold text-amber-900">Paiement complet — vente encore PENDING</p>
-                          <p className="text-sm text-amber-800 mt-1">
+                          <p className="font-semibold text-warning">Paiement complet — vente encore PENDING</p>
+                          <p className="text-sm text-warning mt-1">
                             Aucun nouveau paiement n&apos;est nécessaire. La prochaine étape est la finalisation serveur, qui vérifiera notamment la disponibilité du stock.
                           </p>
                         </div>
@@ -609,7 +609,7 @@ export default function PendingSalesPage() {
                     </section>                  )}
                   </div>
 
-                  <div className="mt-6 p-4 rounded-lg bg-gray-900 text-white flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div className="mt-6 p-4 rounded-lg bg-foreground text-white flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div>
                       <p className="text-sm text-surface-muted">Reste à couvrir</p>
                       <p className="text-2xl font-bold">{money(totals.remaining)} HTG</p>
