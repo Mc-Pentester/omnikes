@@ -1,6 +1,6 @@
-import * as React from "react"
+import * as React from 'react';
 
-export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {}
+export type SkeletonProps = React.HTMLAttributes<HTMLDivElement>;
 
 const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
   ({ className, ...props }, ref) => (
@@ -10,8 +10,9 @@ const Skeleton = React.forwardRef<HTMLDivElement, SkeletonProps>(
       className={`animate-pulse rounded-[var(--radius-md)] bg-surface-muted ${className || ''}`}
       {...props}
     />
-  )
-)
-Skeleton.displayName = "Skeleton"
+  ),
+);
 
-export { Skeleton }
+Skeleton.displayName = 'Skeleton';
+
+export { Skeleton };
