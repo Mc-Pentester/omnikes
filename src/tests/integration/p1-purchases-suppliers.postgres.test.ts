@@ -15,6 +15,7 @@ const ids = {
 
 describe('P1 achats / fournisseurs PostgreSQL runtime proof', () => {
   afterAll(async () => {
+    await prisma.supplierPaymentIdempotency.deleteMany({ where: { organizationId: ids.org } });
     await prisma.supplierPayment.deleteMany({ where: { organizationId: ids.org } });
     await prisma.inventoryMovement.deleteMany({ where: { inventory: { storeId: ids.store } } });
     await prisma.inventory.deleteMany({ where: { storeId: ids.store } });
@@ -96,6 +97,79 @@ describe('P1 achats / fournisseurs PostgreSQL runtime proof', () => {
     expect(Number(balance.totalPurchases)).toBe(1000);
     expect(Number(balance.totalPaid)).toBe(400);
     expect(Number(balance.balance)).toBe(600);
+  });
+
+  it('replays the same supplier payment idempotency key without creating a duplicate', async () => {
+    const purchase = await purchaseService.create(ids.org, ids.user, {
+      storeId: ids.store,
+      supplierId: ids.supplier,
+      reference: `PUR-IDEMP-${suffix}`,
+      items: [{ variantId: ids.variant, orderedQuantity: 2, unitCost: 100 }],
+    });
+    await purchaseService.order(purchase.id, ids.org);
+    await purchaseService.receive(purchase.id, ids.org, {
+      items: [{ purchaseItemId: purchase.items[0].id, quantity: 2 }],
+    });
+
+    const key = `p1-idempotency-${suffix}`;
+    const input = {
+      storeId: ids.store,
+      supplierId: ids.supplier,
+      purchaseId: purchase.id,
+      amount: 150,
+      method: 'BANK',
+      reference: `IDEMP-${suffix}`,
+    };
+
+    const first = await prisma.$transaction(async (tx) => {
+      const record = await tx.supplierPaymentIdempotency.create({
+        data: {
+          organizationId: ids.org,
+          userId: ids.user,
+          supplierId: ids.supplier,
+          purchaseId: purchase.id,
+          storeId: ids.store,
+          key,
+          status: 'PROCESSING',
+        },
+      });
+      const payment = await supplierPaymentService.create(ids.org, ids.user, input, tx);
+      await tx.supplierPaymentIdempotency.update({
+        where: { id: record.id },
+        data: {
+          status: 'COMPLETED',
+          responseStatus: 201,
+          responseBody: JSON.stringify({ payment, input }),
+        },
+      });
+      return payment;
+    });
+
+    const replay = await prisma.supplierPaymentIdempotency.findUniqueOrThrow({
+      where: { organizationId_key: { organizationId: ids.org, key } },
+    });
+    expect(replay.status).toBe('COMPLETED');
+    expect(JSON.parse(replay.responseBody || '{}').payment.id).toBe(first.id);
+
+    await expect(
+      prisma.supplierPaymentIdempotency.create({
+        data: {
+          organizationId: ids.org,
+          userId: ids.user,
+          supplierId: ids.supplier,
+          purchaseId: purchase.id,
+          storeId: ids.store,
+          key,
+          status: 'PROCESSING',
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'P2002' });
+
+    const payments = await prisma.supplierPayment.findMany({
+      where: { purchaseId: purchase.id },
+    });
+    expect(payments).toHaveLength(1);
+    expect(Number(payments[0].amount)).toBe(150);
   });
 
   it('rejects a supplier payment above the outstanding purchase balance', async () => {
