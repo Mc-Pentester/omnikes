@@ -227,8 +227,8 @@ export default function StoresPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Chargement...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted">Chargement...</p>
       </div>
     );
   }
@@ -239,17 +239,17 @@ export default function StoresPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Chargement des magasins...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted">Chargement des magasins...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-danger mb-4">{error}</p>
           <Button onClick={fetchStores}>Réessayer</Button>
         </div>
       </div>
@@ -257,20 +257,20 @@ export default function StoresPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background flex">
       <Sidebar 
         compact={isSidebarCompact} 
         onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)} 
       />
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <header className="bg-surface border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Logo size={40} />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Magasins</h1>
-                <p className="text-sm text-gray-500">Gérez les magasins de votre organisation.</p>
+                <h1 className="text-2xl font-bold text-foreground">Magasins</h1>
+                <p className="text-sm text-muted">Gérez les magasins de votre organisation.</p>
               </div>
             </div>
             {user.canCreateStores && (
@@ -282,8 +282,8 @@ export default function StoresPage() {
         <main className="flex-1 overflow-y-auto p-6">
           {stores.length === 0 ? (
             <Card className="p-12 text-center">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Aucun magasin</h2>
-              <p className="text-gray-600 mb-6">Aucun magasin n&apos;est encore configuré pour votre organisation.</p>
+              <h2 className="text-xl font-bold text-foreground mb-2">Aucun magasin</h2>
+              <p className="text-muted mb-6">Aucun magasin n&apos;est encore configuré pour votre organisation.</p>
               {user.canCreateStores && (
                 <Button onClick={handleCreate}>+ Créer un magasin</Button>
               )}
@@ -292,33 +292,33 @@ export default function StoresPage() {
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-background border-b border-border">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ville</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Téléphone</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Nom</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Code</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Ville</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Téléphone</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Statut</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-surface divide-y divide-border">
                     {stores.map((store) => (
-                      <tr key={store.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{store.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{store.code}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{store.city || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{store.phone || '-'}</td>
+                      <tr key={store.id} className="hover:bg-surface-muted">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">{store.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{store.code}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{store.city || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{store.phone || '-'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                             store.isActive 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-gray-100 text-gray-800'
+                              ? 'bg-success-soft text-success' 
+                              : 'bg-surface-muted text-foreground'
                           }`}>
                             {store.isActive ? 'Actif' : 'Inactif'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                           <div className="flex gap-2">
                             {user.canUpdateStores && (
                               <Button
@@ -384,14 +384,14 @@ export default function StoresPage() {
         }
       >
         {formError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+          <div className="mb-4 p-3 bg-danger-soft border border-border rounded-lg text-sm text-danger">
             {formError}
           </div>
         )}
 
         <form id="store-form" onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="name" className="block text-sm font-medium text-foreground mb-1">
               Nom du magasin *
             </label>
             <Input
@@ -404,7 +404,7 @@ export default function StoresPage() {
           </div>
 
           <div>
-            <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="code" className="block text-sm font-medium text-foreground mb-1">
               Code magasin *
             </label>
             <Input
@@ -417,7 +417,7 @@ export default function StoresPage() {
           </div>
 
           <div>
-            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="address" className="block text-sm font-medium text-foreground mb-1">
               Adresse
             </label>
             <Input
@@ -429,7 +429,7 @@ export default function StoresPage() {
           </div>
 
           <div>
-            <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="city" className="block text-sm font-medium text-foreground mb-1">
               Ville
             </label>
             <Input
@@ -441,7 +441,7 @@ export default function StoresPage() {
           </div>
 
           <div>
-            <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="country" className="block text-sm font-medium text-foreground mb-1">
               Pays
             </label>
             <Input
@@ -453,7 +453,7 @@ export default function StoresPage() {
           </div>
 
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="phone" className="block text-sm font-medium text-foreground mb-1">
               Téléphone
             </label>
             <Input
@@ -465,7 +465,7 @@ export default function StoresPage() {
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1">
               Email
             </label>
             <Input
