@@ -166,7 +166,7 @@ export default function AdministrationUsersPage() {
     return (
       <main className="p-8">
         <h1 className="text-2xl font-semibold">Administration</h1>
-        <p className="mt-4 text-red-600">Vous n’avez pas l’autorisation d’administrer les utilisateurs.</p>
+        <p className="mt-4 text-danger">Vous n’avez pas l’autorisation d’administrer les utilisateurs.</p>
       </main>
     );
   }
@@ -199,7 +199,7 @@ export default function AdministrationUsersPage() {
       {message && <div className="rounded-lg bg-success-soft p-3 text-success">{message}</div>}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
-        <section className="rounded-xl border bg-white">
+        <section className="rounded-xl border bg-surface">
           <div className="border-b p-4">
             <input
               value={search}
@@ -225,7 +225,7 @@ export default function AdministrationUsersPage() {
                       <div className="font-medium">{item.name || 'Sans nom'}</div>
                       <div className="text-sm text-muted">{item.email}</div>
                     </div>
-                    <span className={`rounded-full px-2 py-1 text-xs ${item.isActive ? 'bg-green-100 text-success' : 'bg-surface-muted text-muted'}`}>
+                    <span className={`rounded-full px-2 py-1 text-xs ${item.isActive ? 'bg-success-soft text-success' : 'bg-surface-muted text-muted'}`}>
                       {item.isActive ? 'Actif' : 'Inactif'}
                     </span>
                   </div>
@@ -239,7 +239,7 @@ export default function AdministrationUsersPage() {
           </div>
         </section>
 
-        <section className="rounded-xl border bg-white p-5">
+        <section className="rounded-xl border bg-surface p-5">
           <h2 className="text-lg font-semibold">{selectedUser ? 'Modifier le compte' : 'Créer un compte'}</h2>
           <form onSubmit={submit} className="mt-5 space-y-4">
             <label className="block">
