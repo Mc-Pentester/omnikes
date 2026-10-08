@@ -52,7 +52,7 @@ items: PurchaseItem[];
 type PurchaseAction = 'order' | 'cancel';
 
 const money = (value: number | string) =>
-"${Number(value || 0).toFixed(2)} HTG";
+  `${Number(value || 0).toFixed(2)} HTG`;
 
 const labels: Record<string, string> = {
 DRAFT: 'Brouillon',
@@ -125,8 +125,11 @@ if (!user || !purchaseId) {
 return;
 }
 
-void load();
+const timer = window.setTimeout(() => {
+  void load();
+}, 0);
 
+return () => window.clearTimeout(timer);
 }, [user, purchaseId, load]);
 
 const action = useCallback(
