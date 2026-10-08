@@ -140,8 +140,8 @@ export default function CashPage() {
   };
 
   const countedPreview = counted ? parseAmount(counted) : null;
-  const closingDifference = countedPreview !== null && Number.isFinite(countedPreview)
-    ? countedPreview - session?.expectedAmount!
+  const closingDifference = countedPreview !== null && Number.isFinite(countedPreview) && session
+    ? countedPreview - session.expectedAmount
     : null;
 
   const closeCash = async () => {
@@ -311,7 +311,7 @@ export default function CashPage() {
                       <Badge variant="info">Opération manuelle</Badge>
                       <h2 className="mt-3 text-lg font-semibold text-foreground">Mouvement de caisse</h2>
                       <p className="mt-1 text-sm text-muted">
-                        Enregistrez une entrée ou une sortie qui ne provient pas directement d'une vente.
+                        Enregistrez une entrée ou une sortie qui ne provient pas directement d&apos;une vente.
                       </p>
 
                       <div className="mt-5 space-y-4">
@@ -355,7 +355,7 @@ export default function CashPage() {
                       <Badge variant="warning">Fin de session</Badge>
                       <h2 className="mt-3 text-lg font-semibold text-foreground">Clôturer la caisse</h2>
                       <p className="mt-1 text-sm text-muted">
-                        Comptez physiquement l'espèce présente, puis comparez-la au montant théorique.
+                        Comptez physiquement l&apos;espèce présente, puis comparez-la au montant théorique.
                       </p>
 
                       <div className="mt-5 rounded-[var(--radius-md)] bg-surface-muted p-4">
