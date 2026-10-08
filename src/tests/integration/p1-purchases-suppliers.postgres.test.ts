@@ -240,6 +240,92 @@ describe('P1 achats / fournisseurs PostgreSQL runtime proof', () => {
     expect(persisted.receivedQuantity).toBe(0);
   });
 
+  it('proves partial and final receipt lifecycle plus cancelled and concurrent receipt protection', async () => {
+    const partial = await purchaseService.create(ids.org, ids.user, {
+      storeId: ids.store,
+      supplierId: ids.supplier,
+      reference: `PUR-PARTIAL-${suffix}`,
+      items: [{ variantId: ids.variant, orderedQuantity: 10, unitCost: 100 }],
+    });
+    await purchaseService.order(partial.id, ids.org);
+
+    const firstReceipt = await purchaseService.receive(partial.id, ids.org, {
+      items: [{ purchaseItemId: partial.items[0].id, quantity: 4 }],
+    });
+    expect(firstReceipt?.status).toBe('PARTIALLY_RECEIVED');
+    expect(firstReceipt?.items[0].receivedQuantity).toBe(4);
+
+    const afterPartial = await prisma.inventory.findUnique({
+      where: { storeId_variantId: { storeId: ids.store, variantId: ids.variant } },
+    });
+    expect(afterPartial?.quantity).toBe(14);
+
+    const finalReceipt = await purchaseService.receive(partial.id, ids.org, {
+      items: [{ purchaseItemId: partial.items[0].id, quantity: 6 }],
+    });
+    expect(finalReceipt?.status).toBe('RECEIVED');
+    expect(finalReceipt?.items[0].receivedQuantity).toBe(10);
+
+    const afterFinal = await prisma.inventory.findUnique({
+      where: { storeId_variantId: { storeId: ids.store, variantId: ids.variant } },
+    });
+    expect(afterFinal?.quantity).toBe(20);
+
+    const movements = await prisma.inventoryMovement.count({
+      where: { inventoryId: afterFinal!.id, referenceId: partial.id, type: 'PURCHASE' },
+    });
+    expect(movements).toBe(2);
+
+    const cancelled = await purchaseService.create(ids.org, ids.user, {
+      storeId: ids.store,
+      supplierId: ids.supplier,
+      reference: `PUR-CANCELLED-RECEIPT-${suffix}`,
+      items: [{ variantId: ids.variant, orderedQuantity: 2, unitCost: 100 }],
+    });
+    await purchaseService.cancel(cancelled.id, ids.org);
+
+    await expect(
+      purchaseService.receive(cancelled.id, ids.org, {
+        items: [{ purchaseItemId: cancelled.items[0].id, quantity: 1 }],
+      }),
+    ).rejects.toThrow('Cancelled purchases cannot be received');
+
+    const concurrent = await purchaseService.create(ids.org, ids.user, {
+      storeId: ids.store,
+      supplierId: ids.supplier,
+      reference: `PUR-CONCURRENT-RECEIPT-${suffix}`,
+      items: [{ variantId: ids.variant, orderedQuantity: 5, unitCost: 100 }],
+    });
+    await purchaseService.order(concurrent.id, ids.org);
+
+    const results = await Promise.allSettled([
+      purchaseService.receive(concurrent.id, ids.org, {
+        items: [{ purchaseItemId: concurrent.items[0].id, quantity: 5 }],
+      }),
+      purchaseService.receive(concurrent.id, ids.org, {
+        items: [{ purchaseItemId: concurrent.items[0].id, quantity: 5 }],
+      }),
+    ]);
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+
+    const concurrentItem = await prisma.purchaseItem.findUniqueOrThrow({
+      where: { id: concurrent.items[0].id },
+    });
+    expect(concurrentItem.receivedQuantity).toBe(5);
+
+    const concurrentInventory = await prisma.inventory.findUnique({
+      where: { storeId_variantId: { storeId: ids.store, variantId: ids.variant } },
+    });
+    expect(concurrentInventory?.quantity).toBe(25);
+
+    const concurrentMovements = await prisma.inventoryMovement.count({
+      where: { inventoryId: concurrentInventory!.id, referenceId: concurrent.id, type: 'PURCHASE' },
+    });
+    expect(concurrentMovements).toBe(1);
+  });
+
   it('rejects a supplier payment above the outstanding purchase balance', async () => {
     const purchase = await purchaseService.create(ids.org, ids.user, {
       storeId: ids.store,
