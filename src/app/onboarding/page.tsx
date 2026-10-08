@@ -84,7 +84,7 @@ export default function OnboardingPage() {
   }, []);
 
   useEffect(() => {
-    if (user) void fetchProgress();
+    if (user) queueMicrotask(() => void fetchProgress());
   }, [user, fetchProgress]);
 
   useEffect(() => {
