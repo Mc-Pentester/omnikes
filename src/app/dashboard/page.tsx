@@ -79,17 +79,15 @@ export default function DashboardPage() {
       const startDate = new Date(today);
       startDate.setDate(today.getDate() - 6);
 
-      const summaryStartDate = localDateString(today);
-      const summaryEndDate = localDateString(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1));
+      const todayDate = localDateString(today);
       const periodStartDate = localDateString(startDate);
-      const periodEndDate = summaryEndDate;
 
       const [productsResponse, inventoryResponse, storesResponse, summaryResponse, periodResponse] = await Promise.all([
         fetch('/api/products'),
         fetch('/api/inventory'),
         fetch('/api/stores'),
-        fetch(`/api/reports/sales/summary?startDate=${summaryStartDate}&endDate=${summaryEndDate}`),
-        fetch(`/api/reports/sales/by-period?startDate=${periodStartDate}&endDate=${periodEndDate}&granularity=day`),
+        fetch(`/api/reports/sales/summary?startDate=${todayDate}&endDate=${todayDate}`),
+        fetch(`/api/reports/sales/by-period?startDate=${periodStartDate}&endDate=${todayDate}&granularity=day`),
       ]);
 
       const productsData = productsResponse.ok ? await productsResponse.json() : { products: [] };
