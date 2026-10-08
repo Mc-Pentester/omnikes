@@ -196,8 +196,8 @@ jobs:
             SELECT count(*) INTO permission_count FROM permissions;
             SELECT count(*) INTO user_role_count
               FROM user_roles ur
-              JOIN "User" u ON u.id = ur."userId"
-              JOIN "Role" r ON r.id = ur."roleId"
+              JOIN users u ON u.id = ur."userId"
+              JOIN roles r ON r.id = ur."roleId"
               WHERE u.email = 'bootstrap-admin@omnikes.local'
                 AND r.name = 'ADMIN';
             SELECT count(*) INTO audit_count
