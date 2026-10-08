@@ -220,15 +220,15 @@ export default function InventoryReportPage() {
                 </div>
               </div>
               <div className="flex gap-2 mt-4">
-                <button onClick={() => { setToday(); setPage(1); }} className="bg-info-soft0 text-white px-4 py-2 rounded hover:bg-primary-hover">
+                <button onClick={() => { setToday(); setPage(1); }} className="bg-primary text-white px-4 py-2 rounded hover:bg-primary-hover">
                   Aujourd’hui
                 </button>
-                <button onClick={() => { setLast30Days(); setPage(1); }} className="bg-info-soft0 text-white px-4 py-2 rounded hover:bg-primary-hover">
+                <button onClick={() => { setLast30Days(); setPage(1); }} className="bg-primary text-white px-4 py-2 rounded hover:bg-primary-hover">
                   30 jours
                 </button>
                 <button
                   onClick={() => { setStartDate(''); setEndDate(''); setPage(1); }}
-                  className="bg-background0 text-white px-4 py-2 rounded hover:bg-primary-hover"
+                  className="bg-surface-muted text-foreground px-4 py-2 rounded hover:bg-primary-hover"
                 >
                   Réinitialiser
                 </button>
