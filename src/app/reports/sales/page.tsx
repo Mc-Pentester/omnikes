@@ -350,19 +350,19 @@ export default function SalesReportPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={setToday}
-                      className="flex-1 bg-info-soft0 text-white px-3 py-2 rounded hover:bg-primary-hover"
+                      className="flex-1 bg-primary text-white px-3 py-2 rounded hover:bg-primary-hover"
                     >
                       Aujourd&apos;hui
                     </button>
                     <button
                       onClick={setLast7Days}
-                      className="flex-1 bg-info-soft0 text-white px-3 py-2 rounded hover:bg-primary-hover"
+                      className="flex-1 bg-primary text-white px-3 py-2 rounded hover:bg-primary-hover"
                     >
                       7 jours
                     </button>
                     <button
                       onClick={setLast30Days}
-                      className="flex-1 bg-info-soft0 text-white px-3 py-2 rounded hover:bg-primary-hover"
+                      className="flex-1 bg-primary text-white px-3 py-2 rounded hover:bg-primary-hover"
                     >
                       30 jours
                     </button>
@@ -437,7 +437,7 @@ export default function SalesReportPage() {
                         </div>
                         <div className="h-4 bg-surface-muted rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-info-soft0 rounded-full transition-all duration-300"
+                            className="h-full bg-info rounded-full transition-all duration-300"
                             style={{ width: `${percentage}%` }}
                           />
                         </div>
@@ -467,7 +467,7 @@ export default function SalesReportPage() {
                           </div>
                           <div className="h-3 bg-surface-muted rounded-full overflow-hidden">
                             <div 
-                              className="h-full bg-success-soft0 rounded-full transition-all duration-300"
+                              className="h-full bg-success rounded-full transition-all duration-300"
                               style={{ width: `${percentage}%` }}
                             />
                           </div>
@@ -496,7 +496,7 @@ export default function SalesReportPage() {
                           </div>
                           <div className="h-3 bg-surface-muted rounded-full overflow-hidden">
                             <div 
-                              className="h-full bg-info-soft0 rounded-full transition-all duration-300"
+                              className="h-full bg-info rounded-full transition-all duration-300"
                               style={{ width: `${percentage}%` }}
                             />
                           </div>
@@ -515,7 +515,7 @@ export default function SalesReportPage() {
                 <h2 className="text-lg font-semibold">Liste des Ventes</h2>
                 <button
                   onClick={() => setShowSalesList(!showSalesList)}
-                  className="bg-info-soft0 text-white px-4 py-2 rounded hover:bg-primary-hover"
+                  className="bg-primary text-white px-4 py-2 rounded hover:bg-primary-hover"
                 >
                   {showSalesList ? 'Masquer' : 'Afficher'}
                 </button>
@@ -573,7 +573,7 @@ export default function SalesReportPage() {
                       </button>
                       <button
                         onClick={handleListReset}
-                        className="flex-1 bg-background0 text-white px-3 py-2 rounded hover:bg-primary-hover"
+                        className="flex-1 bg-surface-muted text-foreground px-3 py-2 rounded hover:bg-primary-hover"
                       >
                         Réinitialiser
                       </button>
