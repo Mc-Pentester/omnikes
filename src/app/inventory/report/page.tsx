@@ -155,23 +155,23 @@ export default function InventoryReportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background flex">
       <Sidebar compact={compact} onToggleCompact={() => setCompact(!compact)} />
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <div className="p-8 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
             <div className="mb-6">
-              <Link href="/reports" className="text-blue-500 hover:underline">
+              <Link href="/reports" className="text-primary hover:underline">
                 ← Tous les rapports
               </Link>
             </div>
 
             <h1 className="text-3xl font-bold mb-2">Rapport d’inventaire</h1>
-            <p className="text-gray-600 mb-8">
+            <p className="text-muted mb-8">
               État actuel des stocks et mouvements enregistrés sur la période sélectionnée.
             </p>
 
-            <div className="bg-white border rounded-lg p-6 mb-8">
+            <div className="bg-surface border rounded-[var(--radius-lg)] p-6 mb-8">
               <h2 className="text-lg font-semibold mb-4">Filtres</h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
@@ -220,15 +220,15 @@ export default function InventoryReportPage() {
                 </div>
               </div>
               <div className="flex gap-2 mt-4">
-                <button onClick={() => { setToday(); setPage(1); }} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                <button onClick={() => { setToday(); setPage(1); }} className="bg-primary text-white px-4 py-2 rounded hover:bg-primary-hover">
                   Aujourd’hui
                 </button>
-                <button onClick={() => { setLast30Days(); setPage(1); }} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                <button onClick={() => { setLast30Days(); setPage(1); }} className="bg-primary text-white px-4 py-2 rounded hover:bg-primary-hover">
                   30 jours
                 </button>
                 <button
                   onClick={() => { setStartDate(''); setEndDate(''); setPage(1); }}
-                  className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                  className="bg-surface-muted text-foreground px-4 py-2 rounded hover:bg-primary-hover"
                 >
                   Réinitialiser
                 </button>
@@ -236,9 +236,9 @@ export default function InventoryReportPage() {
             </div>
 
             {loading ? (
-              <div className="bg-white border rounded-lg p-12 text-center">Chargement du rapport...</div>
+              <div className="bg-surface border rounded-[var(--radius-lg)] p-12 text-center">Chargement du rapport...</div>
             ) : error ? (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>
+              <div className="bg-danger-soft border border-danger text-danger px-4 py-3 rounded">{error}</div>
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
@@ -250,17 +250,17 @@ export default function InventoryReportPage() {
                     ['Stock faible', summary?.lowStockCount ?? 0],
                     ['Valeur au coût', formatCurrency(summary?.inventoryValue ?? 0)],
                   ].map(([label, value]) => (
-                    <div key={String(label)} className="bg-white border rounded-lg p-5 shadow-sm">
-                      <div className="text-sm text-gray-600 mb-1">{label}</div>
+                    <div key={String(label)} className="bg-surface border rounded-[var(--radius-lg)] p-5 shadow-sm">
+                      <div className="text-sm text-muted mb-1">{label}</div>
                       <div className="text-2xl font-bold">{value}</div>
                     </div>
                   ))}
                 </div>
 
-                <div className="bg-white border rounded-lg p-6 mb-8 shadow-sm">
+                <div className="bg-surface border rounded-[var(--radius-lg)] p-6 mb-8 shadow-sm">
                   <h2 className="text-lg font-semibold mb-4">Mouvements sur la période</h2>
                   {movements.length === 0 ? (
-                    <div className="text-center py-6 text-gray-500">Aucun mouvement sur la période sélectionnée.</div>
+                    <div className="text-center py-6 text-muted">Aucun mouvement sur la période sélectionnée.</div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full">
@@ -285,20 +285,20 @@ export default function InventoryReportPage() {
                   )}
                 </div>
 
-                <div className="bg-white border rounded-lg p-6 shadow-sm">
+                <div className="bg-surface border rounded-[var(--radius-lg)] p-6 shadow-sm">
                   <div className="flex justify-between items-center mb-4">
                     <div>
                       <h2 className="text-lg font-semibold">État des stocks</h2>
-                      <p className="text-sm text-gray-500">Le stock affiché est l’état actuel; les dates filtrent les mouvements.</p>
+                      <p className="text-sm text-muted">Le stock affiché est l’état actuel; les dates filtrent les mouvements.</p>
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-gray-500">
+                    <div className="flex items-center gap-3 text-sm text-muted">
                       <span>{totalStockRows} référence(s)</span>
-                      <label className="flex items-center gap-2"><span>Par page</span><select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className="border rounded px-2 py-1 bg-white"><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option></select></label>
+                      <label className="flex items-center gap-2"><span>Par page</span><select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className="border rounded px-2 py-1 bg-surface"><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option></select></label>
                     </div>
                   </div>
 
                   {stock.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">Aucun stock trouvé pour les magasins autorisés.</div>
+                    <div className="text-center py-8 text-muted">Aucun stock trouvé pour les magasins autorisés.</div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full">
@@ -317,7 +317,7 @@ export default function InventoryReportPage() {
                         </thead>
                         <tbody>
                           {stock.map((row) => (
-                            <tr key={row.inventoryId} className="border-b hover:bg-gray-50">
+                            <tr key={row.inventoryId} className="border-b hover:bg-background">
                               <td className="py-2 font-medium">{row.productName}</td>
                               <td className="py-2">{row.sku}</td>
                               <td className="py-2">{row.storeName} ({row.storeCode})</td>
@@ -327,7 +327,7 @@ export default function InventoryReportPage() {
                               <td className="text-right py-2">{formatCurrency(row.unitCost)}</td>
                               <td className="text-right py-2">{formatCurrency(row.stockValue)}</td>
                               <td className="py-2">
-                                <span className={`px-2 py-1 rounded text-xs ${row.lowStock ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}`}>
+                                <span className={`px-2 py-1 rounded text-xs ${row.lowStock ? 'bg-warning-soft text-warning' : 'bg-success-soft text-success'}`}>
                                   {row.lowStock ? 'Stock faible' : 'Normal'}
                                 </span>
                               </td>
@@ -341,7 +341,7 @@ export default function InventoryReportPage() {
                   {totalPages > 1 && (
                     <div className="flex items-center justify-between mt-4 pt-4 border-t">
                       <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((current) => Math.max(1, current - 1))} className="border rounded px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed">← Précédent</button>
-                      <span className="text-sm text-gray-600">Page {page} / {totalPages}</span>
+                      <span className="text-sm text-muted">Page {page} / {totalPages}</span>
                       <button type="button" disabled={page >= totalPages || loading} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="border rounded px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed">Suivant →</button>
                     </div>
                   )}
