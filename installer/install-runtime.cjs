@@ -61,8 +61,8 @@ const psql = pg('psql');
 const psqlEnv = { ...process.env, PGPASSWORD: password };
 let dbExists = '';
 try {
-  dbExists = require('node:child_process').execFileSync(psql, ['-h', '127.0.0.1', '-p', String(port), '-U', dbUser, '-d', 'postgres', '-Atqc', "SELECT 1 FROM pg_database WHERE datname = 'omnikes'"], { encoding: 'utf8', windowsHide: true, env: psqlEnv }).trim();
-} catch (error) {
+  dbExists = execFileSync(psql, ['-h', '127.0.0.1', '-p', String(port), '-U', dbUser, '-d', 'postgres', '-Atqc', "SELECT 1 FROM pg_database WHERE datname = 'omnikes'"], { encoding: 'utf8', windowsHide: true, env: psqlEnv }).trim();
+} catch {
   throw new Error('Unable to connect to the embedded PostgreSQL server.');
 }
 if (dbExists !== '1') {
