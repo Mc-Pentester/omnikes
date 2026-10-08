@@ -295,7 +295,7 @@ export default function HomePage() {
   }, [handlePayment, filteredProducts, showPaymentModal, addToCart]);
 
   if (authLoading || storeLoading) {
-    return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-gray-600">Chargement...</p></div>;
+    return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted">Chargement...</p></div>;
   }
 
   if (!user) {
@@ -305,10 +305,10 @@ export default function HomePage() {
 
   if (stores.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 text-xl mb-4">Aucun magasin disponible</p>
-          <p className="text-gray-600">Veuillez contacter votre administrateur pour configurer un magasin.</p>
+          <p className="text-danger text-xl mb-4">Aucun magasin disponible</p>
+          <p className="text-muted">Veuillez contacter votre administrateur pour configurer un magasin.</p>
         </div>
       </div>
     );
@@ -316,16 +316,16 @@ export default function HomePage() {
 
   if (!currentStore) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 text-xl mb-4">Veuillez sélectionner un magasin</p>
+          <p className="text-danger text-xl mb-4">Veuillez sélectionner un magasin</p>
           <select
             value=""
             onChange={(e) => {
               const store = stores.find(s => s.id === e.target.value);
               if (store) setCurrentStore(store);
             }}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
+            className="px-4 py-2 border border-border-strong rounded-lg text-sm"
           >
             <option value="">Sélectionner un magasin</option>
             {stores.map(store => (
@@ -503,24 +503,24 @@ export default function HomePage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-gray-600">Chargement...</p></div>;
+    return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted">Chargement...</p></div>;
   }
 
   if (completedSaleId) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="w-full max-w-lg rounded-xl bg-white p-8 shadow-sm border border-gray-200 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl">✓</div>
-          <h1 className="text-2xl font-bold text-gray-900">Vente complétée</h1>
-          <p className="mt-2 text-gray-600">La vente a été enregistrée avec succès.</p>
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="w-full max-w-lg rounded-xl bg-surface p-8 shadow-sm border border-border text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success-soft text-success text-2xl font-bold" aria-hidden="true">✓</div>
+          <h1 className="text-2xl font-bold text-foreground">Vente complétée</h1>
+          <p className="mt-2 text-muted">La vente a été enregistrée avec succès.</p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <a
               href={'/sales/' + encodeURIComponent(completedSaleId) + '/receipt'}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-12 items-center justify-center rounded-lg bg-blue-600 px-6 text-base font-bold text-white hover:bg-blue-700"
+              className="inline-flex h-12 items-center justify-center rounded-lg bg-primary px-6 text-base font-bold text-white hover:bg-primary-hover"
             >
-              🧾 Imprimer le ticket
+              Imprimer le ticket
             </a>
             <Button
               onClick={() => {
@@ -540,9 +540,9 @@ export default function HomePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-danger mb-4">{error}</p>
           <Button onClick={fetchProducts}>Réessayer</Button>
         </div>
       </div>
@@ -550,19 +550,19 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background flex">
       <Sidebar 
         compact={isSidebarCompact} 
         onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)}
       />
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+        <header className="bg-surface border-b border-border px-4 md:px-6 py-3 flex items-center justify-between gap-4 shadow-sm">
           <div className="flex items-center gap-4">
             <Logo size={60} />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">OmniKès POS</h1>
-              <span className="text-sm text-gray-500">Point de Vente</span>
+              <h1 className="text-xl md:text-2xl font-bold text-foreground">Point de vente</h1>
+              <span className="text-sm text-muted">Encaissez rapidement et simplement</span>
             </div>
           </div>
           
@@ -578,7 +578,7 @@ export default function HomePage() {
                 const store = stores.find(s => s.id === e.target.value);
                 if (store) setCurrentStore(store);
               }}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
+              className="px-4 py-2 border border-border-strong rounded-lg text-sm"
               aria-label="Sélectionner un magasin"
             >
               <option value="">Sélectionner un magasin</option>
@@ -590,7 +590,7 @@ export default function HomePage() {
             <select
               value={selectedCustomer}
               onChange={(e) => setSelectedCustomer(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
+              className="px-4 py-2 border border-border-strong rounded-lg text-sm"
               disabled
               aria-label="Sélectionner un client"
             >
@@ -607,14 +607,14 @@ export default function HomePage() {
               placeholder="Rechercher par nom ou SKU... (F1)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full text-lg h-12"
+              className="w-full text-base md:text-lg h-12 shadow-sm"
               id="product-search"
               autoComplete="off"
             />
           </div>
 
           {products.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">Aucun produit disponible</p>
+            <p className="text-center text-muted py-8">Aucun produit disponible</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
               {filteredProducts.map(product =>
@@ -642,11 +642,11 @@ export default function HomePage() {
                     aria-label={`Ajouter ${product.name} - ${variant.name} au panier`}
                   >
                     <div>
-                      <h3 className="font-semibold text-gray-900 text-base md:text-lg">{product.name}</h3>
-                      <p className="text-sm text-gray-600">{variant.name}</p>
-                      <p className="text-xs text-gray-500 mt-1">SKU: {variant.sku}</p>
+                      <h3 className="font-semibold text-foreground text-base md:text-lg">{product.name}</h3>
+                      <p className="text-sm text-muted">{variant.name}</p>
+                      <p className="text-xs text-muted mt-1">SKU: {variant.sku}</p>
                     </div>
-                    <p className="text-lg md:text-xl font-bold text-gray-900 mt-2 md:mt-3">{parseFloat(String(variant.price)).toFixed(2)} HTG</p>
+                    <div className="mt-4 flex items-end justify-between gap-3"><span className="text-xs text-muted">Disponible à la vente</span><p className="text-lg md:text-xl font-bold text-primary">{parseFloat(String(variant.price)).toFixed(2)} HTG</p></div>
                   </Card>
                 ))
               )}
@@ -654,24 +654,24 @@ export default function HomePage() {
           )}
         </div>
 
-        <div className="w-80 md:w-96 bg-white border-l border-gray-200 flex flex-col">
-          <div className="p-4 md:p-6 border-b border-gray-200">
-            <h2 className="text-lg md:text-xl font-bold text-gray-900">Panier</h2>
-            <p className="text-sm text-gray-500">{cart.length} article(s)</p>
+        <div className="w-80 md:w-96 bg-surface border-l border-border flex flex-col">
+          <div className="p-4 md:p-6 border-b border-border">
+            <div><h2 className="text-lg md:text-xl font-bold text-foreground">Panier</h2><p className="text-xs text-muted mt-0.5">Votre vente en cours</p></div>
+            <p className="text-sm text-muted">{cart.length} article(s)</p>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 md:p-6">
             {cart.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">Le panier est vide</p>
+              <p className="text-center text-muted py-8">Le panier est vide</p>
             ) : (
               <div className="space-y-3 md:space-y-4">
                 {cart.map(item => (
-                  <div key={item.variantId} className="flex items-center justify-between p-3 md:p-4 bg-gray-50 rounded-lg">
+                  <div key={item.variantId} className="flex items-center justify-between p-3 md:p-4 bg-background rounded-lg">
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-gray-900 text-sm md:text-base truncate">{item.productName}</h4>
-                      <p className="text-xs md:text-sm text-gray-600 truncate">{item.variantName}</p>
-                      <p className="text-xs text-gray-500">{item.sku}</p>
-                      <p className="text-sm font-medium text-gray-900">{(item.unitPrice * SALE_UNIT_TO_GRAMS[item.saleUnit]).toFixed(2)} HTG/{item.saleUnit === 'UNIT' ? 'unité' : item.saleUnit}</p>
+                      <h4 className="font-medium text-foreground text-sm md:text-base truncate">{item.productName}</h4>
+                      <p className="text-xs md:text-sm text-muted truncate">{item.variantName}</p>
+                      <p className="text-xs text-muted">{item.sku}</p>
+                      <p className="text-sm font-medium text-foreground">{(item.unitPrice * SALE_UNIT_TO_GRAMS[item.saleUnit]).toFixed(2)} HTG/{item.saleUnit === 'UNIT' ? 'unité' : item.saleUnit}</p>
                     </div>
                     
                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -707,10 +707,10 @@ export default function HomePage() {
                     </div>
 
                     <div className="ml-2 md:ml-4 text-right flex-shrink-0">
-                      <p className="font-bold text-gray-900 text-base md:text-lg">{parseFloat(String(item.totalPrice)).toFixed(2)} HTG</p>
+                      <p className="font-bold text-foreground text-base md:text-lg">{parseFloat(String(item.totalPrice)).toFixed(2)} HTG</p>
                       <button
                         onClick={() => removeFromCart(item.variantId)}
-                        className="text-xs md:text-sm text-red-600 hover:text-red-700 font-medium py-1 px-2 rounded hover:bg-red-50 transition-colors focus:ring-2 focus:ring-red-500 focus:outline-none"
+                        className="text-xs md:text-sm text-danger hover:text-danger font-medium py-1 px-2 rounded hover:bg-red-50 transition-colors focus:ring-2 focus:ring-red-500 focus:outline-none"
                         aria-label={`Supprimer ${item.productName} du panier`}
                         tabIndex={0}
                         onKeyDown={(e) => {
@@ -720,7 +720,7 @@ export default function HomePage() {
                           }
                         }}
                       >
-                        🗑 Supprimer
+                        Supprimer
                       </button>
                     </div>
                   </div>
@@ -729,10 +729,10 @@ export default function HomePage() {
             )}
           </div>
 
-          <div className="p-4 md:p-6 border-t border-gray-200 bg-gray-50">
+          <div className="p-4 md:p-6 border-t border-border bg-background">
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Sous-total</span>
+                <span className="text-muted">Sous-total</span>
                 <span className="font-medium">{parseFloat(String(subtotal)).toFixed(2)} HTG</span>
               </div>
               <div className="flex items-center justify-between text-sm">
@@ -741,21 +741,21 @@ export default function HomePage() {
                     type="checkbox"
                     checked={applyTax}
                     onChange={(e) => setApplyTax(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded"
+                    className="w-4 h-4 text-primary rounded"
                   />
-                  <span className="text-gray-600">Appliquer la taxe</span>
+                  <span className="text-muted">Appliquer la taxe</span>
                 </label>
                 <span className="font-medium">
                   {applyTax && taxRate !== null ? `(${parseFloat(String(taxRate * 100)).toFixed(0)}%)` : '(0%)'}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Taxe</span>
+                <span className="text-muted">Taxe</span>
                 <span className="font-medium">{parseFloat(String(displayTax)).toFixed(2)} HTG</span>
               </div>
-              <div className="flex justify-between text-base md:text-lg font-bold border-t border-gray-200 pt-2">
-                <span className="text-gray-900">Total</span>
-                <span className="text-gray-900">{parseFloat(String(displayTotal)).toFixed(2)} HTG</span>
+              <div className="flex justify-between text-lg md:text-xl font-bold border-t border-border pt-3">
+                <span className="text-foreground">À payer</span>
+                <span className="text-foreground">{parseFloat(String(displayTotal)).toFixed(2)} HTG</span>
               </div>
             </div>
 
@@ -773,7 +773,7 @@ export default function HomePage() {
                 disabled={cart.length === 0 || isProcessing || !storesValidated}
                 className="flex-1 h-12 md:h-14 text-base md:text-lg font-bold"
               >
-                💳 Payer (F12)
+                Payer (F12)
               </Button>
             </div>
           </div>
@@ -782,7 +782,7 @@ export default function HomePage() {
 
       {showPaymentModal && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50"
           role="dialog"
           aria-modal="true"
           aria-labelledby="payment-modal-title"
@@ -792,12 +792,12 @@ export default function HomePage() {
             }
           }}
         >
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="bg-surface rounded-lg p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h2 id="payment-modal-title" className="text-2xl font-bold">Paiement</h2>
               <button
                 onClick={() => setShowPaymentModal(false)}
-                className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                className="text-gray-400 hover:text-muted focus:outline-none"
                 aria-label="Fermer"
               >
                 <svg
@@ -813,29 +813,29 @@ export default function HomePage() {
                 </svg>
               </button>
             </div>
-            <p className="text-gray-600 mb-4">Total: {parseFloat(String(displayTotal)).toFixed(2)} HTG</p>
+            <p className="text-muted mb-4">Total: {parseFloat(String(displayTotal)).toFixed(2)} HTG</p>
             
             <div className="space-y-3 mb-4">
               <button
                 onClick={() => setPaymentMethod('CASH')}
-                className={`w-full p-4 border rounded-lg text-left text-lg font-medium transition-colors ${paymentMethod === 'CASH' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:bg-gray-50'}`}
+                className={`w-full p-4 border rounded-lg text-left text-lg font-medium transition-colors ${paymentMethod === 'CASH' ? 'border-primary bg-primary-soft' : 'border-border-strong hover:bg-background'}`}
                 aria-pressed={paymentMethod === 'CASH'}
               >
-                💵 Espèces
+                Espèces
               </button>
               <button
                 onClick={() => setPaymentMethod('CARD')}
-                className={`w-full p-4 border rounded-lg text-left text-lg font-medium transition-colors ${paymentMethod === 'CARD' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:bg-gray-50'}`}
+                className={`w-full p-4 border rounded-lg text-left text-lg font-medium transition-colors ${paymentMethod === 'CARD' ? 'border-primary bg-primary-soft' : 'border-border-strong hover:bg-background'}`}
                 aria-pressed={paymentMethod === 'CARD'}
               >
                 💳 Carte
               </button>
               <button
                 onClick={() => setPaymentMethod('BANK_TRANSFER')}
-                className={`w-full p-4 border rounded-lg text-left text-lg font-medium transition-colors ${paymentMethod === 'BANK_TRANSFER' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:bg-gray-50'}`}
+                className={`w-full p-4 border rounded-lg text-left text-lg font-medium transition-colors ${paymentMethod === 'BANK_TRANSFER' ? 'border-primary bg-primary-soft' : 'border-border-strong hover:bg-background'}`}
                 aria-pressed={paymentMethod === 'BANK_TRANSFER'}
               >
-                🏦 Virement bancaire
+                Virement bancaire
               </button>
             </div>
 
@@ -851,7 +851,7 @@ export default function HomePage() {
                 step="0.01"
               />
               {paymentMethod === 'CASH' && change > 0 && (
-                <p className="text-sm text-green-600 mt-2 font-medium">Monnaie à rendre: {parseFloat(String(change)).toFixed(2)} HTG</p>
+                <p className="text-sm text-success mt-2 font-medium">Monnaie à rendre: {parseFloat(String(change)).toFixed(2)} HTG</p>
               )}
             </div>
 
