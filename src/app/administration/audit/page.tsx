@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@omnikes/contexts/AuthContext';
+import { AdminPageShell } from '@omnikes/components/layout/AdminPageShell';
 
 interface AuditItem {
   id: string;
@@ -79,11 +80,11 @@ export default function AdministrationAuditPage() {
   if (!user) return null;
 
   return (
-    <main className="p-6 md:p-8 space-y-6">
+    <AdminPageShell><main className="p-6 md:p-8 space-y-6">
       <header>
-        <p className="text-sm text-gray-500">Administration</p>
+        <p className="text-sm text-muted">Administration</p>
         <h1 className="text-3xl font-semibold">Audit & journalisation</h1>
-        <p className="mt-1 text-gray-600">Historique des actions enregistrées pour l’organisation courante.</p>
+        <p className="mt-1 text-muted">Historique des actions enregistrées pour l’organisation courante.</p>
       </header>
 
       <nav className="flex flex-wrap gap-2">
@@ -91,10 +92,10 @@ export default function AdministrationAuditPage() {
         <a href="/administration/roles" className="rounded-lg border px-4 py-2 text-sm">Rôles</a>
         <a href="/administration/stores" className="rounded-lg border px-4 py-2 text-sm">Magasins</a>
         <a href="/administration/organization" className="rounded-lg border px-4 py-2 text-sm">Organisation</a>
-        <a href="/administration/audit" className="rounded-lg bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">Audit</a>
+        <a href="/administration/audit" className="rounded-lg bg-info-soft px-4 py-2 text-sm font-medium text-info">Audit</a>
       </nav>
 
-      {error && <div className="rounded-lg bg-red-50 p-3 text-red-700">{error}</div>}
+      {error && <div className="rounded-lg bg-danger-soft p-3 text-danger">{error}</div>}
 
       <section className="rounded-xl border bg-white p-5">
         <div className="grid gap-3 md:grid-cols-4">
@@ -117,7 +118,7 @@ export default function AdministrationAuditPage() {
       <section className="rounded-xl border bg-white overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50">
+            <thead className="bg-surface-muted">
               <tr><th className="px-4 py-3 text-left">Date</th><th className="px-4 py-3 text-left">Utilisateur</th><th className="px-4 py-3 text-left">Action</th><th className="px-4 py-3 text-left">Module</th><th className="px-4 py-3 text-left">Entité</th><th className="px-4 py-3 text-left">Détails</th></tr>
             </thead>
             <tbody>
@@ -128,10 +129,10 @@ export default function AdministrationAuditPage() {
                   <td className="px-4 py-3 font-medium">{item.action}</td>
                   <td className="px-4 py-3">{item.module}</td>
                   <td className="px-4 py-3">{item.entityType || '—'}<br /><span className="font-mono text-xs">{item.entityId || '—'}</span></td>
-                  <td className="px-4 py-3"><details><summary className="cursor-pointer text-blue-700">Voir</summary><pre className="mt-2 max-w-xl overflow-auto rounded bg-gray-50 p-2 text-xs">{jsonValue({ oldValues: item.oldValues, newValues: item.newValues, metadata: item.metadata })}</pre></details></td>
+                  <td className="px-4 py-3"><details><summary className="cursor-pointer text-info">Voir</summary><pre className="mt-2 max-w-xl overflow-auto rounded bg-surface-muted p-2 text-xs">{jsonValue({ oldValues: item.oldValues, newValues: item.newValues, metadata: item.metadata })}</pre></details></td>
                 </tr>
               ))}
-              {data?.items.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">Aucun événement.</td></tr>}
+              {data?.items.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-muted">Aucun événement.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -139,7 +140,7 @@ export default function AdministrationAuditPage() {
 
       {data && (
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-500">{data.total} événement(s) — page {data.page} / {Math.max(data.totalPages, 1)}</span>
+          <span className="text-sm text-muted">{data.total} événement(s) — page {data.page} / {Math.max(data.totalPages, 1)}</span>
           <div className="flex gap-2">
             <button disabled={page <= 1 || loading} onClick={() => { const p = page - 1; setPage(p); void load(p); }} className="rounded-lg border px-3 py-2 disabled:opacity-50">Précédent</button>
             <button disabled={page >= data.totalPages || loading} onClick={() => { const p = page + 1; setPage(p); void load(p); }} className="rounded-lg border px-3 py-2 disabled:opacity-50">Suivant</button>
