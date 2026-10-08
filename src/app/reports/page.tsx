@@ -79,7 +79,7 @@ export default function ReportsPage() {
                       {report.available ? (
                         <Link
                           href={report.path}
-                          className="inline-block bg-info-soft0 text-white px-4 py-2 rounded hover:bg-primary-hover transition-colors"
+                          className="inline-block bg-primary text-white px-4 py-2 rounded hover:bg-primary-hover transition-colors"
                         >
                           Ouvrir le rapport
                         </Link>
