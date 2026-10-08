@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
           supplierId: parsed.supplierId,
           purchaseId: parsed.purchaseId,
           storeId: parsed.storeId,
-          key: idempotencyKey,
+          key: authenticatedIdempotencyKey,
           status: 'PROCESSING',
         },
       });
