@@ -53,6 +53,8 @@ export default function ProductsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSidebarCompact, setIsSidebarCompact] = useState(false);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -87,6 +89,14 @@ export default function ProductsPage() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [user]);
+
+  const categories = Array.from(new Set(products.map((product) => product.category).filter(Boolean))) as string[];
+  const filteredProducts = products.filter((product) => {
+    const q = search.trim().toLowerCase();
+    const matchesSearch = !q || product.name.toLowerCase().includes(q) || product.variants.some((variant) => variant.sku.toLowerCase().includes(q));
+    return matchesSearch && (!categoryFilter || product.category === categoryFilter);
+  });
+  const activeCount = products.filter((product) => product.isActive).length;
 
   const handleCreate = () => {
     setModalMode('create');
@@ -298,13 +308,14 @@ export default function ProductsPage() {
       />
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <header className="bg-surface border-b border-border px-6 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Logo size={40} />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Produits</h1>
-                <p className="text-sm text-gray-500">Gérez les produits de votre organisation.</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Catalogue</p>
+                <h1 className="mt-1 text-2xl font-bold text-foreground">Produits</h1>
+                <p className="mt-1 text-sm text-muted">Votre catalogue, vos prix et vos références au même endroit.</p>
               </div>
             </div>
             <Button onClick={handleCreate}>+ Nouveau produit</Button>
@@ -319,6 +330,21 @@ export default function ProductsPage() {
               <Button onClick={handleCreate}>+ Créer un produit</Button>
             </Card>
           ) : (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Card className="p-5"><p className="text-sm text-muted">Références</p><p className="mt-1 text-2xl font-bold text-foreground">{products.length}</p><p className="mt-1 text-xs text-muted">{filteredProducts.length} affichée(s)</p></Card>
+                <Card className="p-5"><p className="text-sm text-muted">Produits actifs</p><p className="mt-1 text-2xl font-bold text-success">{activeCount}</p><p className="mt-1 text-xs text-muted">Disponibles dans le catalogue</p></Card>
+              </div>
+              <Card className="p-4">
+                <div className="flex flex-col md:flex-row gap-3">
+                  <div className="flex-1"><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un produit ou un SKU..." /></div>
+                  <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="h-10 rounded-md border border-border bg-surface px-3 text-sm text-foreground">
+                    <option value="">Toutes les catégories</option>
+                    {categories.map((category) => <option key={category} value={category}>{category}</option>)}
+                  </select>
+                  <Button variant="outline" onClick={() => { setSearch(''); setCategoryFilter(''); }}>Réinitialiser</Button>
+                </div>
+              </Card>
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -333,7 +359,7 @@ export default function ProductsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {products.map((product) => (
+                    {filteredProducts.map((product) => (
                       <tr key={product.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category || '-'}</td>
@@ -391,6 +417,8 @@ export default function ProductsPage() {
                 </table>
               </div>
             </Card>
+              {filteredProducts.length === 0 && <p className="p-6 text-center text-sm text-muted">Aucun produit ne correspond aux filtres.</p>}
+            </div>
           )}
         </main>
       </div>
