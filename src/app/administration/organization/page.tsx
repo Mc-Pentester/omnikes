@@ -287,5 +287,6 @@ export default function AdministrationOrganizationPage() {
         </div>
       )}
     </main>
+    </AdminPageShell>
   );
 }
