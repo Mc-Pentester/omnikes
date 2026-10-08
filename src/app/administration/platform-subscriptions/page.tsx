@@ -148,7 +148,7 @@ export default function PlatformSubscriptionsPage() {
       {message && <div className="rounded-lg bg-success-soft p-3 text-success">{message}</div>}
 
       <section className="grid gap-6 lg:grid-cols-[1fr_420px]">
-        <div className="overflow-hidden rounded-xl border bg-white">
+        <div className="overflow-hidden rounded-xl border bg-surface">
           <div className="border-b px-5 py-4 font-semibold">Organisations</div>
           <div className="divide-y">
             {organizations.map((organization) => (
@@ -170,7 +170,7 @@ export default function PlatformSubscriptionsPage() {
           </div>
         </div>
 
-        <aside className="rounded-xl border bg-white p-5">
+        <aside className="rounded-xl border bg-surface p-5">
           {selected ? (
             <>
               <h2 className="text-lg font-semibold">{selected.name}</h2>
