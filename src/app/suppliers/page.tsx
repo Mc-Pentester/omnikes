@@ -244,11 +244,11 @@ export default function SuppliersPage() {
   if (authLoading || !user) return authLoading ? <div className="min-h-screen flex items-center justify-center">Chargement...</div> : null;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background flex">
       <Sidebar compact={compact} onToggleCompact={() => setCompact(!compact)} />
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4"><Logo size={40}/><div><h1 className="text-2xl font-bold">Fournisseurs</h1><p className="text-sm text-gray-500">Gérez vos fournisseurs et leurs soldes.</p></div></div>
+        <header className="bg-surface border-b border-border px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4"><Logo size={40}/><div><h1 className="text-2xl font-bold">Fournisseurs</h1><p className="text-sm text-muted">Gérez vos fournisseurs et leurs soldes.</p></div></div>
           <Button onClick={openCreate}>+ Nouveau fournisseur</Button>
         </header>
         <main className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -257,17 +257,17 @@ export default function SuppliersPage() {
             <Button variant="outline" onClick={() => void load()}>Rechercher</Button>
             <label className="flex items-center gap-2 text-sm whitespace-nowrap"><input type="checkbox" checked={includeInactive} onChange={(e) => setIncludeInactive(e.target.checked)} /> Inclure inactifs</label>
           </Card>
-          {error && <Card className="p-4 text-red-600">{error}<Button className="ml-3" variant="outline" onClick={() => void load()}>Réessayer</Button></Card>}
-          {loading ? <Card className="p-12 text-center">Chargement des fournisseurs...</Card> : suppliers.length === 0 ? <Card className="p-12 text-center"><h2 className="text-xl font-bold mb-2">Aucun fournisseur</h2><p className="text-gray-600 mb-5">Créez votre premier fournisseur pour commencer les achats.</p><Button onClick={openCreate}>+ Nouveau fournisseur</Button></Card> : (
-            <Card className="overflow-hidden"><div className="overflow-x-auto"><table className="w-full"><thead className="bg-gray-50 border-b"><tr>
-              {['Code','Fournisseur','Contact','Solde dû','Statut','Actions'].map((h) => <th key={h} className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>)}
+          {error && <Card className="p-4 text-danger">{error}<Button className="ml-3" variant="outline" onClick={() => void load()}>Réessayer</Button></Card>}
+          {loading ? <Card className="p-12 text-center">Chargement des fournisseurs...</Card> : suppliers.length === 0 ? <Card className="p-12 text-center"><h2 className="text-xl font-bold mb-2">Aucun fournisseur</h2><p className="text-muted mb-5">Créez votre premier fournisseur pour commencer les achats.</p><Button onClick={openCreate}>+ Nouveau fournisseur</Button></Card> : (
+            <Card className="overflow-hidden"><div className="overflow-x-auto"><table className="w-full"><thead className="bg-background border-b"><tr>
+              {['Code','Fournisseur','Contact','Solde dû','Statut','Actions'].map((h) => <th key={h} className="px-5 py-3 text-left text-xs font-medium text-muted uppercase">{h}</th>)}
             </tr></thead><tbody className="divide-y">
-              {suppliers.map((supplier) => <tr key={supplier.id} className="hover:bg-gray-50">
+              {suppliers.map((supplier) => <tr key={supplier.id} className="hover:bg-background">
                 <td className="px-5 py-4 text-sm font-medium">{supplier.code}</td>
-                <td className="px-5 py-4"><div className="font-medium">{supplier.name}</div><div className="text-xs text-gray-500">{supplier.address || '-'}</div></td>
-                <td className="px-5 py-4 text-sm"><div>{supplier.phone || '-'}</div><div className="text-xs text-gray-500">{supplier.email || '-'}</div></td>
+                <td className="px-5 py-4"><div className="font-medium">{supplier.name}</div><div className="text-xs text-muted">{supplier.address || '-'}</div></td>
+                <td className="px-5 py-4 text-sm"><div>{supplier.phone || '-'}</div><div className="text-xs text-muted">{supplier.email || '-'}</div></td>
                 <td className="px-5 py-4 text-sm font-semibold">{balance[supplier.id] === undefined ? '—' : balance[supplier.id].toFixed(2) + ' HTG'}</td>
-                <td className="px-5 py-4"><span className={'px-2 py-1 rounded-full text-xs font-semibold ' + (supplier.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700')}>{supplier.isActive ? 'Actif' : 'Inactif'}</span></td>
+                <td className="px-5 py-4"><span className={'px-2 py-1 rounded-full text-xs font-semibold ' + (supplier.isActive ? 'bg-success-soft text-success' : 'bg-surface-muted text-foreground')}>{supplier.isActive ? 'Actif' : 'Inactif'}</span></td>
                 <td className="px-5 py-4"><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => router.push(`/suppliers/${supplier.id}`)}>Détails</Button><Button size="sm" variant="outline" onClick={() => openEdit(supplier)}>Modifier</Button><Button size="sm" variant="outline" onClick={() => openPayment(supplier)}>Payer</Button><Button size="sm" variant="outline" onClick={() => void toggleActive(supplier)}>{supplier.isActive ? 'Désactiver' : 'Activer'}</Button></div></td>
               </tr>)}
             </tbody></table></div></Card>
@@ -276,21 +276,21 @@ export default function SuppliersPage() {
       </div>
       <Modal isOpen={paymentSupplier !== null} onClose={() => setPaymentSupplier(null)} title={paymentSupplier ? 'Payer le fournisseur' : 'Paiement fournisseur'}>
         <form onSubmit={savePayment} className="space-y-4">
-          {paymentError && <div className="p-3 rounded bg-red-50 text-red-700 text-sm">{paymentError}</div>}
-          <div className="text-sm text-gray-600">Fournisseur : <span className="font-semibold text-gray-900">{paymentSupplier?.name}</span></div>
-          <select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" value={paymentStoreId} onChange={(e) => setPaymentStoreId(e.target.value)}>
+          {paymentError && <div className="p-3 rounded bg-danger-soft text-danger text-sm">{paymentError}</div>}
+          <div className="text-sm text-muted">Fournisseur : <span className="font-semibold text-foreground">{paymentSupplier?.name}</span></div>
+          <select className="w-full rounded-md border border-border px-3 py-2 text-sm" value={paymentStoreId} onChange={(e) => setPaymentStoreId(e.target.value)}>
             <option value="">Sélectionner un magasin</option>
             {stores.map((store) => <option key={store.id} value={store.id}>{store.name} ({store.code})</option>)}
           </select>
           <Input placeholder="Montant *" type="number" min="0.01" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} />
-          <select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}>
+          <select className="w-full rounded-md border border-border px-3 py-2 text-sm" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}>
             <option value="BANK">Banque</option>
             <option value="MONCASH">MonCash</option>
             <option value="NATCASH">NatCash</option>
             <option value="CASH">Espèces</option>
             <option value="OTHER">Autre</option>
           </select>
-          {paymentMethod === 'CASH' && <div className={cashSessionId ? 'text-sm text-green-700' : 'text-sm text-amber-700'}>{cashSessionId ? 'Caisse ouverte : paiement en espèces autorisé.' : 'Aucune caisse ouverte pour ce magasin.'}</div>}
+          {paymentMethod === 'CASH' && <div className={cashSessionId ? 'text-sm text-success' : 'text-sm text-warning'}>{cashSessionId ? 'Caisse ouverte : paiement en espèces autorisé.' : 'Aucune caisse ouverte pour ce magasin.'}</div>}
           <Input placeholder="Référence" value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} />
           <Input placeholder="Note" value={paymentNote} onChange={(e) => setPaymentNote(e.target.value)} />
           <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setPaymentSupplier(null)}>Annuler</Button><Button type="submit" disabled={paymentSaving || !stores.length}>{paymentSaving ? 'Enregistrement...' : 'Enregistrer le paiement'}</Button></div>
@@ -298,7 +298,7 @@ export default function SuppliersPage() {
       </Modal>
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editing ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}>
         <form onSubmit={save} className="space-y-4">
-          {formError && <div className="p-3 rounded bg-red-50 text-red-700 text-sm">{formError}</div>}
+          {formError && <div className="p-3 rounded bg-danger-soft text-danger text-sm">{formError}</div>}
           <Input placeholder="Code fournisseur *" value={form.code} onChange={(e) => setForm({...form, code:e.target.value})} disabled={!!editing} />
           <Input placeholder="Nom *" value={form.name} onChange={(e) => setForm({...form, name:e.target.value})} />
           <Input placeholder="Email" type="email" value={form.email} onChange={(e) => setForm({...form, email:e.target.value})} />
