@@ -25,11 +25,11 @@ export class SupplierPaymentService {
     return { payments, total };
   }
 
-  async create(organizationId: string, userId: string, input: unknown) {
+  async create(organizationId: string, userId: string, input: unknown, tx?: Prisma.TransactionClient) {
     const data = supplierPaymentCreateSchema.parse(input);
     const amount = new Prisma.Decimal(data.amount);
 
-    return prisma.$transaction(async (tx) => {
+    const run = async (tx: Prisma.TransactionClient | typeof prisma) => {
       const [store, supplier] = await Promise.all([
         tx.store.findFirst({ where: { id: data.storeId, organizationId, isActive: true }, select: { id: true } }),
         tx.supplier.findFirst({ where: { id: data.supplierId, organizationId, isActive: true }, select: { id: true } }),
@@ -106,7 +106,9 @@ export class SupplierPaymentService {
       }
 
       return payment;
-    });
+    };
+
+    return tx ? run(tx) : prisma.$transaction(run);
   }
 
   async supplierBalance(organizationId: string, supplierId: string, storeId?: string) {
