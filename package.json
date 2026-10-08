@@ -20,7 +20,8 @@
     "bootstrap:local": "npx ts-node -r tsconfig-paths/register --project tsconfig.bootstrap.json scripts/bootstrap-local.ts",
     "bootstrap:embedded-postgres": "npx ts-node -r tsconfig-paths/register --project tsconfig.bootstrap.json scripts/bootstrap-embedded-postgres.ts",
     "prepare:embedded-postgres": "npx ts-node -r tsconfig-paths/register --project tsconfig.bootstrap.json scripts/prepare-embedded-postgres.ts",
-    "prepare:node-runtime": "npx ts-node -r tsconfig-paths/register --project tsconfig.bootstrap.json scripts/prepare-node-runtime.ts"
+    "prepare:node-runtime": "npx ts-node -r tsconfig-paths/register --project tsconfig.bootstrap.json scripts/prepare-node-runtime.ts",
+    "package:windows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package-windows.ps1"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
