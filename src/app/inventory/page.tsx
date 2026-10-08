@@ -297,13 +297,14 @@ export default function InventoryPage() {
       />
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <header className="bg-surface border-b border-border px-6 py-5">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Logo size={40} />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Gestion des stocks</h1>
-                <p className="text-sm text-gray-500">Gérez le stock de vos magasins.</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Stock</p>
+                <h1 className="mt-1 text-2xl font-bold text-foreground">Gestion des stocks</h1>
+                <p className="mt-1 text-sm text-muted">Visualisez, recevez et déplacez votre stock sans perdre le fil des mouvements.</p>
               </div>
             </div>
             <Button variant="outline" onClick={() => router.push('/inventory/report')}>
@@ -327,18 +328,18 @@ export default function InventoryPage() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="p-5">
-                  <p className="text-sm text-gray-500">Articles en stock</p>
-                  <p className="mt-1 text-2xl font-bold text-gray-900">{totalUnits}</p>
+                  <p className="text-sm text-muted">Articles en stock</p>
+                  <p className="mt-1 text-3xl font-bold text-foreground">{totalUnits}</p>
                   <p className="text-xs text-gray-500 mt-1">{inventory.length} références suivies</p>
                 </Card>
                 <Card className="p-5">
-                  <p className="text-sm text-gray-500">Quantités réservées</p>
-                  <p className="mt-1 text-2xl font-bold text-gray-900">{totalReserved}</p>
+                  <p className="text-sm text-muted">Quantités réservées</p>
+                  <p className="mt-1 text-3xl font-bold text-warning">{totalReserved}</p>
                   <p className="text-xs text-gray-500 mt-1">Non disponibles à la vente</p>
                 </Card>
                 <Card className="p-5">
-                  <p className="text-sm text-gray-500">Ruptures</p>
-                  <p className="mt-1 text-2xl font-bold text-gray-900">{zeroStockCount}</p>
+                  <p className="text-sm text-muted">Ruptures</p>
+                  <p className="mt-1 text-3xl font-bold text-danger">{zeroStockCount}</p>
                   <p className="text-xs text-gray-500 mt-1">Références à quantité zéro</p>
                 </Card>
               </div>
@@ -388,8 +389,8 @@ export default function InventoryPage() {
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produit / SKU</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Magasin</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Produit / SKU</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Magasin</th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Stock</th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Réservé</th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Disponible</th>
@@ -406,9 +407,9 @@ export default function InventoryPage() {
                               <div className="text-xs text-gray-500">{item.variant.sku}</div>
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-500">{item.store.name}</td>
-                            <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">{item.quantity}</td>
-                            <td className="px-6 py-4 text-right text-sm text-gray-500">{item.reservedQuantity}</td>
-                            <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">{available}</td>
+                            <td className="px-6 py-4 text-right"><span className={`inline-flex min-w-12 justify-center rounded-full px-2.5 py-1 text-sm font-bold ${item.quantity === 0 ? 'bg-danger-soft text-danger' : item.quantity < 5 ? 'bg-warning-soft text-warning' : 'bg-success-soft text-success'}`}>{item.quantity}</span></td>
+                            <td className="px-6 py-4 text-right text-sm text-muted">{item.reservedQuantity}</td>
+                            <td className="px-6 py-4 text-right"><span className="font-semibold text-foreground">{available}</span><span className="ml-2 text-xs text-muted">{available === 0 ? 'Indisponible' : 'disponible'}</span></td>
                             <td className="px-6 py-4">
                               <div className="flex justify-end gap-2">
                                 <Button variant="outline" size="sm" onClick={() => openHistory(item)}>Historique</Button>
