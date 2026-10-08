@@ -34,6 +34,10 @@ const formatAmount = (value: number | string | null | undefined) =>
     maximumFractionDigits: 2,
   });
 
+const parseAmount = (value: string) => Number(value.replace(',', '.'));
+
+const isPositiveAmount = (value: string) => Number.isFinite(parseAmount(value)) && parseAmount(value) > 0;
+
 export default function CashPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [storeId, setStoreId] = useState('');
@@ -89,7 +93,7 @@ export default function CashPage() {
     const res = await fetch('/api/cash-sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ storeId, openingAmount: Number(opening) }),
+      body: JSON.stringify({ storeId, openingAmount: parseAmount(opening) }),
     });
     const data = await res.json();
     if (!res.ok) return setMessage(data.error ?? 'Ouverture impossible');
@@ -106,7 +110,7 @@ export default function CashPage() {
       body: JSON.stringify({
         action: 'movement',
         type: movementType,
-        amount: Number(movementAmount),
+        amount: parseAmount(movementAmount),
       }),
     });
     const data = await res.json();
@@ -116,12 +120,17 @@ export default function CashPage() {
     await loadSession();
   };
 
+  const countedPreview = counted ? parseAmount(counted) : null;
+  const closingDifference = countedPreview !== null && Number.isFinite(countedPreview)
+    ? countedPreview - session?.expectedAmount!
+    : null;
+
   const closeCash = async () => {
     if (!session) return;
     const res = await fetch('/api/cash-sessions/' + session.session.id, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'close', countedAmount: Number(counted) }),
+      body: JSON.stringify({ action: 'close', countedAmount: parseAmount(counted) }),
     });
     const data = await res.json();
     if (!res.ok) return setMessage(data.error ?? 'Clôture impossible');
@@ -164,8 +173,9 @@ export default function CashPage() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-6xl mx-auto space-y-6">
             {message && (
-              <div className="rounded-[var(--radius-md)] border border-border bg-surface px-4 py-3 text-sm text-foreground shadow-sm">
-                {message}
+              <div className="flex items-center justify-between gap-4 rounded-[var(--radius-md)] border border-primary/20 bg-primary-soft px-4 py-3 text-sm text-foreground">
+                <span>{message}</span>
+                <button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => setMessage('')}>Fermer</button>
               </div>
             )}
 
@@ -230,22 +240,36 @@ export default function CashPage() {
                   </Badge>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                <Card className="overflow-hidden border-primary/20">
+                  <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Disponible théorique</p>
+                      <p className="mt-2 text-4xl font-bold tracking-tight text-foreground">{formatAmount(session.expectedAmount)} <span className="text-lg font-semibold text-muted">HTG</span></p>
+                      <p className="mt-2 text-sm text-muted">Montant attendu en espèces à cet instant, après les ventes, entrées, sorties et remboursements.</p>
+                    </div>
+                    <div className="rounded-[var(--radius-md)] bg-primary-soft px-4 py-3 text-left sm:min-w-44">
+                      <p className="text-xs font-medium text-muted">Fond initial</p>
+                      <p className="mt-1 text-lg font-semibold text-foreground">{formatAmount(session.openingAmount)} HTG</p>
+                    </div>
+                  </div>
+                </Card>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
                   {[
-                    ['Fond initial', session.openingAmount, 'text-foreground'],
                     ['Ventes espèces', session.cashSales, 'text-success'],
                     ['Entrées', session.cashIn, 'text-success'],
                     ['Sorties', session.cashOut, 'text-warning'],
                     ['Remboursements', session.refunds, 'text-danger'],
-                    ['Montant théorique', session.expectedAmount, 'text-primary'],
                   ].map(([label, value, tone]) => (
                     <Card key={label} className="p-5">
                       <p className="text-sm text-muted">{label}</p>
-                      <p className={`mt-2 text-2xl font-bold ${tone}`}>
-                        {formatAmount(value)} <span className="text-sm font-medium">HTG</span>
-                      </p>
+                      <p className={`mt-2 text-xl font-bold ${tone}`}>{formatAmount(value)} <span className="text-xs font-medium">HTG</span></p>
                     </Card>
                   ))}
+                  <Card className="p-5 bg-surface-muted">
+                    <p className="text-sm text-muted">Fond initial</p>
+                    <p className="mt-2 text-xl font-bold text-foreground">{formatAmount(session.openingAmount)} <span className="text-xs font-medium">HTG</span></p>
+                  </Card>
                 </div>
 
                 {session.session.status === 'OPEN' && (
@@ -288,8 +312,8 @@ export default function CashPage() {
                           />
                         </div>
 
-                        <Button disabled={!movementAmount} onClick={addMovement}>
-                          Enregistrer le mouvement
+                        <Button disabled={!isPositiveAmount(movementAmount)} onClick={addMovement}>
+                          {movementType === 'CASH_IN' ? 'Enregistrer l’entrée' : 'Enregistrer la sortie'}
                         </Button>
                       </div>
                     </Card>
@@ -321,7 +345,15 @@ export default function CashPage() {
                         />
                       </div>
 
-                      <Button className="mt-4" disabled={!counted} onClick={closeCash}>
+                      {closingDifference !== null && Number.isFinite(closingDifference) && (
+                        <div className={`mt-4 rounded-[var(--radius-md)] border px-4 py-3 ${closingDifference === 0 ? 'border-success/20 bg-success-soft' : 'border-warning/20 bg-warning-soft'}`}>
+                          <p className="text-xs font-medium text-muted">Écart estimé</p>
+                          <p className={`mt-1 text-lg font-bold ${closingDifference === 0 ? 'text-success' : 'text-warning'}`}>{formatAmount(closingDifference)} HTG</p>
+                          <p className="mt-1 text-xs text-muted">Vérifiez le montant compté avant de confirmer la clôture.</p>
+                        </div>
+                      )}
+
+                      <Button className="mt-4" disabled={!isPositiveAmount(counted)} onClick={closeCash}>
                         Clôturer la caisse
                       </Button>
                     </Card>
