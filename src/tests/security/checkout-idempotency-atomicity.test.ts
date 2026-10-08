@@ -80,7 +80,7 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
           body: JSON.stringify({ method: 'CASH', amount: 100 }),
         });
 
-        await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
+        const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
 
         expect(response.status).toBe(201);
         expect(mockedPrisma.$transaction).toHaveBeenCalled();
