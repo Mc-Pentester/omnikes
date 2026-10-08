@@ -97,7 +97,7 @@ export default function AdministrationAuditPage() {
 
       {error && <div className="rounded-lg bg-danger-soft p-3 text-danger">{error}</div>}
 
-      <section className="rounded-xl border bg-white p-5">
+      <section className="rounded-xl border bg-surface p-5">
         <div className="grid gap-3 md:grid-cols-4">
           <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Rechercher action/module/entité…" className="rounded-lg border px-3 py-2" />
           <select value={module} onChange={(e) => { setModule(e.target.value); setPage(1); }} className="rounded-lg border px-3 py-2">
@@ -115,7 +115,7 @@ export default function AdministrationAuditPage() {
         </div>
       </section>
 
-      <section className="rounded-xl border bg-white overflow-hidden">
+      <section className="rounded-xl border bg-surface overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-surface-muted">
