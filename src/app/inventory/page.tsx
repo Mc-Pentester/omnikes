@@ -456,7 +456,7 @@ export default function InventoryPage() {
                   <div key={movement.id} className="p-3 text-sm">
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-medium text-foreground">{movement.type}</span>
-                      <span className={movement.quantity >= 0 ? 'font-semibold text-success' : 'font-semibold text-red-700'}>
+                      <span className={movement.quantity >= 0 ? 'font-semibold text-success' : 'font-semibold text-danger'}>
                         {movement.quantity >= 0 ? '+' : ''}{movement.quantity}
                       </span>
                     </div>
