@@ -611,10 +611,10 @@ export default function PendingSalesPage() {
 
                   <div className="mt-6 p-4 rounded-lg bg-gray-900 text-white flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div>
-                      <p className="text-sm text-gray-300">Reste à couvrir</p>
+                      <p className="text-sm text-surface-muted">Reste à couvrir</p>
                       <p className="text-2xl font-bold">{money(totals.remaining)} HTG</p>
                     </div>
-                    <p className="text-sm text-gray-300 max-w-xl">
+                    <p className="text-sm text-surface-muted max-w-xl">
                       La finalisation est exclusivement contrôlée par le serveur. Elle intervient seulement lorsque les paiements réels + le crédit explicitement autorisé couvrent le total et que le stock est disponible.
                     </p>
                   </div>
