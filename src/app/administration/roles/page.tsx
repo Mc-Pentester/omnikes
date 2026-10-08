@@ -294,5 +294,6 @@ export default function AdministrationRolesPage() {
         </section>
       </div>
     </main>
+    </AdminPageShell>
   );
 }
