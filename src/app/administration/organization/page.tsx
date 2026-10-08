@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useAuth } from '@omnikes/contexts/AuthContext';
+import { AdminPageShell } from '@omnikes/components/layout/AdminPageShell';
 
 interface Organization {
   id: string;
@@ -134,25 +135,25 @@ export default function AdministrationOrganizationPage() {
   }
 
   return (
-    <main className="p-6 md:p-8 space-y-6">
+    <AdminPageShell><main className="p-6 md:p-8 space-y-6">
       <header>
-        <p className="text-sm text-gray-500">Administration</p>
+        <p className="text-sm text-muted">Administration</p>
         <h1 className="text-3xl font-semibold">Organisation & paramètres</h1>
-        <p className="mt-1 text-gray-600">
+        <p className="mt-1 text-muted">
           Configurer l’identité et les paramètres généraux de l’organisation courante.
         </p>
       </header>
 
       <nav className="flex flex-wrap gap-2">
-        <a href="/administration/users" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">Utilisateurs</a>
-        <a href="/administration/roles" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">Rôles & permissions</a>
-        <a href="/administration/stores" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">Magasins</a>
-        <a href="/administration/organization" className="rounded-lg bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">Organisation</a>
-        <a href="/administration/platform-subscriptions" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">Abonnement</a>
+        <a href="/administration/users" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">Utilisateurs</a>
+        <a href="/administration/roles" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">Rôles & permissions</a>
+        <a href="/administration/stores" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">Magasins</a>
+        <a href="/administration/organization" className="rounded-lg bg-info-soft px-4 py-2 text-sm font-medium text-info">Organisation</a>
+        <a href="/administration/platform-subscriptions" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">Abonnement</a>
       </nav>
 
-      {error && <div className="rounded-lg bg-red-50 p-3 text-red-700">{error}</div>}
-      {message && <div className="rounded-lg bg-green-50 p-3 text-green-700">{message}</div>}
+      {error && <div className="rounded-lg bg-danger-soft p-3 text-danger">{error}</div>}
+      {message && <div className="rounded-lg bg-success-soft p-3 text-success">{message}</div>}
 
       {organization && (
         <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -231,7 +232,7 @@ export default function AdministrationOrganizationPage() {
                   />
                   <span>
                     <span className="block text-sm font-medium">Cloud activé</span>
-                    <span className="block text-xs text-gray-500">Active uniquement le paramètre d’organisation. Aucun hébergement ou synchronisation n’est déclenché par cette page.</span>
+                    <span className="block text-xs text-muted">Active uniquement le paramètre d’organisation. Aucun hébergement ou synchronisation n’est déclenché par cette page.</span>
                   </span>
                 </label>
                 <label className="flex items-start gap-3">
@@ -243,12 +244,12 @@ export default function AdministrationOrganizationPage() {
                   />
                   <span>
                     <span className="block text-sm font-medium">Boutique en ligne activée</span>
-                    <span className="block text-xs text-gray-500">Active uniquement le paramètre d’organisation. La boutique reste un module optionnel.</span>
+                    <span className="block text-xs text-muted">Active uniquement le paramètre d’organisation. La boutique reste un module optionnel.</span>
                   </span>
                 </label>
               </div>
 
-              <button disabled={saving} className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-white disabled:opacity-50">
+              <button disabled={saving} className="w-full rounded-lg bg-primary px-4 py-2.5 text-white disabled:opacity-50">
                 {saving ? 'Enregistrement…' : 'Enregistrer les paramètres'}
               </button>
             </form>
@@ -259,26 +260,26 @@ export default function AdministrationOrganizationPage() {
               <h2 className="text-lg font-semibold">Identité technique</h2>
               <dl className="mt-4 space-y-3 text-sm">
                 <div>
-                  <dt className="text-gray-500">Slug</dt>
+                  <dt className="text-muted">Slug</dt>
                   <dd className="mt-1 break-all font-mono">{organization.slug}</dd>
                 </div>
                 <div>
-                  <dt className="text-gray-500">Identifiant</dt>
+                  <dt className="text-muted">Identifiant</dt>
                   <dd className="mt-1 break-all font-mono">{organization.id}</dd>
                 </div>
                 <div>
-                  <dt className="text-gray-500">Configuration fiscale</dt>
+                  <dt className="text-muted">Configuration fiscale</dt>
                   <dd className="mt-1 font-mono">{organization.taxConfigurationId ?? 'Non définie'}</dd>
                 </div>
               </dl>
-              <p className="mt-4 text-xs text-gray-500">
+              <p className="mt-4 text-xs text-muted">
                 Le slug et l’identifiant sont en lecture seule. La configuration fiscale reste gérée par le mécanisme fiscal existant.
               </p>
             </section>
 
-            <section className="rounded-xl border bg-gray-50 p-5">
+            <section className="rounded-xl border bg-surface-muted p-5">
               <h2 className="font-semibold">Mode de fonctionnement</h2>
-              <p className="mt-2 text-sm text-gray-600">
+              <p className="mt-2 text-sm text-muted">
                 OmniKès reste local-first. Les options Cloud et Boutique en ligne sont explicites et ne sont jamais activées automatiquement.
               </p>
             </section>
