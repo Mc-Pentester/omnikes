@@ -125,22 +125,29 @@ export class PurchaseService {
     const data = purchaseReceiveSchema.parse(input);
 
     return prisma.$transaction(async (tx) => {
+      const lockedPurchase = await tx.$queryRaw<Array<{ id: string }>>` SELECT `id` FROM `purchases` WHERE `id` = ${id} AND `organizationId` = ${organizationId} FOR UPDATE `;
+      if (!lockedPurchase[0]) throw new Error('Purchase not found or access denied');
+
       const purchase = await tx.purchase.findFirst({
-        where: { id, organizationId },
+        where: { id: lockedPurchase[0].id, organizationId },
         include: { items: true },
       });
       if (!purchase) throw new Error('Purchase not found or access denied');
+      if (purchase.status === 'DRAFT') throw new Error('Draft purchases must be ordered before receipt');
       if (purchase.status === 'CANCELLED') throw new Error('Cancelled purchases cannot be received');
       if (purchase.status === 'RECEIVED') throw new Error('Purchase is already fully received');
 
       const itemMap = new Map(purchase.items.map((item) => [item.id, item]));
+      const receivedByItem = new Map<string, number>();
       for (const received of data.items) {
         const item = itemMap.get(received.purchaseItemId);
         if (!item) throw new Error('Purchase item not found');
-        const remaining = item.orderedQuantity - item.receivedQuantity;
+        const alreadyRequested = receivedByItem.get(item.id) ?? 0;
+        const remaining = item.orderedQuantity - item.receivedQuantity - alreadyRequested;
         if (received.quantity > remaining) {
           throw new Error(`Cannot receive more than remaining quantity for purchase item ${item.id}`);
         }
+        receivedByItem.set(item.id, alreadyRequested + received.quantity);
 
         let existingInventory = await tx.inventory.findUnique({
           where: { storeId_variantId: { storeId: purchase.storeId, variantId: item.variantId } },
@@ -197,7 +204,7 @@ export class PurchaseService {
 
         await tx.purchaseItem.update({
           where: { id: item.id },
-          data: { receivedQuantity: item.receivedQuantity + received.quantity },
+          data: { receivedQuantity: item.receivedQuantity + receivedByItem.get(item.id)! },
         });
       }
 
