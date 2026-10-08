@@ -129,7 +129,7 @@ export default function AdministrationOrganizationPage() {
     return (
       <main className="p-8">
         <h1 className="text-2xl font-semibold">Administration</h1>
-        <p className="mt-4 text-red-600">Vous n’avez pas l’autorisation de consulter les paramètres de l’organisation.</p>
+        <p className="mt-4 text-danger">Vous n’avez pas l’autorisation de consulter les paramètres de l’organisation.</p>
       </main>
     );
   }
@@ -157,7 +157,7 @@ export default function AdministrationOrganizationPage() {
 
       {organization && (
         <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-          <section className="rounded-xl border bg-white p-5">
+          <section className="rounded-xl border bg-surface p-5">
             <h2 className="text-lg font-semibold">Paramètres généraux</h2>
             <form onSubmit={submit} className="mt-5 space-y-5">
               <label className="block">
@@ -256,7 +256,7 @@ export default function AdministrationOrganizationPage() {
           </section>
 
           <aside className="space-y-4">
-            <section className="rounded-xl border bg-white p-5">
+            <section className="rounded-xl border bg-surface p-5">
               <h2 className="text-lg font-semibold">Identité technique</h2>
               <dl className="mt-4 space-y-3 text-sm">
                 <div>

@@ -149,7 +149,7 @@ export default function AdministrationStoresPage() {
     return (
       <main className="p-8">
         <h1 className="text-2xl font-semibold">Administration</h1>
-        <p className="mt-4 text-red-600">Vous n’avez pas l’autorisation de gérer les magasins.</p>
+        <p className="mt-4 text-danger">Vous n’avez pas l’autorisation de gérer les magasins.</p>
       </main>
     );
   }
@@ -182,7 +182,7 @@ export default function AdministrationStoresPage() {
       {message && <div className="rounded-lg bg-success-soft p-3 text-success">{message}</div>}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
-        <section className="rounded-xl border bg-white">
+        <section className="rounded-xl border bg-surface">
           <div className="divide-y">
             {stores.map((store) => (
               <button
@@ -195,7 +195,7 @@ export default function AdministrationStoresPage() {
                     <div className="font-medium">{store.name}</div>
                     <div className="text-sm text-muted">{store.code}{store.city ? ` · ${store.city}` : ''}</div>
                   </div>
-                  <span className={`rounded-full px-2 py-1 text-xs ${store.isActive ? 'bg-green-100 text-success' : 'bg-surface-muted text-muted'}`}>
+                  <span className={`rounded-full px-2 py-1 text-xs ${store.isActive ? 'bg-success-soft text-success' : 'bg-surface-muted text-muted'}`}>
                     {store.isActive ? 'Actif' : 'Inactif'}
                   </span>
                 </div>
@@ -208,7 +208,7 @@ export default function AdministrationStoresPage() {
           </div>
         </section>
 
-        <section className="rounded-xl border bg-white p-5">
+        <section className="rounded-xl border bg-surface p-5">
           <h2 className="text-lg font-semibold">{selected ? 'Modifier le magasin' : 'Créer un magasin'}</h2>
           <form onSubmit={submit} className="mt-5 space-y-4">
             <label className="block">

@@ -164,7 +164,7 @@ export default function AdministrationRolesPage() {
     return (
       <main className="p-8">
         <h1 className="text-2xl font-semibold">Administration</h1>
-        <p className="mt-4 text-red-600">Vous n’avez pas l’autorisation de gérer les rôles.</p>
+        <p className="mt-4 text-danger">Vous n’avez pas l’autorisation de gérer les rôles.</p>
       </main>
     );
   }
@@ -196,7 +196,7 @@ export default function AdministrationRolesPage() {
       {message && <div className="rounded-lg bg-success-soft p-3 text-success">{message}</div>}
 
       <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
-        <section className="rounded-xl border bg-white">
+        <section className="rounded-xl border bg-surface">
           <div className="border-b p-4 font-semibold">Rôles de l’organisation</div>
           <div className="divide-y">
             {roles.map((role) => (
@@ -219,7 +219,7 @@ export default function AdministrationRolesPage() {
           </div>
         </section>
 
-        <section className="rounded-xl border bg-white p-5">
+        <section className="rounded-xl border bg-surface p-5">
           <h2 className="text-lg font-semibold">{selectedRole ? 'Modifier le rôle' : 'Créer un rôle'}</h2>
 
           <form onSubmit={submit} className="mt-5 space-y-5">
