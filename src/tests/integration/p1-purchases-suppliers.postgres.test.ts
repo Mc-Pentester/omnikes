@@ -115,7 +115,7 @@ describe('P1 achats / fournisseurs PostgreSQL runtime proof', () => {
       supplierPaymentService.create(ids.org, ids.user, {
         storeId: ids.store,
         supplierId: ids.supplier,
-        amount: 50,
+        amount: 650,
         method: 'BANK',
         reference: `DRAFT-PAY-${suffix}`,
       }),
