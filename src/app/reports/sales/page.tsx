@@ -241,7 +241,7 @@ export default function SalesReportPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-background flex">
         <Sidebar
           compact={isSidebarCompact}
           onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)}
@@ -260,7 +260,7 @@ export default function SalesReportPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-background flex">
         <Sidebar
           compact={isSidebarCompact}
           onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)}
@@ -268,7 +268,7 @@ export default function SalesReportPage() {
         <div className="flex-1 flex flex-col h-screen overflow-hidden">
           <div className="p-8">
             <h1 className="text-3xl font-bold mb-8">Rapport des Ventes</h1>
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="bg-danger-soft border border-danger text-danger px-4 py-3 rounded">
               {error}
             </div>
           </div>
@@ -278,7 +278,7 @@ export default function SalesReportPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background flex">
       <Sidebar
         compact={isSidebarCompact}
         onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)}
@@ -287,15 +287,15 @@ export default function SalesReportPage() {
         <div className="p-8 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
             <div className="mb-6">
-              <Link href="/reports" className="text-blue-500 hover:underline">
+              <Link href="/reports" className="text-primary hover:underline">
                 ← Tous les rapports
               </Link>
             </div>
             <h1 className="text-3xl font-bold mb-2">Rapport des Ventes</h1>
-            <p className="text-gray-600 mb-8">Analyse des ventes, du chiffre d&apos;affaires et des paiements.</p>
+            <p className="text-muted mb-8">Analyse des ventes, du chiffre d&apos;affaires et des paiements.</p>
 
             {/* Filtres */}
-            <div className="bg-white border rounded-lg p-6 mb-8">
+            <div className="bg-surface border rounded-[var(--radius-lg)] p-6 mb-8">
               <h2 className="text-lg font-semibold mb-4">Filtres du rapport</h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div>
@@ -350,19 +350,19 @@ export default function SalesReportPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={setToday}
-                      className="flex-1 bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600"
+                      className="flex-1 bg-info-soft0 text-white px-3 py-2 rounded hover:bg-primary-hover"
                     >
                       Aujourd&apos;hui
                     </button>
                     <button
                       onClick={setLast7Days}
-                      className="flex-1 bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600"
+                      className="flex-1 bg-info-soft0 text-white px-3 py-2 rounded hover:bg-primary-hover"
                     >
                       7 jours
                     </button>
                     <button
                       onClick={setLast30Days}
-                      className="flex-1 bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600"
+                      className="flex-1 bg-info-soft0 text-white px-3 py-2 rounded hover:bg-primary-hover"
                     >
                       30 jours
                     </button>
@@ -375,44 +375,44 @@ export default function SalesReportPage() {
             {summary && (
               <>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-                <div className="bg-white border rounded-lg p-6 shadow-sm">
-                  <div className="text-sm text-gray-600 mb-1">CA Total</div>
-                  <div className="text-2xl font-bold text-green-600">{formatCurrency(summary.totalRevenue)}</div>
+                <div className="bg-surface border rounded-[var(--radius-lg)] p-6 shadow-sm">
+                  <div className="text-sm text-muted mb-1">CA Total</div>
+                  <div className="text-2xl font-bold text-success">{formatCurrency(summary.totalRevenue)}</div>
                 </div>
-                <div className="bg-white border rounded-lg p-6 shadow-sm">
-                  <div className="text-sm text-gray-600 mb-1">Ventes</div>
-                  <div className="text-2xl font-bold text-blue-600">{summary.salesCount}</div>
+                <div className="bg-surface border rounded-[var(--radius-lg)] p-6 shadow-sm">
+                  <div className="text-sm text-muted mb-1">Ventes</div>
+                  <div className="text-2xl font-bold text-info">{summary.salesCount}</div>
                 </div>
-                <div className="bg-white border rounded-lg p-6 shadow-sm">
-                  <div className="text-sm text-gray-600 mb-1">Panier Moyen</div>
-                  <div className="text-2xl font-bold text-purple-600">{formatCurrency(summary.averageSale)}</div>
+                <div className="bg-surface border rounded-[var(--radius-lg)] p-6 shadow-sm">
+                  <div className="text-sm text-muted mb-1">Panier Moyen</div>
+                  <div className="text-2xl font-bold text-info">{formatCurrency(summary.averageSale)}</div>
                 </div>
-                <div className="bg-white border rounded-lg p-6 shadow-sm">
-                  <div className="text-sm text-gray-600 mb-1">Taxes</div>
-                  <div className="text-2xl font-bold text-orange-600">{formatCurrency(summary.totalTax)}</div>
+                <div className="bg-surface border rounded-[var(--radius-lg)] p-6 shadow-sm">
+                  <div className="text-sm text-muted mb-1">Taxes</div>
+                  <div className="text-2xl font-bold text-warning">{formatCurrency(summary.totalTax)}</div>
                 </div>
-                <div className="bg-white border rounded-lg p-6 shadow-sm">
-                  <div className="text-sm text-gray-600 mb-1">Remises</div>
-                  <div className="text-2xl font-bold text-red-600">{formatCurrency(summary.totalDiscount)}</div>
+                <div className="bg-surface border rounded-[var(--radius-lg)] p-6 shadow-sm">
+                  <div className="text-sm text-muted mb-1">Remises</div>
+                  <div className="text-2xl font-bold text-danger">{formatCurrency(summary.totalDiscount)}</div>
                 </div>
               </div>
-              <div className="bg-white border rounded-lg p-6 mb-8 shadow-sm">
+              <div className="bg-surface border rounded-[var(--radius-lg)] p-6 mb-8 shadow-sm">
                 <h2 className="text-lg font-semibold mb-4">Rapprochement financier</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <div className="text-sm text-gray-600 mb-1">Paiements réels</div>
+                    <div className="text-sm text-muted mb-1">Paiements réels</div>
                     <div className="text-xl font-bold">{formatCurrency(summary.totalPaid)}</div>
-                    <div className="text-xs text-gray-500">Paiements COMPLETED hors CREDIT</div>
+                    <div className="text-xs text-muted">Paiements COMPLETED hors CREDIT</div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600 mb-1">Crédit autorisé</div>
+                    <div className="text-sm text-muted mb-1">Crédit autorisé</div>
                     <div className="text-xl font-bold">{formatCurrency(summary.authorizedCredit)}</div>
-                    <div className="text-xs text-gray-500">SaleCredit AUTHORIZED</div>
+                    <div className="text-xs text-muted">SaleCredit AUTHORIZED</div>
                   </div>
                   <div>
-                    <div className="text-sm text-gray-600 mb-1">Montant non couvert</div>
+                    <div className="text-sm text-muted mb-1">Montant non couvert</div>
                     <div className="text-xl font-bold">{formatCurrency(summary.uncoveredAmount)}</div>
-                    <div className="text-xs text-gray-500">CA complété − paiements réels − crédit autorisé</div>
+                    <div className="text-xs text-muted">CA complété − paiements réels − crédit autorisé</div>
                   </div>
                 </div>
               </div>
@@ -420,10 +420,10 @@ export default function SalesReportPage() {
             )}
 
             {/* Évolution des ventes */}
-            <div className="bg-white border rounded-lg p-6 mb-8 shadow-sm">
+            <div className="bg-surface border rounded-[var(--radius-lg)] p-6 mb-8 shadow-sm">
               <h2 className="text-lg font-semibold mb-4">Évolution des Ventes</h2>
               {byPeriod.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">Aucune donnée disponible</div>
+                <div className="text-center py-8 text-muted">Aucune donnée disponible</div>
               ) : (
                 <div className="space-y-3">
                   {byPeriod.map((item) => {
@@ -433,11 +433,11 @@ export default function SalesReportPage() {
                       <div key={item.period} className="space-y-1">
                         <div className="flex justify-between text-sm">
                           <span className="font-medium">{item.period}</span>
-                          <span className="text-gray-600">{formatCurrency(item.revenue)} ({item.salesCount} ventes)</span>
+                          <span className="text-muted">{formatCurrency(item.revenue)} ({item.salesCount} ventes)</span>
                         </div>
-                        <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-4 bg-surface-muted rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                            className="h-full bg-info-soft0 rounded-full transition-all duration-300"
                             style={{ width: `${percentage}%` }}
                           />
                         </div>
@@ -450,10 +450,10 @@ export default function SalesReportPage() {
 
             {/* Répartition des paiements */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              <div className="bg-white border rounded-lg p-6 shadow-sm">
+              <div className="bg-surface border rounded-[var(--radius-lg)] p-6 shadow-sm">
                 <h2 className="text-lg font-semibold mb-4">Répartition des Paiements</h2>
                 {byPaymentMethod.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">Aucune donnée disponible</div>
+                  <div className="text-center py-8 text-muted">Aucune donnée disponible</div>
                 ) : (
                   <div className="space-y-3">
                     {byPaymentMethod.map((item) => {
@@ -463,15 +463,15 @@ export default function SalesReportPage() {
                         <div key={item.paymentMethod} className="space-y-1">
                           <div className="flex justify-between text-sm">
                             <span className="font-medium">{item.paymentMethod}</span>
-                            <span className="text-gray-600">{formatCurrency(item.amount)}</span>
+                            <span className="text-muted">{formatCurrency(item.amount)}</span>
                           </div>
-                          <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-3 bg-surface-muted rounded-full overflow-hidden">
                             <div 
-                              className="h-full bg-green-500 rounded-full transition-all duration-300"
+                              className="h-full bg-success-soft0 rounded-full transition-all duration-300"
                               style={{ width: `${percentage}%` }}
                             />
                           </div>
-                          <div className="text-xs text-gray-500">{item.transactionCount} transactions</div>
+                          <div className="text-xs text-muted">{item.transactionCount} transactions</div>
                         </div>
                       );
                     })}
@@ -479,10 +479,10 @@ export default function SalesReportPage() {
                 )}
               </div>
 
-              <div className="bg-white border rounded-lg p-6 shadow-sm">
+              <div className="bg-surface border rounded-[var(--radius-lg)] p-6 shadow-sm">
                 <h2 className="text-lg font-semibold mb-4">Ventes par Magasin</h2>
                 {byStore.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">Aucune donnée disponible</div>
+                  <div className="text-center py-8 text-muted">Aucune donnée disponible</div>
                 ) : (
                   <div className="space-y-3">
                     {byStore.map((item) => {
@@ -492,15 +492,15 @@ export default function SalesReportPage() {
                         <div key={item.storeId} className="space-y-1">
                           <div className="flex justify-between text-sm">
                             <span className="font-medium">{item.storeName}</span>
-                            <span className="text-gray-600">{formatCurrency(item.revenue)}</span>
+                            <span className="text-muted">{formatCurrency(item.revenue)}</span>
                           </div>
-                          <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-3 bg-surface-muted rounded-full overflow-hidden">
                             <div 
-                              className="h-full bg-purple-500 rounded-full transition-all duration-300"
+                              className="h-full bg-info-soft0 rounded-full transition-all duration-300"
                               style={{ width: `${percentage}%` }}
                             />
                           </div>
-                          <div className="text-xs text-gray-500">{item.salesCount} ventes</div>
+                          <div className="text-xs text-muted">{item.salesCount} ventes</div>
                         </div>
                       );
                     })}
@@ -510,12 +510,12 @@ export default function SalesReportPage() {
             </div>
 
             {/* Liste des ventes */}
-            <div className="bg-white border rounded-lg p-6 mb-8">
+            <div className="bg-surface border rounded-[var(--radius-lg)] p-6 mb-8">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Liste des Ventes</h2>
                 <button
                   onClick={() => setShowSalesList(!showSalesList)}
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  className="bg-info-soft0 text-white px-4 py-2 rounded hover:bg-primary-hover"
                 >
                   {showSalesList ? 'Masquer' : 'Afficher'}
                 </button>
@@ -567,13 +567,13 @@ export default function SalesReportPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={handleListSearch}
-                        className="flex-1 bg-green-500 text-white px-3 py-2 rounded hover:bg-green-600"
+                        className="flex-1 bg-success-soft0 text-white px-3 py-2 rounded hover:bg-green-600"
                       >
                         Rechercher
                       </button>
                       <button
                         onClick={handleListReset}
-                        className="flex-1 bg-gray-500 text-white px-3 py-2 rounded hover:bg-gray-600"
+                        className="flex-1 bg-background0 text-white px-3 py-2 rounded hover:bg-gray-600"
                       >
                         Réinitialiser
                       </button>
@@ -581,7 +581,7 @@ export default function SalesReportPage() {
                   </div>
                   <div className="overflow-x-auto">
                     {salesList.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">Aucune vente trouvée pour ces critères</div>
+                      <div className="text-center py-8 text-muted">Aucune vente trouvée pour ces critères</div>
                     ) : (
                       <table className="w-full">
                         <thead>
@@ -600,20 +600,20 @@ export default function SalesReportPage() {
                         </thead>
                         <tbody>
                           {salesList.map((sale) => (
-                            <tr key={sale.id} className="border-b hover:bg-gray-50">
+                            <tr key={sale.id} className="border-b hover:bg-background">
                               <td className="py-2 font-medium">{sale.orderNumber}</td>
                               <td className="py-2">{formatDate(sale.createdAt)}</td>
                               <td className="py-2">{sale.store.name} ({sale.store.code})</td>
                               <td className="py-2">{sale.customer?.name || 'N/A'}</td>
                               <td className="text-right py-2">{formatCurrency(sale.subtotal)}</td>
-                              <td className="text-right py-2 text-red-600">-{formatCurrency(sale.discount)}</td>
+                              <td className="text-right py-2 text-danger">-{formatCurrency(sale.discount)}</td>
                               <td className="text-right py-2">{formatCurrency(sale.tax)}</td>
                               <td className="text-right py-2 font-medium">{formatCurrency(sale.total)}</td>
                               <td className="py-2">
                                 <span className={`px-2 py-1 rounded text-xs ${
-                                  sale.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                                  sale.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
-                                  'bg-yellow-100 text-yellow-800'
+                                  sale.status === 'COMPLETED' ? 'bg-success-soft text-success' :
+                                  sale.status === 'CANCELLED' ? 'bg-danger-soft text-danger' :
+                                  'bg-warning-soft text-warning'
                                 }`}>
                                   {sale.status}
                                 </span>
@@ -622,7 +622,7 @@ export default function SalesReportPage() {
                                 <div className="flex flex-wrap gap-2">
                                   <Link
                                     href={`/reports/sales/${sale.id}`}
-                                    className="text-blue-500 hover:underline"
+                                    className="text-primary hover:underline"
                                   >
                                     Voir
                                   </Link>
@@ -631,7 +631,7 @@ export default function SalesReportPage() {
                                       href={`/sales/${sale.id}/receipt`}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-green-600 hover:text-green-700 hover:underline font-medium"
+                                      className="text-success hover:text-success hover:underline font-medium"
                                     >
                                       🧾 Réimprimer
                                     </Link>
@@ -646,21 +646,21 @@ export default function SalesReportPage() {
                   </div>
                   {totalPages > 1 && (
                     <div className="flex justify-between items-center mt-4">
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-muted">
                         Page {page} sur {totalPages} ({total} résultats)
                       </div>
                       <div className="flex gap-2">
                         <button
                           onClick={() => setPage(Math.max(1, page - 1))}
                           disabled={page === 1}
-                          className="px-4 py-2 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-4 py-2 border rounded hover:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           ← Précédent
                         </button>
                         <button
                           onClick={() => setPage(Math.min(totalPages, page + 1))}
                           disabled={page === totalPages}
-                          className="px-4 py-2 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-4 py-2 border rounded hover:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Suivant →
                         </button>
