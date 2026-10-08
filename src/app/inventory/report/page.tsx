@@ -228,7 +228,7 @@ export default function InventoryReportPage() {
                 </button>
                 <button
                   onClick={() => { setStartDate(''); setEndDate(''); setPage(1); }}
-                  className="bg-background0 text-white px-4 py-2 rounded hover:bg-gray-600"
+                  className="bg-background0 text-white px-4 py-2 rounded hover:bg-primary-hover"
                 >
                   Réinitialiser
                 </button>
