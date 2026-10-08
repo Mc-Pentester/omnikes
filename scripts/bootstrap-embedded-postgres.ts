@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import net from 'node:net';
+import { Client } from 'pg';
 
 function env(name: string): string | undefined {
   const value = process.env[name]?.trim();
@@ -31,13 +32,26 @@ function dataDir(): string {
   return path.resolve(env('OMNIKES_POSTGRES_DATA') || path.join('runtime', 'postgresql-data'));
 }
 
+function postgresUser(): string {
+  return env('OMNIKES_POSTGRES_USER') || 'omnikes';
+}
+
+function postgresDatabase(): string {
+  return env('OMNIKES_POSTGRES_DATABASE') || 'omnikes';
+}
+
+function postgresPort(): number {
+  const port = Number(env('OMNIKES_POSTGRES_PORT') || '5432');
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+    throw new Error('OMNIKES_POSTGRES_PORT must be a valid TCP port');
+  }
+  return port;
+}
+
 function databaseUrl(): string {
   const host = env('OMNIKES_POSTGRES_HOST') || '127.0.0.1';
-  const port = env('OMNIKES_POSTGRES_PORT') || '5432';
-  const database = env('OMNIKES_POSTGRES_DATABASE') || 'omnikes';
-  const user = env('OMNIKES_POSTGRES_USER') || 'omnikes';
   const password = required('OMNIKES_POSTGRES_PASSWORD');
-  return `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${database}`;
+  return `postgresql://${encodeURIComponent(postgresUser())}:${encodeURIComponent(password)}@${host}:${postgresPort()}/${postgresDatabase()}`;
 }
 
 function canConnect(port: number): Promise<boolean> {
@@ -70,6 +84,44 @@ function ensurePasswordFile(password: string): string {
   return file;
 }
 
+async function verifyExistingInstance(url: string): Promise<void> {
+  const client = new Client({ connectionString: url, connectionTimeoutMillis: 3000 });
+  try {
+    await client.connect();
+    const result = await client.query<{ version: string }>('SELECT version()');
+    console.log(`Existing PostgreSQL accepted the OmniKès connection: ${result.rows[0]?.version || 'unknown'}`);
+  } catch {
+    throw new Error(
+      'A PostgreSQL instance is already listening on the configured port, but it does not accept the configured OmniKès credentials. Refusing to overwrite or replace it.'
+    );
+  } finally {
+    await client.end().catch(() => undefined);
+  }
+}
+
+async function ensureDatabase(url: string): Promise<void> {
+  const adminUrl = new URL(url);
+  adminUrl.pathname = '/postgres';
+  const target = postgresDatabase();
+  const client = new Client({ connectionString: adminUrl.toString(), connectionTimeoutMillis: 5000 });
+  try {
+    await client.connect();
+    const exists = await client.query<{ exists: number }>(
+      'SELECT 1 AS exists FROM pg_database WHERE datname = $1',
+      [target],
+    );
+    if (exists.rowCount === 0) {
+      const identifier = '"' + target.replaceAll('"', '""') + '"';
+      await client.query(`CREATE DATABASE ${identifier}`);
+      console.log(`Database "${target}" created.`);
+    } else {
+      console.log(`Database "${target}" already exists: preserved.`);
+    }
+  } finally {
+    await client.end().catch(() => undefined);
+  }
+}
+
 async function main(): Promise<void> {
   const checkOnly = process.argv.includes('--check');
   const home = postgresHome();
@@ -85,14 +137,13 @@ async function main(): Promise<void> {
     return;
   }
 
-  const port = Number(env('OMNIKES_POSTGRES_PORT') || '5432');
-  if (!Number.isInteger(port) || port < 1024 || port > 65535) {
-    throw new Error('OMNIKES_POSTGRES_PORT must be a valid TCP port');
-  }
+  const port = postgresPort();
+  const url = databaseUrl();
 
   if (await canConnect(port)) {
     console.log(`PostgreSQL is already listening on 127.0.0.1:${port}; existing instance preserved.`);
-    process.env.DATABASE_URL = databaseUrl();
+    await verifyExistingInstance(url);
+    process.env.DATABASE_URL = url;
     return;
   }
 
@@ -103,7 +154,7 @@ async function main(): Promise<void> {
     mkdirSync(data, { recursive: true });
     run(bin('initdb'), [
       '-D', data,
-      '-U', env('OMNIKES_POSTGRES_USER') || 'omnikes',
+      '-U', postgresUser(),
       '--pwfile=' + passwordFile,
       '--encoding=UTF8',
       '--no-locale',
@@ -115,20 +166,25 @@ async function main(): Promise<void> {
 
   const serviceName = env('OMNIKES_POSTGRES_SERVICE_NAME') || 'OmniKesPostgreSQL';
   if (process.platform === 'win32') {
-    run(bin('pg_ctl'), [
-      'register',
-      '-D', data,
-      '-N', serviceName,
-      '-S', 'auto',
-      '-o', `-p ${port}`,
-    ]);
+    const serviceQuery = execFileSync('sc.exe', ['query', serviceName], { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    if (!serviceQuery) {
+      run(bin('pg_ctl'), [
+        'register',
+        '-D', data,
+        '-N', serviceName,
+        '-S', 'auto',
+        '-o', `-p ${port}`,
+      ]);
+    } else {
+      console.log(`Windows service ${serviceName} already exists: preserved.`);
+    }
   }
 
   const logFile = path.join(data, 'omnikes-postgresql.log');
   run(bin('pg_ctl'), ['start', '-D', data, '-l', logFile, '-w', '-o', `-p ${port}`]);
 
-  const url = databaseUrl();
   process.env.DATABASE_URL = url;
+  await ensureDatabase(url);
 
   const envPath = path.resolve('.env');
   if (!existsSync(envPath)) {
