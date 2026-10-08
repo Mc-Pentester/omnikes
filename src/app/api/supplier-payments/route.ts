@@ -74,6 +74,10 @@ export async function POST(request: NextRequest) {
     const parsed = supplierPaymentCreateSchema.parse(await request.json());
     paymentData = parsed as unknown as Record<string, unknown>;
 
+    if (!organizationId || !userId || !idempotencyKey) {
+      throw new Error('Unable to establish authenticated payment context');
+    }
+
     const existing = await prisma.supplierPaymentIdempotency.findUnique({
       where: {
         organizationId_key: {
