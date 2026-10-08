@@ -222,5 +222,6 @@ export default function PlatformSubscriptionsPage() {
         </aside>
       </section>
     </main>
+    </AdminPageShell>
   );
 }
