@@ -68,7 +68,7 @@ export default function ProformaPrintPage() {
     };
   }, [proforma]);
 
-  if (error) return <main className="p-8 text-red-600">{error}</main>;
+  if (error) return <main className="p-8 text-danger">{error}</main>;
   if (!proforma) return <main className="p-8">Préparation de l’impression...</main>;
 
   const hasActiveSubscription = proforma.organization?.subscriptionStatus === 'ACTIVE'

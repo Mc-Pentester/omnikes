@@ -108,7 +108,7 @@ export default function ReceiptPrintPage() {
   }, [sale]);
 
   if (error) {
-    return <main className="p-6 text-red-600">{error}</main>;
+    return <main className="p-6 text-danger">{error}</main>;
   }
 
   if (!sale) {
