@@ -16,6 +16,7 @@ interface Store { id:string; name:string; isActive:boolean; }
 interface Item { id:string; variantId:string; orderedQuantity:number; receivedQuantity:number; unitCost:number; totalCost:number; variant:{ sku:string; product:{name:string} } }
 interface Purchase { id:string; reference:string; status:Status; subtotal:number; tax:number; discount:number; total:number; createdAt:string; supplier:{name:string;code:string}; store:{name:string}; items:Item[]; }
 interface InventoryOption { variantId:string; variant:{id:string;sku:string;product:{name:string}}; store:{id:string;name:string}; }
+interface PurchaseDraftItem { variantId:string; quantity:string; unitCost:string; }
 
 const money = (v:number) => Number(v || 0).toFixed(2) + ' HTG';
 const statusLabel:Record<Status,string> = { DRAFT:'Brouillon', ORDERED:'Commandée', PARTIALLY_RECEIVED:'Partiellement reçue', RECEIVED:'Reçue', CANCELLED:'Annulée' };
@@ -36,7 +37,8 @@ export default function PurchasesPage() {
   const [compact,setCompact]=useState(false);
   const [saving,setSaving]=useState(false);
   const [formError,setFormError]=useState<string|null>(null);
-  const [form,setForm]=useState({storeId:'',supplierId:'',reference:'',tax:'0',discount:'0',notes:'',variantId:'',quantity:'1',unitCost:'0'});
+  const [form,setForm]=useState({storeId:'',supplierId:'',reference:'',tax:'0',discount:'0',notes:''});
+  const [draftItems,setDraftItems]=useState<PurchaseDraftItem[]>([{variantId:'',quantity:'1',unitCost:'0'}]);
   const [receiveQty,setReceiveQty]=useState<Record<string,string>>({});
 
   const loadPurchases=useCallback(async()=>{setLoading(true);setError(null);try{
@@ -53,9 +55,9 @@ export default function PurchasesPage() {
   useEffect(()=>{if(!authLoading&&!user)router.push('/login');},[authLoading,user,router]);
   useEffect(()=>{if(user){const timer=window.setTimeout(()=>{void loadRefs();void loadPurchases();},0);return()=>window.clearTimeout(timer);}},[user, loadRefs, loadPurchases]);
   const action=async(id:string,path:string)=>{const r=await fetch('/api/purchases/'+id+'/'+path,{method:'POST'});const d=await r.json().catch(()=>({}));if(!r.ok){alert(d.error||'Action impossible');return;}await loadPurchases();};
-  const create=async(e:React.FormEvent)=>{e.preventDefault();setFormError(null);if(!form.storeId||!form.supplierId||!form.reference||!form.variantId){setFormError('Magasin, fournisseur, référence et article sont obligatoires.');return;}setSaving(true);try{
-    const r=await fetch('/api/purchases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({storeId:form.storeId,supplierId:form.supplierId,reference:form.reference,tax:Number(form.tax||0),discount:Number(form.discount||0),notes:form.notes||undefined,items:[{variantId:form.variantId,orderedQuantity:Number(form.quantity),unitCost:Number(form.unitCost)}]})});
-    const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Création impossible');setShowCreate(false);await loadPurchases();
+  const create=async(e:React.FormEvent)=>{e.preventDefault();setFormError(null);const items=draftItems.map(i=>({variantId:i.variantId,orderedQuantity:Number(i.quantity),unitCost:Number(i.unitCost)}));if(!form.storeId||!form.supplierId||!form.reference){setFormError('Magasin, fournisseur et référence sont obligatoires.');return;}if(!items.length||items.some(i=>!i.variantId||!Number.isFinite(i.orderedQuantity)||i.orderedQuantity<=0||!Number.isFinite(i.unitCost)||i.unitCost<0)){setFormError('Chaque ligne doit avoir un article, une quantité positive et un coût unitaire valide.');return;}setSaving(true);try{
+    const r=await fetch('/api/purchases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({storeId:form.storeId,supplierId:form.supplierId,reference:form.reference,tax:Number(form.tax||0),discount:Number(form.discount||0),notes:form.notes||undefined,items})});
+    const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Création impossible');setShowCreate(false);setDraftItems([{variantId:'',quantity:'1',unitCost:'0'}]);await loadPurchases();
   }catch(e){setFormError(e instanceof Error?e.message:'Création impossible');}finally{setSaving(false);}};
   const receive=async()=>{if(!showReceive)return;setSaving(true);setFormError(null);try{
     const items=showReceive.items.map(i=>({purchaseItemId:i.id,quantity:Number(receiveQty[i.id]||0)})).filter(x=>x.quantity>0);
@@ -78,8 +80,7 @@ export default function PurchasesPage() {
     <select className="w-full h-10 border rounded-md px-3" value={form.storeId} onChange={e=>setForm({...form,storeId:e.target.value})}><option value="">Choisir un magasin</option>{stores.filter(s=>s.isActive).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select>
     <select className="w-full h-10 border rounded-md px-3" value={form.supplierId} onChange={e=>setForm({...form,supplierId:e.target.value})}><option value="">Choisir un fournisseur</option>{suppliers.filter(s=>s.isActive).map(s=><option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}</select>
     <Input placeholder="Référence commande *" value={form.reference} onChange={e=>setForm({...form,reference:e.target.value})}/>
-    <select className="w-full h-10 border rounded-md px-3" value={form.variantId} onChange={e=>setForm({...form,variantId:e.target.value})}><option value="">Choisir un article</option>{Array.from(new Map(inventory.map(i=>[i.variantId,i])).values()).map(i=><option key={i.variantId} value={i.variantId}>{i.variant.product.name} — {i.variant.sku}</option>)}</select>
-    <div className="grid grid-cols-2 gap-3"><Input type="number" min="1" placeholder="Quantité" value={form.quantity} onChange={e=>setForm({...form,quantity:e.target.value})}/><Input type="number" min="0" step="0.01" placeholder="Coût unitaire HTG" value={form.unitCost} onChange={e=>setForm({...form,unitCost:e.target.value})}/></div>
+    <div className="space-y-3"><div className="flex items-center justify-between"><h3 className="font-medium">Articles</h3><Button type="button" size="sm" variant="outline" onClick={()=>setDraftItems(items=>items.length>=500?items:[...items,{variantId:'',quantity:'1',unitCost:'0'}])}>+ Ajouter un article</Button></div>{draftItems.map((item,index)=><div key={index} className="rounded-md border p-3 space-y-2"><div className="flex items-center justify-between"><span className="text-sm font-medium">Article {index+1}</span>{draftItems.length>1&&<Button type="button" size="sm" variant="outline" onClick={()=>setDraftItems(items=>items.filter((_,i)=>i!==index))}>Supprimer</Button>}</div><select className="w-full h-10 border rounded-md px-3" value={item.variantId} onChange={e=>setDraftItems(items=>items.map((x,i)=>i===index?{...x,variantId:e.target.value}:x))}><option value="">Choisir un article</option>{Array.from(new Map(inventory.map(i=>[i.variantId,i])).values()).map(i=><option key={i.variantId} value={i.variantId}>{i.variant.product.name} — {i.variant.sku}</option>)}</select><div className="grid grid-cols-2 gap-3"><Input type="number" min="1" placeholder="Quantité" value={item.quantity} onChange={e=>setDraftItems(items=>items.map((x,i)=>i===index?{...x,quantity:e.target.value}:x))}/><Input type="number" min="0" step="0.01" placeholder="Coût unitaire HTG" value={item.unitCost} onChange={e=>setDraftItems(items=>items.map((x,i)=>i===index?{...x,unitCost:e.target.value}:x))}/></div></div>)}</div>
     <div className="grid grid-cols-2 gap-3"><Input type="number" min="0" step="0.01" placeholder="Taxe" value={form.tax} onChange={e=>setForm({...form,tax:e.target.value})}/><Input type="number" min="0" step="0.01" placeholder="Remise" value={form.discount} onChange={e=>setForm({...form,discount:e.target.value})}/></div>
     <Input placeholder="Notes" value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/><div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={()=>setShowCreate(false)}>Annuler</Button><Button type="submit" disabled={saving}>{saving?'Création...':'Créer'}</Button></div>
   </form></Modal>
