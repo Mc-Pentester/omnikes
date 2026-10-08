@@ -6,7 +6,7 @@ import { Logo } from '@omnikes/components/branding/Logo';
 import { useAuth } from '@omnikes/contexts/AuthContext';
 
 type IconName =
-  | 'dashboard' | 'products' | 'sales' | 'cash' | 'proformas' | 'reports'
+  | 'dashboard' | 'pos' | 'products' | 'sales' | 'cash' | 'proformas' | 'reports'
   | 'inventory' | 'purchases' | 'suppliers' | 'stores' | 'customers' | 'settings' | 'admin' | 'logout';
 
 interface MenuItem {
@@ -19,6 +19,7 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/dashboard', available: true },
+  { id: 'pos', label: 'Point de vente', icon: 'pos', path: '/', available: true },
   { id: 'products', label: 'Produits', icon: 'products', path: '/products', available: true },
   { id: 'sales', label: 'Ventes en attente', icon: 'sales', path: '/sales', available: true },
   { id: 'cash', label: 'Caisse', icon: 'cash', path: '/cash', available: true },
@@ -37,6 +38,7 @@ function MenuIcon({ name, className = 'h-5 w-5' }: { name: IconName; className?:
   const common = { className, fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, viewBox: '0 0 24 24' };
 
   const paths: Record<IconName, React.ReactNode> = {
+    pos: <><path d="M4 5h16v14H4z" /><path d="M8 9h8M8 13h5" /></>,
     dashboard: <><path d="M4 13h6V4H4v9Z" /><path d="M14 20h6v-9h-6v9Z" /><path d="M14 8h6V4h-6v4Z" /><path d="M4 20h6v-3H4v3Z" /></>,
     products: <><path d="m4 7 8-4 8 4-8 4-8-4Z" /><path d="M4 7v10l8 4 8-4V7" /><path d="M12 11v10" /></>,
     sales: <><path d="M6 3h9l3 3v15H6V3Z" /><path d="M15 3v4h4" /><path d="M9 12h6M9 16h4" /></>,
@@ -106,7 +108,7 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
 
   const groupedItems = [
     { label: 'Accueil', items: availableItems.filter((item) => item.id === 'dashboard') },
-    { label: 'Ventes', items: availableItems.filter((item) => ['sales', 'proformas'].includes(item.id)) },
+    { label: 'Ventes', items: availableItems.filter((item) => ['pos', 'sales', 'proformas'].includes(item.id)) },
     { label: 'Catalogue', items: availableItems.filter((item) => item.id === 'products') },
     { label: 'Stock', items: availableItems.filter((item) => ['inventory', 'purchases', 'suppliers'].includes(item.id)) },
     { label: 'Finance', items: availableItems.filter((item) => ['cash', 'reports'].includes(item.id)) },
