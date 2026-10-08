@@ -118,7 +118,7 @@ async function main() {
         organizationId: organization.id,
         name: 'ADMIN',
         description: 'Administrateur de l’organisation',
-        isGlobal: true,
+        isGlobal: false,
       },
     });
 
