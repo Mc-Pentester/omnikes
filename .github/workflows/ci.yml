@@ -160,6 +160,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Prisma generate
+        run: npx prisma generate
+
       - name: Local-First bootstrap E2E
         run: npm run bootstrap:local
 
