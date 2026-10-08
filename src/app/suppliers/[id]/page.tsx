@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
+import { Input } from '@omnikes/components/ui/input';
+import { Modal } from '@omnikes/components/ui/modal';
 import { useAuth } from '@omnikes/contexts/AuthContext';
 import { Sidebar } from '@omnikes/components/layout/Sidebar';
 
@@ -43,6 +45,12 @@ interface Balance {
   balance: number | string;
 }
 
+interface Store {
+  id: string;
+  name: string;
+  code: string;
+}
+
 const money = (value: number | string) => Number(value || 0).toFixed(2) + ' HTG';
 
 const statusLabel: Record<string, string> = {
@@ -64,6 +72,17 @@ export default function SupplierDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [compact, setCompact] = useState(false);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [showPayment, setShowPayment] = useState(false);
+  const [paymentStoreId, setPaymentStoreId] = useState('');
+  const [paymentPurchaseId, setPaymentPurchaseId] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'BANK' | 'MONCASH' | 'NATCASH' | 'OTHER' | 'CASH'>('BANK');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentNote, setPaymentNote] = useState('');
+  const [cashSessionId, setCashSessionId] = useState('');
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentSaving, setPaymentSaving] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -112,6 +131,86 @@ export default function SupplierDetailPage() {
     return () => window.clearTimeout(timer);
   }, [user, load]);
 
+  useEffect(() => {
+    if (!user) return;
+    const loadStores = async () => {
+      const response = await fetch('/api/stores?isActive=true&take=100');
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        const availableStores = data.stores || [];
+        setStores(availableStores);
+        setPaymentStoreId((current) => current || availableStores[0]?.id || '');
+      }
+    };
+    void loadStores();
+  }, [user]);
+
+  useEffect(() => {
+    if (!showPayment || paymentMethod !== 'CASH' || !paymentStoreId) return;
+    const loadCashSession = async () => {
+      const response = await fetch('/api/cash-sessions?storeId=' + encodeURIComponent(paymentStoreId));
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data?.id) {
+        setCashSessionId(data.id);
+      } else {
+        setCashSessionId('');
+        setPaymentError('Aucune caisse ouverte pour ce magasin. Ouvrez une caisse avant un paiement en espèces.');
+      }
+    };
+    void loadCashSession();
+  }, [showPayment, paymentMethod, paymentStoreId]);
+
+  const openPayment = () => {
+    setPaymentStoreId(stores[0]?.id || '');
+    setPaymentPurchaseId('');
+    setPaymentAmount('');
+    setPaymentMethod('BANK');
+    setCashSessionId('');
+    setPaymentReference('');
+    setPaymentNote('');
+    setPaymentError(null);
+    setShowPayment(true);
+  };
+
+  const savePayment = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setPaymentError(null);
+    const amount = Number(paymentAmount);
+    if (!paymentStoreId || !Number.isFinite(amount) || amount <= 0) {
+      setPaymentError('Le magasin et un montant positif sont obligatoires.');
+      return;
+    }
+    if (paymentMethod === 'CASH' && !cashSessionId) {
+      setPaymentError('Aucune caisse ouverte pour ce magasin. Ouvrez une caisse avant de payer en espèces.');
+      return;
+    }
+    setPaymentSaving(true);
+    try {
+      const response = await fetch('/api/supplier-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({
+          supplierId: params.id,
+          storeId: paymentStoreId,
+          purchaseId: paymentPurchaseId || undefined,
+          amount: paymentAmount,
+          method: paymentMethod,
+          cashSessionId: paymentMethod === 'CASH' ? cashSessionId : undefined,
+          reference: paymentReference.trim() || undefined,
+          note: paymentNote.trim() || undefined,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Impossible d’enregistrer le paiement');
+      setShowPayment(false);
+      await load();
+    } catch (e) {
+      setPaymentError(e instanceof Error ? e.message : 'Impossible d’enregistrer le paiement');
+    } finally {
+      setPaymentSaving(false);
+    }
+  };
+
   if (authLoading || !user) return authLoading ? <div className="min-h-screen flex items-center justify-center">Chargement...</div> : null;
 
   return (
@@ -128,7 +227,7 @@ export default function SupplierDetailPage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => router.push('/suppliers')}>Retour</Button>
-            <Button onClick={() => router.push('/suppliers')}>Payer</Button>
+            <Button onClick={openPayment} disabled={!supplier || Number(balance?.balance || 0) <= 0}>Payer</Button>
           </div>
         </header>
 
@@ -208,6 +307,32 @@ export default function SupplierDetailPage() {
           ) : null}
         </main>
       </div>
+      <Modal isOpen={showPayment} onClose={() => setShowPayment(false)} title="Payer le fournisseur">
+        <form onSubmit={savePayment} className="space-y-4">
+          {paymentError && <div className="p-3 rounded bg-red-50 text-red-700 text-sm">{paymentError}</div>}
+          <div className="text-sm text-gray-600">Fournisseur : <span className="font-semibold text-gray-900">{supplier?.name}</span></div>
+          <select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" value={paymentStoreId} onChange={(e) => setPaymentStoreId(e.target.value)}>
+            <option value="">Sélectionner un magasin</option>
+            {stores.map((store) => <option key={store.id} value={store.id}>{store.name} ({store.code})</option>)}
+          </select>
+          <select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" value={paymentPurchaseId} onChange={(e) => setPaymentPurchaseId(e.target.value)}>
+            <option value="">Paiement sur le solde fournisseur</option>
+            {purchases.filter((purchase) => purchase.status !== 'DRAFT' && purchase.status !== 'CANCELLED').map((purchase) => <option key={purchase.id} value={purchase.id}>{purchase.reference} — {money(purchase.total)}</option>)}
+          </select>
+          <Input placeholder="Montant *" type="number" min="0.01" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} />
+          <select className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}>
+            <option value="BANK">Banque</option>
+            <option value="MONCASH">MonCash</option>
+            <option value="NATCASH">NatCash</option>
+            <option value="CASH">Espèces</option>
+            <option value="OTHER">Autre</option>
+          </select>
+          {paymentMethod === 'CASH' && <div className={cashSessionId ? 'text-sm text-green-700' : 'text-sm text-amber-700'}>{cashSessionId ? 'Caisse ouverte : paiement en espèces autorisé.' : 'Aucune caisse ouverte pour ce magasin.'}</div>}
+          <Input placeholder="Référence" value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} />
+          <Input placeholder="Note" value={paymentNote} onChange={(e) => setPaymentNote(e.target.value)} />
+          <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setShowPayment(false)}>Annuler</Button><Button type="submit" disabled={paymentSaving || !stores.length}>{paymentSaving ? 'Enregistrement...' : 'Enregistrer le paiement'}</Button></div>
+        </form>
+      </Modal>
     </div>
   );
 }
