@@ -274,7 +274,7 @@ export default function ProformaDetailPage() {
                 href={`/proformas/${encodeURIComponent(proforma.id)}/print`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-10 items-center justify-center rounded-md border border-zinc-200 bg-surface px-4 py-2 font-medium transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-4 py-2 font-medium transition-colors hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               >
                 Imprimer
               </a>
