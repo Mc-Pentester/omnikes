@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      const payment = await supplierPaymentService.create(organizationId, userId, parsed);
+      const payment = await supplierPaymentService.create(organizationId, userId, parsed, tx);
 
       await tx.supplierPaymentIdempotency.update({
         where: { id: record.id },
