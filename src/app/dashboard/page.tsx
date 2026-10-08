@@ -171,7 +171,7 @@ export default function DashboardPage() {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <p className="font-semibold text-danger">{error}</p>
-                    <p className="mt-1 text-sm text-danger/80">Les données n'ont pas pu être actualisées.</p>
+                    <p className="mt-1 text-sm text-danger/80">Les données n&apos;ont pas pu être actualisées.</p>
                   </div>
                   <Button variant="outline" onClick={fetchStats}>Réessayer</Button>
                 </div>
@@ -180,7 +180,7 @@ export default function DashboardPage() {
 
             <section aria-labelledby="commercial-title">
               <div className="mb-3">
-                <h2 id="commercial-title" className="text-base font-semibold text-foreground">Aujourd'hui</h2>
+                <h2 id="commercial-title" className="text-base font-semibold text-foreground">Aujourd&apos;hui</h2>
                 <p className="text-sm text-muted">Les indicateurs commerciaux proviennent des ventes réellement finalisées.</p>
               </div>
 
@@ -193,7 +193,7 @@ export default function DashboardPage() {
               ) : salesSummary ? (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <Card className="p-5 shadow-[var(--shadow-sm)]">
-                    <p className="text-sm font-medium text-muted">Chiffre d'affaires</p>
+                    <p className="text-sm font-medium text-muted">Chiffre d&apos;affaires</p>
                     <p className="mt-2 text-3xl font-bold tracking-tight text-foreground">
                       {formatMoney(salesSummary.totalRevenue, salesSummary.currency)}
                     </p>
@@ -222,7 +222,7 @@ export default function DashboardPage() {
                 <Card className="p-5 md:p-6">
                   <div className="mb-5">
                     <h2 id="trend-title" className="text-base font-semibold text-foreground">Tendance des ventes</h2>
-                    <p className="mt-1 text-sm text-muted">Évolution du chiffre d'affaires sur les 7 derniers jours.</p>
+                    <p className="mt-1 text-sm text-muted">Évolution du chiffre d&apos;affaires sur les 7 derniers jours.</p>
                   </div>
                   <div className="flex h-44 items-end gap-2 sm:gap-3">
                     {salesPeriod.map((item) => {
@@ -248,7 +248,7 @@ export default function DashboardPage() {
 
             <section aria-labelledby="overview-title">
               <div className="mb-3">
-                <h2 id="overview-title" className="text-base font-semibold text-foreground">Vue d'ensemble</h2>
+                <h2 id="overview-title" className="text-base font-semibold text-foreground">Vue d&apos;ensemble</h2>
                 <p className="text-sm text-muted">Les chiffres proviennent directement de vos données.</p>
               </div>
 
@@ -308,7 +308,7 @@ export default function DashboardPage() {
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-primary">Prêt à vendre ?</p>
-                  <h2 className="mt-1 text-lg font-bold text-foreground">Passez à l'action en quelques secondes.</h2>
+                  <h2 className="mt-1 text-lg font-bold text-foreground">Passez à l&apos;action en quelques secondes.</h2>
                   <p className="mt-1 max-w-2xl text-sm text-muted">Le POS reste au centre de votre journée : recherchez un produit, composez le panier et encaissez.</p>
                 </div>
                 <Button onClick={() => router.push('/')} className="shrink-0">Commencer une vente</Button>
