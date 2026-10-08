@@ -679,6 +679,7 @@ model Supplier {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   purchases    Purchase[]
   payments     SupplierPayment[]
+  paymentIdempotency SupplierPaymentIdempotency[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
