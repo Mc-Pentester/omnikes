@@ -2,6 +2,8 @@ import { prisma } from '@omnikes/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { supplierPaymentCreateSchema, supplierPaymentListQuerySchema } from '@omnikes/lib/validation';
 
+const PAYABLE_PURCHASE_STATUSES = ['ORDERED', 'PARTIALLY_RECEIVED', 'RECEIVED'] as const;
+
 export class SupplierPaymentService {
   async list(organizationId: string, input: unknown) {
     const q = supplierPaymentListQuerySchema.parse(input);
@@ -55,16 +57,23 @@ export class SupplierPaymentService {
           select: { id: true, total: true, status: true },
         });
         if (!purchase) throw new Error('Purchase not found or does not belong to the supplier/store');
-        if (!['ORDERED', 'PARTIALLY_RECEIVED', 'RECEIVED'].includes(purchase.status)) throw new Error('Purchase is not payable in its current status');
+        if (!PAYABLE_PURCHASE_STATUSES.includes(purchase.status as typeof PAYABLE_PURCHASE_STATUSES[number])) {
+          throw new Error('Purchase is not payable in its current status');
+        }
 
         await tx.$queryRaw`SELECT "id" FROM "purchases" WHERE "id" = ${purchase.id} FOR UPDATE`;
         const paid = await tx.supplierPayment.aggregate({ where: { purchaseId: purchase.id }, _sum: { amount: true } });
         const outstanding = purchase.total.minus(paid._sum.amount ?? new Prisma.Decimal(0));
         if (amount.gt(outstanding)) throw new Error('Payment exceeds purchase outstanding balance');
       } else {
-        await tx.$queryRaw`SELECT "id" FROM "purchases" WHERE "organizationId" = ${organizationId} AND "storeId" = ${data.storeId} AND "supplierId" = ${data.supplierId} AND "status" <> 'CANCELLED' FOR UPDATE`;
+        await tx.$queryRaw`SELECT "id" FROM "purchases" WHERE "organizationId" = ${organizationId} AND "storeId" = ${data.storeId} AND "supplierId" = ${data.supplierId} AND "status" IN ('ORDERED', 'PARTIALLY_RECEIVED', 'RECEIVED') FOR UPDATE`;
         const purchases = await tx.purchase.findMany({
-          where: { organizationId, storeId: data.storeId, supplierId: data.supplierId, status: { not: 'CANCELLED' } },
+          where: {
+            organizationId,
+            storeId: data.storeId,
+            supplierId: data.supplierId,
+            status: { in: [...PAYABLE_PURCHASE_STATUSES] },
+          },
           select: { id: true, total: true },
         });
         const totalPurchases = purchases.reduce((sum, p) => sum.plus(p.total), new Prisma.Decimal(0));
@@ -113,7 +122,12 @@ export class SupplierPaymentService {
 
   async supplierBalance(organizationId: string, supplierId: string, storeId?: string) {
     const purchases = await prisma.purchase.findMany({
-      where: { organizationId, supplierId, ...(storeId ? { storeId } : {}), status: { not: 'CANCELLED' } },
+      where: {
+        organizationId,
+        supplierId,
+        ...(storeId ? { storeId } : {}),
+        status: { in: [...PAYABLE_PURCHASE_STATUSES] },
+      },
       select: { total: true },
     });
     const payments = await prisma.supplierPayment.aggregate({
