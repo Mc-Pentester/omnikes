@@ -36,6 +36,7 @@ const formatAmount = (value: number | string | null | undefined) =>
 
 const parseAmount = (value: string) => Number(value.replace(',', '.'));
 
+const isNonNegativeAmount = (value: string) => value.trim() !== '' && Number.isFinite(parseAmount(value)) && parseAmount(value) >= 0;
 const isPositiveAmount = (value: string) => Number.isFinite(parseAmount(value)) && parseAmount(value) > 0;
 
 export default function CashPage() {
@@ -49,6 +50,9 @@ export default function CashPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [isSidebarCompact, setIsSidebarCompact] = useState(false);
+  const [isOpening, setIsOpening] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
 
   const loadStores = useCallback(async () => {
     const res = await fetch('/api/stores');
@@ -90,20 +94,30 @@ export default function CashPage() {
   }, [storeId, loadSession]);
 
   const openCash = async () => {
+    if (!storeId || !isNonNegativeAmount(opening) || isOpening) return;
+    setIsOpening(true);
+    setMessage('');
     const res = await fetch('/api/cash-sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ storeId, openingAmount: parseAmount(opening) }),
     });
     const data = await res.json();
-    if (!res.ok) return setMessage(data.error ?? 'Ouverture impossible');
+    if (!res.ok) {
+      setMessage(data.error ?? 'Ouverture impossible');
+      setIsOpening(false);
+      return;
+    }
     setOpening('');
     setMessage('Caisse ouverte.');
     await loadSession();
+    setIsOpening(false);
   };
 
   const addMovement = async () => {
-    if (!session) return;
+    if (!session || !isPositiveAmount(movementAmount) || isMoving) return;
+    setIsMoving(true);
+    setMessage('');
     const res = await fetch('/api/cash-sessions/' + session.session.id, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -114,10 +128,15 @@ export default function CashPage() {
       }),
     });
     const data = await res.json();
-    if (!res.ok) return setMessage(data.error ?? 'Opération impossible');
+    if (!res.ok) {
+      setMessage(data.error ?? 'Opération impossible');
+      setIsMoving(false);
+      return;
+    }
     setMovementAmount('');
     setMessage('Mouvement enregistré.');
     await loadSession();
+    setIsMoving(false);
   };
 
   const countedPreview = counted ? parseAmount(counted) : null;
@@ -126,17 +145,24 @@ export default function CashPage() {
     : null;
 
   const closeCash = async () => {
-    if (!session) return;
+    if (!session || !isNonNegativeAmount(counted) || isClosing) return;
+    setIsClosing(true);
+    setMessage('');
     const res = await fetch('/api/cash-sessions/' + session.session.id, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'close', countedAmount: parseAmount(counted) }),
     });
     const data = await res.json();
-    if (!res.ok) return setMessage(data.error ?? 'Clôture impossible');
+    if (!res.ok) {
+      setMessage(data.error ?? 'Clôture impossible');
+      setIsClosing(false);
+      return;
+    }
     setCounted('');
     setMessage('Caisse clôturée.');
     setSession(data);
+    setIsClosing(false);
   };
 
   if (loading) {
@@ -183,7 +209,7 @@ export default function CashPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-foreground">Point de vente</p>
-                  <p className="mt-1 text-xs text-muted">Sélectionnez le magasin dont vous gérez la caisse.</p>
+                  <p className="mt-1 text-xs text-muted">La caisse active est rattachée à ce magasin.</p>
                 </div>
                 <select
                   className="h-10 w-full sm:w-72 rounded-md border border-border bg-surface px-3 text-sm text-foreground"
@@ -202,7 +228,12 @@ export default function CashPage() {
             {!session ? (
               <Card className="p-8">
                 <div className="max-w-xl">
-                  <Badge variant="warning">Caisse fermée</Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="warning">Caisse fermée</Badge>
+                    {stores.find(store => store.id === storeId) && (
+                      <Badge variant="neutral">{stores.find(store => store.id === storeId)?.name}</Badge>
+                    )}
+                  </div>
                   <h2 className="mt-4 text-xl font-bold text-foreground">Ouvrir la caisse</h2>
                   <p className="mt-1 text-sm text-muted">
                     Saisissez le fond de caisse présent au démarrage. Il servira de base au rapprochement de fin de journée.
@@ -223,8 +254,8 @@ export default function CashPage() {
                     />
                   </div>
 
-                  <Button className="mt-5" disabled={!opening} onClick={openCash}>
-                    Ouvrir la caisse
+                  <Button className="mt-5" disabled={!isNonNegativeAmount(opening) || isOpening} onClick={openCash}>
+                    {isOpening ? 'Ouverture...' : 'Ouvrir la caisse'}
                   </Button>
                 </div>
               </Card>
@@ -233,7 +264,9 @@ export default function CashPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold text-foreground">Situation de caisse</h2>
-                    <p className="text-sm text-muted">Les montants sont calculés à partir des opérations enregistrées.</p>
+                    <p className="text-sm text-muted">
+                      {stores.find(store => store.id === storeId)?.name ?? 'Point de vente'} · montants calculés à partir des opérations enregistrées.
+                    </p>
                   </div>
                   <Badge variant={session.session.status === 'OPEN' ? 'success' : 'neutral'}>
                     {session.session.status === 'OPEN' ? 'Caisse ouverte' : 'Caisse clôturée'}
@@ -312,8 +345,8 @@ export default function CashPage() {
                           />
                         </div>
 
-                        <Button disabled={!isPositiveAmount(movementAmount)} onClick={addMovement}>
-                          {movementType === 'CASH_IN' ? 'Enregistrer l’entrée' : 'Enregistrer la sortie'}
+                        <Button disabled={!isPositiveAmount(movementAmount) || isMoving} onClick={addMovement}>
+                          {isMoving ? 'Enregistrement...' : movementType === 'CASH_IN' ? 'Enregistrer l’entrée' : 'Enregistrer la sortie'}
                         </Button>
                       </div>
                     </Card>
@@ -348,13 +381,17 @@ export default function CashPage() {
                       {closingDifference !== null && Number.isFinite(closingDifference) && (
                         <div className={`mt-4 rounded-[var(--radius-md)] border px-4 py-3 ${closingDifference === 0 ? 'border-success/20 bg-success-soft' : 'border-warning/20 bg-warning-soft'}`}>
                           <p className="text-xs font-medium text-muted">Écart estimé</p>
-                          <p className={`mt-1 text-lg font-bold ${closingDifference === 0 ? 'text-success' : 'text-warning'}`}>{formatAmount(closingDifference)} HTG</p>
-                          <p className="mt-1 text-xs text-muted">Vérifiez le montant compté avant de confirmer la clôture.</p>
+                          <p className={`mt-1 text-lg font-bold ${closingDifference === 0 ? 'text-success' : closingDifference > 0 ? 'text-success' : 'text-danger'}`}>
+                            {closingDifference > 0 ? '+' : ''}{formatAmount(closingDifference)} HTG
+                          </p>
+                          <p className="mt-1 text-xs text-muted">
+                            {closingDifference === 0 ? 'La caisse est équilibrée. Vous pouvez confirmer la clôture.' : closingDifference > 0 ? 'Excédent estimé. Vérifiez le comptage avant de confirmer.' : 'Manquant estimé. Vérifiez le comptage avant de confirmer.'}
+                          </p>
                         </div>
                       )}
 
-                      <Button className="mt-4" disabled={!isPositiveAmount(counted)} onClick={closeCash}>
-                        Clôturer la caisse
+                      <Button className="mt-4" disabled={!isNonNegativeAmount(counted) || isClosing} onClick={closeCash}>
+                        {isClosing ? 'Clôture...' : 'Clôturer la caisse'}
                       </Button>
                     </Card>
                   </div>
@@ -372,8 +409,8 @@ export default function CashPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-xs uppercase tracking-wide text-muted">Écart</p>
-                        <p className={`mt-1 text-2xl font-bold ${Number(session.difference ?? 0) === 0 ? 'text-success' : 'text-warning'}`}>
-                          {formatAmount(session.difference)} HTG
+                        <p className={`mt-1 text-2xl font-bold ${Number(session.difference ?? 0) === 0 ? 'text-success' : Number(session.difference ?? 0) > 0 ? 'text-success' : 'text-danger'}`}>
+                          {Number(session.difference ?? 0) > 0 ? '+' : ''}{formatAmount(session.difference)} HTG
                         </p>
                       </div>
                     </div>
