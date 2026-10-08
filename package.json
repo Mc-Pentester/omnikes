@@ -17,7 +17,8 @@
     "bootstrap:platform-operator": "npx ts-node -r tsconfig-paths/register --project tsconfig.bootstrap.json scripts/bootstrap-platform-operator.ts",
     "install:local": "npx ts-node -r tsconfig-paths/register --project tsconfig.bootstrap.json scripts/install-local.ts",
     "check:local-postgres": "npx ts-node -r tsconfig-paths/register --project tsconfig.bootstrap.json scripts/check-local-postgres.ts",
-    "bootstrap:local": "npx ts-node -r tsconfig-paths/register --project tsconfig.bootstrap.json scripts/bootstrap-local.ts"
+    "bootstrap:local": "npx ts-node -r tsconfig-paths/register --project tsconfig.bootstrap.json scripts/bootstrap-local.ts",
+    "bootstrap:embedded-postgres": "npx ts-node -r tsconfig-paths/register --project tsconfig.bootstrap.json scripts/bootstrap-embedded-postgres.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
