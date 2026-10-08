@@ -66,7 +66,7 @@ describe('RefundService', () => {
 
     vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
 
-    const result = await refundService.process('clh1234567890ef', 'clh1234567890mn', {
+    await refundService.process('clh1234567890ef', 'clh1234567890mn', {
       returnId: 'clh1234567890op',
       paymentId: 'clh1234567890ab',
       amount: 500,
