@@ -26,14 +26,19 @@ function exists(file) { return fs.existsSync(file); }
 fs.mkdirSync(data, { recursive: true });
 
 let password;
-const envPath = path.join(app, '.env');
-if (exists(envPath)) {
-  const line = fs.readFileSync(envPath, 'utf8').split(/\r?\n/).find((x) => x.startsWith('OMNIKES_POSTGRES_PASSWORD='));
+if (exists(dbPasswordFile)) {
+  password = fs.readFileSync(dbPasswordFile, 'utf8').trim();
+} else if (exists(envPath)) {
+  const line = fs.readFileSync(envPath, 'utf8').split(/\\r?\\n/).find((x) => x.startsWith('OMNIKES_POSTGRES_PASSWORD='));
   password = line?.split('=').slice(1).join('=').replace(/^"|"$/g, '');
+  if (password) fs.writeFileSync(dbPasswordFile, password + '\\n', { flag: 'wx', mode: 0o600 });
 }
 if (!password) {
+  if (exists(path.join(data, 'PG_VERSION'))) {
+    throw new Error('Existing PostgreSQL cluster has no preserved OmniKès password file; refusing to guess or overwrite credentials.');
+  }
   password = crypto.randomBytes(32).toString('hex');
-  fs.writeFileSync(dbPasswordFile, password + '\n', { flag: 'wx', mode: 0o600 });
+  fs.writeFileSync(dbPasswordFile, password + '\\n', { flag: 'wx', mode: 0o600 });
 }
 
 if (!exists(path.join(data, 'PG_VERSION'))) {
@@ -51,6 +56,17 @@ try {
 const logFile = path.join(data, 'omnikes-postgresql.log');
 try { run(pg('pg_ctl'), ['start', '-D', data, '-l', logFile, '-w', '-o', '-p ' + port]); } catch {}
 
+const psql = pg('psql');
+const psqlEnv = { ...process.env, PGPASSWORD: password };
+let dbExists = '';
+try {
+  dbExists = require('node:child_process').execFileSync(psql, ['-h', '127.0.0.1', '-p', String(port), '-U', dbUser, '-d', 'postgres', '-Atqc', "SELECT 1 FROM pg_database WHERE datname = 'omnikes'"], { encoding: 'utf8', windowsHide: true, env: psqlEnv }).trim();
+} catch (error) {
+  throw new Error('Unable to connect to the embedded PostgreSQL server.');
+}
+if (dbExists !== '1') {
+  run(psql, ['-h', '127.0.0.1', '-p', String(port), '-U', dbUser, '-d', 'postgres', '-c', 'CREATE DATABASE omnikes'], psqlEnv);
+}
 const url = 'postgresql://' + encodeURIComponent(dbUser) + ':' + encodeURIComponent(password) + '@127.0.0.1:' + port + '/' + dbName;
 if (!exists(envPath)) {
   fs.writeFileSync(envPath, [
