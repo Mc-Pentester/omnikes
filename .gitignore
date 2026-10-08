@@ -47,3 +47,8 @@ next-env.d.ts
 # local OmniKès database backups and temporary restore files
 /.omnikes/backups/
 /.omnikes/tmp/
+
+# offline installer build inputs/outputs
+/vendor/node/
+/vendor/postgresql/
+/dist/
