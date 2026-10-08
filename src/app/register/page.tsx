@@ -59,17 +59,17 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <Card className="w-full max-w-md p-8">
         <div className="flex flex-col items-center mb-8">
           <Logo size={80} />
-          <h1 className="text-2xl font-bold text-gray-900 mt-4">OmniKès</h1>
-          <p className="text-sm text-gray-500">Créer votre compte</p>
+          <h1 className="text-2xl font-bold text-foreground mt-4">OmniKès</h1>
+          <p className="text-sm text-muted">Créer votre compte</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="organizationName" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="organizationName" className="block text-sm font-medium text-foreground mb-2">
               Nom de l&apos;organisation
             </label>
             <Input
@@ -84,7 +84,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="name" className="block text-sm font-medium text-foreground mb-2">
               Votre nom
             </label>
             <Input
@@ -99,7 +99,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
               Email
             </label>
             <Input
@@ -114,7 +114,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
               Mot de passe
             </label>
             <Input
@@ -130,7 +130,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground mb-2">
               Confirmer le mot de passe
             </label>
             <Input
@@ -146,7 +146,7 @@ export default function RegisterPage() {
           </div>
 
           {error && (
-            <div className="text-red-600 text-sm">{error}</div>
+            <div className="text-danger text-sm">{error}</div>
           )}
 
           <Button
@@ -158,10 +158,10 @@ export default function RegisterPage() {
           </Button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-gray-500">
+        <div className="mt-6 text-center text-sm text-muted">
           <p>
             Vous avez déjà un compte?{' '}
-            <a href="/login" className="text-blue-600 hover:text-blue-800">
+            <a href="/login" className="text-primary hover:text-primary-hover">
               Se connecter
             </a>
           </p>
