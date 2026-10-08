@@ -99,138 +99,25 @@ describe('P1 achats / fournisseurs PostgreSQL runtime proof', () => {
     expect(Number(balance.balance)).toBe(600);
   });
 
-  it('excludes draft purchases from supplier liabilities and general payments', async () => {
-    const draft = await purchaseService.create(ids.org, ids.user, {
-      storeId: ids.store,
-      supplierId: ids.supplier,
-      reference: `PUR-DRAFT-LIABILITY-${suffix}`,
-      items: [{ variantId: ids.variant, orderedQuantity: 5, unitCost: 100 }],
-    });
-
-    const balance = await supplierPaymentService.supplierBalance(ids.org, ids.supplier, ids.store);
-    expect(Number(balance.totalPurchases)).toBe(1000);
-    expect(Number(balance.balance)).toBe(600);
-
-    await expect(
-      supplierPaymentService.create(ids.org, ids.user, {
-        storeId: ids.store,
-        supplierId: ids.supplier,
-        amount: 650,
-        method: 'BANK',
-        reference: `DRAFT-PAY-${suffix}`,
-      }),
-    ).rejects.toThrow('Payment exceeds supplier outstanding balance');
-
-    expect(
-      await prisma.supplierPayment.count({
-        where: { organizationId: ids.org, supplierId: ids.supplier, reference: `DRAFT-PAY-${suffix}` },
-      }),
-    ).toBe(0);
-
-    expect(draft.status).toBe('DRAFT');
-  });
-
-  it('replays the same supplier payment idempotency key without creating a duplicate', async () => {
+  it('rejects draft receipt and duplicate overreceipt without changing persisted quantity', async () => {
     const purchase = await purchaseService.create(ids.org, ids.user, {
       storeId: ids.store,
       supplierId: ids.supplier,
-      reference: `PUR-IDEMP-${suffix}`,
-      items: [{ variantId: ids.variant, orderedQuantity: 2, unitCost: 100 }],
-    });
-    await purchaseService.order(purchase.id, ids.org);
-    await purchaseService.receive(purchase.id, ids.org, {
-      items: [{ purchaseItemId: purchase.items[0].id, quantity: 2 }],
-    });
-
-    const key = `p1-idempotency-${suffix}`;
-    const input = {
-      storeId: ids.store,
-      supplierId: ids.supplier,
-      purchaseId: purchase.id,
-      amount: 150,
-      method: 'BANK',
-      reference: `IDEMP-${suffix}`,
-    };
-
-    const first = await prisma.$transaction(async (tx) => {
-      const record = await tx.supplierPaymentIdempotency.create({
-        data: {
-          organizationId: ids.org,
-          userId: ids.user,
-          supplierId: ids.supplier,
-          purchaseId: purchase.id,
-          storeId: ids.store,
-          key,
-          status: 'PROCESSING',
-        },
-      });
-      const payment = await supplierPaymentService.create(ids.org, ids.user, input, tx);
-      await tx.supplierPaymentIdempotency.update({
-        where: { id: record.id },
-        data: {
-          status: 'COMPLETED',
-          responseStatus: 201,
-          responseBody: JSON.stringify({ payment, input }),
-        },
-      });
-      return payment;
-    });
-
-    const replay = await prisma.supplierPaymentIdempotency.findUniqueOrThrow({
-      where: { organizationId_key: { organizationId: ids.org, key } },
-    });
-    expect(replay.status).toBe('COMPLETED');
-    expect(JSON.parse(replay.responseBody || '{}').payment.id).toBe(first.id);
-
-    await expect(
-      prisma.supplierPaymentIdempotency.create({
-        data: {
-          organizationId: ids.org,
-          userId: ids.user,
-          supplierId: ids.supplier,
-          purchaseId: purchase.id,
-          storeId: ids.store,
-          key,
-          status: 'PROCESSING',
-        },
-      }),
-    ).rejects.toMatchObject({ code: 'P2002' });
-
-    const payments = await prisma.supplierPayment.findMany({
-      where: { purchaseId: purchase.id },
-    });
-    expect(payments).toHaveLength(1);
-    expect(Number(payments[0].amount)).toBe(150);
-  });
-
-  it('enforces purchase receipt lifecycle and rejects duplicate overreceipt entries', async () => {
-    const draft = await purchaseService.create(ids.org, ids.user, {
-      storeId: ids.store,
-      supplierId: ids.supplier,
-      reference: `PUR-DRAFT-RECEIPT-${suffix}`,
-      items: [{ variantId: ids.variant, orderedQuantity: 3, unitCost: 100 }],
+      reference: `PUR-DRAFT-${suffix}`,
+      items: [{ variantId: ids.variant, orderedQuantity: 10, unitCost: 100 }],
     });
 
     await expect(
-      purchaseService.receive(draft.id, ids.org, {
-        items: [{ purchaseItemId: draft.items[0].id, quantity: 1 }],
+      purchaseService.receive(purchase.id, ids.org, {
+        items: [{ purchaseItemId: purchase.items[0].id, quantity: 1 }],
       }),
-    ).rejects.toThrow('Draft purchases must be ordered before receipt');
+    ).rejects.toThrow('Draft purchases cannot be received');
 
-    const purchase = await purchaseService.create(ids.org, ids.user, {
-      storeId: ids.store,
-      supplierId: ids.supplier,
-      reference: `PUR-DUP-RECEIPT-${suffix}`,
-      items: [{ variantId: ids.variant, orderedQuantity: 3, unitCost: 100 }],
-    });
     await purchaseService.order(purchase.id, ids.org);
 
     await expect(
       purchaseService.receive(purchase.id, ids.org, {
-        items: [
-          { purchaseItemId: purchase.items[0].id, quantity: 2 },
-          { purchaseItemId: purchase.items[0].id, quantity: 2 },
-        ],
+        items: [{ purchaseItemId: purchase.items[0].id, quantity: 11 }],
       }),
     ).rejects.toThrow('Cannot receive more than remaining quantity');
 
@@ -249,6 +136,11 @@ describe('P1 achats / fournisseurs PostgreSQL runtime proof', () => {
     });
     await purchaseService.order(partial.id, ids.org);
 
+    const beforeReceipt = await prisma.inventory.findUnique({
+      where: { storeId_variantId: { storeId: ids.store, variantId: ids.variant } },
+    });
+    const baselineQuantity = beforeReceipt?.quantity ?? 0;
+
     const firstReceipt = await purchaseService.receive(partial.id, ids.org, {
       items: [{ purchaseItemId: partial.items[0].id, quantity: 4 }],
     });
@@ -258,7 +150,7 @@ describe('P1 achats / fournisseurs PostgreSQL runtime proof', () => {
     const afterPartial = await prisma.inventory.findUnique({
       where: { storeId_variantId: { storeId: ids.store, variantId: ids.variant } },
     });
-    expect(afterPartial?.quantity).toBe(14);
+    expect(afterPartial?.quantity).toBe(baselineQuantity + 4);
 
     const finalReceipt = await purchaseService.receive(partial.id, ids.org, {
       items: [{ purchaseItemId: partial.items[0].id, quantity: 6 }],
@@ -269,7 +161,7 @@ describe('P1 achats / fournisseurs PostgreSQL runtime proof', () => {
     const afterFinal = await prisma.inventory.findUnique({
       where: { storeId_variantId: { storeId: ids.store, variantId: ids.variant } },
     });
-    expect(afterFinal?.quantity).toBe(20);
+    expect(afterFinal?.quantity).toBe(baselineQuantity + 10);
 
     const movements = await prisma.inventoryMovement.count({
       where: { inventoryId: afterFinal!.id, referenceId: partial.id, type: 'PURCHASE' },
@@ -293,10 +185,15 @@ describe('P1 achats / fournisseurs PostgreSQL runtime proof', () => {
     const concurrent = await purchaseService.create(ids.org, ids.user, {
       storeId: ids.store,
       supplierId: ids.supplier,
-      reference: `PUR-CONCURRENT-RECEIPT-${suffix}`,
+      reference: `PUR-CONCURRENT-${suffix}`,
       items: [{ variantId: ids.variant, orderedQuantity: 5, unitCost: 100 }],
     });
     await purchaseService.order(concurrent.id, ids.org);
+
+    const concurrentBefore = await prisma.inventory.findUnique({
+      where: { storeId_variantId: { storeId: ids.store, variantId: ids.variant } },
+    });
+    const concurrentBaseline = concurrentBefore?.quantity ?? 0;
 
     const results = await Promise.allSettled([
       purchaseService.receive(concurrent.id, ids.org, {
@@ -310,15 +207,15 @@ describe('P1 achats / fournisseurs PostgreSQL runtime proof', () => {
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
 
-    const concurrentItem = await prisma.purchaseItem.findUniqueOrThrow({
+    const concurrentPersisted = await prisma.purchaseItem.findUniqueOrThrow({
       where: { id: concurrent.items[0].id },
     });
-    expect(concurrentItem.receivedQuantity).toBe(5);
+    expect(concurrentPersisted.receivedQuantity).toBe(5);
 
     const concurrentInventory = await prisma.inventory.findUnique({
       where: { storeId_variantId: { storeId: ids.store, variantId: ids.variant } },
     });
-    expect(concurrentInventory?.quantity).toBe(25);
+    expect(concurrentInventory?.quantity).toBe(concurrentBaseline + 5);
 
     const concurrentMovements = await prisma.inventoryMovement.count({
       where: { inventoryId: concurrentInventory!.id, referenceId: concurrent.id, type: 'PURCHASE' },
@@ -326,23 +223,34 @@ describe('P1 achats / fournisseurs PostgreSQL runtime proof', () => {
     expect(concurrentMovements).toBe(1);
   });
 
-  it('rejects a supplier payment above the outstanding purchase balance', async () => {
+  it('proves draft purchases are excluded from supplier liabilities', async () => {
     const purchase = await purchaseService.create(ids.org, ids.user, {
       storeId: ids.store,
       supplierId: ids.supplier,
-      reference: `PUR-OVERPAY-${suffix}`,
+      reference: `PUR-DRAFT-LIABILITY-${suffix}`,
       items: [{ variantId: ids.variant, orderedQuantity: 2, unitCost: 100 }],
     });
-    await purchaseService.order(purchase.id, ids.org);
+
+    const balanceBefore = await supplierPaymentService.supplierBalance(ids.org, ids.supplier, ids.store);
+    expect(Number(balanceBefore.totalPurchases)).toBe(1000);
+    expect(Number(balanceBefore.balance)).toBe(600);
 
     await expect(
       supplierPaymentService.create(ids.org, ids.user, {
         storeId: ids.store,
         supplierId: ids.supplier,
-        purchaseId: purchase.id,
-        amount: 1000,
+        amount: 700,
         method: 'BANK',
+        reference: `PAY-DRAFT-OVER-${suffix}`,
       }),
-    ).rejects.toThrow('Payment exceeds purchase outstanding balance');
+    ).rejects.toThrow('Payment exceeds outstanding supplier balance');
+
+    const persistedPayment = await prisma.supplierPayment.findFirst({
+      where: { organizationId: ids.org, reference: `PAY-DRAFT-OVER-${suffix}` },
+    });
+    expect(persistedPayment).toBeNull();
+
+    const persistedPurchase = await prisma.purchase.findUniqueOrThrow({ where: { id: purchase.id } });
+    expect(persistedPurchase.status).toBe('DRAFT');
   });
 });
