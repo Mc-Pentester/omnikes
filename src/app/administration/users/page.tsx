@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@omnikes/contexts/AuthContext';
+import { AdminPageShell } from '@omnikes/components/layout/AdminPageShell';
 
 interface Role {
   id: string;
@@ -171,31 +172,31 @@ export default function AdministrationUsersPage() {
   }
 
   return (
-    <main className="p-6 md:p-8 space-y-6">
+    <AdminPageShell><main className="p-6 md:p-8 space-y-6">
       <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-sm text-gray-500">Administration</p>
+          <p className="text-sm text-muted">Administration</p>
           <h1 className="text-3xl font-semibold">Utilisateurs</h1>
-          <p className="text-gray-600 mt-1">Gérer les comptes, rôles et accès de l’organisation courante.</p>
+          <p className="text-muted mt-1">Gérer les comptes, rôles et accès de l’organisation courante.</p>
         </div>
         <div className="flex gap-2">
-          <a href="/administration/roles" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
+          <a href="/administration/roles" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">
             Rôles & permissions
           </a>
-          <a href="/administration/stores" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
+          <a href="/administration/stores" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">
             Magasins
           </a>
-          <a href="/administration/organization" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
+          <a href="/administration/organization" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">
             Organisation
           </a>
-          <button onClick={newUser} className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+          <button onClick={newUser} className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary-hover">
             + Nouvel utilisateur
           </button>
         </div>
       </header>
 
-      {error && <div className="rounded-lg bg-red-50 p-3 text-red-700">{error}</div>}
-      {message && <div className="rounded-lg bg-green-50 p-3 text-green-700">{message}</div>}
+      {error && <div className="rounded-lg bg-danger-soft p-3 text-danger">{error}</div>}
+      {message && <div className="rounded-lg bg-success-soft p-3 text-success">{message}</div>}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
         <section className="rounded-xl border bg-white">
@@ -217,24 +218,24 @@ export default function AdministrationUsersPage() {
                 <button
                   key={item.id}
                   onClick={() => selectUser(item)}
-                  className={`w-full p-4 text-left hover:bg-gray-50 ${selectedId === item.id ? 'bg-blue-50' : ''}`}
+                  className={`w-full p-4 text-left hover:bg-surface-muted ${selectedId === item.id ? 'bg-info-soft' : ''}`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="font-medium">{item.name || 'Sans nom'}</div>
-                      <div className="text-sm text-gray-500">{item.email}</div>
+                      <div className="text-sm text-muted">{item.email}</div>
                     </div>
-                    <span className={`rounded-full px-2 py-1 text-xs ${item.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                    <span className={`rounded-full px-2 py-1 text-xs ${item.isActive ? 'bg-green-100 text-success' : 'bg-surface-muted text-muted'}`}>
                       {item.isActive ? 'Actif' : 'Inactif'}
                     </span>
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">
+                  <div className="mt-2 text-xs text-muted">
                     {role?.name ?? 'Sans rôle'}{role?.storeId ? ' · magasin limité' : ' · global'}
                   </div>
                 </button>
               );
             })}
-            {!users.length && <div className="p-8 text-center text-gray-500">Aucun utilisateur trouvé.</div>}
+            {!users.length && <div className="p-8 text-center text-muted">Aucun utilisateur trouvé.</div>}
           </div>
         </section>
 
@@ -285,12 +286,13 @@ export default function AdministrationUsersPage() {
               </label>
             )}
 
-            <button disabled={saving} className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-white disabled:opacity-50">
+            <button disabled={saving} className="w-full rounded-lg bg-primary px-4 py-2.5 text-white disabled:opacity-50">
               {saving ? 'Enregistrement…' : selectedUser ? 'Enregistrer les modifications' : 'Créer le compte'}
             </button>
           </form>
         </section>
       </div>
     </main>
+    </AdminPageShell>
   );
 }
