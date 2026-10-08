@@ -49,12 +49,6 @@ describe('ReturnService', () => {
     },
   };
 
-  const mockInventory = {
-    id: 'clh1234567890kl',
-    quantity: 10,
-    reservedQuantity: 0,
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -84,7 +78,7 @@ describe('ReturnService', () => {
 
     vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
 
-    const result = await returnService.create('clh1234567890cd', 'clh1234567890op', {
+    await returnService.create('clh1234567890cd', 'clh1234567890op', {
       saleId: 'clh1234567890ab',
       items: [{ saleItemId: 'clh1234567890ab', quantity: 2 }],
     });
