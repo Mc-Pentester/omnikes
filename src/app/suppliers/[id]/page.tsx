@@ -105,7 +105,11 @@ export default function SupplierDetailPage() {
   }, [params.id]);
 
   useEffect(() => {
-    if (user) void load();
+    if (!user) return;
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [user, load]);
 
   if (authLoading || !user) return authLoading ? <div className="min-h-screen flex items-center justify-center">Chargement...</div> : null;
