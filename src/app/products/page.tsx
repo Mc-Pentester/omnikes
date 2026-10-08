@@ -6,6 +6,7 @@ import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
 import { Input } from '@omnikes/components/ui/input';
+import { Badge } from '@omnikes/components/ui/badge';
 import { Modal } from '@omnikes/components/ui/modal';
 import { useAuth } from '@omnikes/contexts/AuthContext';
 import { Sidebar } from '@omnikes/components/layout/Sidebar';
@@ -66,7 +67,7 @@ export default function ProductsPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/products?isActive=true');
+      const response = await fetch('/api/products');
       
       if (!response.ok) {
         throw new Error('Failed to fetch products');
@@ -331,9 +332,10 @@ export default function ProductsPage() {
             </Card>
           ) : (
             <div className="space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card className="p-5"><p className="text-sm text-muted">Références</p><p className="mt-1 text-2xl font-bold text-foreground">{products.length}</p><p className="mt-1 text-xs text-muted">{filteredProducts.length} affichée(s)</p></Card>
                 <Card className="p-5"><p className="text-sm text-muted">Produits actifs</p><p className="mt-1 text-2xl font-bold text-success">{activeCount}</p><p className="mt-1 text-xs text-muted">Disponibles dans le catalogue</p></Card>
+                <Card className="p-5"><p className="text-sm text-muted">Produits inactifs</p><p className="mt-1 text-2xl font-bold text-muted">{products.length - activeCount}</p><p className="mt-1 text-xs text-muted">À réactiver si nécessaire</p></Card>
               </div>
               <Card className="p-4">
                 <div className="flex flex-col md:flex-row gap-3">
@@ -354,6 +356,7 @@ export default function ProductsPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Catégorie</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">SKU</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Prix</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider">Stock</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Statut</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Actions</th>
                     </tr>
@@ -365,16 +368,19 @@ export default function ProductsPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{product.category || '-'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{product.variants[0]?.sku || '-'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
-                          {product.variants[0]?.price ? `${parseFloat(String(product.variants[0].price)).toFixed(2)} HTG` : '-'}
+                          {product.variants[0]?.price != null ? `${parseFloat(String(product.variants[0].price)).toFixed(2)} HTG` : '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                          {product.variants[0]?.stock != null ? (
+                            <span className={`font-semibold ${product.variants[0].stock <= 0 ? 'text-danger' : product.variants[0].stock < 5 ? 'text-warning' : 'text-success'}`}>
+                              {product.variants[0].stock}
+                            </span>
+                          ) : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            product.isActive 
-                              ? 'bg-success-soft text-success' 
-                              : 'bg-surface-muted text-muted'
-                          }`}>
+                          <Badge variant={product.isActive ? 'success' : 'neutral'}>
                             {product.isActive ? 'Actif' : 'Inactif'}
-                          </span>
+                          </Badge>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                           <div className="flex gap-2">
@@ -417,7 +423,13 @@ export default function ProductsPage() {
                 </table>
               </div>
             </Card>
-              {filteredProducts.length === 0 && <p className="p-6 text-center text-sm text-muted">Aucun produit ne correspond aux filtres.</p>}
+              {filteredProducts.length === 0 && (
+                <Card className="p-8 text-center">
+                  <p className="font-medium text-foreground">Aucun produit trouvé</p>
+                  <p className="mt-1 text-sm text-muted">Essayez un autre terme ou réinitialisez les filtres.</p>
+                  <Button className="mt-4" variant="outline" onClick={() => { setSearch(''); setCategoryFilter(''); }}>Réinitialiser les filtres</Button>
+                </Card>
+              )}
             </div>
           )}
         </main>
