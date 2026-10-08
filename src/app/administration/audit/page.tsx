@@ -148,5 +148,6 @@ export default function AdministrationAuditPage() {
         </div>
       )}
     </main>
+    </AdminPageShell>
   );
 }
