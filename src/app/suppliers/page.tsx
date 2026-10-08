@@ -104,10 +104,7 @@ export default function SuppliersPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!paymentSupplier || paymentMethod !== 'CASH' || !paymentStoreId) {
-      setCashSessionId('');
-      return;
-    }
+    if (!paymentSupplier || paymentMethod !== 'CASH' || !paymentStoreId) return;
     const loadCashSession = async () => {
       const response = await fetch('/api/cash-sessions?storeId=' + encodeURIComponent(paymentStoreId));
       const data = await response.json().catch(() => ({}));
