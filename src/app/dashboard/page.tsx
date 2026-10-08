@@ -204,7 +204,7 @@ export default function DashboardPage() {
                     <p className="mt-2 text-3xl font-bold tracking-tight text-foreground">
                       {salesSummary.salesCount.toLocaleString('fr-FR')}
                     </p>
-                    <p className="mt-1 text-xs text-muted">Ventes complétées aujourd'hui</p>
+                    <p className="mt-1 text-xs text-muted">Ventes complétées aujourd&apos;hui</p>
                   </Card>
                   <Card className="p-5 shadow-[var(--shadow-sm)]">
                     <p className="text-sm font-medium text-muted">Panier moyen</p>
