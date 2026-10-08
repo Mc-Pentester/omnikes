@@ -4,7 +4,7 @@
 #define MyAppExeName "OmniKesLauncher.cmd"
 
 [Setup]
-AppId={{A2F77B5A-7D0E-4B15-9B8A-OMNIKESV1}}
+AppId={{A2F77B5A-7D0E-4B15-9B8A-0A9B6E6A5C11}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
