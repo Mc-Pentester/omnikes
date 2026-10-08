@@ -240,7 +240,7 @@ export default function SaleDetailPage() {
                   <div className={`font-medium ${
                     sale.status === 'COMPLETED' ? 'text-success' :
                     sale.status === 'CANCELLED' ? 'text-danger' :
-                    'text-yellow-600'
+                    'text-warning'
                   }`}>
                     {sale.status}
                   </div>
