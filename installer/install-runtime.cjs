@@ -11,10 +11,11 @@ const data = path.join(process.env.ProgramData || 'C:\\ProgramData', 'OmniKes', 
 const dbUser = 'omnikes';
 const dbName = 'omnikes';
 const dbPasswordFile = path.join(data, '.omnikes-pg-password');
+const envPath = path.join(app, '.env');
 const port = 5432;
 
-function run(file, args) {
-  execFileSync(file, args, { stdio: 'inherit', windowsHide: true });
+function run(file, args, env) {
+  execFileSync(file, args, { stdio: 'inherit', windowsHide: true, env: env || process.env });
 }
 
 function pg(file) {
