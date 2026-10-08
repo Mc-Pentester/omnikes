@@ -349,21 +349,21 @@ export default function PendingSalesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background flex">
       <Sidebar compact={compact} onToggleCompact={() => setCompact(!compact)} />
 
       <main className="flex-1 min-w-0 h-screen overflow-y-auto">
         <div className="p-4 md:p-6 max-w-[1600px] mx-auto">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Ventes en attente</h1>
-              <p className="text-sm text-gray-500 mt-1">Encaisser, accorder un crédit et finaliser les ventes PENDING.</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">Ventes en attente</h1>
+              <p className="text-sm text-muted mt-1">Encaisser, accorder un crédit et finaliser les ventes PENDING.</p>
             </div>
             <Button onClick={loadSales} variant="outline" disabled={loading}>Actualiser</Button>
           </div>
 
           {error && (
-            <div className="mb-4 p-4 rounded-lg border border-red-200 bg-red-50 text-red-700">
+            <div className="mb-4 p-4 rounded-lg border border-danger bg-danger-soft text-danger">
               {error}
             </div>
           )}
@@ -371,8 +371,8 @@ export default function PendingSalesPage() {
           <div className="grid grid-cols-1 xl:grid-cols-[420px_minmax(0,1fr)] gap-6">
             <Card className="p-4">
               <div className="flex items-center justify-between gap-3 mb-4">
-                <h2 className="font-semibold text-gray-900">En attente ({filteredSales.length})</h2>
-                {currentStoreId && <span className="text-xs text-gray-500">Magasin courant</span>}
+                <h2 className="font-semibold text-foreground">En attente ({filteredSales.length})</h2>
+                {currentStoreId && <span className="text-xs text-muted">Magasin courant</span>}
               </div>
 
               <Input
@@ -383,11 +383,11 @@ export default function PendingSalesPage() {
               />
 
               {loading ? (
-                <p className="text-center text-gray-500 py-8">Chargement...</p>
+                <p className="text-center text-muted py-8">Chargement...</p>
               ) : filteredSales.length === 0 ? (
                 <div className="text-center py-10">
-                  <p className="text-gray-500">Aucune vente en attente.</p>
-                  <p className="text-xs text-gray-400 mt-2">Les ventes PENDING apparaîtront ici.</p>
+                  <p className="text-muted">Aucune vente en attente.</p>
+                  <p className="text-xs text-muted mt-2">Les ventes PENDING apparaîtront ici.</p>
                 </div>
               ) : (
                 <div className="space-y-2 max-h-[calc(100vh-260px)] overflow-y-auto">
@@ -403,19 +403,19 @@ export default function PendingSalesPage() {
                       <button
                         key={sale.id}
                         onClick={() => selectSale(sale)}
-                        className={`w-full text-left p-4 rounded-lg border transition-colors ${selectedSale?.id === sale.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
+                        className={`w-full text-left p-4 rounded-lg border transition-colors ${selectedSale?.id === sale.id ? 'border-primary bg-primary-soft' : 'border-border bg-surface hover:bg-background'}`}
                       >
                         <div className="flex justify-between gap-3">
-                          <span className="font-semibold text-gray-900">{sale.orderNumber}</span>
-                          <span className="font-bold text-gray-900">{money(sale.total)} HTG</span>
+                          <span className="font-semibold text-foreground">{sale.orderNumber}</span>
+                          <span className="font-bold text-foreground">{money(sale.total)} HTG</span>
                         </div>
                         <div className="flex justify-between gap-3 mt-2 text-sm">
-                          <span className="text-gray-600">{sale.customer?.name || 'Client anonyme'}</span>
+                          <span className="text-muted">{sale.customer?.name || 'Client anonyme'}</span>
                           <span className={fullyCovered ? 'text-amber-700 font-semibold' : 'text-orange-600 font-medium'}>
                             {fullyCovered ? 'Paiement complet — finalisation en attente' : 'Reste ' + money(remaining) + ' HTG'}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-400 mt-2">
+                        <p className="text-xs text-muted mt-2">
                           {new Date(sale.createdAt).toLocaleString('fr-FR')}
                         </p>
                       </button>
@@ -429,8 +429,8 @@ export default function PendingSalesPage() {
               {!selectedSale ? (
                 <div className="h-full min-h-[500px] flex items-center justify-center text-center">
                   <div>
-                    <p className="text-xl font-semibold text-gray-700">Sélectionnez une vente</p>
-                    <p className="text-sm text-gray-500 mt-2">Le détail et les opérations de caisse apparaîtront ici.</p>
+                    <p className="text-xl font-semibold text-foreground">Sélectionnez une vente</p>
+                    <p className="text-sm text-muted mt-2">Le détail et les opérations de caisse apparaîtront ici.</p>
                   </div>
                 </div>
               ) : detailLoading ? (
@@ -439,9 +439,9 @@ export default function PendingSalesPage() {
                 <div>
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 border-b pb-5">
                     <div>
-                      <p className="text-sm text-gray-500">Vente en attente</p>
-                      <h2 className="text-2xl font-bold text-gray-900">{selectedSale.orderNumber}</h2>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <p className="text-sm text-muted">Vente en attente</p>
+                      <h2 className="text-2xl font-bold text-foreground">{selectedSale.orderNumber}</h2>
+                      <p className="text-sm text-muted mt-1">
                         {selectedSale.store?.name || 'Magasin'} · {selectedSale.customer?.name || 'Client anonyme'}
                       </p>
                     </div>
@@ -454,28 +454,28 @@ export default function PendingSalesPage() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 my-5">
-                    <div className="p-4 rounded-lg bg-gray-50">
-                      <p className="text-xs text-gray-500">Total vente</p>
+                    <div className="p-4 rounded-lg bg-background">
+                      <p className="text-xs text-muted">Total vente</p>
                       <p className="text-xl font-bold">{money(selectedSale.total)} HTG</p>
                     </div>
-                    <div className="p-4 rounded-lg bg-gray-50">
-                      <p className="text-xs text-gray-500">Déjà encaissé</p>
+                    <div className="p-4 rounded-lg bg-background">
+                      <p className="text-xs text-muted">Déjà encaissé</p>
                       <p className="text-xl font-bold">{money(totals.paid)} HTG</p>
                     </div>
-                    <div className="p-4 rounded-lg bg-gray-50">
-                      <p className="text-xs text-gray-500">Crédit autorisé</p>
+                    <div className="p-4 rounded-lg bg-background">
+                      <p className="text-xs text-muted">Crédit autorisé</p>
                       <p className="text-xl font-bold">{money(totals.credit)} HTG</p>
                     </div>
                   </div>
 
                   <div className="border rounded-lg overflow-hidden mb-6">
-                    <div className="px-4 py-3 bg-gray-50 font-semibold">Articles</div>
+                    <div className="px-4 py-3 bg-background font-semibold">Articles</div>
                     <div className="divide-y">
                       {selectedSale.items.map((item) => (
                         <div key={item.id} className="p-4 flex justify-between gap-4">
                           <div>
                             <p className="font-medium">{item.variant.product.name}</p>
-                            <p className="text-sm text-gray-500">{item.variant.name} · {item.variant.sku}</p>
+                            <p className="text-sm text-muted">{item.variant.name} · {item.variant.sku}</p>
                           </div>
                           <div className="text-right">
                             <p className="font-medium">{item.quantity} × {money(item.unitPrice)} HTG</p>
@@ -488,7 +488,7 @@ export default function PendingSalesPage() {
 
                   {selectedSale.payments.length > 0 && (
                     <div className="border rounded-lg overflow-hidden mb-6">
-                      <div className="px-4 py-3 bg-gray-50 font-semibold">Paiements enregistrés</div>
+                      <div className="px-4 py-3 bg-background font-semibold">Paiements enregistrés</div>
                       <div className="divide-y">
                         {selectedSale.payments.map((payment) => (
                           <div key={payment.id} className="p-3 flex justify-between text-sm">
@@ -513,7 +513,7 @@ export default function PendingSalesPage() {
                       onClick={cancelSale}
                       disabled={processing}
                       variant="outline"
-                      className="border-red-300 text-red-700 hover:bg-red-50"
+                      className="border-danger text-danger hover:bg-danger-soft"
                     >
                       Annuler la vente
                     </Button>
@@ -541,12 +541,12 @@ export default function PendingSalesPage() {
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                     <section className="border rounded-lg p-4">
-                      <h3 className="font-semibold text-gray-900 mb-3">Encaisser un paiement</h3>
+                      <h3 className="font-semibold text-foreground mb-3">Encaisser un paiement</h3>
                       <div className="space-y-3">
                         <select
                           value={paymentMethod}
                           onChange={(event) => setPaymentMethod(event.target.value)}
-                          className="w-full h-10 rounded-md border border-gray-300 px-3 text-sm"
+                          className="w-full h-10 rounded-md border border-border-strong px-3 text-sm"
                           disabled={processing || totals.remaining <= 0}
                         >
                           {paymentMethods.map((method) => <option key={method.value} value={method.value}>{method.label}</option>)}
@@ -572,14 +572,14 @@ export default function PendingSalesPage() {
 
                   {user.canAuthorizeCredit === true && (
                     <section className="border rounded-lg p-4">
-                      <h3 className="font-semibold text-gray-900 mb-3">Accorder un crédit</h3>
+                      <h3 className="font-semibold text-foreground mb-3">Accorder un crédit</h3>
                       {!selectedSale.customer ? (
-                        <p className="text-sm text-red-600">Cette vente n’a pas de client. Un crédit ne peut pas être autorisé.</p>
+                        <p className="text-sm text-danger">Cette vente n’a pas de client. Un crédit ne peut pas être autorisé.</p>
                       ) : selectedSale.saleCredit ? (
-                        <p className="text-sm text-gray-600">Un crédit est déjà autorisé pour cette vente.</p>
+                        <p className="text-sm text-muted">Un crédit est déjà autorisé pour cette vente.</p>
                       ) : (
                         <div className="space-y-3">
-                          <p className="text-sm text-gray-500">Client : <strong>{selectedSale.customer.name}</strong></p>
+                          <p className="text-sm text-muted">Client : <strong>{selectedSale.customer.name}</strong></p>
                           <Input
                             type="number"
                             min="0.01"
@@ -611,10 +611,10 @@ export default function PendingSalesPage() {
 
                   <div className="mt-6 p-4 rounded-lg bg-gray-900 text-white flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div>
-                      <p className="text-sm text-gray-300">Reste à couvrir</p>
+                      <p className="text-sm text-surface-muted">Reste à couvrir</p>
                       <p className="text-2xl font-bold">{money(totals.remaining)} HTG</p>
                     </div>
-                    <p className="text-sm text-gray-300 max-w-xl">
+                    <p className="text-sm text-surface-muted max-w-xl">
                       La finalisation est exclusivement contrôlée par le serveur. Elle intervient seulement lorsque les paiements réels + le crédit explicitement autorisé couvrent le total et que le stock est disponible.
                     </p>
                   </div>

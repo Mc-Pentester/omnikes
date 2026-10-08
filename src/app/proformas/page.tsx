@@ -153,21 +153,21 @@ export default function ProformasPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-surface-muted text-foreground';
       case 'SENT':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-info-soft text-info';
       case 'ACCEPTED':
-        return 'bg-green-100 text-green-800';
+        return 'bg-success-soft text-success';
       case 'REJECTED':
-        return 'bg-red-100 text-red-800';
+        return 'bg-danger-soft text-danger';
       case 'EXPIRED':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-warning-soft text-warning';
       case 'CONVERTED':
-        return 'bg-purple-100 text-purple-800';
+        return 'bg-primary-soft text-primary';
       case 'CANCELLED':
-        return 'bg-gray-100 text-gray-600';
+        return 'bg-surface-muted text-muted';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-surface-muted text-foreground';
     }
   };
 
@@ -194,8 +194,8 @@ export default function ProformasPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Chargement...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted">Chargement...</p>
       </div>
     );
   }
@@ -206,17 +206,17 @@ export default function ProformasPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Chargement des proformas...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted">Chargement des proformas...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-danger mb-4">{error}</p>
           <Button onClick={fetchProformas}>Réessayer</Button>
         </div>
       </div>
@@ -224,18 +224,18 @@ export default function ProformasPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background flex">
       <Sidebar
         compact={isSidebarCompact}
         onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)}
       />
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <header className="bg-surface border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Proformas</h1>
-              <p className="text-sm text-gray-500">Gérez vos devis et proformas.</p>
+              <h1 className="text-2xl font-bold text-foreground">Proformas</h1>
+              <p className="text-sm text-muted">Gérez vos devis et proformas.</p>
             </div>
             <Button onClick={() => router.push('/proformas/new')}>
               Créer une proforma
@@ -246,8 +246,8 @@ export default function ProformasPage() {
         <main className="flex-1 overflow-y-auto p-6">
           {proformas.length === 0 ? (
             <Card className="p-12 text-center">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Aucune proforma</h2>
-              <p className="text-gray-600 mb-4">Aucune proforma n&apos;a encore été créée.</p>
+              <h2 className="text-xl font-bold text-foreground mb-2">Aucune proforma</h2>
+              <p className="text-muted mb-4">Aucune proforma n&apos;a encore été créée.</p>
               <Button onClick={() => router.push('/proformas/new')}>
                 Créer une proforma
               </Button>
@@ -256,27 +256,27 @@ export default function ProformasPage() {
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-background border-b border-border">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Numéro</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Magasin</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Numéro</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Client</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Magasin</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Statut</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Total</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-surface divide-y divide-gray-200">
                     {proformas.map((proforma) => (
-                      <tr key={proforma.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <tr key={proforma.id} className="hover:bg-background">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                           {proforma.proformaNumber}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                           {proforma.customer?.name || '-'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                           {proforma.store?.name || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -284,13 +284,13 @@ export default function ProformasPage() {
                             {getStatusLabel(proforma.status)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                           {typeof proforma.total === 'number' ? proforma.total.toFixed(2) : Number(proforma.total).toFixed(2)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                           {new Date(proforma.createdAt).toLocaleDateString('fr-FR')}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                           <div className="flex gap-2">
                             <Button
                               variant="outline"
@@ -327,10 +327,10 @@ export default function ProformasPage() {
                               </Button>
                             )}
                             {proforma.status === 'CONVERTED' && (
-                              <span className="text-xs text-gray-400">Convertie</span>
+                              <span className="text-xs text-muted">Convertie</span>
                             )}
                             {proforma.status === 'CANCELLED' && (
-                              <span className="text-xs text-gray-400">Annulée</span>
+                              <span className="text-xs text-muted">Annulée</span>
                             )}
                           </div>
                         </td>

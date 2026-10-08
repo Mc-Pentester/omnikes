@@ -288,8 +288,8 @@ export default function NewProformaPage() {
 
   if (authLoading || loadingData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Chargement...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted">Chargement...</p>
       </div>
     );
   }
@@ -299,22 +299,22 @@ export default function NewProformaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background flex">
       <Sidebar
         compact={isSidebarCompact}
         onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)}
       />
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <header className="bg-surface border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button variant="outline" onClick={() => router.push('/proformas')}>
                 ← Retour
               </Button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Nouvelle proforma</h1>
-                <p className="text-sm text-gray-500">Créer une nouvelle proforma</p>
+                <h1 className="text-2xl font-bold text-foreground">Nouvelle proforma</h1>
+                <p className="text-sm text-muted">Créer une nouvelle proforma</p>
               </div>
             </div>
           </div>
@@ -324,14 +324,14 @@ export default function NewProformaPage() {
           <Card className="max-w-2xl mx-auto p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Magasin
                 </label>
                 <select
                   required
                   value={formData.storeId}
                   onChange={(e) => setFormData({ ...formData, storeId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-border-strong rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="">Sélectionner un magasin</option>
                   {stores.map((store) => (
@@ -343,14 +343,14 @@ export default function NewProformaPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Client
                 </label>
                 <div className="flex gap-2">
                   <select
                     value={formData.customerId || ''}
                     onChange={(e) => setFormData({ ...formData, customerId: e.target.value || undefined })}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 border border-border-strong rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   >
                     <option value="">Sélectionner un client (optionnel)</option>
                     {customers.map((customer) => (
@@ -370,11 +370,11 @@ export default function NewProformaPage() {
               </div>
 
               {showNewCustomerForm && (
-                <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Nouveau client</h3>
+                <div className="bg-background p-4 rounded-md border border-border">
+                  <h3 className="text-sm font-medium text-foreground mb-3">Nouveau client</h3>
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                      <label className="block text-xs font-medium text-muted mb-1">
                         Nom *
                       </label>
                       <input
@@ -382,51 +382,51 @@ export default function NewProformaPage() {
                         required
                         value={newCustomer.name}
                         onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 text-sm border border-border-strong rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                      <label className="block text-xs font-medium text-muted mb-1">
                         Email
                       </label>
                       <input
                         type="email"
                         value={newCustomer.email}
                         onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 text-sm border border-border-strong rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                      <label className="block text-xs font-medium text-muted mb-1">
                         Téléphone
                       </label>
                       <input
                         type="tel"
                         value={newCustomer.phone}
                         onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 text-sm border border-border-strong rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                      <label className="block text-xs font-medium text-muted mb-1">
                         Adresse
                       </label>
                       <input
                         type="text"
                         value={newCustomer.address}
                         onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 text-sm border border-border-strong rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                      <label className="block text-xs font-medium text-muted mb-1">
                         Ville
                       </label>
                       <input
                         type="text"
                         value={newCustomer.city}
                         onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2 py-1 text-sm border border-border-strong rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
                     <div className="flex gap-2">
@@ -448,7 +448,7 @@ export default function NewProformaPage() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Articles
                 </label>
                 <div className="space-y-3">
@@ -456,7 +456,7 @@ export default function NewProformaPage() {
                     <select
                       value={selectedVariantId}
                       onChange={(e) => setSelectedVariantId(e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 border border-border-strong rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                     >
                       <option value="">Sélectionner un article</option>
                       {variants.map((variant) => (
@@ -470,7 +470,7 @@ export default function NewProformaPage() {
                       min="1"
                       value={itemQuantity}
                       onChange={(e) => setItemQuantity(parseInt(e.target.value) || 1)}
-                      className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-24 px-3 py-2 border border-border-strong rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                     <Button
                       type="button"
@@ -483,15 +483,15 @@ export default function NewProformaPage() {
                   </div>
 
                   {items.length > 0 && (
-                    <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-                      <h3 className="text-sm font-medium text-gray-700 mb-3">Articles ajoutés</h3>
+                    <div className="bg-background p-4 rounded-md border border-border">
+                      <h3 className="text-sm font-medium text-foreground mb-3">Articles ajoutés</h3>
                       <div className="space-y-2">
                         {items.map((item) => (
-                          <div key={item.variantId} className="flex items-center justify-between bg-white p-2 rounded border border-gray-200">
+                          <div key={item.variantId} className="flex items-center justify-between bg-surface p-2 rounded border border-border">
                             <div>
                               <div className="font-medium text-sm">{item.variant.product.name}</div>
-                              <div className="text-xs text-gray-500">{item.variant.sku}</div>
-                              <div className="text-xs text-gray-500">{item.quantity} × {Number(item.variant.price).toFixed(2)} HTG</div>
+                              <div className="text-xs text-muted">{item.variant.sku}</div>
+                              <div className="text-xs text-muted">{item.quantity} × {Number(item.variant.price).toFixed(2)} HTG</div>
                             </div>
                             <Button
                               type="button"
@@ -505,7 +505,7 @@ export default function NewProformaPage() {
                           </div>
                         ))}
                       </div>
-                      <div className="mt-3 pt-3 border-t border-gray-200 space-y-1 text-sm">
+                      <div className="mt-3 pt-3 border-t border-border space-y-1 text-sm">
                         <div className="flex justify-between">
                           <span>Sous-total:</span>
                           <span>{subtotal.toFixed(2)} HTG</span>
@@ -525,26 +525,26 @@ export default function NewProformaPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Valide jusqu&apos;au
                 </label>
                 <input
                   type="date"
                   value={formData.validUntil}
                   onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-border-strong rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Notes
                 </label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-border-strong rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="Notes ou conditions particulières..."
                 />
               </div>
