@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useAuth } from '@omnikes/contexts/AuthContext';
+import { AdminPageShell } from '@omnikes/components/layout/AdminPageShell';
 
 interface Store {
   id: string;
@@ -154,31 +155,31 @@ export default function AdministrationStoresPage() {
   }
 
   return (
-    <main className="p-6 md:p-8 space-y-6">
+    <AdminPageShell><main className="p-6 md:p-8 space-y-6">
       <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-sm text-gray-500">Administration</p>
+          <p className="text-sm text-muted">Administration</p>
           <h1 className="text-3xl font-semibold">Magasins</h1>
-          <p className="mt-1 text-gray-600">Créer, modifier et activer les magasins de l’organisation.</p>
+          <p className="mt-1 text-muted">Créer, modifier et activer les magasins de l’organisation.</p>
         </div>
         <div className="flex gap-2">
-          <a href="/administration/users" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
+          <a href="/administration/users" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">
             Utilisateurs
           </a>
-          <a href="/administration/roles" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
+          <a href="/administration/roles" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">
             Rôles & permissions
           </a>
-          <a href="/administration/organization" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
+          <a href="/administration/organization" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">
             Organisation
           </a>
-          <button onClick={newStore} className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+          <button onClick={newStore} className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary-hover">
             + Nouveau magasin
           </button>
         </div>
       </header>
 
-      {error && <div className="rounded-lg bg-red-50 p-3 text-red-700">{error}</div>}
-      {message && <div className="rounded-lg bg-green-50 p-3 text-green-700">{message}</div>}
+      {error && <div className="rounded-lg bg-danger-soft p-3 text-danger">{error}</div>}
+      {message && <div className="rounded-lg bg-success-soft p-3 text-success">{message}</div>}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
         <section className="rounded-xl border bg-white">
@@ -187,23 +188,23 @@ export default function AdministrationStoresPage() {
               <button
                 key={store.id}
                 onClick={() => selectStore(store)}
-                className={`w-full p-4 text-left hover:bg-gray-50 ${selectedId === store.id ? 'bg-blue-50' : ''}`}
+                className={`w-full p-4 text-left hover:bg-surface-muted ${selectedId === store.id ? 'bg-info-soft' : ''}`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="font-medium">{store.name}</div>
-                    <div className="text-sm text-gray-500">{store.code}{store.city ? ` · ${store.city}` : ''}</div>
+                    <div className="text-sm text-muted">{store.code}{store.city ? ` · ${store.city}` : ''}</div>
                   </div>
-                  <span className={`rounded-full px-2 py-1 text-xs ${store.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                  <span className={`rounded-full px-2 py-1 text-xs ${store.isActive ? 'bg-green-100 text-success' : 'bg-gray-100 text-muted'}`}>
                     {store.isActive ? 'Actif' : 'Inactif'}
                   </span>
                 </div>
-                <div className="mt-2 text-xs text-gray-500">
+                <div className="mt-2 text-xs text-muted">
                   {store._count.sales} ventes · {store._count.inventories} inventaires · {store._count.proformas} proformas
                 </div>
               </button>
             ))}
-            {!stores.length && <div className="p-8 text-center text-gray-500">Aucun magasin.</div>}
+            {!stores.length && <div className="p-8 text-center text-muted">Aucun magasin.</div>}
           </div>
         </section>
 
@@ -246,7 +247,7 @@ export default function AdministrationStoresPage() {
                 <span className="text-sm">Magasin actif</span>
               </label>
             )}
-            <button disabled={saving} className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-white disabled:opacity-50">
+            <button disabled={saving} className="w-full rounded-lg bg-primary px-4 py-2.5 text-white disabled:opacity-50">
               {saving ? 'Enregistrement…' : selected ? 'Enregistrer les modifications' : 'Créer le magasin'}
             </button>
           </form>
@@ -255,7 +256,7 @@ export default function AdministrationStoresPage() {
             <button
               type="button"
               onClick={() => void setActive(selected, !selected.isActive)}
-              className="mt-3 w-full rounded-lg border px-4 py-2.5 hover:bg-gray-50"
+              className="mt-3 w-full rounded-lg border px-4 py-2.5 hover:bg-surface-muted"
             >
               {selected.isActive ? 'Désactiver le magasin' : 'Réactiver le magasin'}
             </button>
