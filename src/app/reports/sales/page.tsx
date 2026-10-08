@@ -567,13 +567,13 @@ export default function SalesReportPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={handleListSearch}
-                        className="flex-1 bg-success-soft0 text-white px-3 py-2 rounded hover:bg-green-600"
+                        className="flex-1 bg-success-soft0 text-white px-3 py-2 rounded hover:bg-primary-hover"
                       >
                         Rechercher
                       </button>
                       <button
                         onClick={handleListReset}
-                        className="flex-1 bg-background0 text-white px-3 py-2 rounded hover:bg-gray-600"
+                        className="flex-1 bg-background0 text-white px-3 py-2 rounded hover:bg-primary-hover"
                       >
                         Réinitialiser
                       </button>
