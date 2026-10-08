@@ -171,7 +171,7 @@ export default function SaleDetailPage() {
         <div className="flex-1 flex flex-col h-screen overflow-hidden">
           <div className="p-8">
             <h1 className="text-3xl font-bold mb-8">Détail de la Vente</h1>
-            <div className="bg-warning-soft border border-yellow-200 text-warning px-4 py-3 rounded">
+            <div className="bg-warning-soft border border-warning text-warning px-4 py-3 rounded">
               Vente introuvable
             </div>
             <div className="mt-4">
@@ -216,7 +216,7 @@ export default function SaleDetailPage() {
                   href={`/sales/${sale.id}/receipt`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-[var(--radius-lg)] bg-green-600 px-5 py-3 font-semibold text-white hover:bg-green-700"
+                  className="inline-flex items-center justify-center rounded-[var(--radius-lg)] bg-primary px-5 py-3 font-semibold text-white hover:bg-primary-hover"
                 >
                   🧾 Réimprimer le ticket
                 </Link>
