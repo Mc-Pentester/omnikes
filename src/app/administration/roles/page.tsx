@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@omnikes/contexts/AuthContext';
+import { AdminPageShell } from '@omnikes/components/layout/AdminPageShell';
 
 interface Permission {
   id: string;
@@ -169,30 +170,30 @@ export default function AdministrationRolesPage() {
   }
 
   return (
-    <main className="p-6 md:p-8 space-y-6">
+    <AdminPageShell><main className="p-6 md:p-8 space-y-6">
       <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-sm text-gray-500">Administration</p>
+          <p className="text-sm text-muted">Administration</p>
           <h1 className="text-3xl font-semibold">Rôles & permissions</h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-muted mt-1">
             Les permissions sont attribuées aux rôles. Elles ne sont jamais attribuées directement aux utilisateurs.
           </p>
         </div>
-        <button onClick={newRole} className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+        <button onClick={newRole} className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-primary-hover">
           + Nouveau rôle
         </button>
       </header>
 
       <nav className="flex gap-2">
-        <a href="/administration/users" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">Utilisateurs</a>
-        <a href="/administration/roles" className="rounded-lg bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">Rôles & permissions</a>
-        <a href="/administration/stores" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">Magasins</a>
-        <a href="/administration/organization" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">Organisation</a>
-          <a href="/administration/organization" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">Organisation</a>
+        <a href="/administration/users" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">Utilisateurs</a>
+        <a href="/administration/roles" className="rounded-lg bg-info-soft px-4 py-2 text-sm font-medium text-info">Rôles & permissions</a>
+        <a href="/administration/stores" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">Magasins</a>
+        <a href="/administration/organization" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">Organisation</a>
+          <a href="/administration/organization" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">Organisation</a>
       </nav>
 
-      {error && <div className="rounded-lg bg-red-50 p-3 text-red-700">{error}</div>}
-      {message && <div className="rounded-lg bg-green-50 p-3 text-green-700">{message}</div>}
+      {error && <div className="rounded-lg bg-danger-soft p-3 text-danger">{error}</div>}
+      {message && <div className="rounded-lg bg-success-soft p-3 text-success">{message}</div>}
 
       <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
         <section className="rounded-xl border bg-white">
@@ -202,19 +203,19 @@ export default function AdministrationRolesPage() {
               <button
                 key={role.id}
                 onClick={() => selectRole(role)}
-                className={`w-full p-4 text-left hover:bg-gray-50 ${selectedId === role.id ? 'bg-blue-50' : ''}`}
+                className={`w-full p-4 text-left hover:bg-surface-muted ${selectedId === role.id ? 'bg-info-soft' : ''}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium">{role.name}</span>
-                  <span className="text-xs text-gray-500">{role.userCount} utilisateur(s)</span>
+                  <span className="text-xs text-muted">{role.userCount} utilisateur(s)</span>
                 </div>
-                <div className="mt-1 text-xs text-gray-500">
+                <div className="mt-1 text-xs text-muted">
                   {role.isGlobal ? 'Tous les magasins' : `Magasin: ${stores.find((store) => store.id === role.storeId)?.name ?? 'inconnu'}`}
                 </div>
-                <div className="mt-2 text-xs text-gray-500">{role.permissions.length} permission(s)</div>
+                <div className="mt-2 text-xs text-muted">{role.permissions.length} permission(s)</div>
               </button>
             ))}
-            {!roles.length && <div className="p-6 text-center text-gray-500">Aucun rôle.</div>}
+            {!roles.length && <div className="p-6 text-center text-muted">Aucun rôle.</div>}
           </div>
         </section>
 
@@ -256,9 +257,9 @@ export default function AdministrationRolesPage() {
               <div className="mb-3 flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold">Permissions</h3>
-                  <p className="text-xs text-gray-500">Seules les permissions que votre rôle possède peuvent être déléguées.</p>
+                  <p className="text-xs text-muted">Seules les permissions que votre rôle possède peuvent être déléguées.</p>
                 </div>
-                <span className="text-sm text-gray-500">{form.permissionIds.length} sélectionnée(s)</span>
+                <span className="text-sm text-muted">{form.permissionIds.length} sélectionnée(s)</span>
               </div>
 
               <div className="space-y-4">
@@ -267,7 +268,7 @@ export default function AdministrationRolesPage() {
                     <h4 className="mb-3 font-medium capitalize">{module}</h4>
                     <div className="grid gap-2 md:grid-cols-2">
                       {items.map((permission) => (
-                        <label key={permission.id} className="flex items-start gap-2 rounded-lg p-2 hover:bg-gray-50">
+                        <label key={permission.id} className="flex items-start gap-2 rounded-lg p-2 hover:bg-surface-muted">
                           <input
                             type="checkbox"
                             checked={form.permissionIds.includes(permission.id)}
@@ -276,7 +277,7 @@ export default function AdministrationRolesPage() {
                           />
                           <span>
                             <span className="block text-sm">{permission.code}</span>
-                            {permission.description && <span className="block text-xs text-gray-500">{permission.description}</span>}
+                            {permission.description && <span className="block text-xs text-muted">{permission.description}</span>}
                           </span>
                         </label>
                       ))}
@@ -286,7 +287,7 @@ export default function AdministrationRolesPage() {
               </div>
             </div>
 
-            <button disabled={saving} className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-white disabled:opacity-50">
+            <button disabled={saving} className="w-full rounded-lg bg-primary px-4 py-2.5 text-white disabled:opacity-50">
               {saving ? 'Enregistrement…' : selectedRole ? 'Enregistrer les modifications' : 'Créer le rôle'}
             </button>
           </form>
