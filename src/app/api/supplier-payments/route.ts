@@ -74,15 +74,19 @@ export async function POST(request: NextRequest) {
     const parsed = supplierPaymentCreateSchema.parse(await request.json());
     paymentData = parsed as unknown as Record<string, unknown>;
 
-    if (!organizationId || !userId || !idempotencyKey) {
+    if (!organizationId || !userId || !idempotencyKey || !paymentData) {
       throw new Error('Unable to establish authenticated payment context');
     }
+    const authenticatedOrganizationId = organizationId;
+    const authenticatedUserId = userId;
+    const authenticatedIdempotencyKey = idempotencyKey;
+    const authenticatedPaymentData = paymentData;
 
     const existing = await prisma.supplierPaymentIdempotency.findUnique({
       where: {
         organizationId_key: {
           organizationId,
-          key: idempotencyKey,
+          key: authenticatedIdempotencyKey,
         },
       },
     });
@@ -116,8 +120,8 @@ export async function POST(request: NextRequest) {
     const result = await prisma.$transaction(async (tx) => {
       const record = await tx.supplierPaymentIdempotency.create({
         data: {
-          organizationId,
-          userId,
+          organizationId: authenticatedOrganizationId,
+          userId: authenticatedUserId,
           supplierId: parsed.supplierId,
           purchaseId: parsed.purchaseId,
           storeId: parsed.storeId,
@@ -126,7 +130,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      const payment = await supplierPaymentService.create(organizationId, userId, parsed, tx);
+      const payment = await supplierPaymentService.create(authenticatedOrganizationId, authenticatedUserId, parsed, tx);
 
       await tx.supplierPaymentIdempotency.update({
         where: { id: record.id },
@@ -135,7 +139,7 @@ export async function POST(request: NextRequest) {
           responseStatus: 201,
           responseBody: JSON.stringify({
             payment,
-            input: paymentData,
+            input: authenticatedPaymentData,
           }),
         },
       });
