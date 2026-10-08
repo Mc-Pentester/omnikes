@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
+import { Input } from '@omnikes/components/ui/input';
+import { Modal } from '@omnikes/components/ui/modal';
 import { useAuth } from '@omnikes/contexts/AuthContext';
 import { Sidebar } from '@omnikes/components/layout/Sidebar';
 
@@ -50,27 +52,83 @@ export default function PurchaseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [compact, setCompact] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [showReceive, setShowReceive] = useState(false);
+  const [receiveQty, setReceiveQty] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
   }, [authLoading, user, router]);
 
+  const load = async () => {
+    if (!params.id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/purchases/' + encodeURIComponent(params.id));
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Impossible de charger la commande');
+      setPurchase(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Impossible de charger la commande');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const action = async (name: 'order' | 'cancel') => {
+    if (!purchase) return;
+    setActionError(null);
+    setSaving(true);
+    try {
+      const response = await fetch('/api/purchases/' + purchase.id + '/' + name, { method: 'POST' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Action impossible');
+      await load();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Action impossible');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openReceive = () => {
+    if (!purchase) return;
+    setActionError(null);
+    setReceiveQty(Object.fromEntries(purchase.items.map((item) => [item.id, String(item.orderedQuantity - item.receivedQuantity)])));
+    setShowReceive(true);
+  };
+
+  const receive = async () => {
+    if (!purchase) return;
+    setActionError(null);
+    const items = purchase.items.map((item) => ({ purchaseItemId: item.id, quantity: Number(receiveQty[item.id] || 0) })).filter((item) => item.quantity > 0);
+    if (!items.length) {
+      setActionError('Indiquez au moins une quantité à recevoir.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const response = await fetch('/api/purchases/' + purchase.id + '/receive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Réception impossible');
+      setShowReceive(false);
+      await load();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Réception impossible');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   useEffect(() => {
     if (!user || !params.id) return;
-    let active = true;
-    fetch('/api/purchases/' + encodeURIComponent(params.id))
-      .then(async (response) => {
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || 'Impossible de charger la commande');
-        if (active) setPurchase(data);
-      })
-      .catch((e) => {
-        if (active) setError(e instanceof Error ? e.message : 'Impossible de charger la commande');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => { active = false; };
+    void load();
   }, [user, params.id]);
 
   if (authLoading || !user) {
@@ -89,11 +147,16 @@ export default function PurchaseDetailPage() {
               <p className="text-sm text-gray-500">{purchase?.reference || 'Commande fournisseur'}</p>
             </div>
           </div>
-          <Button variant="outline" onClick={() => router.push('/purchases')}>Retour aux achats</Button>
+          <div className="flex gap-2">
+            {purchase?.status === 'DRAFT' && <><Button variant="outline" onClick={() => void action('order')} disabled={saving}>Commander</Button><Button variant="outline" onClick={() => void action('cancel')} disabled={saving}>Annuler</Button></>}
+            {(purchase?.status === 'ORDERED' || purchase?.status === 'PARTIALLY_RECEIVED') && <Button onClick={openReceive} disabled={saving}>Réceptionner</Button>}
+            <Button variant="outline" onClick={() => router.push('/purchases')}>Retour aux achats</Button>
+          </div>
         </header>
         <main className="flex-1 overflow-y-auto p-6 space-y-4">
           {loading && <Card className="p-12 text-center">Chargement...</Card>}
-          {error && <Card className="p-4 text-red-600">{error}</Card>}
+          {error && <Card className="p-4 text-red-600">{error}<Button className="ml-3" variant="outline" onClick={() => void load()}>Réessayer</Button></Card>}
+          {actionError && <Card className="p-4 text-red-600">{actionError}</Card>}
           {purchase && (
             <>
               <Card className="p-5 grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -131,6 +194,19 @@ export default function PurchaseDetailPage() {
           )}
         </main>
       </div>
+      <Modal isOpen={showReceive} onClose={() => setShowReceive(false)} title={purchase ? 'Réception — ' + purchase.reference : 'Réception'}>
+        <div className="space-y-4">
+          {actionError && <div className="p-3 bg-red-50 text-red-700 rounded text-sm">{actionError}</div>}
+          {purchase?.items.map((item) => {
+            const remaining = item.orderedQuantity - item.receivedQuantity;
+            return <div key={item.id} className="grid grid-cols-3 gap-3 items-center">
+              <div className="col-span-2"><div className="font-medium">{item.variant.product.name}</div><div className="text-xs text-gray-500">{item.variant.sku} — restant {remaining}</div></div>
+              <Input type="number" min="0" max={remaining} value={receiveQty[item.id] || '0'} onChange={(e) => setReceiveQty({ ...receiveQty, [item.id]: e.target.value })} />
+            </div>;
+          })}
+          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setShowReceive(false)}>Annuler</Button><Button onClick={() => void receive()} disabled={saving}>{saving ? 'Réception...' : 'Valider la réception'}</Button></div>
+        </div>
+      </Modal>
     </div>
   );
 }
