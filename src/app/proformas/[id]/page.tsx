@@ -180,7 +180,7 @@ export default function ProformaDetailPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT':
-        return 'bg-gray-100 text-foreground';
+        return 'bg-surface-muted text-foreground';
       case 'SENT':
         return 'bg-info-soft text-info';
       case 'ACCEPTED':
@@ -192,9 +192,9 @@ export default function ProformaDetailPage() {
       case 'CONVERTED':
         return 'bg-primary-soft text-primary';
       case 'CANCELLED':
-        return 'bg-gray-100 text-muted';
+        return 'bg-surface-muted text-muted';
       default:
-        return 'bg-gray-100 text-foreground';
+        return 'bg-surface-muted text-foreground';
     }
   };
 
