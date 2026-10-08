@@ -100,6 +100,10 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
     router.push('/login');
   };
 
+  const availableItems = menuItems.filter(
+    (item) => item.available || (item.id === 'administration' && canAccessAdministration),
+  );
+
   const groupedItems = [
     { label: 'Accueil', items: availableItems.filter((item) => item.id === 'dashboard') },
     { label: 'Ventes', items: availableItems.filter((item) => ['sales', 'proformas'].includes(item.id)) },
@@ -119,45 +123,58 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
       <div className="p-4 border-b border-border">
         {isCompact ? (
           <button onClick={handleToggle} className="w-full h-10 flex items-center justify-center rounded-[var(--radius-md)] text-muted hover:bg-surface-muted hover:text-foreground transition-colors" aria-label="Développer le menu">
-            <span aria-hidden="true">☰</span>
+            <MenuIcon name="dashboard" className="h-5 w-5" />
           </button>
         ) : (
           <div className="flex items-center justify-between gap-3">
             <Logo size={40} />
             <button onClick={handleToggle} className="p-2 rounded-[var(--radius-sm)] text-muted hover:bg-surface-muted hover:text-foreground transition-colors" aria-label="Réduire le menu">
-              <span aria-hidden="true">◀</span>
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m15 6-6 6 6 6" />
+              </svg>
             </button>
           </div>
         )}
       </div>
 
       <nav className="flex-1 overflow-y-auto p-3" aria-label="Navigation principale">
-        <ul className="space-y-1" role="menu">
-          {availableItems.map((item) => {
-            const active = pathname === item.path || (item.path === '/reports' && pathname.startsWith('/reports'));
-            return (
-              <li key={item.id} role="none">
-                <button
-                  onClick={() => handleNavigate(item)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] transition-colors ${active ? 'bg-primary-soft text-primary font-semibold' : 'text-muted hover:bg-surface-muted hover:text-foreground'} ${!item.available ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  role="menuitem"
-                  aria-current={active ? 'page' : undefined}
-                  disabled={!item.available && !(item.id === 'administration' && canAccessAdministration)}
-                  title={!item.available && !(item.id === 'administration' && canAccessAdministration) ? 'Module non disponible' : item.label}
-                >
-                  <MenuIcon name={item.icon} />
-                  {!isCompact && <span className="text-sm">{item.label}</span>}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        {groupedItems.map((group) => (
+          <div key={group.label} className="mb-4 last:mb-0">
+            {!isCompact && (
+              <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+                {group.label}
+              </p>
+            )}
+            <ul className="space-y-1" role="menu">
+              {group.items.map((item) => {
+                const active = pathname === item.path || (item.path === '/reports' && pathname.startsWith('/reports'));
+                return (
+                  <li key={item.id} role="none">
+                    <button
+                      onClick={() => handleNavigate(item)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] transition-colors ${active ? 'bg-primary-soft text-primary font-semibold' : 'text-muted hover:bg-surface-muted hover:text-foreground'} ${!item.available ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      role="menuitem"
+                      aria-current={active ? 'page' : undefined}
+                      disabled={!item.available && !(item.id === 'administration' && canAccessAdministration)}
+                      title={!item.available && !(item.id === 'administration' && canAccessAdministration) ? 'Module non disponible' : item.label}
+                    >
+                      <MenuIcon name={item.icon} />
+                      {!isCompact && <span className="text-sm">{item.label}</span>}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
       </nav>
 
       <div className="p-3 border-t border-border">
         {isCompact ? (
           <button onClick={handleToggle} className="w-full h-10 flex items-center justify-center rounded-[var(--radius-md)] text-muted hover:bg-surface-muted hover:text-foreground transition-colors" aria-label="Développer le menu">
-            <span aria-hidden="true">▶</span>
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="m9 6 6 6-6 6" />
+            </svg>
           </button>
         ) : (
           <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-muted hover:bg-danger-soft hover:text-danger transition-colors" aria-label="Déconnexion">
