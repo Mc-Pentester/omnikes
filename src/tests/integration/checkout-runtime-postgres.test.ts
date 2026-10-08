@@ -24,7 +24,6 @@ describe('P0-22 — Real PostgreSQL Runtime Validation', () => {
   const saleIds: string[] = [];
   const inventorySnapshots = new Map<string, number>();
   let databaseConnected = false;
-  let migrationStatus: string = 'UNKNOWN';
 
   beforeAll(async () => {
     // ÉTAPE A — PRÉCHECK
@@ -32,7 +31,6 @@ describe('P0-22 — Real PostgreSQL Runtime Validation', () => {
     const databaseUrl = process.env.DATABASE_URL;
     if (!databaseUrl) {
       console.error('❌ DATABASE_URL is not set. Skipping P0-22 runtime PostgreSQL tests.');
-      migrationStatus = 'SKIP: NO DATABASE_URL';
       return;
     }
 
@@ -43,7 +41,6 @@ describe('P0-22 — Real PostgreSQL Runtime Validation', () => {
       console.log('✅ PostgreSQL connection successful');
     } catch (error) {
       console.error('❌ PostgreSQL connection failed:', error);
-      migrationStatus = 'SKIP: CONNECTION FAILED';
       return;
     }
 
@@ -60,7 +57,6 @@ describe('P0-22 — Real PostgreSQL Runtime Validation', () => {
       console.log('✅ All required tables exist');
     } catch (error) {
       console.error('❌ Required tables missing:', error);
-      migrationStatus = 'SKIP: TABLES MISSING';
       return;
     }
 
@@ -70,14 +66,11 @@ describe('P0-22 — Real PostgreSQL Runtime Validation', () => {
         SELECT migration_name FROM _prisma_migrations ORDER BY migration_name DESC LIMIT 1
       `;
       if (migrations && migrations.length > 0) {
-        migrationStatus = `UP TO DATE: ${migrations[0].migration_name}`;
         console.log(`✅ Migrations up to date: ${migrations[0].migration_name}`);
       } else {
-        migrationStatus = 'NO MIGRATIONS';
         console.warn('⚠️ No migrations found');
       }
     } catch (error) {
-      migrationStatus = 'MIGRATION CHECK FAILED';
       console.warn('⚠️ Could not check migration status:', error);
     }
 
@@ -115,7 +108,7 @@ describe('P0-22 — Real PostgreSQL Runtime Validation', () => {
     console.log(`✅ Test environment ready - Prefix: ${testPrefix}`);
   });
 
-  async function createSale(initialQuantity: number = 10) {
+  async function createSale() {
     // Capturer l'état initial du stock
     const inventory = await prisma.inventory.findUniqueOrThrow({
       where: { storeId_variantId: { storeId, variantId } },
