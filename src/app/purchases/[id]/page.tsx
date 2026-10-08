@@ -262,14 +262,14 @@ return null;
 }
 
 return (
-<div className="min-h-screen bg-gray-50 flex">
+<div className="min-h-screen bg-background flex">
 <Sidebar
 compact={compact}
 onToggleCompact={() => setCompact((current) => !current)}
 />
 
   <div className="flex-1 flex flex-col h-screen overflow-hidden">
-    <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
+    <header className="bg-surface border-b px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <Logo size={40} />
 
@@ -278,7 +278,7 @@ onToggleCompact={() => setCompact((current) => !current)}
             Détail de l&apos;achat
           </h1>
 
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted">
             {purchase?.reference || 'Commande fournisseur'}
           </p>
         </div>
@@ -329,7 +329,7 @@ onToggleCompact={() => setCompact((current) => !current)}
       )}
 
       {error && (
-        <Card className="p-4 text-red-600">
+        <Card className="p-4 text-danger">
           {error}
 
           <Button
@@ -343,7 +343,7 @@ onToggleCompact={() => setCompact((current) => !current)}
       )}
 
       {actionError && (
-        <Card className="p-4 text-red-600">
+        <Card className="p-4 text-danger">
           {actionError}
         </Card>
       )}
@@ -352,19 +352,19 @@ onToggleCompact={() => setCompact((current) => !current)}
         <>
           <Card className="p-5 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <div className="text-xs text-gray-500 uppercase">
+              <div className="text-xs text-muted uppercase">
                 Fournisseur
               </div>
               <div className="font-semibold">
                 {purchase.supplier.name}
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-muted">
                 {purchase.supplier.code}
               </div>
             </div>
 
             <div>
-              <div className="text-xs text-gray-500 uppercase">
+              <div className="text-xs text-muted uppercase">
                 Magasin
               </div>
               <div className="font-semibold">
@@ -373,7 +373,7 @@ onToggleCompact={() => setCompact((current) => !current)}
             </div>
 
             <div>
-              <div className="text-xs text-gray-500 uppercase">
+              <div className="text-xs text-muted uppercase">
                 Statut
               </div>
               <div className="font-semibold">
@@ -382,7 +382,7 @@ onToggleCompact={() => setCompact((current) => !current)}
             </div>
 
             <div>
-              <div className="text-xs text-gray-500 uppercase">
+              <div className="text-xs text-muted uppercase">
                 Total
               </div>
               <div className="text-xl font-bold">
@@ -398,7 +398,7 @@ onToggleCompact={() => setCompact((current) => !current)}
 
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-background border-b">
                   <tr>
                     {[
                       'Article',
@@ -410,7 +410,7 @@ onToggleCompact={() => setCompact((current) => !current)}
                     ].map((heading) => (
                       <th
                         key={heading}
-                        className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                        className="px-5 py-3 text-left text-xs font-medium text-muted uppercase"
                       >
                         {heading}
                       </th>
@@ -473,7 +473,7 @@ onToggleCompact={() => setCompact((current) => !current)}
             </div>
 
             {purchase.notes && (
-              <div className="pt-3 text-sm text-gray-600">
+              <div className="pt-3 text-sm text-muted">
                 Note : {purchase.notes}
               </div>
             )}
@@ -494,7 +494,7 @@ onToggleCompact={() => setCompact((current) => !current)}
   >
     <div className="space-y-4">
       {actionError && (
-        <div className="p-3 bg-red-50 text-red-700 rounded text-sm">
+        <div className="p-3 bg-danger-soft text-danger rounded text-sm">
           {actionError}
         </div>
       )}
@@ -513,7 +513,7 @@ onToggleCompact={() => setCompact((current) => !current)}
                 {item.variant.product.name}
               </div>
 
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-muted">
                 {item.variant.sku} — restant {remaining}
               </div>
             </div>
