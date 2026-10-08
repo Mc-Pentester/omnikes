@@ -172,6 +172,43 @@ describe('P1 achats / fournisseurs PostgreSQL runtime proof', () => {
     expect(Number(payments[0].amount)).toBe(150);
   });
 
+  it('enforces purchase receipt lifecycle and rejects duplicate overreceipt entries', async () => {
+    const draft = await purchaseService.create(ids.org, ids.user, {
+      storeId: ids.store,
+      supplierId: ids.supplier,
+      reference: `PUR-DRAFT-RECEIPT-${suffix}`,
+      items: [{ variantId: ids.variant, orderedQuantity: 3, unitCost: 100 }],
+    });
+
+    await expect(
+      purchaseService.receive(draft.id, ids.org, {
+        items: [{ purchaseItemId: draft.items[0].id, quantity: 1 }],
+      }),
+    ).rejects.toThrow('Draft purchases must be ordered before receipt');
+
+    const purchase = await purchaseService.create(ids.org, ids.user, {
+      storeId: ids.store,
+      supplierId: ids.supplier,
+      reference: `PUR-DUP-RECEIPT-${suffix}`,
+      items: [{ variantId: ids.variant, orderedQuantity: 3, unitCost: 100 }],
+    });
+    await purchaseService.order(purchase.id, ids.org);
+
+    await expect(
+      purchaseService.receive(purchase.id, ids.org, {
+        items: [
+          { purchaseItemId: purchase.items[0].id, quantity: 2 },
+          { purchaseItemId: purchase.items[0].id, quantity: 2 },
+        ],
+      }),
+    ).rejects.toThrow('Cannot receive more than remaining quantity');
+
+    const persisted = await prisma.purchaseItem.findUniqueOrThrow({
+      where: { id: purchase.items[0].id },
+    });
+    expect(persisted.receivedQuantity).toBe(0);
+  });
+
   it('rejects a supplier payment above the outstanding purchase balance', async () => {
     const purchase = await purchaseService.create(ids.org, ids.user, {
       storeId: ids.store,
