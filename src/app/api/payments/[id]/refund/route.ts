@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { refundService } from '@omnikes/services/refund.service';
-import { requireCurrentOrganizationId, requirePermission, getAuthenticatedUser } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, getAuthenticatedUser, requireStoreAccess } from '@omnikes/lib/auth';
 import { refundSchema } from '@omnikes/lib/validation';
 import { prisma } from '@omnikes/lib/prisma';
 
@@ -33,6 +33,7 @@ export async function POST(
       include: {
         sale: {
           select: {
+            id: true,
             organizationId: true,
             storeId: true,
           },

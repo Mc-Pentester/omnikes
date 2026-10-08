@@ -668,6 +668,45 @@ async function main() {
     },
   });
 
+
+  // Supplier / purchase permissions
+  const supplierReadPermission = await prisma.permission.upsert({
+    where: { code: 'supplier.read' },
+    update: {},
+    create: { code: 'supplier.read', description: 'Consulter les fournisseurs', module: 'supplier' },
+  });
+  const supplierManagePermission = await prisma.permission.upsert({
+    where: { code: 'supplier.manage' },
+    update: {},
+    create: { code: 'supplier.manage', description: 'Créer, modifier et désactiver les fournisseurs', module: 'supplier' },
+  });
+  const purchaseReadPermission = await prisma.permission.upsert({
+    where: { code: 'purchase.read' },
+    update: {},
+    create: { code: 'purchase.read', description: 'Consulter les achats fournisseurs', module: 'purchase' },
+  });
+  const purchaseManagePermission = await prisma.permission.upsert({
+    where: { code: 'purchase.manage' },
+    update: {},
+    create: { code: 'purchase.manage', description: 'Créer et gérer les achats fournisseurs', module: 'purchase' },
+  });
+  const purchaseReceivePermission = await prisma.permission.upsert({
+    where: { code: 'purchase.receive' },
+    update: {},
+    create: { code: 'purchase.receive', description: 'Réceptionner les marchandises d’un achat', module: 'purchase' },
+  });
+
+  const supplierPaymentManagePermission = await prisma.permission.upsert({
+    where: { code: 'supplier.payment.manage' },
+    update: {},
+    create: { code: 'supplier.payment.manage', description: 'Enregistrer et gérer les paiements fournisseurs', module: 'supplier' },
+  });
+  const supplierPaymentReadPermission = await prisma.permission.upsert({
+    where: { code: 'supplier.payment.read' },
+    update: {},
+    create: { code: 'supplier.payment.read', description: 'Consulter les paiements fournisseurs', module: 'supplier' },
+  });
+
   console.log('✅ Permissions created');
 
   // ============================================================
@@ -1000,6 +1039,27 @@ async function main() {
         permissionId: permission.id,
       },
     });
+  }
+
+
+  // Assign supplier / purchase permissions to ADMIN roles
+  const supplierPurchasePermissions = [
+    supplierReadPermission,
+    supplierManagePermission,
+    purchaseReadPermission,
+    purchaseManagePermission,
+    purchaseReceivePermission,
+    supplierPaymentReadPermission,
+    supplierPaymentManagePermission,
+  ];
+  for (const permission of supplierPurchasePermissions) {
+    for (const roleId of [adminRoleA.id, adminRoleB.id]) {
+      await prisma.rolePermission.upsert({
+        where: { roleId_permissionId: { roleId, permissionId: permission.id } },
+        update: {},
+        create: { roleId, permissionId: permission.id },
+      });
+    }
   }
 
   // Assign role administration permissions to ADMIN roles

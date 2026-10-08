@@ -369,6 +369,83 @@ export const customerCreateSchema = z.object({
 
 export const customerUpdateSchema = customerCreateSchema.partial().strict();
 
+export const supplierCreateSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  code: z.string().trim().max(50).optional().or(z.literal('')),
+  email: z.string().trim().email().max(320).optional().or(z.literal('')),
+  phone: z.string().trim().max(50).optional().or(z.literal('')),
+  address: z.string().trim().max(500).optional().or(z.literal('')),
+  city: z.string().trim().max(120).optional().or(z.literal('')),
+  country: z.string().trim().length(2).toUpperCase().optional().or(z.literal('')),
+  notes: z.string().trim().max(1000).optional().or(z.literal('')),
+  isActive: z.boolean().optional(),
+}).strict();
+
+export const supplierUpdateSchema = supplierCreateSchema.partial().strict();
+
+export const supplierListQuerySchema = z.object({
+  search: z.string().trim().max(200).optional(),
+  includeInactive: z.coerce.boolean().default(false),
+  skip: z.coerce.number().int().min(0).default(0),
+  take: z.coerce.number().int().min(1).max(100).default(50),
+}).strict();
+
+
+
+
+export const purchaseItemInputSchema = z.object({
+  variantId: z.string().cuid(),
+  orderedQuantity: z.int().positive().max(1000000000),
+  unitCost: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Unit cost must have at most 2 decimal places'),
+}).strict();
+
+export const purchaseCreateSchema = z.object({
+  storeId: z.string().cuid(),
+  supplierId: z.string().cuid(),
+  reference: z.string().trim().min(1).max(100),
+  tax: z.number().finite().nonnegative().max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Tax must have at most 2 decimal places').default(0),
+  discount: z.number().finite().nonnegative().max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Discount must have at most 2 decimal places').default(0),
+  notes: z.string().trim().max(1000).optional(),
+  items: z.array(purchaseItemInputSchema).min(1).max(500),
+}).strict();
+
+export const purchaseListQuerySchema = z.object({
+  storeId: z.string().cuid().optional(),
+  supplierId: z.string().cuid().optional(),
+  status: z.enum(['DRAFT', 'ORDERED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED']).optional(),
+  search: z.string().trim().max(100).optional(),
+  skip: z.coerce.number().int().min(0).default(0),
+  take: z.coerce.number().int().min(1).max(100).default(50),
+}).strict();
+
+export const purchaseReceiveSchema = z.object({
+  items: z.array(z.object({
+    purchaseItemId: z.string().cuid(),
+    quantity: z.int().positive().max(1000000000),
+  }).strict()).min(1).max(500),
+}).strict();
+
+
+export const supplierPaymentCreateSchema = z.object({
+  storeId: z.string().cuid(),
+  supplierId: z.string().cuid(),
+  purchaseId: z.string().cuid().optional(),
+  cashSessionId: z.string().cuid().optional(),
+  amount: z.number().finite().positive().max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Payment amount must have at most 2 decimal places'),
+  method: z.enum(['CASH', 'BANK', 'MONCASH', 'NATCASH', 'OTHER']),
+  reference: z.string().trim().max(150).optional(),
+  note: z.string().trim().max(1000).optional(),
+  paidAt: z.coerce.date().optional(),
+}).strict();
+
+export const supplierPaymentListQuerySchema = z.object({
+  supplierId: z.string().cuid().optional(),
+  purchaseId: z.string().cuid().optional(),
+  storeId: z.string().cuid().optional(),
+  skip: z.coerce.number().int().min(0).default(0),
+  take: z.coerce.number().int().min(1).max(100).default(50),
+}).strict();
+
 // Sales Report validation
 // Report queries are deliberately bounded to prevent unbounded historical extraction.
 export const SALES_REPORT_MAX_RANGE_DAYS = 366;

@@ -21,6 +21,8 @@ const menuItems: MenuItem[] = [
   { id: 'proformas', label: 'Proformas', icon: '📄', path: '/proformas', available: true },
   { id: 'reports', label: 'Rapports', icon: '📊', path: '/reports', available: true },
   { id: 'inventory', label: 'Gestion des stocks', icon: '📦', path: '/inventory', available: true },
+  { id: 'purchases', label: 'Achats', icon: '🛒', path: '/purchases', available: true },
+  { id: 'suppliers', label: 'Fournisseurs', icon: '🚚', path: '/suppliers', available: true },
   { id: 'stores', label: 'Magasins', icon: '🏪', path: '/stores', available: true },
   { id: 'customers', label: 'Clients', icon: '👥', path: '/customers', available: false },
   { id: 'settings', label: 'Paramètres', icon: '⚙', path: '/settings', available: false },
