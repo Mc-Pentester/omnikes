@@ -567,7 +567,7 @@ export default function SalesReportPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={handleListSearch}
-                        className="flex-1 bg-success-soft0 text-white px-3 py-2 rounded hover:bg-primary-hover"
+                        className="flex-1 bg-primary text-white px-3 py-2 rounded hover:bg-primary-hover"
                       >
                         Rechercher
                       </button>
