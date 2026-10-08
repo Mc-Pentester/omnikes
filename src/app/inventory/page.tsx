@@ -220,8 +220,8 @@ export default function InventoryPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Chargement...</p>
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
+        <p className="text-muted">Chargement...</p>
       </div>
     );
   }
@@ -232,17 +232,17 @@ export default function InventoryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Chargement de l&apos;inventaire...</p>
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
+        <p className="text-muted">Chargement de l&apos;inventaire...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-danger mb-4">{error}</p>
           <Button onClick={fetchInventory}>Réessayer</Button>
         </div>
       </div>
@@ -290,7 +290,7 @@ export default function InventoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-surface-muted flex">
       <Sidebar 
         compact={isSidebarCompact} 
         onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)} 
@@ -308,7 +308,7 @@ export default function InventoryPage() {
               </div>
             </div>
             <Button variant="outline" onClick={() => router.push('/inventory/report')}>
-              📊 Rapport d&apos;inventaire
+              Rapport d&apos;inventaire
             </Button>
           </div>
         </header>
@@ -316,9 +316,9 @@ export default function InventoryPage() {
         <main className="flex-1 overflow-y-auto p-6">
           {inventory.length === 0 ? (
             <Card className="p-12 text-center">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Aucun inventaire</h2>
-              <p className="text-gray-600 mb-4">L&apos;inventaire est créé automatiquement lorsque vous ajoutez du stock.</p>
-              <p className="text-sm text-gray-500 mb-6">Prérequis : créez d&apos;abord un magasin et un produit avec une variante.</p>
+              <h2 className="text-xl font-bold text-foreground mb-2">Aucun inventaire</h2>
+              <p className="text-muted mb-4">L&apos;inventaire est créé automatiquement lorsque vous ajoutez du stock.</p>
+              <p className="text-sm text-muted mb-6">Prérequis : créez d&apos;abord un magasin et un produit avec une variante.</p>
               <div className="flex gap-4 justify-center">
                 <Button onClick={() => router.push('/stores')}>Gérer les magasins</Button>
                 <Button onClick={() => router.push('/products')}>Gérer les produits</Button>
@@ -330,17 +330,17 @@ export default function InventoryPage() {
                 <Card className="p-5">
                   <p className="text-sm text-muted">Articles en stock</p>
                   <p className="mt-1 text-3xl font-bold text-foreground">{totalUnits}</p>
-                  <p className="text-xs text-gray-500 mt-1">{inventory.length} références suivies</p>
+                  <p className="text-xs text-muted mt-1">{inventory.length} références suivies</p>
                 </Card>
                 <Card className="p-5">
                   <p className="text-sm text-muted">Quantités réservées</p>
                   <p className="mt-1 text-3xl font-bold text-warning">{totalReserved}</p>
-                  <p className="text-xs text-gray-500 mt-1">Non disponibles à la vente</p>
+                  <p className="text-xs text-muted mt-1">Non disponibles à la vente</p>
                 </Card>
                 <Card className="p-5">
                   <p className="text-sm text-muted">Ruptures</p>
                   <p className="mt-1 text-3xl font-bold text-danger">{zeroStockCount}</p>
-                  <p className="text-xs text-gray-500 mt-1">Références à quantité zéro</p>
+                  <p className="text-xs text-muted mt-1">Références à quantité zéro</p>
                 </Card>
               </div>
 
@@ -354,7 +354,7 @@ export default function InventoryPage() {
                   <select
                     value={storeFilter}
                     onChange={(e) => setStoreFilter(e.target.value)}
-                    className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm"
+                    className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
                   >
                     <option value="">Tous les magasins</option>
                     {stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
@@ -362,7 +362,7 @@ export default function InventoryPage() {
                   <select
                     value={stockFilter}
                     onChange={(e) => setStockFilter(e.target.value as typeof stockFilter)}
-                    className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm"
+                    className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
                   >
                     <option value="all">Tous les stocks</option>
                     <option value="available">Disponible</option>
@@ -379,34 +379,34 @@ export default function InventoryPage() {
               </Card>
 
               <Card className="overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-border">
                   <div>
-                    <h2 className="font-semibold text-gray-900">Stock par référence</h2>
-                    <p className="text-sm text-gray-500">{filteredInventory.length} résultat(s)</p>
+                    <h2 className="font-semibold text-foreground">Stock par référence</h2>
+                    <p className="text-sm text-muted">{filteredInventory.length} résultat(s)</p>
                   </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
+                    <thead className="bg-surface-muted border-b border-border">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Produit / SKU</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Magasin</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Stock</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Réservé</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Disponible</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-muted uppercase">Stock</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-muted uppercase">Réservé</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-muted uppercase">Disponible</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-muted uppercase">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-surface divide-y divide-border">
                       {filteredInventory.map((item) => {
                         const available = Math.max(0, item.quantity - item.reservedQuantity);
                         return (
-                          <tr key={item.id} className="hover:bg-gray-50">
+                          <tr key={item.id} className="hover:bg-surface-muted">
                             <td className="px-6 py-4">
-                              <div className="font-medium text-gray-900">{item.variant.product.name}</div>
-                              <div className="text-xs text-gray-500">{item.variant.sku}</div>
+                              <div className="font-medium text-foreground">{item.variant.product.name}</div>
+                              <div className="text-xs text-muted">{item.variant.sku}</div>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-500">{item.store.name}</td>
+                            <td className="px-6 py-4 text-sm text-muted">{item.store.name}</td>
                             <td className="px-6 py-4 text-right"><span className={`inline-flex min-w-12 justify-center rounded-full px-2.5 py-1 text-sm font-bold ${item.quantity === 0 ? 'bg-danger-soft text-danger' : item.quantity < 5 ? 'bg-warning-soft text-warning' : 'bg-success-soft text-success'}`}>{item.quantity}</span></td>
                             <td className="px-6 py-4 text-right text-sm text-muted">{item.reservedQuantity}</td>
                             <td className="px-6 py-4 text-right"><span className="font-semibold text-foreground">{available}</span><span className="ml-2 text-xs text-muted">{available === 0 ? 'Indisponible' : 'disponible'}</span></td>
@@ -425,7 +425,7 @@ export default function InventoryPage() {
                   </table>
                 </div>
                 {filteredInventory.length === 0 && (
-                  <div className="p-8 text-center text-sm text-gray-500">Aucun stock ne correspond aux filtres.</div>
+                  <div className="p-8 text-center text-sm text-muted">Aucun stock ne correspond aux filtres.</div>
                 )}
               </Card>
             </div>
@@ -440,31 +440,31 @@ export default function InventoryPage() {
       >
         {historyInventory && (
           <div className="space-y-4">
-            <div className="rounded-lg bg-gray-50 p-4 text-sm">
-              <div className="font-medium text-gray-900">{historyInventory.variant.product.name}</div>
-              <div className="text-gray-500">SKU: {historyInventory.variant.sku} · {historyInventory.store.name}</div>
-              <div className="mt-1 text-gray-700">Stock actuel : <strong>{historyInventory.quantity}</strong></div>
+            <div className="rounded-lg bg-surface-muted p-4 text-sm">
+              <div className="font-medium text-foreground">{historyInventory.variant.product.name}</div>
+              <div className="text-muted">SKU: {historyInventory.variant.sku} · {historyInventory.store.name}</div>
+              <div className="mt-1 text-foreground">Stock actuel : <strong>{historyInventory.quantity}</strong></div>
             </div>
-            {historyLoading && <p className="text-sm text-gray-500">Chargement de l&apos;historique...</p>}
-            {historyError && <p className="text-sm text-red-600">{historyError}</p>}
+            {historyLoading && <p className="text-sm text-muted">Chargement de l&apos;historique...</p>}
+            {historyError && <p className="text-sm text-danger">{historyError}</p>}
             {!historyLoading && !historyError && history.length === 0 && (
-              <p className="text-sm text-gray-500">Aucun mouvement enregistré.</p>
+              <p className="text-sm text-muted">Aucun mouvement enregistré.</p>
             )}
             {!historyLoading && !historyError && history.length > 0 && (
-              <div className="max-h-96 overflow-y-auto divide-y divide-gray-200 border border-gray-200 rounded-lg">
+              <div className="max-h-96 overflow-y-auto divide-y divide-border border border-border rounded-lg">
                 {history.map((movement) => (
                   <div key={movement.id} className="p-3 text-sm">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="font-medium text-gray-900">{movement.type}</span>
-                      <span className={movement.quantity >= 0 ? 'font-semibold text-green-700' : 'font-semibold text-red-700'}>
+                      <span className="font-medium text-foreground">{movement.type}</span>
+                      <span className={movement.quantity >= 0 ? 'font-semibold text-success' : 'font-semibold text-red-700'}>
                         {movement.quantity >= 0 ? '+' : ''}{movement.quantity}
                       </span>
                     </div>
-                    <div className="mt-1 text-xs text-gray-500">
+                    <div className="mt-1 text-xs text-muted">
                       {new Date(movement.createdAt).toLocaleString('fr-FR')}
                     </div>
-                    {movement.referenceId && <div className="mt-1 text-xs text-gray-600">Référence : {movement.referenceId}</div>}
-                    {movement.notes && <div className="mt-1 text-xs text-gray-600">{movement.notes}</div>}
+                    {movement.referenceId && <div className="mt-1 text-xs text-muted">Référence : {movement.referenceId}</div>}
+                    {movement.notes && <div className="mt-1 text-xs text-muted">{movement.notes}</div>}
                   </div>
                 ))}
               </div>
@@ -493,22 +493,22 @@ export default function InventoryPage() {
         }
       >
         {selectedInventory && (
-          <div className="mb-4 rounded-lg bg-gray-50 p-4 text-sm">
-            <div className="font-medium text-gray-900">{selectedInventory.variant.product.name}</div>
-            <div className="text-gray-500">SKU: {selectedInventory.variant.sku} · Magasin: {selectedInventory.store.name}</div>
-            <div className="mt-1 text-gray-700">Stock actuel : <strong>{selectedInventory.quantity}</strong></div>
+          <div className="mb-4 rounded-lg bg-surface-muted p-4 text-sm">
+            <div className="font-medium text-foreground">{selectedInventory.variant.product.name}</div>
+            <div className="text-muted">SKU: {selectedInventory.variant.sku} · Magasin: {selectedInventory.store.name}</div>
+            <div className="mt-1 text-foreground">Stock actuel : <strong>{selectedInventory.quantity}</strong></div>
           </div>
         )}
 
         {formError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+          <div className="mb-4 p-3 bg-danger-soft border border-danger rounded-lg text-sm text-danger">
             {formError}
           </div>
         )}
 
         <form id="inventory-workflow-form" onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="inventory-quantity" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="inventory-quantity" className="block text-sm font-medium text-foreground mb-1">
               {workflow === 'receive' ? 'Quantité reçue *' : workflow === 'adjust' ? 'Nouvelle quantité en stock *' : 'Quantité à transférer *'}
             </label>
             <Input
@@ -520,7 +520,7 @@ export default function InventoryPage() {
               required
             />
             {workflow === 'adjust' && selectedInventory && (
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-muted">
                 Le système enregistrera automatiquement la différence entre {selectedInventory.quantity} et la nouvelle quantité.
               </p>
             )}
@@ -528,7 +528,7 @@ export default function InventoryPage() {
 
           {workflow === 'adjust' && (
             <div>
-              <label htmlFor="inventory-reason" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="inventory-reason" className="block text-sm font-medium text-foreground mb-1">
                 Raison de l&apos;ajustement *
               </label>
               <Input
@@ -543,14 +543,14 @@ export default function InventoryPage() {
 
           {workflow === 'transfer' && selectedInventory && (
             <div>
-              <label htmlFor="inventory-target" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="inventory-target" className="block text-sm font-medium text-foreground mb-1">
                 Magasin de destination *
               </label>
               <select
                 id="inventory-target"
                 value={formData.targetInventoryId}
                 onChange={(e) => setFormData({ ...formData, targetInventoryId: e.target.value })}
-                className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm"
+                className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
                 required
               >
                 <option value="">Sélectionner une référence de destination</option>
@@ -562,14 +562,14 @@ export default function InventoryPage() {
                     </option>
                   ))}
               </select>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-muted">
                 Le transfert déplace le stock de ce magasin vers la référence sélectionnée.
               </p>
             </div>
           )}
 
           <div>
-            <label htmlFor="inventory-reference" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="inventory-reference" className="block text-sm font-medium text-foreground mb-1">
               {workflow === 'receive' ? 'Référence de réception / fournisseur' : workflow === 'transfer' ? 'Référence du transfert' : 'Référence'}
             </label>
             <Input
@@ -581,7 +581,7 @@ export default function InventoryPage() {
           </div>
 
           <div>
-            <label htmlFor="inventory-notes" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="inventory-notes" className="block text-sm font-medium text-foreground mb-1">
               Notes
             </label>
             <Input
