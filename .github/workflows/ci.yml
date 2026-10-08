@@ -113,3 +113,126 @@ jobs:
       - name: Build
         # P2-06 validation trigger: dependency audit and full CI proof.
         run: npm run build
+
+
+  local_first_bootstrap:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/omnikes_bootstrap_ci
+      OMNIKES_BOOTSTRAP_DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/omnikes_bootstrap_ci
+      OMNIKES_INSTALL_ORGANIZATION_NAME: "CI Bootstrap Organization"
+      OMNIKES_INSTALL_ADMIN_EMAIL: "bootstrap-admin@omnikes.local"
+      OMNIKES_INSTALL_ADMIN_NAME: "CI Bootstrap Admin"
+      OMNIKES_INSTALL_ADMIN_PASSWORD: "ci-bootstrap-admin-password-2026"
+      OMNIKES_INSTALL_STORE_NAME: "CI Bootstrap Store"
+      OMNIKES_INSTALL_STORE_CODE: "CI-BOOTSTRAP"
+      OMNIKES_INSTALL_COUNTRY: "HT"
+      OMNIKES_INSTALL_CURRENCY: "HTG"
+      OMNIKES_INSTALL_LOCALE: "fr-HT"
+      OMNIKES_INSTALL_TIMEZONE: "America/Port-au-Prince"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Local-First bootstrap E2E
+        run: npm run bootstrap:local
+
+      - name: Verify Local-First bootstrap result
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE
+            organization_count integer;
+            store_count integer;
+            user_count integer;
+            admin_role_count integer;
+            permission_count integer;
+            user_role_count integer;
+            audit_count integer;
+            cloud_enabled boolean;
+            online_store_enabled boolean;
+          BEGIN
+            SELECT count(*) INTO organization_count FROM "Organization";
+            SELECT count(*) INTO store_count FROM "Store";
+            SELECT count(*) INTO user_count
+              FROM "User"
+              WHERE email = 'bootstrap-admin@omnikes.local';
+            SELECT count(*) INTO admin_role_count
+              FROM "Role"
+              WHERE name = 'ADMIN'
+                AND "isGlobal" = false;
+            SELECT count(*) INTO permission_count FROM "Permission";
+            SELECT count(*) INTO user_role_count
+              FROM "UserRole" ur
+              JOIN "User" u ON u.id = ur."userId"
+              JOIN "Role" r ON r.id = ur."roleId"
+              WHERE u.email = 'bootstrap-admin@omnikes.local'
+                AND r.name = 'ADMIN';
+            SELECT count(*) INTO audit_count
+              FROM "AuditLog"
+              WHERE action = 'LOCAL_INSTALLATION_COMPLETED';
+            SELECT "cloudEnabled", "onlineStoreEnabled"
+              INTO cloud_enabled, online_store_enabled
+              FROM "Organization"
+              LIMIT 1;
+
+            IF organization_count <> 1 THEN
+              RAISE EXCEPTION 'Expected exactly 1 organization, got %', organization_count;
+            END IF;
+            IF store_count <> 1 THEN
+              RAISE EXCEPTION 'Expected exactly 1 store, got %', store_count;
+            END IF;
+            IF user_count <> 1 THEN
+              RAISE EXCEPTION 'Bootstrap admin was not created';
+            END IF;
+            IF admin_role_count <> 1 THEN
+              RAISE EXCEPTION 'Expected exactly 1 organization ADMIN role, got %', admin_role_count;
+            END IF;
+            IF permission_count < 1 THEN
+              RAISE EXCEPTION 'No permissions were provisioned';
+            END IF;
+            IF user_role_count <> 1 THEN
+              RAISE EXCEPTION 'Bootstrap admin is not assigned to ADMIN role';
+            END IF;
+            IF audit_count <> 1 THEN
+              RAISE EXCEPTION 'Expected LOCAL_INSTALLATION_COMPLETED audit entry, got %', audit_count;
+            END IF;
+            IF cloud_enabled IS DISTINCT FROM false THEN
+              RAISE EXCEPTION 'Cloud must be disabled after local bootstrap';
+            END IF;
+            IF online_store_enabled IS DISTINCT FROM false THEN
+              RAISE EXCEPTION 'Online store must be disabled after local bootstrap';
+            END IF;
+          END $$;
+          SQL
+
+          echo "LOCAL-FIRST BOOTSTRAP E2E: PASS"
