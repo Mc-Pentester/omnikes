@@ -7,24 +7,24 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'default', size = 'default', ...props }, ref) => {
-    const baseStyles = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-    
+    const baseStyles = "inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:translate-y-px"
+
     const variants = {
-      default: "bg-zinc-900 text-zinc-50 hover:bg-zinc-900/90 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-50/90",
-      destructive: "bg-red-500 text-zinc-50 hover:bg-red-500/90",
-      outline: "border border-zinc-200 bg-white hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
-      secondary: "bg-zinc-100 text-zinc-900 hover:bg-zinc-100/80 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-800/80",
-      ghost: "hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
-      link: "text-zinc-900 underline-offset-4 hover:underline dark:text-zinc-50",
+      default: "bg-primary text-white shadow-sm hover:bg-primary-hover",
+      destructive: "bg-danger text-white shadow-sm hover:bg-red-700",
+      outline: "border border-border bg-surface text-foreground shadow-sm hover:bg-surface-muted",
+      secondary: "bg-surface-muted text-foreground hover:bg-slate-200",
+      ghost: "text-muted hover:bg-surface-muted hover:text-foreground",
+      link: "text-primary underline-offset-4 hover:underline",
     }
-    
+
     const sizes = {
       default: "h-10 px-4 py-2",
-      sm: "h-9 rounded-md px-3",
-      lg: "h-11 rounded-md px-8",
+      sm: "h-9 rounded-[var(--radius-sm)] px-3 text-sm",
+      lg: "h-11 rounded-[var(--radius-md)] px-6",
       icon: "h-10 w-10",
     }
-    
+
     return (
       <button
         className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className || ''}`}
