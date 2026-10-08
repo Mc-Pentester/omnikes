@@ -14,6 +14,19 @@ interface DashboardStats {
   totalStores: number;
 }
 
+interface SalesSummary {
+  salesCount: number;
+  totalRevenue: number;
+  averageSale: number;
+  currency: string;
+}
+
+interface SalesPeriod {
+  period: string;
+  salesCount: number;
+  revenue: number;
+}
+
 const statCards = [
   { key: 'totalProducts', label: 'Produits', description: 'Catalogue actif', accent: 'bg-primary-soft text-primary' },
   { key: 'totalInventory', label: 'Stocks', description: 'Références suivies', accent: 'bg-info-soft text-info' },
@@ -30,23 +43,53 @@ function StatGlyph({ type }: { type: typeof statCards[number]['key'] }) {
   return <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M4 10v10h16V10M3 10 5 4h14l2 6M8 20v-6h8v6" /></svg>;
 }
 
+function formatMoney(value: number, currency: string) {
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: currency || 'HTG',
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function localDateString(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [salesSummary, setSalesSummary] = useState<SalesSummary | null>(null);
+  const [salesPeriod, setSalesPeriod] = useState<SalesPeriod[]>([]);
   const [loading, setLoading] = useState(true);
+  const [salesLoading, setSalesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSidebarCompact, setIsSidebarCompact] = useState(false);
 
   const fetchStats = async () => {
     try {
       setLoading(true);
+      setSalesLoading(true);
       setError(null);
 
-      const [productsResponse, inventoryResponse, storesResponse] = await Promise.all([
+      const today = new Date();
+      const startDate = new Date(today);
+      startDate.setDate(today.getDate() - 6);
+
+      const summaryStartDate = localDateString(today);
+      const summaryEndDate = localDateString(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1));
+      const periodStartDate = localDateString(startDate);
+      const periodEndDate = summaryEndDate;
+
+      const [productsResponse, inventoryResponse, storesResponse, summaryResponse, periodResponse] = await Promise.all([
         fetch('/api/products'),
         fetch('/api/inventory'),
         fetch('/api/stores'),
+        fetch(`/api/reports/sales/summary?startDate=${summaryStartDate}&endDate=${summaryEndDate}`),
+        fetch(`/api/reports/sales/by-period?startDate=${periodStartDate}&endDate=${periodEndDate}&granularity=day`),
       ]);
 
       const productsData = productsResponse.ok ? await productsResponse.json() : { products: [] };
@@ -58,11 +101,26 @@ export default function DashboardPage() {
         totalInventory: inventoryData.inventory?.length || 0,
         totalStores: storesData.stores?.length || 0,
       });
+
+      if (summaryResponse.ok) {
+        setSalesSummary(await summaryResponse.json());
+      } else {
+        setSalesSummary(null);
+      }
+
+      if (periodResponse.ok) {
+        setSalesPeriod(await periodResponse.json());
+      } else {
+        setSalesPeriod([]);
+      }
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
       setError('Impossible de charger les statistiques');
+      setSalesSummary(null);
+      setSalesPeriod([]);
     } finally {
       setLoading(false);
+      setSalesLoading(false);
     }
   };
 
@@ -87,6 +145,8 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  const maxRevenue = Math.max(...salesPeriod.map((item) => item.revenue), 0);
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -118,6 +178,74 @@ export default function DashboardPage() {
                   <Button variant="outline" onClick={fetchStats}>Réessayer</Button>
                 </div>
               </Card>
+            ) : null}
+
+            <section aria-labelledby="commercial-title">
+              <div className="mb-3">
+                <h2 id="commercial-title" className="text-base font-semibold text-foreground">Aujourd'hui</h2>
+                <p className="text-sm text-muted">Les indicateurs commerciaux proviennent des ventes réellement finalisées.</p>
+              </div>
+
+              {salesLoading ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {[1, 2, 3].map((item) => (
+                    <Card key={item} className="p-5"><Skeleton className="h-20 w-full" /></Card>
+                  ))}
+                </div>
+              ) : salesSummary ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <Card className="p-5 shadow-[var(--shadow-sm)]">
+                    <p className="text-sm font-medium text-muted">Chiffre d'affaires</p>
+                    <p className="mt-2 text-3xl font-bold tracking-tight text-foreground">
+                      {formatMoney(salesSummary.totalRevenue, salesSummary.currency)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted">Ventes complétées aujourd'hui</p>
+                  </Card>
+                  <Card className="p-5 shadow-[var(--shadow-sm)]">
+                    <p className="text-sm font-medium text-muted">Transactions</p>
+                    <p className="mt-2 text-3xl font-bold tracking-tight text-foreground">
+                      {salesSummary.salesCount.toLocaleString('fr-FR')}
+                    </p>
+                    <p className="mt-1 text-xs text-muted">Ventes complétées aujourd'hui</p>
+                  </Card>
+                  <Card className="p-5 shadow-[var(--shadow-sm)]">
+                    <p className="text-sm font-medium text-muted">Panier moyen</p>
+                    <p className="mt-2 text-3xl font-bold tracking-tight text-foreground">
+                      {formatMoney(salesSummary.averageSale, salesSummary.currency)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted">Montant moyen par transaction</p>
+                  </Card>
+                </div>
+              ) : null}
+            </section>
+
+            {salesPeriod.length > 0 ? (
+              <section aria-labelledby="trend-title">
+                <Card className="p-5 md:p-6">
+                  <div className="mb-5">
+                    <h2 id="trend-title" className="text-base font-semibold text-foreground">Tendance des ventes</h2>
+                    <p className="mt-1 text-sm text-muted">Évolution du chiffre d'affaires sur les 7 derniers jours.</p>
+                  </div>
+                  <div className="flex h-44 items-end gap-2 sm:gap-3">
+                    {salesPeriod.map((item) => {
+                      const height = maxRevenue > 0 ? Math.max((item.revenue / maxRevenue) * 100, 4) : 4;
+                      const label = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' }).format(new Date(`${item.period}T12:00:00`));
+                      return (
+                        <div key={item.period} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+                          <div className="flex h-32 w-full items-end">
+                            <div
+                              className="w-full rounded-t-[var(--radius-sm)] bg-primary transition-[height] duration-300"
+                              style={{ height: `${height}%` }}
+                              title={formatMoney(item.revenue, salesSummary?.currency || 'HTG')}
+                            />
+                          </div>
+                          <span className="text-[11px] text-muted">{label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              </section>
             ) : null}
 
             <section aria-labelledby="overview-title">
