@@ -100,7 +100,15 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
     router.push('/login');
   };
 
-  const availableItems = menuItems.filter(item => item.available || (item.id === 'administration' && canAccessAdministration));
+  const groupedItems = [
+    { label: 'Accueil', items: availableItems.filter((item) => item.id === 'dashboard') },
+    { label: 'Ventes', items: availableItems.filter((item) => ['sales', 'proformas'].includes(item.id)) },
+    { label: 'Catalogue', items: availableItems.filter((item) => item.id === 'products') },
+    { label: 'Stock', items: availableItems.filter((item) => ['inventory', 'purchases', 'suppliers'].includes(item.id)) },
+    { label: 'Finance', items: availableItems.filter((item) => ['cash', 'reports'].includes(item.id)) },
+    { label: 'Organisation', items: availableItems.filter((item) => ['stores', 'customers'].includes(item.id)) },
+    { label: 'Administration', items: availableItems.filter((item) => ['administration', 'settings'].includes(item.id)) },
+  ].filter((group) => group.items.length > 0);
 
   return (
     <aside
