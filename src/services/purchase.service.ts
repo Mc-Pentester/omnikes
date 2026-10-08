@@ -125,7 +125,7 @@ export class PurchaseService {
     const data = purchaseReceiveSchema.parse(input);
 
     return prisma.$transaction(async (tx) => {
-      const lockedPurchase = await tx.$queryRaw<Array<{ id: string }>>` SELECT `id` FROM `purchases` WHERE `id` = ${id} AND `organizationId` = ${organizationId} FOR UPDATE `;
+      const lockedPurchase = await tx.$queryRaw<Array<{ id: string }>>`\n        SELECT "id"\n        FROM "purchases"\n        WHERE "id" = ${id} AND "organizationId" = ${organizationId}\n        FOR UPDATE\n      `;
       if (!lockedPurchase[0]) throw new Error('Purchase not found or access denied');
 
       const purchase = await tx.purchase.findFirst({
