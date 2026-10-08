@@ -270,6 +270,7 @@ export default function InventoryPage() {
 
   const totalUnits = inventory.reduce((sum, item) => sum + item.quantity, 0);
   const totalReserved = inventory.reduce((sum, item) => sum + item.reservedQuantity, 0);
+  const totalAvailable = inventory.reduce((sum, item) => sum + Math.max(0, item.quantity - item.reservedQuantity), 0);
   const zeroStockCount = inventory.filter((item) => item.quantity === 0).length;
 
   const openHistory = async (item: Inventory) => {
@@ -326,7 +327,7 @@ export default function InventoryPage() {
             </Card>
           ) : (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <Card className="p-5">
                   <p className="text-sm text-muted">Articles en stock</p>
                   <p className="mt-1 text-3xl font-bold text-foreground">{totalUnits}</p>
@@ -336,6 +337,11 @@ export default function InventoryPage() {
                   <p className="text-sm text-muted">Quantités réservées</p>
                   <p className="mt-1 text-3xl font-bold text-warning">{totalReserved}</p>
                   <p className="text-xs text-muted mt-1">Non disponibles à la vente</p>
+                </Card>
+                <Card className="p-5">
+                  <p className="text-sm text-muted">Disponible à la vente</p>
+                  <p className="mt-1 text-3xl font-bold text-success">{totalAvailable}</p>
+                  <p className="text-xs text-muted mt-1">Stock moins les réservations</p>
                 </Card>
                 <Card className="p-5">
                   <p className="text-sm text-muted">Ruptures</p>
