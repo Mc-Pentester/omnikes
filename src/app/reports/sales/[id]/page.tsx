@@ -120,7 +120,7 @@ export default function SaleDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-background flex">
         <Sidebar
           compact={isSidebarCompact}
           onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)}
@@ -139,7 +139,7 @@ export default function SaleDetailPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-background flex">
         <Sidebar
           compact={isSidebarCompact}
           onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)}
@@ -147,11 +147,11 @@ export default function SaleDetailPage() {
         <div className="flex-1 flex flex-col h-screen overflow-hidden">
           <div className="p-8">
             <h1 className="text-3xl font-bold mb-8">Détail de la Vente</h1>
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="bg-danger-soft border border-danger text-danger px-4 py-3 rounded">
               {error}
             </div>
             <div className="mt-4">
-              <Link href="/reports/sales" className="text-blue-500 hover:underline">
+              <Link href="/reports/sales" className="text-primary hover:underline">
                 ← Retour au rapport des ventes
               </Link>
             </div>
@@ -163,7 +163,7 @@ export default function SaleDetailPage() {
 
   if (!sale) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-background flex">
         <Sidebar
           compact={isSidebarCompact}
           onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)}
@@ -171,11 +171,11 @@ export default function SaleDetailPage() {
         <div className="flex-1 flex flex-col h-screen overflow-hidden">
           <div className="p-8">
             <h1 className="text-3xl font-bold mb-8">Détail de la Vente</h1>
-            <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
+            <div className="bg-warning-soft border border-yellow-200 text-warning px-4 py-3 rounded">
               Vente introuvable
             </div>
             <div className="mt-4">
-              <Link href="/reports/sales" className="text-blue-500 hover:underline">
+              <Link href="/reports/sales" className="text-primary hover:underline">
                 ← Retour au rapport des ventes
               </Link>
             </div>
@@ -190,7 +190,7 @@ export default function SaleDetailPage() {
     .reduce((sum, p) => sum + Number(p.amount), 0);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background flex">
       <Sidebar
         compact={isSidebarCompact}
         onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)}
@@ -199,7 +199,7 @@ export default function SaleDetailPage() {
         <div className="p-8 overflow-y-auto">
           <div className="max-w-7xl mx-auto">
             <div className="mb-6">
-              <Link href="/reports/sales" className="text-blue-500 hover:underline">
+              <Link href="/reports/sales" className="text-primary hover:underline">
                 ← Retour au rapport des ventes
               </Link>
             </div>
@@ -207,7 +207,7 @@ export default function SaleDetailPage() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-2">
               <div>
                 <h1 className="text-3xl font-bold">Vente #{sale.orderNumber}</h1>
-                <p className="text-gray-600 mt-1">
+                <p className="text-muted mt-1">
                   {formatDate(sale.createdAt)} — {sale.store.name} ({sale.store.code})
                 </p>
               </div>
@@ -216,7 +216,7 @@ export default function SaleDetailPage() {
                   href={`/sales/${sale.id}/receipt`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-lg bg-green-600 px-5 py-3 font-semibold text-white hover:bg-green-700"
+                  className="inline-flex items-center justify-center rounded-[var(--radius-lg)] bg-green-600 px-5 py-3 font-semibold text-white hover:bg-green-700"
                 >
                   🧾 Réimprimer le ticket
                 </Link>
@@ -225,21 +225,21 @@ export default function SaleDetailPage() {
             <div className="mb-8" />
 
             {/* Informations générales */}
-            <div className="bg-white border rounded-lg p-6 mb-8">
+            <div className="bg-surface border rounded-[var(--radius-lg)] p-6 mb-8">
               <h2 className="text-lg font-semibold mb-4">Informations</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <div className="text-sm text-gray-600 mb-1">Client</div>
+                  <div className="text-sm text-muted mb-1">Client</div>
                   <div className="font-medium">{sale.customer?.name || 'N/A'}</div>
                   {sale.customer?.email && (
-                    <div className="text-sm text-gray-500">{sale.customer.email}</div>
+                    <div className="text-sm text-muted">{sale.customer.email}</div>
                   )}
                 </div>
                 <div>
-                  <div className="text-sm text-gray-600 mb-1">Statut</div>
+                  <div className="text-sm text-muted mb-1">Statut</div>
                   <div className={`font-medium ${
-                    sale.status === 'COMPLETED' ? 'text-green-600' :
-                    sale.status === 'CANCELLED' ? 'text-red-600' :
+                    sale.status === 'COMPLETED' ? 'text-success' :
+                    sale.status === 'CANCELLED' ? 'text-danger' :
                     'text-yellow-600'
                   }`}>
                     {sale.status}
@@ -249,19 +249,19 @@ export default function SaleDetailPage() {
             </div>
 
             {/* Totaux */}
-            <div className="bg-white border rounded-lg p-6 mb-8">
+            <div className="bg-surface border rounded-[var(--radius-lg)] p-6 mb-8">
               <h2 className="text-lg font-semibold mb-4">Totaux</h2>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Sous-total</span>
+                  <span className="text-muted">Sous-total</span>
                   <span className="font-medium">{formatCurrency(sale.subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Remise</span>
-                  <span className="font-medium text-red-600">-{formatCurrency(sale.discount)}</span>
+                  <span className="text-muted">Remise</span>
+                  <span className="font-medium text-danger">-{formatCurrency(sale.discount)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Taxe ({(sale.taxRate * 100).toFixed(0)}%)</span>
+                  <span className="text-muted">Taxe ({(sale.taxRate * 100).toFixed(0)}%)</span>
                   <span className="font-medium">{formatCurrency(sale.tax)}</span>
                 </div>
                 <div className="border-t pt-2 mt-2">
@@ -274,10 +274,10 @@ export default function SaleDetailPage() {
             </div>
 
             {/* Lignes de vente */}
-            <div className="bg-white border rounded-lg p-6 mb-8">
+            <div className="bg-surface border rounded-[var(--radius-lg)] p-6 mb-8">
               <h2 className="text-lg font-semibold mb-4">Lignes de vente</h2>
               {sale.items.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">Aucune ligne</div>
+                <div className="text-center py-8 text-muted">Aucune ligne</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -295,10 +295,10 @@ export default function SaleDetailPage() {
                       {sale.items.map((item) => (
                         <tr key={item.id} className="border-b">
                           <td className="py-2">{item.variant.product.name}</td>
-                          <td className="py-2 text-gray-600">{item.variant.sku}</td>
+                          <td className="py-2 text-muted">{item.variant.sku}</td>
                           <td className="text-right py-2">{item.quantity}</td>
                           <td className="text-right py-2">{formatCurrency(item.unitPrice)}</td>
-                          <td className="text-right py-2 text-red-600">-{formatCurrency(item.discount)}</td>
+                          <td className="text-right py-2 text-danger">-{formatCurrency(item.discount)}</td>
                           <td className="text-right py-2 font-medium">{formatCurrency(item.totalPrice)}</td>
                         </tr>
                       ))}
@@ -309,10 +309,10 @@ export default function SaleDetailPage() {
             </div>
 
             {/* Paiements */}
-            <div className="bg-white border rounded-lg p-6 mb-8">
+            <div className="bg-surface border rounded-[var(--radius-lg)] p-6 mb-8">
               <h2 className="text-lg font-semibold mb-4">Paiements</h2>
               {sale.payments.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">Aucun paiement</div>
+                <div className="text-center py-8 text-muted">Aucun paiement</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -333,13 +333,13 @@ export default function SaleDetailPage() {
                           <td className="text-right py-2 font-medium">{formatCurrency(payment.amount)}</td>
                           <td className="py-2">
                             <span className={`px-2 py-1 rounded text-xs ${
-                              payment.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                              'bg-yellow-100 text-yellow-800'
+                              payment.status === 'COMPLETED' ? 'bg-success-soft text-success' :
+                              'bg-warning-soft text-warning'
                             }`}>
                               {payment.status}
                             </span>
                           </td>
-                          <td className="py-2 text-gray-600">{payment.reference || 'N/A'}</td>
+                          <td className="py-2 text-muted">{payment.reference || 'N/A'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -350,8 +350,8 @@ export default function SaleDetailPage() {
                       <span>{formatCurrency(totalPaid)}</span>
                     </div>
                     <div className="flex justify-between mt-1">
-                      <span className="text-gray-600">Reste à payer</span>
-                      <span className={Number(sale.total) - totalPaid > 0 ? 'text-red-600' : 'text-green-600'}>
+                      <span className="text-muted">Reste à payer</span>
+                      <span className={Number(sale.total) - totalPaid > 0 ? 'text-danger' : 'text-success'}>
                         {formatCurrency(Number(sale.total) - totalPaid)}
                       </span>
                     </div>
