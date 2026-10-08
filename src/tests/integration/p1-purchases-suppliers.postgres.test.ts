@@ -99,6 +99,37 @@ describe('P1 achats / fournisseurs PostgreSQL runtime proof', () => {
     expect(Number(balance.balance)).toBe(600);
   });
 
+  it('excludes draft purchases from supplier liabilities and general payments', async () => {
+    const draft = await purchaseService.create(ids.org, ids.user, {
+      storeId: ids.store,
+      supplierId: ids.supplier,
+      reference: `PUR-DRAFT-LIABILITY-${suffix}`,
+      items: [{ variantId: ids.variant, orderedQuantity: 5, unitCost: 100 }],
+    });
+
+    const balance = await supplierPaymentService.supplierBalance(ids.org, ids.supplier, ids.store);
+    expect(Number(balance.totalPurchases)).toBe(1000);
+    expect(Number(balance.balance)).toBe(600);
+
+    await expect(
+      supplierPaymentService.create(ids.org, ids.user, {
+        storeId: ids.store,
+        supplierId: ids.supplier,
+        amount: 50,
+        method: 'BANK',
+        reference: `DRAFT-PAY-${suffix}`,
+      }),
+    ).rejects.toThrow('Payment exceeds supplier outstanding balance');
+
+    expect(
+      await prisma.supplierPayment.count({
+        where: { organizationId: ids.org, supplierId: ids.supplier, reference: `DRAFT-PAY-${suffix}` },
+      }),
+    ).toBe(0);
+
+    expect(draft.status).toBe('DRAFT');
+  });
+
   it('replays the same supplier payment idempotency key without creating a duplicate', async () => {
     const purchase = await purchaseService.create(ids.org, ids.user, {
       storeId: ids.store,
