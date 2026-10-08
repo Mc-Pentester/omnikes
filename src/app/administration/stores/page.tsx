@@ -195,7 +195,7 @@ export default function AdministrationStoresPage() {
                     <div className="font-medium">{store.name}</div>
                     <div className="text-sm text-muted">{store.code}{store.city ? ` · ${store.city}` : ''}</div>
                   </div>
-                  <span className={`rounded-full px-2 py-1 text-xs ${store.isActive ? 'bg-green-100 text-success' : 'bg-gray-100 text-muted'}`}>
+                  <span className={`rounded-full px-2 py-1 text-xs ${store.isActive ? 'bg-green-100 text-success' : 'bg-surface-muted text-muted'}`}>
                     {store.isActive ? 'Actif' : 'Inactif'}
                   </span>
                 </div>
@@ -264,5 +264,6 @@ export default function AdministrationStoresPage() {
         </section>
       </div>
     </main>
+    </AdminPageShell>
   );
 }
