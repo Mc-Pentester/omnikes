@@ -325,7 +325,7 @@ export default function HomePage() {
               const store = stores.find(s => s.id === e.target.value);
               if (store) setCurrentStore(store);
             }}
-            className="px-4 py-2 border border-border-strong rounded-lg text-sm"
+            className="h-10 px-3 border border-[var(--border)] bg-[var(--surface)] rounded-[var(--radius-md)] text-sm font-medium text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-soft)]"
           >
             <option value="">Sélectionner un magasin</option>
             {stores.map(store => (
@@ -550,19 +550,19 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-[var(--background)] flex">
       <Sidebar 
         compact={isSidebarCompact} 
         onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)}
       />
 
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-surface border-b border-border px-6 py-3 flex items-center justify-between">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden bg-[var(--background)]">
+        <header className="bg-[var(--surface)] border-b border-[var(--border)] px-4 md:px-6 py-3 flex items-center justify-between shadow-[var(--shadow-sm)]">
           <div className="flex items-center gap-4">
             <Logo size={60} />
             <div>
-              <h1 className="text-2xl font-bold text-foreground">OmniKès POS</h1>
-              <span className="text-sm text-muted">Point de Vente</span>
+              <h1 className="text-xl md:text-2xl font-bold text-[var(--foreground)]">Point de vente</h1>
+              <span className="text-sm text-[var(--muted)]">POS · Vente rapide</span>
             </div>
           </div>
           
@@ -578,7 +578,7 @@ export default function HomePage() {
                 const store = stores.find(s => s.id === e.target.value);
                 if (store) setCurrentStore(store);
               }}
-              className="px-4 py-2 border border-border-strong rounded-lg text-sm"
+              className="h-10 px-3 border border-[var(--border)] bg-[var(--surface)] rounded-[var(--radius-md)] text-sm font-medium text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-soft)]"
               aria-label="Sélectionner un magasin"
             >
               <option value="">Sélectionner un magasin</option>
@@ -590,7 +590,7 @@ export default function HomePage() {
             <select
               value={selectedCustomer}
               onChange={(e) => setSelectedCustomer(e.target.value)}
-              className="px-4 py-2 border border-border-strong rounded-lg text-sm"
+              className="h-10 px-3 border border-[var(--border)] bg-[var(--surface)] rounded-[var(--radius-md)] text-sm font-medium text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-soft)]"
               disabled
               aria-label="Sélectionner un client"
             >
@@ -599,15 +599,15 @@ export default function HomePage() {
           </div>
         </header>
 
-        <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 p-4 md:p-6 overflow-y-auto">
+        <div className="flex-1 flex min-h-0 overflow-hidden flex-col lg:flex-row">
+        <div className="flex-1 min-w-0 p-4 md:p-6 overflow-y-auto">
           <div className="mb-4 md:mb-6">
             <Input
               type="text"
               placeholder="Rechercher par nom ou SKU... (F1)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full text-lg h-12"
+              className="w-full text-base md:text-lg h-14 shadow-[var(--shadow-sm)]"
               id="product-search"
               autoComplete="off"
             />
@@ -616,12 +616,12 @@ export default function HomePage() {
           {products.length === 0 ? (
             <p className="text-center text-muted py-8">Aucun produit disponible</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4">
               {filteredProducts.map(product =>
                 product.variants.map(variant => (
                   <Card
                     key={variant.id}
-                    className={`p-3 md:p-4 cursor-pointer hover:shadow-lg transition-all hover:scale-105 active:scale-95 min-h-[140px] md:min-h-[160px] flex flex-col justify-between ${!storesValidated ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`p-4 cursor-pointer border border-[var(--border)] hover:border-[var(--primary)] hover:shadow-[var(--shadow-md)] transition-all active:scale-[0.99] min-h-[168px] flex flex-col justify-between ${!storesValidated ? 'opacity-50 cursor-not-allowed' : ''}`}
                     onClick={() => storesValidated && addToCart(
                       variant.id,
                       product.id,
@@ -642,11 +642,11 @@ export default function HomePage() {
                     aria-label={`Ajouter ${product.name} - ${variant.name} au panier`}
                   >
                     <div>
-                      <h3 className="font-semibold text-foreground text-base md:text-lg">{product.name}</h3>
-                      <p className="text-sm text-muted">{variant.name}</p>
-                      <p className="text-xs text-muted mt-1">SKU: {variant.sku}</p>
+                      <h3 className="font-semibold text-[var(--foreground)] text-sm md:text-base">{product.name}</h3>
+                      <p className="text-sm text-[var(--muted)]">{variant.name}</p>
+                      <p className="text-xs text-[var(--muted)] mt-1">SKU: {variant.sku}</p>
                     </div>
-                    <p className="text-lg md:text-xl font-bold text-foreground mt-2 md:mt-3">{parseFloat(String(variant.price)).toFixed(2)} HTG</p>
+                    <p className="text-lg font-bold text-[var(--primary)] mt-3">{parseFloat(String(variant.price)).toFixed(2)} HTG</p>
                   </Card>
                 ))
               )}
@@ -654,19 +654,19 @@ export default function HomePage() {
           )}
         </div>
 
-        <div className="w-80 md:w-96 bg-surface border-l border-border flex flex-col">
-          <div className="p-4 md:p-6 border-b border-border">
-            <h2 className="text-lg md:text-xl font-bold text-foreground">Panier</h2>
-            <p className="text-sm text-muted">{cart.length} article(s)</p>
+        <div className="w-full lg:w-[390px] xl:w-[430px] bg-[var(--surface)] border-t lg:border-t-0 lg:border-l border-[var(--border)] flex flex-col shrink-0">
+          <div className="p-4 md:p-5 border-b border-[var(--border)]">
+            <h2 className="text-lg font-bold text-[var(--foreground)]">Panier</h2>
+            <p className="text-sm text-[var(--muted)]">{cart.length} article(s)</p>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="flex-1 min-h-[180px] overflow-y-auto p-4 md:p-5">
             {cart.length === 0 ? (
               <p className="text-center text-muted py-8">Le panier est vide</p>
             ) : (
               <div className="space-y-3 md:space-y-4">
                 {cart.map(item => (
-                  <div key={item.variantId} className="flex items-center justify-between p-3 md:p-4 bg-background rounded-lg">
+                  <div key={item.variantId} className="flex items-center justify-between gap-2 p-3 md:p-4 bg-[var(--surface-muted)] border border-[var(--border)] rounded-[var(--radius-md)]">
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium text-foreground text-sm md:text-base truncate">{item.productName}</h4>
                       <p className="text-xs md:text-sm text-muted truncate">{item.variantName}</p>
@@ -729,10 +729,10 @@ export default function HomePage() {
             )}
           </div>
 
-          <div className="p-4 md:p-6 border-t border-border bg-background">
+          <div className="p-4 md:p-5 border-t border-[var(--border)] bg-[var(--surface-muted)]">
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted">Sous-total</span>
+                <span className="text-[var(--muted)]">Sous-total</span>
                 <span className="font-medium">{parseFloat(String(subtotal)).toFixed(2)} HTG</span>
               </div>
               <div className="flex items-center justify-between text-sm">
@@ -754,12 +754,12 @@ export default function HomePage() {
                 <span className="font-medium">{parseFloat(String(displayTax)).toFixed(2)} HTG</span>
               </div>
               <div className="flex justify-between text-base md:text-lg font-bold border-t border-border pt-2">
-                <span className="text-foreground">Total</span>
-                <span className="text-foreground">{parseFloat(String(displayTotal)).toFixed(2)} HTG</span>
+                <span className="text-[var(--foreground)]">Total</span>
+                <span className="text-[var(--foreground)]">{parseFloat(String(displayTotal)).toFixed(2)} HTG</span>
               </div>
             </div>
 
-            <div className="flex gap-2 md:gap-3 mt-4">
+            <div className="mt-4 flex gap-2 md:gap-3">
               <Button
                 onClick={clearCart}
                 disabled={cart.length === 0 || !storesValidated}
@@ -782,7 +782,7 @@ export default function HomePage() {
 
       {showPaymentModal && (
         <div 
-          className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="payment-modal-title"
@@ -792,7 +792,7 @@ export default function HomePage() {
             }
           }}
         >
-          <div className="bg-surface rounded-lg p-6 w-full max-w-md">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-lg)] p-6 w-full max-w-md shadow-[var(--shadow-md)]">
             <div className="flex justify-between items-center mb-4">
               <h2 id="payment-modal-title" className="text-2xl font-bold">Paiement</h2>
               <button
