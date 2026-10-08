@@ -271,8 +271,8 @@ export default function ProductsPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Chargement...</p>
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
+        <p className="text-muted">Chargement...</p>
       </div>
     );
   }
@@ -283,17 +283,17 @@ export default function ProductsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Chargement des produits...</p>
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
+        <p className="text-muted">Chargement des produits...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-surface-muted flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-danger mb-4">{error}</p>
           <Button onClick={fetchProducts}>Réessayer</Button>
         </div>
       </div>
@@ -301,7 +301,7 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-surface-muted flex">
       <Sidebar 
         compact={isSidebarCompact} 
         onToggleCompact={() => setIsSidebarCompact(!isSidebarCompact)} 
@@ -325,8 +325,8 @@ export default function ProductsPage() {
         <main className="flex-1 overflow-y-auto p-6">
           {products.length === 0 ? (
             <Card className="p-12 text-center">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Aucun produit</h2>
-              <p className="text-gray-600 mb-6">Aucun produit n&apos;est encore configuré pour votre organisation.</p>
+              <h2 className="text-xl font-bold text-foreground mb-2">Aucun produit</h2>
+              <p className="text-muted mb-6">Aucun produit n&apos;est encore configuré pour votre organisation.</p>
               <Button onClick={handleCreate}>+ Créer un produit</Button>
             </Card>
           ) : (
@@ -348,35 +348,35 @@ export default function ProductsPage() {
             <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-surface-muted border-b border-border">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catégorie</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prix</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Nom</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Catégorie</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">SKU</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Prix</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Statut</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-surface divide-y divide-border">
                     {filteredProducts.map((product) => (
-                      <tr key={product.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.category || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.variants[0]?.sku || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <tr key={product.id} className="hover:bg-surface-muted">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">{product.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{product.category || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{product.variants[0]?.sku || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                           {product.variants[0]?.price ? `${parseFloat(String(product.variants[0].price)).toFixed(2)} HTG` : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                             product.isActive 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-gray-100 text-gray-800'
+                              ? 'bg-success-soft text-success' 
+                              : 'bg-surface-muted text-muted'
                           }`}>
                             {product.isActive ? 'Actif' : 'Inactif'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                           <div className="flex gap-2">
                             <Button
                               variant="outline"
@@ -447,14 +447,14 @@ export default function ProductsPage() {
         }
       >
         {formError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+          <div className="mb-4 p-3 bg-danger-soft border border-danger rounded-lg text-sm text-danger">
             {formError}
           </div>
         )}
 
         <form id="product-form" onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="name" className="block text-sm font-medium text-foreground mb-1">
               Nom du produit *
             </label>
             <Input
@@ -467,7 +467,7 @@ export default function ProductsPage() {
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="description" className="block text-sm font-medium text-foreground mb-1">
               Description
             </label>
             <Input
@@ -479,7 +479,7 @@ export default function ProductsPage() {
           </div>
 
           <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="category" className="block text-sm font-medium text-foreground mb-1">
               Catégorie
             </label>
             <Input
@@ -493,7 +493,7 @@ export default function ProductsPage() {
           {modalMode === 'create' && (
             <>
               <div>
-                <label htmlFor="sku" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="sku" className="block text-sm font-medium text-foreground mb-1">
                   SKU *
                 </label>
                 <Input
@@ -506,7 +506,7 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">
                   Prix (HTG) *
                 </label>
                 <Input
