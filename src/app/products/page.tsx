@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
+import { EmptyState } from '@omnikes/components/ui/empty-state';
 import { Input } from '@omnikes/components/ui/input';
 import { Badge } from '@omnikes/components/ui/badge';
 import { Modal } from '@omnikes/components/ui/modal';
@@ -325,11 +326,14 @@ export default function ProductsPage() {
 
         <main className="flex-1 overflow-y-auto p-6">
           {products.length === 0 ? (
-            <Card className="p-12 text-center">
-              <h2 className="text-xl font-bold text-foreground mb-2">Aucun produit</h2>
-              <p className="text-muted mb-6">Aucun produit n&apos;est encore configuré pour votre organisation.</p>
-              <Button onClick={handleCreate}>+ Créer un produit</Button>
-            </Card>
+            <EmptyState
+              title="Votre catalogue est prêt à commencer"
+              description="Ajoutez votre premier produit pour construire votre catalogue et pouvoir passer vos premières ventes."
+              actionLabel="Créer un produit"
+              onAction={handleCreate}
+              icon="box"
+              tone="primary"
+            />
           ) : (
             <div className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -424,11 +428,14 @@ export default function ProductsPage() {
               </div>
             </Card>
               {filteredProducts.length === 0 && (
-                <Card className="p-8 text-center">
-                  <p className="font-medium text-foreground">Aucun produit trouvé</p>
-                  <p className="mt-1 text-sm text-muted">Essayez un autre terme ou réinitialisez les filtres.</p>
-                  <Button className="mt-4" variant="outline" onClick={() => { setSearch(''); setCategoryFilter(''); }}>Réinitialiser les filtres</Button>
-                </Card>
+                <EmptyState
+                  title="Aucun produit ne correspond"
+                  description="Modifiez votre recherche ou réinitialisez les filtres pour retrouver votre catalogue."
+                  actionLabel="Réinitialiser les filtres"
+                  onAction={() => { setSearch(''); setCategoryFilter(''); }}
+                  icon="search"
+                  tone="info"
+                />
               )}
             </div>
           )}
