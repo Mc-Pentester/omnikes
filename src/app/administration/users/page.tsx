@@ -225,7 +225,7 @@ export default function AdministrationUsersPage() {
                       <div className="font-medium">{item.name || 'Sans nom'}</div>
                       <div className="text-sm text-muted">{item.email}</div>
                     </div>
-                    <span className={`rounded-full px-2 py-1 text-xs ${item.isActive ? 'bg-green-100 text-success' : 'bg-gray-100 text-muted'}`}>
+                    <span className={`rounded-full px-2 py-1 text-xs ${item.isActive ? 'bg-green-100 text-success' : 'bg-surface-muted text-muted'}`}>
                       {item.isActive ? 'Actif' : 'Inactif'}
                     </span>
                   </div>
@@ -293,5 +293,6 @@ export default function AdministrationUsersPage() {
         </section>
       </div>
     </main>
+    </AdminPageShell>
   );
 }
