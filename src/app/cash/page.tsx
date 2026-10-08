@@ -171,7 +171,7 @@ export default function CashPage() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-6xl mx-auto space-y-6">
+          <div className="space-y-6">
             {message && (
               <div className="flex items-center justify-between gap-4 rounded-[var(--radius-md)] border border-primary/20 bg-primary-soft px-4 py-3 text-sm text-foreground">
                 <span>{message}</span>
