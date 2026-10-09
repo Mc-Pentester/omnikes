@@ -677,7 +677,7 @@ export default function HomePage() {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button
                         onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
-                        className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-gray-200 rounded-lg hover:bg-gray-300 text-lg md:text-xl font-bold transition-colors focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-surface-muted rounded-lg hover:bg-border text-lg md:text-xl font-bold transition-colors focus:ring-2 focus:ring-primary focus:outline-none"
                         aria-label={`Réduire la quantité de ${item.productName}`}
                         tabIndex={0}
                         onKeyDown={(e) => {
@@ -692,7 +692,7 @@ export default function HomePage() {
                       <span className="w-16 md:w-20 text-center font-medium text-base md:text-lg" aria-live="polite">{formatCartQuantity(item.quantity, item.saleUnit)}</span>
                       <button
                         onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
-                        className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-gray-200 rounded-lg hover:bg-gray-300 text-lg md:text-xl font-bold transition-colors focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-surface-muted rounded-lg hover:bg-border text-lg md:text-xl font-bold transition-colors focus:ring-2 focus:ring-primary focus:outline-none"
                         aria-label={`Augmenter la quantité de ${item.productName}`}
                         tabIndex={0}
                         onKeyDown={(e) => {
@@ -710,7 +710,7 @@ export default function HomePage() {
                       <p className="font-bold text-foreground text-base md:text-lg">{parseFloat(String(item.totalPrice)).toFixed(2)} HTG</p>
                       <button
                         onClick={() => removeFromCart(item.variantId)}
-                        className="text-xs md:text-sm text-danger hover:text-danger font-medium py-1 px-2 rounded hover:bg-danger-soft transition-colors focus:ring-2 focus:ring-red-500 focus:outline-none"
+                        className="text-xs md:text-sm text-danger hover:text-danger font-medium py-1 px-2 rounded hover:bg-danger-soft transition-colors focus:ring-2 focus:ring-danger focus:outline-none"
                         aria-label={`Supprimer ${item.productName} du panier`}
                         tabIndex={0}
                         onKeyDown={(e) => {
@@ -782,7 +782,7 @@ export default function HomePage() {
 
       {showPaymentModal && (
         <div 
-          className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-foreground/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="payment-modal-title"
@@ -797,7 +797,7 @@ export default function HomePage() {
               <h2 id="payment-modal-title" className="text-2xl font-bold">Paiement</h2>
               <button
                 onClick={() => setShowPaymentModal(false)}
-                className="text-gray-400 hover:text-muted focus:outline-none"
+                className="text-muted hover:text-muted focus:outline-none"
                 aria-label="Fermer"
               >
                 <svg
