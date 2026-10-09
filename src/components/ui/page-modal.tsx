@@ -48,15 +48,15 @@ export function PageModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-white"
+      className="fixed inset-0 z-50 bg-surface"
       onClick={handleOverlayClick}
       role="dialog"
       aria-modal="true"
       aria-labelledby="page-modal-title"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white">
-        <h2 id="page-modal-title" className="text-xl font-semibold text-gray-900">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface">
+        <h2 id="page-modal-title" className="text-xl font-semibold text-foreground">
           {title}
         </h2>
         <Button onClick={onClose} variant="outline">

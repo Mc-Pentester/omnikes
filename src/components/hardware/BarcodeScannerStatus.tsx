@@ -20,8 +20,8 @@ export function BarcodeScannerStatus({ onScan }: Props) {
   }, [onScan]);
 
   return (
-    <div className="flex items-center gap-2 text-xs text-gray-500" title="Scanner code-barres HID clavier">
-      <span className="h-2 w-2 rounded-full bg-green-500" />
+    <div className="flex items-center gap-2 text-xs text-muted" title="Scanner code-barres HID clavier">
+      <span className="h-2 w-2 rounded-full bg-success" />
       <span>Scanner HID prêt</span>
       {lastScan && <span className="sr-only">Dernier scan: {lastScan}</span>}
     </div>
