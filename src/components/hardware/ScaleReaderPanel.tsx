@@ -155,11 +155,11 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
   };
 
   return (
-    <div className={compact ? 'flex items-center gap-2' : 'rounded-lg border border-gray-200 bg-white p-3'}>
+    <div className={compact ? 'flex items-center gap-2' : 'rounded-lg border border-border bg-surface p-3'}>
       {!compact && (
         <div className="mb-2">
-          <p className="font-medium text-gray-900">Balance</p>
-          <p className="text-xs text-gray-500">
+          <p className="font-medium text-foreground">Balance</p>
+          <p className="text-xs text-muted">
             Lecture matérielle locale uniquement
           </p>
         </div>
@@ -169,7 +169,7 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
         <select
           value={scaleId}
           onChange={(e) => setScaleId(e.target.value)}
-          className="rounded border border-gray-300 px-2 py-1.5 text-sm"
+          className="rounded border border-border px-2 py-1.5 text-sm"
           aria-label="Port COM de la balance"
         >
           <option value="">Balance COM</option>
@@ -183,7 +183,7 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
         <select
           value={baudRate}
           onChange={(e) => setBaudRate(e.target.value)}
-          className="rounded border border-gray-300 px-2 py-1.5 text-sm"
+          className="rounded border border-border px-2 py-1.5 text-sm"
           aria-label="Vitesse de la balance"
         >
           {[2400, 4800, 9600, 19200, 38400, 57600, 115200].map((rate) => (
@@ -197,7 +197,7 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
           type="button"
           onClick={() => void discover()}
           disabled={status === 'loading' || status === 'reading'}
-          className="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-50"
+          className="rounded border border-border px-3 py-1.5 text-sm hover:bg-surface-muted disabled:opacity-50"
         >
           Détecter
         </button>
@@ -206,7 +206,7 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
           type="button"
           onClick={() => void read()}
           disabled={!scaleId || status === 'reading'}
-          className="rounded bg-gray-900 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:opacity-50"
+          className="rounded bg-foreground px-3 py-1.5 text-sm text-white hover:bg-foreground/90 disabled:opacity-50"
         >
           {status === 'reading' ? 'Lecture...' : 'Lire poids'}
         </button>
@@ -218,14 +218,14 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
             {reading.weight} {reading.unit}
           </strong>
           <span>{reading.weightGrams.toFixed(3)} g</span>
-          <span className={reading.stable ? 'text-green-700' : 'text-amber-700'}>
+          <span className={reading.stable ? 'text-success' : 'text-warning'}>
             {reading.stable ? 'Stable' : 'Instable'}
           </span>
         </div>
       )}
 
       {error && (
-        <p className="mt-2 text-xs text-red-600" role="alert">
+        <p className="mt-2 text-xs text-danger" role="alert">
           {error}
         </p>
       )}
