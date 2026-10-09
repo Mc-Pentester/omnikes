@@ -51,7 +51,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4"
       onClick={handleOverlayClick}
       role="dialog"
       aria-modal="true"
@@ -59,17 +59,17 @@ export function Modal({
     >
       <div
         ref={modalRef}
-        className="w-full max-w-lg bg-white rounded-lg shadow-xl"
+        className="w-full max-w-lg bg-surface rounded-lg shadow-xl"
         style={{ maxWidth: 'calc(100% - 24px)' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
-          <h2 id="modal-title" className="text-xl font-semibold text-gray-900">
+          <h2 id="modal-title" className="text-xl font-semibold text-foreground">
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 focus:outline-none"
+            className="text-muted hover:text-foreground focus:outline-none"
             aria-label="Fermer"
           >
             <svg
@@ -93,7 +93,7 @@ export function Modal({
 
         {/* Footer */}
         {footer && (
-          <div className="flex justify-end gap-3 p-6 border-t bg-gray-50 rounded-b-lg">
+          <div className="flex justify-end gap-3 p-6 border-t bg-surface-muted rounded-b-lg">
             {footer}
           </div>
         )}
