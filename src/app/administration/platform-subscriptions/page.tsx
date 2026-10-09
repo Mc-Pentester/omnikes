@@ -209,7 +209,7 @@ export default function PlatformSubscriptionsPage() {
                     type="button"
                     disabled={saving}
                     onClick={() => void save('CANCEL')}
-                    className="w-full rounded-lg border border-red-300 px-4 py-2.5 text-danger disabled:opacity-50"
+                    className="w-full rounded-lg border border-danger px-4 py-2.5 text-danger disabled:opacity-50"
                   >
                     Annuler l’abonnement
                   </button>

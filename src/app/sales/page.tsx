@@ -411,7 +411,7 @@ export default function PendingSalesPage() {
                         </div>
                         <div className="flex justify-between gap-3 mt-2 text-sm">
                           <span className="text-muted">{sale.customer?.name || 'Client anonyme'}</span>
-                          <span className={fullyCovered ? 'text-warning font-semibold' : 'text-orange-600 font-medium'}>
+                          <span className={fullyCovered ? 'text-warning font-semibold' : 'text-warning font-medium'}>
                             {fullyCovered ? 'Paiement complet — finalisation en attente' : 'Reste ' + money(remaining) + ' HTG'}
                           </span>
                         </div>
@@ -447,7 +447,7 @@ export default function PendingSalesPage() {
                     </div>
                     <span className={
                       'px-3 py-1 rounded-full text-sm font-semibold w-fit ' +
-                      (totals.remaining <= 0 ? 'bg-amber-100 text-warning' : 'bg-orange-100 text-orange-700')
+                      (totals.remaining <= 0 ? 'bg-warning-soft text-warning' : 'bg-warning-soft text-warning')
                     }>
                       {totals.remaining <= 0 ? 'PAIEMENT COMPLET · FINALISATION' : 'PENDING'}
                     </span>
