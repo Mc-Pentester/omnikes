@@ -239,6 +239,20 @@ export class SaleService {
    */
   async updateItem(itemId: string, organizationId: string, data: Partial<SaleItemInput>) {
     const validatedData = saleItemSchema.partial().parse(data);
+    const existingItem = await prisma.saleItem.findFirst({
+      where: {
+        id: itemId,
+        sale: { organizationId },
+      },
+      include: { sale: true },
+    });
+
+    if (!existingItem) {
+      throw new Error('Sale item not found or access denied');
+    }
+    if (existingItem.sale.status !== 'PENDING') {
+      throw new Error('Sale can only be modified while PENDING');
+    }
 
     // Calculate new total if quantity or price changed
     if (validatedData.quantity !== undefined || validatedData.unitPrice !== undefined || validatedData.discount !== undefined) {
