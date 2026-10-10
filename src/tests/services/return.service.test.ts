@@ -26,13 +26,16 @@ describe('ReturnService', () => {
     storeId: 'clh1234567890ef',
     orderNumber: 'SALE-001',
     status: 'COMPLETED',
-    total: 1000,
+    subtotal: 500,
+    tax: 0,
+    total: 500,
     items: [
       {
         id: 'clh1234567890ab',
         quantity: 5,
         returnedQuantity: 0,
         unitPrice: 100,
+        totalPrice: 500,
         variant: {
           id: 'clh1234567890gh',
           sku: 'SKU-1',
@@ -88,6 +91,108 @@ describe('ReturnService', () => {
       data: { returnedQuantity: 2 },
     });
     expect(tx.return.create).toHaveBeenCalled();
+  });
+
+  it('calculates partial return from discounted line value and proportional tax', async () => {
+    const discountedSale = {
+      ...mockSale,
+      subtotal: 450,
+      tax: 45,
+      items: [{
+        ...mockSale.items[0],
+        quantity: 5,
+        unitPrice: 100,
+        totalPrice: 450,
+        returnedQuantity: 0,
+      }],
+    };
+    const tx = {
+      $queryRaw: vi.fn()
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }])
+        .mockResolvedValueOnce([{ id: 'clh1234567890kl', quantity: 10, reservedQuantity: 0 }]),
+      sale: { findUnique: vi.fn().mockResolvedValue(discountedSale) },
+      saleItem: { update: vi.fn().mockResolvedValue({}) },
+      return: { create: vi.fn().mockResolvedValue({ id: 'return-discounted', totalRefunded: 198, items: [] }) },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+
+    await returnService.create('clh1234567890cd', 'clh1234567890op', {
+      saleId: 'clh1234567890ab',
+      items: [{ saleItemId: 'clh1234567890ab', quantity: 2 }],
+    });
+
+    expect(tx.return.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        totalRefunded: 198,
+        items: {
+          create: expect.arrayContaining([
+            expect.objectContaining({
+              quantity: 2,
+              unitPrice: 100,
+              totalRefunded: 198,
+            }),
+          ]),
+        },
+      }),
+    }));
+  });
+
+  it('reconciles repeated partial returns without losing fractional cents to rounding', async () => {
+    const tinySale = {
+      ...mockSale,
+      subtotal: 0.01,
+      tax: 0,
+      total: 0.01,
+      items: [{
+        ...mockSale.items[0],
+        quantity: 3,
+        returnedQuantity: 0,
+        unitPrice: 0.01,
+        totalPrice: 0.01,
+      }],
+    };
+    const tx = {
+      $queryRaw: vi.fn()
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }])
+        .mockResolvedValueOnce([{ id: 'inventory-1', quantity: 10, reservedQuantity: 0 }])
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }])
+        .mockResolvedValueOnce([{ id: 'inventory-1', quantity: 11, reservedQuantity: 0 }])
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }])
+        .mockResolvedValueOnce([{ id: 'inventory-1', quantity: 12, reservedQuantity: 0 }]),
+      sale: {
+        findUnique: vi.fn()
+          .mockResolvedValueOnce(tinySale)
+          .mockResolvedValueOnce({
+            ...tinySale,
+            items: [{ ...tinySale.items[0], returnedQuantity: 1 }],
+          })
+          .mockResolvedValueOnce({
+            ...tinySale,
+            items: [{ ...tinySale.items[0], returnedQuantity: 2 }],
+          }),
+      },
+      saleItem: { update: vi.fn().mockResolvedValue({}) },
+      return: {
+        create: vi.fn().mockImplementation(({ data }) => Promise.resolve({
+          id: 'return-tiny',
+          totalRefunded: data.totalRefunded,
+          items: [],
+        })),
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+
+    for (let i = 0; i < 3; i += 1) {
+      await returnService.create('clh1234567890cd', 'clh1234567890op', {
+        saleId: 'clh1234567890ab',
+        items: [{ saleItemId: 'clh1234567890ab', quantity: 1 }],
+      });
+    }
+
+    const refundedSlices = tx.return.create.mock.calls.map(([args]) => Number(args.data.totalRefunded));
+    expect(refundedSlices.reduce((sum, amount) => sum + amount, 0)).toBe(0.01);
   });
 
   it('rejects return when quantity exceeds available', async () => {

@@ -114,9 +114,29 @@ export class ReturnService {
           data: { returnedQuantity: newReturnedQuantity },
         });
 
-        // Calculate refund amount
+        // Allocate refunds cumulatively, not by rounding each returned slice
+        // independently. This guarantees that several partial returns for one
+        // line reconcile to the same rounded value as returning the whole line.
         const unitPrice = Number(saleItem.unitPrice);
-        const itemRefundAmount = roundMoney(unitPrice * itemData.quantity);
+        const lineNetTotal = Number(saleItem.totalPrice);
+        const previousReturnedQuantity = saleItem.returnedQuantity || 0;
+        const nextReturnedQuantity = previousReturnedQuantity + itemData.quantity;
+        const cumulativeNetValue = (quantity: number) => saleItem.quantity > 0
+          ? roundMoney((lineNetTotal * quantity) / saleItem.quantity)
+          : 0;
+        const returnedNetValue = roundMoney(
+          cumulativeNetValue(nextReturnedQuantity) - cumulativeNetValue(previousReturnedQuantity),
+        );
+        const saleSubtotal = Number(sale.subtotal);
+        const taxRateOnSale = saleSubtotal > 0
+          ? Number(sale.tax) / saleSubtotal
+          : 0;
+        const cumulativeTaxValue = (quantity: number) =>
+          roundMoney(cumulativeNetValue(quantity) * taxRateOnSale);
+        const returnedTax = roundMoney(
+          cumulativeTaxValue(nextReturnedQuantity) - cumulativeTaxValue(previousReturnedQuantity),
+        );
+        const itemRefundAmount = roundMoney(returnedNetValue + returnedTax);
         totalRefunded = roundMoney(totalRefunded + itemRefundAmount);
 
         returnItemsData.push({

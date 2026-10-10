@@ -87,6 +87,7 @@ import { storeService } from '@omnikes/services/store.service';
 describe('SaleService - Tax Calculation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (saleRepository.findById as any).mockResolvedValue({ id: 'sale-123', status: 'PENDING' });
   });
 
   describe('recalculateTotals', () => {
@@ -442,6 +443,7 @@ describe('SaleService - Tax Calculation', () => {
 describe('P1-C - Customer tenant isolation in sales', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (saleRepository.findById as any).mockResolvedValue({ id: 'sale-p1c', status: 'PENDING' });
     (storeService.validateStoreBelongsToOrganization as any).mockResolvedValue(undefined);
     (prisma.organization.findUnique as any).mockResolvedValue({
       id: 'corg1234567',
@@ -504,6 +506,16 @@ describe('P1-C - Customer tenant isolation in sales', () => {
     );
   });
 
+  it('rejects modification of a completed sale', async () => {
+    (saleRepository.findById as any).mockResolvedValue({ id: 'sale-p1c', status: 'COMPLETED' });
+
+    await expect(
+      saleService.update('sale-p1c', 'corg1234567', { customerId: 'ccustomer99999999999999999' })
+    ).rejects.toThrow('Sale can only be modified while PENDING');
+
+    expect(saleRepository.update).not.toHaveBeenCalled();
+  });
+
   it('rejects sale update when the new customer belongs to another organization', async () => {
     (saleRepository.belongsToOrganization as any).mockResolvedValue(true);
     (prisma.customer.findFirst as any).mockResolvedValue(null);
@@ -521,7 +533,7 @@ describe('P1-C - Customer tenant isolation in sales', () => {
     (saleRepository.belongsToOrganization as any).mockResolvedValue(true);
     (prisma.customer.findFirst as any).mockResolvedValue({ id: 'ccustomer99999999999999999' });
     (saleRepository.update as any).mockResolvedValue({});
-    (saleRepository.findById as any).mockResolvedValue({ id: 'sale-p1c' });
+    (saleRepository.findById as any).mockResolvedValue({ id: 'sale-p1c', status: 'PENDING' });
 
     await saleService.update('sale-p1c', 'corg1234567', {
       customerId: 'ccustomer99999999999999999',
