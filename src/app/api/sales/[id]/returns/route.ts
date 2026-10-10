@@ -49,9 +49,17 @@ export async function POST(
     const body = await request.json();
     const returnData = returnSchema.parse(body);
 
-    // Note: For simplicity in this phase, we're not implementing a full idempotency table
-    // for returns. The service layer already uses FOR UPDATE locks to prevent
-    // concurrent returns. Full idempotency can be added in a follow-up phase.
+    // The URL is the authorized resource. Never accept a different sale ID
+    // from the body, otherwise store access could be checked for the wrong sale.
+    if (returnData.saleId !== saleId) {
+      return NextResponse.json(
+        { error: 'Sale ID in request body must match the URL' },
+        { status: 400 }
+      );
+    }
+
+    // NOTE: Idempotency-Key is validated above, but return request deduplication
+    // is not implemented yet. This must not be confused with the row lock below.
 
     // Fetch sale to verify store access before transaction
     const saleForAccessCheck = await prisma.sale.findFirst({
