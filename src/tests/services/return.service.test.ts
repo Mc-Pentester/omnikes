@@ -138,6 +138,63 @@ describe('ReturnService', () => {
     }));
   });
 
+  it('reconciles repeated partial returns without losing fractional cents to rounding', async () => {
+    const tinySale = {
+      ...mockSale,
+      subtotal: 0.01,
+      tax: 0,
+      total: 0.01,
+      items: [{
+        ...mockSale.items[0],
+        quantity: 3,
+        returnedQuantity: 0,
+        unitPrice: 0.01,
+        totalPrice: 0.01,
+      }],
+    };
+    const tx = {
+      $queryRaw: vi.fn()
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }])
+        .mockResolvedValueOnce([{ id: 'inventory-1', quantity: 10, reservedQuantity: 0 }])
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }])
+        .mockResolvedValueOnce([{ id: 'inventory-1', quantity: 11, reservedQuantity: 0 }])
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }])
+        .mockResolvedValueOnce([{ id: 'inventory-1', quantity: 12, reservedQuantity: 0 }]),
+      sale: {
+        findUnique: vi.fn()
+          .mockResolvedValueOnce(tinySale)
+          .mockResolvedValueOnce({
+            ...tinySale,
+            items: [{ ...tinySale.items[0], returnedQuantity: 1 }],
+          })
+          .mockResolvedValueOnce({
+            ...tinySale,
+            items: [{ ...tinySale.items[0], returnedQuantity: 2 }],
+          }),
+      },
+      saleItem: { update: vi.fn().mockResolvedValue({}) },
+      return: {
+        create: vi.fn().mockImplementation(({ data }) => Promise.resolve({
+          id: 'return-tiny',
+          totalRefunded: data.totalRefunded,
+          items: [],
+        })),
+      },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+
+    for (let i = 0; i < 3; i += 1) {
+      await returnService.create('clh1234567890cd', 'clh1234567890op', {
+        saleId: 'clh1234567890ab',
+        items: [{ saleItemId: 'clh1234567890ab', quantity: 1 }],
+      });
+    }
+
+    const refundedSlices = tx.return.create.mock.calls.map(([args]) => Number(args.data.totalRefunded));
+    expect(refundedSlices.reduce((sum, amount) => sum + amount, 0)).toBe(0.01);
+  });
+
   it('rejects return when quantity exceeds available', async () => {
     const tx = {
       $queryRaw: vi.fn().mockResolvedValue([{ id: 'clh1234567890ab' }]),
