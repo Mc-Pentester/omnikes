@@ -114,9 +114,20 @@ export class ReturnService {
           data: { returnedQuantity: newReturnedQuantity },
         });
 
-        // Calculate refund amount
+        // Refund the actual net line value, not the undiscounted catalog price.
+        // Allocate sale tax proportionally to the discounted line value so a
+        // return neither over-refunds discounts nor silently withholds tax.
         const unitPrice = Number(saleItem.unitPrice);
-        const itemRefundAmount = roundMoney(unitPrice * itemData.quantity);
+        const lineNetTotal = Number(saleItem.totalPrice);
+        const returnedNetValue = saleItem.quantity > 0
+          ? roundMoney((lineNetTotal * itemData.quantity) / saleItem.quantity)
+          : 0;
+        const saleSubtotal = Number(sale.subtotal);
+        const taxRateOnSale = saleSubtotal > 0
+          ? Number(sale.tax) / saleSubtotal
+          : 0;
+        const returnedTax = roundMoney(returnedNetValue * taxRateOnSale);
+        const itemRefundAmount = roundMoney(returnedNetValue + returnedTax);
         totalRefunded = roundMoney(totalRefunded + itemRefundAmount);
 
         returnItemsData.push({
