@@ -66,6 +66,13 @@ export async function GET(
       );
     }
 
+    if (error instanceof Error && error.message === 'Sale can only be modified while PENDING') {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 409 }
+      );
+    }
+
     console.error('Error getting sale:', error);
     return NextResponse.json(
       { error: 'Failed to get sale' },
