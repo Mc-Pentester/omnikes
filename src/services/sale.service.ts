@@ -119,10 +119,13 @@ export class SaleService {
    * Update a sale
    */
   async update(id: string, organizationId: string, data: SaleUpdateInput) {
-    const exists = await saleRepository.belongsToOrganization(id, organizationId);
+    const existingSale = await saleRepository.findById(id, organizationId);
     
-    if (!exists) {
+    if (!existingSale) {
       throw new Error('Sale not found or access denied');
+    }
+    if (existingSale.status !== 'PENDING') {
+      throw new Error('Sale can only be modified while PENDING');
     }
 
     const validatedData = saleUpdateSchema.parse(data);
@@ -164,10 +167,13 @@ export class SaleService {
    * Add an item to a sale
    */
   async addItem(saleId: string, organizationId: string, data: SaleItemInput) {
-    const exists = await saleRepository.belongsToOrganization(saleId, organizationId);
+    const existingSale = await saleRepository.findById(saleId, organizationId);
     
-    if (!exists) {
+    if (!existingSale) {
       throw new Error('Sale not found or access denied');
+    }
+    if (existingSale.status !== 'PENDING') {
+      throw new Error('Sale can only be modified while PENDING');
     }
 
     let validatedData;
@@ -250,6 +256,9 @@ export class SaleService {
       if (!item || item.sale.organizationId !== organizationId) {
         throw new Error('Sale item not found or access denied');
       }
+      if (item.sale.status !== 'PENDING') {
+        throw new Error('Sale can only be modified while PENDING');
+      }
 
       // INVARIANT: quantity must be > 0
       const quantity = validatedData.quantity ?? item.quantity;
@@ -317,6 +326,9 @@ export class SaleService {
 
     if (!item || item.sale.organizationId !== organizationId) {
       throw new Error('Sale item not found or access denied');
+    }
+    if (item.sale.status !== 'PENDING') {
+      throw new Error('Sale can only be modified while PENDING');
     }
 
     await saleRepository.deleteItem(itemId, organizationId);
