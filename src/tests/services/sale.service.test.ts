@@ -533,7 +533,7 @@ describe('P1-C - Customer tenant isolation in sales', () => {
     (saleRepository.belongsToOrganization as any).mockResolvedValue(true);
     (prisma.customer.findFirst as any).mockResolvedValue({ id: 'ccustomer99999999999999999' });
     (saleRepository.update as any).mockResolvedValue({});
-    (saleRepository.findById as any).mockResolvedValue({ id: 'sale-p1c' });
+    (saleRepository.findById as any).mockResolvedValue({ id: 'sale-p1c', status: 'PENDING' });
 
     await saleService.update('sale-p1c', 'corg1234567', {
       customerId: 'ccustomer99999999999999999',
