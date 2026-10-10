@@ -90,6 +90,51 @@ describe('ReturnService', () => {
     expect(tx.return.create).toHaveBeenCalled();
   });
 
+  it('calculates partial return from discounted line value and proportional tax', async () => {
+    const discountedSale = {
+      ...mockSale,
+      subtotal: 450,
+      tax: 45,
+      items: [{
+        ...mockSale.items[0],
+        quantity: 5,
+        unitPrice: 100,
+        totalPrice: 450,
+        returnedQuantity: 0,
+      }],
+    };
+    const tx = {
+      $queryRaw: vi.fn()
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }])
+        .mockResolvedValueOnce([{ id: 'clh1234567890kl', quantity: 10, reservedQuantity: 0 }]),
+      sale: { findUnique: vi.fn().mockResolvedValue(discountedSale) },
+      saleItem: { update: vi.fn().mockResolvedValue({}) },
+      return: { create: vi.fn().mockResolvedValue({ id: 'return-discounted', totalRefunded: 198, items: [] }) },
+      auditLog: { create: vi.fn().mockResolvedValue({}) },
+    };
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+
+    await returnService.create('clh1234567890cd', 'clh1234567890op', {
+      saleId: 'clh1234567890ab',
+      items: [{ saleItemId: 'clh1234567890ab', quantity: 2 }],
+    });
+
+    expect(tx.return.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        totalRefunded: 198,
+        items: {
+          create: expect.arrayContaining([
+            expect.objectContaining({
+              quantity: 2,
+              unitPrice: 100,
+              totalRefunded: 198,
+            }),
+          ]),
+        },
+      }),
+    }));
+  });
+
   it('rejects return when quantity exceeds available', async () => {
     const tx = {
       $queryRaw: vi.fn().mockResolvedValue([{ id: 'clh1234567890ab' }]),
