@@ -71,6 +71,13 @@ export async function PATCH(
       );
     }
 
+    if (error instanceof Error && error.message === 'Sale can only be modified while PENDING') {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 409 }
+      );
+    }
+
     console.error('Error updating item:', error);
     return NextResponse.json(
       { error: 'Failed to update item' },
