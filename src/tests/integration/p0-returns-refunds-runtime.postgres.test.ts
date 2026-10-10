@@ -13,6 +13,8 @@ describe('P0 Returns/Refunds PostgreSQL Runtime Test', () => {
   let inventoryId: string;
   let customerId: string;
   let temporaryCustomer = false;
+  let temporaryInventory = false;
+  let temporaryCashSession = false;
   let saleId: string;
   let paymentId: string;
   let cashSessionId: string;
@@ -68,6 +70,7 @@ describe('P0 Returns/Refunds PostgreSQL Runtime Test', () => {
           reservedQuantity: 0,
         },
       });
+      temporaryInventory = true;
     }
 
     inventoryId = inventory.id;
@@ -99,6 +102,7 @@ describe('P0 Returns/Refunds PostgreSQL Runtime Test', () => {
         storeId,
         openingAmount: 5000,
       });
+      temporaryCashSession = true;
     }
     cashSessionId = cashSession.id;
 
@@ -161,7 +165,7 @@ describe('P0 Returns/Refunds PostgreSQL Runtime Test', () => {
         await prisma.saleItem.deleteMany({ where: { saleId } });
         await prisma.sale.delete({ where: { id: saleId } });
       }
-      if (cashSessionId) {
+      if (cashSessionId && temporaryCashSession) {
         try {
           await cashService.close(organizationId, cashSessionId, userId, {
             countedAmount: 5000,
@@ -173,7 +177,7 @@ describe('P0 Returns/Refunds PostgreSQL Runtime Test', () => {
       if (customerId && temporaryCustomer) {
         await prisma.customer.delete({ where: { id: customerId } });
       }
-      if (inventoryId) {
+      if (inventoryId && temporaryInventory) {
         await prisma.inventory.delete({ where: { id: inventoryId } });
       }
     } catch (error) {
