@@ -26,13 +26,16 @@ describe('ReturnService', () => {
     storeId: 'clh1234567890ef',
     orderNumber: 'SALE-001',
     status: 'COMPLETED',
-    total: 1000,
+    subtotal: 500,
+    tax: 0,
+    total: 500,
     items: [
       {
         id: 'clh1234567890ab',
         quantity: 5,
         returnedQuantity: 0,
         unitPrice: 100,
+        totalPrice: 500,
         variant: {
           id: 'clh1234567890gh',
           sku: 'SKU-1',
