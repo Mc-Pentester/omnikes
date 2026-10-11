@@ -142,7 +142,7 @@ export async function POST(
     }
 
     // Verify organization
-    if (saleForAccessCheck.organizationId !== paymentOrganizationId) {
+    if (saleForAccessCheck.organizationId !== organizationId) {
       return NextResponse.json(
         { error: 'Sale not found or access denied' },
         { status: 404 }
