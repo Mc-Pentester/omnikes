@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { purchaseService } from '@omnikes/services/purchase.service';
-import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
 type RouteContext = { params: Promise<{ id: string }> };
 export function authErrorResponse(error: unknown) {
   if (!(error instanceof Error)) return null;
   if (error.message === 'Authentication required' || error.message === 'Invalid or expired session') return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  if (error.message.startsWith('Not authorized to access this store')) return NextResponse.json({ error: 'Store access denied' }, { status: 403 });
   if (error.message.startsWith('Permission required')) return NextResponse.json({ error: 'Permission required' }, { status: 403 });
   return null;
 }
@@ -15,6 +16,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'purchase.receive');
     const { id } = await context.params;
+    const purchase = await purchaseService.getById(id, organizationId);
+    if (!purchase) return NextResponse.json({ error: 'Purchase not found' }, { status: 404 });
+    await requireStoreAccess(request, purchase.storeId);
     return NextResponse.json(await purchaseService.receive(id, organizationId, await request.json()));
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid receipt data' }, { status: 400 });
