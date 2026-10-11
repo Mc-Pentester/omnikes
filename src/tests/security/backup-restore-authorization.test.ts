@@ -47,7 +47,7 @@ describe('Database restore authorization', () => {
   });
 
   it('rejects a tenant ADMIN without the platform operator role even when backup.restore permission is present', async () => {
-    mockedRequirePlatformRole.mockRejectedValue(new Error('Role required: ADMIN'));
+    mockedRequirePlatformRole.mockRejectedValue(new Error('Platform role required: OMNIKES_PLATFORM_OPERATOR'));
     const request = new NextRequest('http://localhost/api/backup', { method: 'PUT' });
 
     const response = await PUT(request);
