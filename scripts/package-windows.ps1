@@ -57,6 +57,9 @@ foreach ($envFile in @((Join-Path $app ".env"), (Join-Path $app ".env.local"))) 
 if (Test-Path ".next\static") { Copy-Item ".next\static" (Join-Path $app ".next") -Recurse -Force }
 if (Test-Path "public") { Copy-Item "public" (Join-Path $app "public") -Recurse -Force }
 if (Test-Path "prisma\migrations") { Copy-Item "prisma\migrations" (Join-Path $app "prisma") -Recurse -Force }
+New-Item -ItemType Directory -Path (Join-Path $app "prisma") -Force | Out-Null
+Copy-Item "prisma\schema.prisma" (Join-Path $app "prisma\schema.prisma") -Force
+Copy-Item "prisma.config.ts" (Join-Path $app "prisma.config.ts") -Force
 Copy-Item "package.json" (Join-Path $app "package.json") -Force
 Copy-Item "package-lock.json" (Join-Path $app "package-lock.json") -Force
 
