@@ -7,7 +7,7 @@ set "NODE_ENV=production"
 set "PORT=3000"
 
 if not exist "%NODE_EXE%" (
-  powershell.exe -NoProfile -Command "[System.Windows.Forms.MessageBox]::Show('Le runtime Node.js d''OmniKes est introuvable. Reparez l''installation.','OmniKes',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error)" >nul 2>&1
+  powershell.exe -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('Le runtime Node.js d''OmniKes est introuvable. Reparez l''installation.','OmniKes',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Error) | Out-Null" >nul 2>&1
   exit /b 1
 )
 if not exist "%APP_DIR%\server.js" exit /b 1
