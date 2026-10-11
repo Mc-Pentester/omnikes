@@ -70,6 +70,39 @@ export async function POST(
     const checkoutIdempotencyKey = safeIdempotencyKey;
     const checkoutPaymentData = parsedPaymentData;
 
+    // Fetch sale to verify store access before transaction
+    const saleForAccessCheck = await prisma.sale.findFirst({
+      where: { id: saleId, organizationId },
+      select: { storeId: true, organizationId: true },
+    });
+
+    if (!saleForAccessCheck) {
+      return NextResponse.json(
+        { error: 'Sale not found' },
+        { status: 404 }
+      );
+    }
+
+    // Verify organization
+    if (saleForAccessCheck.organizationId !== organizationId) {
+      return NextResponse.json(
+        { error: 'Sale not found or access denied' },
+        { status: 404 }
+      );
+    }
+
+    // Verify store access (RBAC store scope)
+    if (saleForAccessCheck.storeId) {
+      try {
+        await requireStoreAccess(request, saleForAccessCheck.storeId);
+      } catch {
+        return NextResponse.json(
+          { error: 'Not authorized to access this store' },
+          { status: 403 }
+        );
+      }
+    }
+
     // Check for existing idempotency record
     const existingIdempotency = await prisma.checkoutIdempotency.findUnique({
       where: {
@@ -139,39 +172,6 @@ export async function POST(
         return NextResponse.json(
           { error: 'Checkout operation already in progress' },
           { status: 409 }
-        );
-      }
-    }
-
-    // Fetch sale to verify store access before transaction
-    const saleForAccessCheck = await prisma.sale.findFirst({
-      where: { id: saleId, organizationId },
-      select: { storeId: true, organizationId: true },
-    });
-
-    if (!saleForAccessCheck) {
-      return NextResponse.json(
-        { error: 'Sale not found' },
-        { status: 404 }
-      );
-    }
-
-    // Verify organization
-    if (saleForAccessCheck.organizationId !== organizationId) {
-      return NextResponse.json(
-        { error: 'Sale not found or access denied' },
-        { status: 404 }
-      );
-    }
-
-    // Verify store access (RBAC store scope)
-    if (saleForAccessCheck.storeId) {
-      try {
-        await requireStoreAccess(request, saleForAccessCheck.storeId);
-      } catch {
-        return NextResponse.json(
-          { error: 'Not authorized to access this store' },
-          { status: 403 }
         );
       }
     }
