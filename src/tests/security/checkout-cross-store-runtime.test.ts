@@ -266,6 +266,42 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
     });
   });
 
+  describe('TEST C8 — Cached checkout replay still requires store access', () => {
+    it('should deny a cached idempotent response after store access is revoked', async () => {
+      mockedRequireCurrentOrganizationId.mockResolvedValue(mockOrganizationId);
+      mockedGetAuthenticatedUser.mockResolvedValue({ id: mockUserId });
+      mockedRequirePermission.mockResolvedValue(undefined);
+      mockedRequireStoreAccess.mockRejectedValue(new Error('Not authorized to access this store'));
+      mockedPrisma.sale.findFirst.mockResolvedValue({
+        storeId: storeB,
+        organizationId: mockOrganizationId,
+      });
+      mockedPrisma.checkoutIdempotency.findUnique.mockResolvedValue({
+        id: 'cached-idempotency-record',
+        saleId: saleB,
+        userId: mockUserId,
+        status: 'COMPLETED',
+        responseBody: JSON.stringify({
+          payment: { method: 'CASH', amount: 100, reference: 'PAY-CACHED' },
+          sale: { id: saleB, status: 'COMPLETED' },
+        }),
+        responseStatus: 201,
+      });
+
+      const request = new NextRequest(`http://localhost/api/sales/${saleB}/checkout`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ method: 'CASH', amount: 100 }),
+      });
+
+      const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleB }) });
+
+      expect(response.status).toBe(403);
+      expect(mockedPrisma.checkoutIdempotency.findUnique).not.toHaveBeenCalled();
+      expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Order of execution verification', () => {
     it('should call requireStoreAccess before transaction', async () => {
       mockedRequireCurrentOrganizationId.mockResolvedValue(mockOrganizationId);
