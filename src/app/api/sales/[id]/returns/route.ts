@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { returnService } from '@omnikes/services/return.service';
@@ -55,11 +56,15 @@ export async function POST(
       );
     }
 
-    // Note: For simplicity in this phase, we're not implementing a full idempotency table
-    // for returns. The service layer already uses FOR UPDATE locks to prevent
-    // concurrent returns. Full idempotency can be added in a follow-up phase.
+    const requestHash = createHash('sha256')
+      .update(JSON.stringify({
+        saleId: returnData.saleId,
+        items: [...returnData.items].sort((a, b) => a.saleItemId.localeCompare(b.saleItemId)),
+        reason: returnData.reason ?? null,
+      }))
+      .digest('hex');
 
-    // Fetch sale to verify store access before transaction
+    // Fetch sale to verify store access before returning any cached result
     const saleForAccessCheck = await prisma.sale.findFirst({
       where: { id: saleId, organizationId },
       select: { storeId: true, organizationId: true },
@@ -92,8 +97,38 @@ export async function POST(
       }
     }
 
-    // Execute return transaction
-    const result = await returnService.create(organizationId, authenticatedUserId, returnData);
+    // Replay is permitted only after organization, permission and store scope checks.
+    const existingReturn = await prisma.return.findFirst({
+      where: {
+        organizationId,
+        idempotencyKey: validatedIdempotencyKey.data,
+      },
+      include: {
+        items: {
+          include: {
+            saleItem: { include: { variant: { include: { product: true } } } },
+          },
+        },
+      },
+    });
+
+    if (existingReturn) {
+      if (existingReturn.idempotencyRequestHash !== requestHash) {
+        return NextResponse.json(
+          { error: 'Idempotency-Key already used with different return data' },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json(existingReturn, { status: 200 });
+    }
+
+    // Create the return and persist its idempotency key in the same transaction.
+    const result = await returnService.create(
+      organizationId,
+      authenticatedUserId,
+      returnData,
+      { key: validatedIdempotencyKey.data, requestHash }
+    );
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
@@ -122,6 +157,13 @@ export async function POST(
       return NextResponse.json(
         { error: 'Not authorized to access this store' },
         { status: 403 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Idempotency-Key already used with different return data') {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 409 }
       );
     }
 
