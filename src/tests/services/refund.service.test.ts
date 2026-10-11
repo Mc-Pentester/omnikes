@@ -241,4 +241,80 @@ describe('RefundService', () => {
       })
     ).rejects.toThrow('Payment not found or access denied');
   });
+ 
+  it('replays an identical refund request with the same idempotency key', async () => {
+    const existingRefund = {
+      id: 'clh1234567890rs',
+      returnId: 'clh1234567890op',
+      paymentId: 'clh1234567890ab',
+      amount: 250,
+      payment: {
+        sale: { organizationId: 'clh1234567890ef' },
+      },
+    };
+    const tx = {
+      refund: {
+        findUnique: vi.fn().mockResolvedValue(existingRefund),
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          id: existingRefund.id,
+          returnId: existingRefund.returnId,
+          paymentId: existingRefund.paymentId,
+          amount: existingRefund.amount,
+        }),
+      },
+    };
+
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+
+    const result = await refundService.process(
+      'clh1234567890ef',
+      'clh1234567890mn',
+      {
+        returnId: 'clh1234567890op',
+        paymentId: 'clh1234567890ab',
+        amount: 250,
+      },
+      'refund-retry-key-001',
+    );
+
+    expect(result).toMatchObject({ id: existingRefund.id });
+    expect(tx.refund.findUnique).toHaveBeenCalledWith({
+      where: { idempotencyKey: 'refund-retry-key-001' },
+      include: {
+        payment: {
+          include: { sale: { select: { organizationId: true } } },
+        },
+      },
+    });
+  });
+
+  it('rejects reuse of a refund idempotency key with a different payload', async () => {
+    const tx = {
+      refund: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'clh1234567890rs',
+          returnId: 'clh1234567890op',
+          paymentId: 'different-payment-id',
+          amount: 250,
+          payment: { sale: { organizationId: 'clh1234567890ef' } },
+        }),
+      },
+    };
+
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+
+    await expect(
+      refundService.process(
+        'clh1234567890ef',
+        'clh1234567890mn',
+        {
+          returnId: 'clh1234567890op',
+          paymentId: 'clh1234567890ab',
+          amount: 250,
+        },
+        'refund-retry-key-002',
+      ),
+    ).rejects.toThrow('Idempotency key already used for a different refund');
+  });
+
 });
