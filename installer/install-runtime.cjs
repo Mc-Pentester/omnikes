@@ -84,13 +84,6 @@ async function choosePort() {
   throw new Error('No free local PostgreSQL port was found between 5433 and 5532. No existing service was changed.');
 }
 
-function readEnvValue(name) {
-  if (!exists(envPath)) return undefined;
-  const line = fs.readFileSync(envPath, 'utf8').split(/\r?\n/).find((entry) => entry.startsWith(name + '='));
-  if (!line) return undefined;
-  return line.slice(name.length + 1).trim().replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
-}
-
 async function verifyOwnServer(port, password) {
   const psql = pg('psql');
   const psqlEnv = { ...process.env, PGPASSWORD: password };
