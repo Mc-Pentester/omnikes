@@ -49,10 +49,13 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   let tempPath: string | null = null;
+  let organizationId: string | null = null;
+  let actorId: string | null = null;
   try {
-    const organizationId = await requireCurrentOrganizationId(request);
+    organizationId = await requireCurrentOrganizationId(request);
     const user = await getAuthenticatedUser(request);
     if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    actorId = user.id;
     await requirePermission(request, 'backup.restore');
     // Restoring a dump replaces the entire connected database, across tenant boundaries.
     // A tenant ADMIN role is insufficient; require the dedicated platform-scoped operator role.
@@ -84,6 +87,17 @@ export async function PUT(request: NextRequest) {
       safetyBackup: result.safetyBackup.fileName,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.startsWith('Permission required') || message.startsWith('Role required') || message.startsWith('Platform role required')) {
+      console.warn(JSON.stringify({
+        event: 'security.authorization_denied',
+        action: 'backup.restore',
+        actorId,
+        organizationId,
+        reason: message.startsWith('Platform role required') ? 'platform_role_required' : 'permission_required',
+        timestamp: new Date().toISOString(),
+      }));
+    }
     return errorResponse(error);
   } finally {
     if (tempPath) await fs.rm(tempPath, { force: true }).catch(() => undefined);
