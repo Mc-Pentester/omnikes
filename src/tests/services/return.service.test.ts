@@ -5,6 +5,9 @@ import { prisma } from '@omnikes/lib/prisma';
 vi.mock('@omnikes/lib/prisma', () => ({
   prisma: {
     $transaction: vi.fn(),
+    return: {
+      findFirst: vi.fn(),
+    },
   },
 }));
 
@@ -51,6 +54,7 @@ describe('ReturnService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(prisma.return.findFirst).mockReset();
   });
 
   it('creates a return with valid partial return', async () => {
@@ -141,4 +145,42 @@ describe('ReturnService', () => {
       })
     ).rejects.toThrow('Sale not found or access denied');
   });
+  it('returns the existing return when concurrent requests use the same idempotency key and payload', async () => {
+    const existingReturn = {
+      id: 'existing-return',
+      organizationId: 'clh1234567890cd',
+      idempotencyKey: 'return-key-001',
+      idempotencyRequestHash: 'hash-001',
+      items: [],
+    };
+    vi.mocked(prisma.$transaction).mockRejectedValue({ code: 'P2002' });
+    vi.mocked(prisma.return.findFirst).mockResolvedValue(existingReturn as never);
+
+    await expect(
+      returnService.create(
+        'clh1234567890cd',
+        'clh1234567890op',
+        { saleId: 'clh1234567890ab', items: [{ saleItemId: 'clh1234567890ab', quantity: 1 }] },
+        { key: 'return-key-001', requestHash: 'hash-001' },
+      ),
+    ).resolves.toEqual(existingReturn);
+  });
+
+  it('rejects reusing a return idempotency key with a different payload', async () => {
+    vi.mocked(prisma.$transaction).mockRejectedValue({ code: 'P2002' });
+    vi.mocked(prisma.return.findFirst).mockResolvedValue({
+      id: 'existing-return',
+      idempotencyRequestHash: 'different-hash',
+    } as never);
+
+    await expect(
+      returnService.create(
+        'clh1234567890cd',
+        'clh1234567890op',
+        { saleId: 'clh1234567890ab', items: [{ saleItemId: 'clh1234567890ab', quantity: 1 }] },
+        { key: 'return-key-001', requestHash: 'hash-001' },
+      ),
+    ).rejects.toThrow('Idempotency-Key already used with different return data');
+  });
+
 });

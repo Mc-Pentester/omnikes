@@ -14,6 +14,9 @@ vi.mock('@omnikes/lib/prisma', () => ({
     sale: {
       findFirst: vi.fn(),
     },
+    return: {
+      findFirst: vi.fn(),
+    },
   },
 }));
 
@@ -37,6 +40,7 @@ const mockPermission = requirePermission as ReturnType<typeof vi.fn>;
 const mockStoreAccess = requireStoreAccess as ReturnType<typeof vi.fn>;
 const mockUser = getAuthenticatedUser as ReturnType<typeof vi.fn>;
 const mockSaleFindFirst = prisma.sale.findFirst as ReturnType<typeof vi.fn>;
+const mockReturnFindFirst = prisma.return.findFirst as ReturnType<typeof vi.fn>;
 const mockCreateReturn = returnService.create as ReturnType<typeof vi.fn>;
 
 const saleA = 'cm123456789012345678901234';
@@ -68,6 +72,7 @@ describe('Return route sale ID binding', () => {
     mockUser.mockResolvedValue({ id: 'user-a', organizationId: orgId });
     mockStoreAccess.mockResolvedValue(undefined);
     mockSaleFindFirst.mockResolvedValue({ storeId: storeA, organizationId: orgId });
+    mockReturnFindFirst.mockResolvedValue(null);
     mockCreateReturn.mockResolvedValue({ id: 'return-test' });
   });
 
@@ -96,6 +101,10 @@ describe('Return route sale ID binding', () => {
       orgId,
       'user-a',
       expect.objectContaining({ saleId: saleA }),
+      expect.objectContaining({
+        key: 'return-route-test-001',
+        requestHash: expect.any(String),
+      }),
     );
   });
 });
