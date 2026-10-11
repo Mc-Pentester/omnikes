@@ -70,6 +70,9 @@ Copy-Item (Join-Path $pgRoot "*") $postgres -Recurse -Force
 Copy-Item "installer\OmniKesLauncher.cmd" $installer -Force
 Copy-Item "installer\install-runtime.cmd" $installer -Force
 Copy-Item "installer\install-runtime.cjs" $installer -Force
+Copy-Item "installer\first-run-setup.cjs" $installer -Force
+Copy-Item "installer\uninstall-runtime.cmd" $installer -Force
+Copy-Item "installer\uninstall-runtime.cjs" $installer -Force
 
 & $iscc "installer\OmniKes.iss"
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
