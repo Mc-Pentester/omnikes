@@ -59,6 +59,7 @@ export async function POST(
     const requestHash = createHash('sha256')
       .update(JSON.stringify({
         saleId: returnData.saleId,
+        userId: authenticatedUserId,
         items: [...returnData.items].sort((a, b) => a.saleItemId.localeCompare(b.saleItemId)),
         reason: returnData.reason ?? null,
       }))
