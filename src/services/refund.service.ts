@@ -11,6 +11,33 @@ export class RefundService {
     const validatedData = refundSchema.parse(data);
 
     return prisma.$transaction(async (tx) => {
+      // Lock the return row first
+      const lockedReturnRows = await tx.$queryRaw<Array<{ id: string; saleId: string; totalRefunded: number }>>`
+        SELECT r.id, r."saleId", r."totalRefunded"
+        FROM returns r
+        WHERE r.id = ${validatedData.returnId} AND r."organizationId" = ${organizationId}
+        FOR UPDATE
+      `;
+
+      if (lockedReturnRows.length === 0) {
+        throw new Error('Return not found or access denied');
+      }
+
+      const returnRecord = lockedReturnRows[0];
+
+      // Lock the payment row
+      const lockedPaymentRows = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT p.id
+        FROM payments p
+        INNER JOIN sales s ON s.id = p."saleId"
+        WHERE p.id = ${validatedData.paymentId} AND s."organizationId" = ${organizationId}
+        FOR UPDATE
+      `;
+
+      if (lockedPaymentRows.length === 0) {
+        throw new Error('Payment not found or access denied');
+      }
+
       // Replay a completed request when the same key and payload are submitted again.
       if (idempotencyKey) {
         const existing = await tx.refund.findUnique({
@@ -37,33 +64,6 @@ export class RefundService {
 
           return tx.refund.findUniqueOrThrow({ where: { id: existing.id } });
         }
-      }
-
-      // Lock the return row first
-      const lockedReturnRows = await tx.$queryRaw<Array<{ id: string; saleId: string; totalRefunded: number }>>`
-        SELECT r.id, r."saleId", r."totalRefunded"
-        FROM returns r
-        WHERE r.id = ${validatedData.returnId} AND r."organizationId" = ${organizationId}
-        FOR UPDATE
-      `;
-
-      if (lockedReturnRows.length === 0) {
-        throw new Error('Return not found or access denied');
-      }
-
-      const returnRecord = lockedReturnRows[0];
-
-      // Lock the payment row
-      const lockedPaymentRows = await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT p.id
-        FROM payments p
-        INNER JOIN sales s ON s.id = p."saleId"
-        WHERE p.id = ${validatedData.paymentId} AND s."organizationId" = ${organizationId}
-        FOR UPDATE
-      `;
-
-      if (lockedPaymentRows.length === 0) {
-        throw new Error('Payment not found or access denied');
       }
 
       // Fetch the payment with sale info
