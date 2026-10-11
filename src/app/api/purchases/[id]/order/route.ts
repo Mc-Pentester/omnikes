@@ -9,6 +9,7 @@ function authErrorResponse(error: unknown) {
   if (error.message === 'Authentication required' || error.message === 'Invalid or expired session') {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
+  if (error.message.startsWith('Not authorized to access this store')) return NextResponse.json({ error: 'Store access denied' }, { status: 403 });
   if (error.message.startsWith('Permission required')) {
     return NextResponse.json({ error: 'Permission required' }, { status: 403 });
   }
