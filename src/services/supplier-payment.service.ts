@@ -5,13 +5,13 @@ import { supplierPaymentCreateSchema, supplierPaymentListQuerySchema } from '@om
 const PAYABLE_PURCHASE_STATUSES = ['ORDERED', 'PARTIALLY_RECEIVED', 'RECEIVED'] as const;
 
 export class SupplierPaymentService {
-  async list(organizationId: string, input: unknown) {
+  async list(organizationId: string, input: unknown, authorizedStoreIds?: string[] | null) {
     const q = supplierPaymentListQuerySchema.parse(input);
     const where: Prisma.SupplierPaymentWhereInput = {
       organizationId,
       ...(q.supplierId ? { supplierId: q.supplierId } : {}),
       ...(q.purchaseId ? { purchaseId: q.purchaseId } : {}),
-      ...(q.storeId ? { storeId: q.storeId } : {}),
+      ...(q.storeId ? { storeId: q.storeId } : authorizedStoreIds !== undefined && authorizedStoreIds !== null ? { storeId: { in: authorizedStoreIds } } : {}),
     };
 
     const [payments, total] = await Promise.all([
@@ -120,18 +120,18 @@ export class SupplierPaymentService {
     return tx ? run(tx) : prisma.$transaction(run);
   }
 
-  async supplierBalance(organizationId: string, supplierId: string, storeId?: string) {
+  async supplierBalance(organizationId: string, supplierId: string, storeId?: string, authorizedStoreIds?: string[] | null) {
     const purchases = await prisma.purchase.findMany({
       where: {
         organizationId,
         supplierId,
-        ...(storeId ? { storeId } : {}),
+        ...(storeId ? { storeId } : authorizedStoreIds !== undefined && authorizedStoreIds !== null ? { storeId: { in: authorizedStoreIds } } : {}),
         status: { in: [...PAYABLE_PURCHASE_STATUSES] },
       },
       select: { total: true },
     });
     const payments = await prisma.supplierPayment.aggregate({
-      where: { organizationId, supplierId, ...(storeId ? { storeId } : {}) },
+      where: { organizationId, supplierId, ...(storeId ? { storeId } : authorizedStoreIds !== undefined && authorizedStoreIds !== null ? { storeId: { in: authorizedStoreIds } } : {}) },
       _sum: { amount: true },
     });
     const totalPurchases = purchases.reduce((sum, p) => sum.plus(p.total), new Prisma.Decimal(0));
