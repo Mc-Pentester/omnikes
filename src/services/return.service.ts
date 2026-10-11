@@ -8,10 +8,16 @@ export class ReturnService {
    * Create a return for a sale with partial or complete item returns
    * This operation is atomic: stock restoration and sale item updates happen in one transaction
    */
-  async create(organizationId: string, userId: string, data: ReturnInput) {
+  async create(
+    organizationId: string,
+    userId: string,
+    data: ReturnInput,
+    idempotency?: { key: string; requestHash: string },
+  ) {
     const validatedData = returnSchema.parse(data);
 
-    return prisma.$transaction(async (tx) => {
+    try {
+      return await prisma.$transaction(async (tx) => {
       // Lock the sale row to prevent concurrent returns
       const lockedSaleRows = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT id FROM sales
@@ -136,6 +142,10 @@ export class ReturnService {
           status: 'COMPLETED',
           totalRefunded,
           reason: validatedData.reason,
+          ...(idempotency ? {
+            idempotencyKey: idempotency.key,
+            idempotencyRequestHash: idempotency.requestHash,
+          } : {}),
           returnedBy: userId,
           items: {
             create: returnItemsData,
@@ -178,7 +188,35 @@ export class ReturnService {
       });
 
       return createdReturn;
-    });
+      });
+    } catch (error) {
+      // A concurrent request may win the unique (organization, key) race.
+      const isUniqueConstraintError =
+        typeof error === 'object' && error !== null && 'code' in error &&
+        (error as { code?: string }).code === 'P2002';
+
+      if (idempotency && isUniqueConstraintError) {
+        const existing = await prisma.return.findFirst({
+          where: { organizationId, idempotencyKey: idempotency.key },
+          include: {
+            items: {
+              include: {
+                saleItem: { include: { variant: { include: { product: true } } } },
+              },
+            },
+          },
+        });
+
+        if (existing) {
+          if (existing.idempotencyRequestHash !== idempotency.requestHash) {
+            throw new Error('Idempotency-Key already used with different return data');
+          }
+          return existing;
+        }
+      }
+
+      throw error;
+    }
   }
 
   /**
