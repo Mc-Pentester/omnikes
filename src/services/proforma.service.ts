@@ -332,72 +332,66 @@ export class ProformaService {
   /**
    * Update a proforma item
    */
-  async updateItem(itemId: string, organizationId: string, data: Partial<ProformaItemInput>) {
-    const validatedData = proformaItemSchema.partial().parse(data);
+  async updateItem(itemId: string, proformaId: string, organizationId: string, data: Partial<ProformaItemInput>) {
+    // Only quantity and discount are client-editable. The parent proforma,
+    // variant, unit price and line total must never be reassigned by request data.
+    const validatedData = proformaItemSchema.partial()
+      .omit({ proformaId: true, variantId: true, unitPrice: true, totalPrice: true })
+      .parse(data);
 
-    // Calculate new total if quantity or price changed
-    if (validatedData.quantity !== undefined || validatedData.unitPrice !== undefined || validatedData.discount !== undefined) {
-      const item = await prisma.proformaItem.findFirst({
-        where: {
-          id: itemId,
-          proforma: { organizationId },
-        },
-        include: {
-          proforma: true,
-          variant: true,
-        },
-      });
+    const item = await prisma.proformaItem.findFirst({
+      where: {
+        id: itemId,
+        proformaId,
+        proforma: { organizationId },
+      },
+      include: {
+        proforma: true,
+        variant: true,
+      },
+    });
 
-      if (!item || item.proforma.organizationId !== organizationId) {
-        throw new Error('Proforma item not found or access denied');
-      }
-
-      const proforma = await proformaRepository.findById(item.proformaId, organizationId);
-
-      if (!proforma) {
-        throw new Error('Proforma not found or access denied');
-      }
-
-      if (proforma.status !== 'DRAFT') {
-        throw new Error('Only DRAFT proformas can be modified');
-      }
-
-      // INVARIANT: quantity must be > 0
-      const quantity = validatedData.quantity ?? item.quantity;
-      if (quantity <= 0) {
-        throw new Error('Quantity must be greater than 0');
-      }
-
-      // INVARIANT: Use server-side price from variant, do not trust client
-      const unitPrice = roundMoney(Number(item.variant.price)); // Always use server price
-      const discount = roundMoney(validatedData.discount ?? Number(item.discount));
-
-      // INVARIANT: discount cannot exceed gross amount
-      const grossAmount = unitPrice * quantity;
-      if (discount > grossAmount) {
-        throw new Error('Discount cannot exceed gross amount');
-      }
-
-      // INVARIANT: line total must never be negative
-      const totalPrice = roundMoney(grossAmount - discount);
-      if (totalPrice < 0) {
-        throw new Error('Line total cannot be negative');
-      }
-
-      await proformaRepository.updateItem(itemId, organizationId, {
-        ...validatedData,
-        unitPrice, // Force server-side price
-        totalPrice,
-      } as Prisma.ProformaItemUpdateInput);
-
-      await this.recalculateTotals(item.proformaId, organizationId);
-    } else {
-      await proformaRepository.updateItem(itemId, organizationId, validatedData as Prisma.ProformaItemUpdateInput);
+    if (!item || item.proforma.organizationId !== organizationId || item.proformaId !== proformaId) {
+      throw new Error('Proforma item not found or access denied');
     }
+
+    const proforma = await proformaRepository.findById(proformaId, organizationId);
+    if (!proforma) {
+      throw new Error('Proforma not found or access denied');
+    }
+    if (proforma.status !== 'DRAFT') {
+      throw new Error('Only DRAFT proformas can be modified');
+    }
+
+    const quantity = validatedData.quantity ?? item.quantity;
+    if (quantity <= 0) {
+      throw new Error('Quantity must be greater than 0');
+    }
+
+    const unitPrice = roundMoney(Number(item.variant.price));
+    const discount = roundMoney(validatedData.discount ?? Number(item.discount));
+    const grossAmount = unitPrice * quantity;
+    if (discount > grossAmount) {
+      throw new Error('Discount cannot exceed gross amount');
+    }
+
+    const totalPrice = roundMoney(grossAmount - discount);
+    if (totalPrice < 0) {
+      throw new Error('Line total cannot be negative');
+    }
+
+    await proformaRepository.updateItem(itemId, organizationId, {
+      ...validatedData,
+      unitPrice,
+      totalPrice,
+    } as Prisma.ProformaItemUpdateInput);
+
+    await this.recalculateTotals(proformaId, organizationId);
 
     return prisma.proformaItem.findFirst({
       where: {
         id: itemId,
+        proformaId,
         proforma: { organizationId },
       },
       include: {
@@ -413,10 +407,11 @@ export class ProformaService {
   /**
    * Remove an item from a proforma
    */
-  async removeItem(itemId: string, organizationId: string) {
+  async removeItem(itemId: string, proformaId: string, organizationId: string) {
     const item = await prisma.proformaItem.findFirst({
       where: {
         id: itemId,
+        proformaId,
         proforma: { organizationId },
       },
       include: {
@@ -424,12 +419,11 @@ export class ProformaService {
       },
     });
 
-    if (!item || item.proforma.organizationId !== organizationId) {
+    if (!item || item.proforma.organizationId !== organizationId || item.proformaId !== proformaId) {
       throw new Error('Proforma item not found or access denied');
     }
 
-    const proforma = await proformaRepository.findById(item.proformaId, organizationId);
-
+    const proforma = await proformaRepository.findById(proformaId, organizationId);
     if (!proforma) {
       throw new Error('Proforma not found or access denied');
     }
@@ -439,7 +433,7 @@ export class ProformaService {
     }
 
     await proformaRepository.deleteItem(itemId, organizationId);
-    await this.recalculateTotals(item.proformaId, organizationId);
+    await this.recalculateTotals(proformaId, organizationId);
   }
 
   /**

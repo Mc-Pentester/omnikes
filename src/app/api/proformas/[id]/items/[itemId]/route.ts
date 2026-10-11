@@ -23,7 +23,7 @@ export async function PATCH(
       await requireStoreAccess(request, existingProforma.storeId);
     }
 
-    const item = await proformaService.updateItem(itemId, organizationId, body);
+    const item = await proformaService.updateItem(itemId, id, organizationId, body);
 
     return NextResponse.json(item);
   } catch (error) {
@@ -96,7 +96,7 @@ export async function DELETE(
       await requireStoreAccess(request, existingProforma.storeId);
     }
 
-    await proformaService.removeItem(itemId, organizationId);
+    await proformaService.removeItem(itemId, id, organizationId);
 
     return NextResponse.json({ success: true });
   } catch (error) {
