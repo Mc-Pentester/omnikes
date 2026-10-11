@@ -20,7 +20,7 @@ const dbPasswordFile = path.join(data, '.omnikes-pg-password');
 const envPath = path.join(app, '.env');
 
 function run(file, args, env) {
-  execFileSync(file, args, { stdio: 'inherit', windowsHide: true, env: env || process.env });
+  execFileSync(file, args, { cwd: app, stdio: 'inherit', windowsHide: true, env: env || process.env });
 }
 
 function capture(file, args, env) {
