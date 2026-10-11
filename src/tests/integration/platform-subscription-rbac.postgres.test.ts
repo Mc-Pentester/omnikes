@@ -177,7 +177,7 @@ describe('P0-Platform-RBAC - strict platform/tenant separation', () => {
       {
         method: 'PATCH',
         headers: {
-          cookie: await cookieFor(adminAId),
+          cookie: await cookieFor(tenantAdminId),
           'content-type': 'application/json',
         },
         body: JSON.stringify({
