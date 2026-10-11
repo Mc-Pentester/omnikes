@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@omnikes/lib/prisma';
-import { requireAuthenticatedUser, requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { requireAuthenticatedUser, requireCurrentOrganizationId, requirePermission, requireStoreAccess, getAuthorizedStoreIds } from '@omnikes/lib/auth';
 import { supplierPaymentService } from '@omnikes/services/supplier-payment.service';
 import { idempotencyKeySchema, supplierPaymentCreateSchema } from '@omnikes/lib/validation';
 
 function authErrorResponse(error: unknown) {
   if (!(error instanceof Error)) return null;
   if (error.message === 'Authentication required' || error.message === 'Invalid or expired session') return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  if (error.message.startsWith('Not authorized to access this store')) return NextResponse.json({ error: 'Store access denied' }, { status: 403 });
   if (error.message.startsWith('Permission required')) return NextResponse.json({ error: 'Permission required' }, { status: 403 });
   return null;
 }
@@ -34,13 +35,16 @@ export async function GET(request: NextRequest) {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'supplier.payment.read');
     const { searchParams } = new URL(request.url);
+    const requestedStoreId = searchParams.get('storeId') || undefined;
+    if (requestedStoreId) await requireStoreAccess(request, requestedStoreId);
+    const authorizedStoreIds = await getAuthorizedStoreIds(request);
     return NextResponse.json(await supplierPaymentService.list(organizationId, {
       supplierId: searchParams.get('supplierId') || undefined,
       purchaseId: searchParams.get('purchaseId') || undefined,
-      storeId: searchParams.get('storeId') || undefined,
+      storeId: requestedStoreId,
       skip: searchParams.get('skip') ?? undefined,
       take: searchParams.get('take') ?? undefined,
-    }));
+    }, authorizedStoreIds));
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid payment parameters' }, { status: 400 });
     const auth = authErrorResponse(error); if (auth) return auth;
@@ -72,6 +76,7 @@ export async function POST(request: NextRequest) {
     idempotencyKey = validatedKey.data;
 
     const parsed = supplierPaymentCreateSchema.parse(await request.json());
+    await requireStoreAccess(request, parsed.storeId);
     paymentData = parsed as unknown as Record<string, unknown>;
 
     if (!organizationId || !userId || !idempotencyKey || !paymentData) {
