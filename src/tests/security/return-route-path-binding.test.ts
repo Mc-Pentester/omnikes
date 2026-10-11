@@ -101,6 +101,10 @@ describe('Return route sale ID binding', () => {
       orgId,
       'user-a',
       expect.objectContaining({ saleId: saleA }),
+      expect.objectContaining({
+        key: 'return-route-test-001',
+        requestHash: expect.any(String),
+      }),
     );
   });
 });
