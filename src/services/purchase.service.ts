@@ -10,11 +10,11 @@ const purchaseInclude = {
 } satisfies Prisma.PurchaseInclude;
 
 export class PurchaseService {
-  async list(organizationId: string, input: unknown) {
+  async list(organizationId: string, input: unknown, authorizedStoreIds?: string[] | null) {
     const query = purchaseListQuerySchema.parse(input);
     const where: Prisma.PurchaseWhereInput = {
       organizationId,
-      ...(query.storeId ? { storeId: query.storeId } : {}),
+      ...(query.storeId ? { storeId: query.storeId } : authorizedStoreIds !== undefined && authorizedStoreIds !== null ? { storeId: { in: authorizedStoreIds } } : {}),
       ...(query.supplierId ? { supplierId: query.supplierId } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.search ? { reference: { contains: query.search, mode: 'insensitive' } } : {}),
