@@ -191,11 +191,26 @@ async function main() {
     dbExists = capture(psql, [
       '-h', '127.0.0.1', '-p', String(port), '-U', dbUser, '-d', 'postgres',
       '-Atqc', "SELECT 1 FROM pg_database WHERE datname = 'omnikes'",
-    ]).trim();
+    ], psqlEnv).trim();
   } catch {
     throw new Error('Unable to verify the OmniKès database on its own PostgreSQL instance.');
   }
-  if (dbExists !== '1') {
+  if (dbExists === '1') {
+    const pgDump = pg('pg_dump');
+    if (!exists(pgDump)) throw new Error('pg_dump.exe is missing; refusing to migrate an existing database without a pre-migration backup.');
+    const backupDir = path.join(omniKesData, 'backups');
+    fs.mkdirSync(backupDir, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupFile = path.join(backupDir, 'omnikes-pre-migration-' + stamp + '.dump');
+    run(pgDump, [
+      '-w', '-h', '127.0.0.1', '-p', String(port), '-U', dbUser,
+      '-d', dbName, '-Fc', '-f', backupFile,
+    ], psqlEnv);
+    if (!exists(backupFile) || fs.statSync(backupFile).size === 0) {
+      throw new Error('The pre-migration backup could not be verified. Refusing to apply migrations.');
+    }
+    console.log('Verified pre-migration backup:', backupFile);
+  } else {
     run(psql, ['-h', '127.0.0.1', '-p', String(port), '-U', dbUser, '-d', 'postgres', '-c', 'CREATE DATABASE omnikes'], psqlEnv);
   }
 
