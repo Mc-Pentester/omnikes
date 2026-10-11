@@ -50,6 +50,10 @@ $installer = Join-Path $dist "installer"
 New-Item -ItemType Directory -Path $app,$node,$postgres,$installer -Force | Out-Null
 
 Copy-Item (Join-Path $standalone "*") $app -Recurse -Force
+# Runtime secrets must be generated on the target machine, never shipped from the build machine.
+foreach ($envFile in @((Join-Path $app ".env"), (Join-Path $app ".env.local"))) {
+  if (Test-Path $envFile) { Remove-Item $envFile -Force }
+}
 if (Test-Path ".next\static") { Copy-Item ".next\static" (Join-Path $app ".next") -Recurse -Force }
 if (Test-Path "public") { Copy-Item "public" (Join-Path $app "public") -Recurse -Force }
 if (Test-Path "prisma\migrations") { Copy-Item "prisma\migrations" (Join-Path $app "prisma") -Recurse -Force }
