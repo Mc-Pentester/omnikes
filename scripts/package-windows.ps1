@@ -16,8 +16,18 @@ if (-not $iscc) {
 }
 if (-not $iscc) { throw "ISCC.exe not found. Set ISCC or install Inno Setup 7/6." }
 
-$dist = Join-Path $root "dist\windows"
-if (Test-Path $dist) { Remove-Item $dist -Recurse -Force }
+$distRoot = Join-Path $root "dist"
+$dist = Join-Path $distRoot "windows"
+$installerOutput = Join-Path $distRoot "installer"
+
+# Never erase a previous package automatically: it may contain a build the user
+# still needs. Move/archive these generated folders explicitly before rebuilding.
+if (Test-Path $dist) {
+  throw "Existing package output found at '$dist'. It was preserved. Archive or move it manually before rebuilding."
+}
+if (Test-Path $installerOutput) {
+  throw "Existing installer output found at '$installerOutput'. It was preserved. Archive or move it manually before rebuilding."
+}
 New-Item -ItemType Directory -Path $dist -Force | Out-Null
 
 if (-not $env:DATABASE_URL) {
