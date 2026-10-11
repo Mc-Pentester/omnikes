@@ -298,6 +298,18 @@ export const returnSchema = z.object({
   saleId: z.string().cuid(),
   items: z.array(returnItemSchema).min(1, 'At least one item must be returned'),
   reason: z.string().max(1000).optional(),
+}).superRefine((data, ctx) => {
+  const seenSaleItemIds = new Set<string>();
+  data.items.forEach((item, index) => {
+    if (seenSaleItemIds.has(item.saleItemId)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['items', index, 'saleItemId'],
+        message: 'A sale item may appear only once in a return',
+      });
+    }
+    seenSaleItemIds.add(item.saleItemId);
+  });
 });
 
 export type ReturnInput = z.infer<typeof returnSchema>;
