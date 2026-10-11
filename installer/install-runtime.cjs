@@ -208,6 +208,13 @@ async function main() {
   if (!exists(migrations)) throw new Error('Prisma migrations are missing from the offline package.');
 
   run(process.execPath, [prismaCli, 'migrate', 'deploy'], { ...process.env, DATABASE_URL: url });
+
+  const setupCli = path.join(__dirname, 'first-run-setup.cjs');
+  const setupConfig = process.argv[2];
+  if (!exists(setupCli)) throw new Error('The secure first-run setup helper is missing from the offline package.');
+  if (!setupConfig || !exists(setupConfig)) throw new Error('The first-run setup form was not supplied; refusing to finish an incomplete installation.');
+  run(process.execPath, [setupCli, setupConfig], { ...process.env, DATABASE_URL: url });
+
   console.log('OmniKès PostgreSQL runtime configured safely.');
   console.log('Saved local database port:', port);
   console.log('Existing data directory preserved; no database reset or drop was performed.');
