@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { PUT } from '../../app/api/backup/route';
 
@@ -27,6 +27,8 @@ const mockedRequirePlatformRole = requirePlatformRole as ReturnType<typeof vi.fn
 const mockedRestoreBackup = localBackupService.restoreBackup as ReturnType<typeof vi.fn>;
 
 describe('Database restore authorization', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockedRequireCurrentOrganizationId.mockResolvedValue('org-a');
@@ -46,7 +48,8 @@ describe('Database restore authorization', () => {
     expect(mockedRestoreBackup).not.toHaveBeenCalled();
   });
 
-  it('rejects a tenant ADMIN without the platform operator role even when backup.restore permission is present', async () => {
+  it('logs a structured security event when the platform operator role is missing', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     mockedRequirePlatformRole.mockRejectedValue(new Error('Platform role required: OMNIKES_PLATFORM_OPERATOR'));
     const request = new NextRequest('http://localhost/api/backup', { method: 'PUT' });
 
@@ -56,5 +59,14 @@ describe('Database restore authorization', () => {
     expect(mockedRequirePermission).toHaveBeenCalledWith(expect.anything(), 'backup.restore');
     expect(mockedRequirePlatformRole).toHaveBeenCalledWith(expect.anything(), 'OMNIKES_PLATFORM_OPERATOR');
     expect(mockedRestoreBackup).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledOnce();
+    const event = JSON.parse(String(warnSpy.mock.calls[0][0]));
+    expect(event).toMatchObject({
+      event: 'security.authorization_denied',
+      action: 'backup.restore',
+      actorId: 'user-a',
+      organizationId: 'org-a',
+      reason: 'platform_role_required',
+    });
   });
 });
