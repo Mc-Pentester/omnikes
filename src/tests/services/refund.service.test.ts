@@ -253,6 +253,9 @@ describe('RefundService', () => {
       },
     };
     const tx = {
+      $queryRaw: vi.fn()
+        .mockResolvedValueOnce([{ id: 'clh1234567890op', saleId: 'clh1234567890cd', totalRefunded: 500 }])
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }]),
       refund: {
         findUnique: vi.fn().mockResolvedValue(existingRefund),
         findUniqueOrThrow: vi.fn().mockResolvedValue({
@@ -290,6 +293,9 @@ describe('RefundService', () => {
 
   it('rejects reuse of a refund idempotency key with a different payload', async () => {
     const tx = {
+      $queryRaw: vi.fn()
+        .mockResolvedValueOnce([{ id: 'clh1234567890op', saleId: 'clh1234567890cd', totalRefunded: 500 }])
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }]),
       refund: {
         findUnique: vi.fn().mockResolvedValue({
           id: 'clh1234567890rs',
