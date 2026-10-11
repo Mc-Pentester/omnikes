@@ -119,21 +119,18 @@ async function main() {
   if (process.platform !== 'win32') {
     throw new Error('The packaged OmniKès runtime installer is intended for Windows.');
   }
+  if (exists(envPath) && !exists(dbPasswordFile)) {
+    throw new Error('An existing app/.env was found without the installer-managed database password file. It was preserved; refusing to initialize or migrate any database.');
+  }
+
   fs.mkdirSync(omniKesData, { recursive: true });
   fs.mkdirSync(data, { recursive: true });
 
   let password;
   if (exists(dbPasswordFile)) {
     password = fs.readFileSync(dbPasswordFile, 'utf8').trim();
-  } else if (exists(envPath)) {
-    const configured = readEnvValue('OMNIKES_POSTGRES_PASSWORD');
-    if (configured) {
-      password = configured;
-      fs.writeFileSync(dbPasswordFile, password + '\n', { flag: 'wx', mode: 0o600 });
-    }
-  }
-
-  if (!password) {
+    if (!password) throw new Error('The saved OmniKès PostgreSQL password file is empty; refusing to regenerate credentials.');
+  } else {
     if (exists(path.join(data, 'PG_VERSION'))) {
       throw new Error('Existing PostgreSQL data has no preserved OmniKès password file; refusing to guess, reset, or overwrite credentials.');
     }
@@ -166,9 +163,21 @@ async function main() {
     if (!serviceConfig) {
       run(pg('pg_ctl'), ['register', '-D', data, '-N', serviceName, '-S', 'auto', '-o', '-p ' + port]);
     }
-    const logFile = path.join(data, 'omnikes-postgresql.log');
-    run(pg('pg_ctl'), ['start', '-D', data, '-l', logFile, '-w', '-o', '-p ' + port]);
-    await verifyOwnServer(port, password);
+    try {
+      run('sc.exe', ['start', serviceName]);
+    } catch {
+      // The service may have started between the port check and this request.
+    }
+    let ready = false;
+    for (let attempt = 0; attempt < 45; attempt += 1) {
+      if (!(await isPortFree(port))) {
+        await verifyOwnServer(port, password);
+        ready = true;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    if (!ready) throw new Error('The embedded PostgreSQL Windows service did not become ready within 45 seconds. Existing data was preserved.');
   }
 
   const psql = pg('psql');
