@@ -10,7 +10,7 @@ import { PATCH } from '@omnikes/app/api/platform/subscriptions/[organizationId]/
 import { GET as LIST } from '@omnikes/app/api/platform/subscriptions/route';
 
 describe('P0-Platform-RBAC - strict platform/tenant separation', () => {
-  let adminAId = '';
+  let tenantAdminId = '';
   let platformUserId = '';
   let orgBId = '';
   let originalOrgB: {
@@ -29,12 +29,16 @@ describe('P0-Platform-RBAC - strict platform/tenant separation', () => {
       select: { id: true, subscriptionStatus: true, subscriptionPlan: true, subscriptionExpiresAt: true },
     });
 
+    const tenantAdminRole = await prisma.role.findFirstOrThrow({
+      where: { name: 'ADMIN', organizationId: adminA.organizationId },
+      select: { id: true },
+    });
+
     const platformRole = await prisma.platformRole.findUniqueOrThrow({
       where: { name: 'OMNIKES_PLATFORM_OPERATOR' },
       select: { id: true },
     });
 
-    adminAId = adminA.id;
     orgBId = orgB.id;
     originalOrgB = {
       subscriptionStatus: orgB.subscriptionStatus,
@@ -43,6 +47,21 @@ describe('P0-Platform-RBAC - strict platform/tenant separation', () => {
     };
 
     const suffix = Date.now();
+    const tenantAdmin = await prisma.user.create({
+      data: {
+        email: `tenant.admin.rbac.${suffix}@omnikes.test`,
+        name: 'Tenant Admin RBAC Test',
+        password: 'not-used-by-this-test',
+        organizationId: adminA.organizationId,
+        isActive: true,
+        userRoles: {
+          create: { roleId: tenantAdminRole.id },
+        },
+      },
+      select: { id: true },
+    });
+    tenantAdminId = tenantAdmin.id;
+
     const platformUser = await prisma.user.create({
       data: {
         email: `platform.operator.${suffix}@omnikes.test`,
@@ -106,7 +125,7 @@ describe('P0-Platform-RBAC - strict platform/tenant separation', () => {
   it('denies tenant ADMIN from listing platform organizations', async () => {
     const response = await LIST(
       new NextRequest('http://localhost/api/platform/subscriptions', {
-        headers: { cookie: await cookieFor(adminAId) },
+        headers: { cookie: await cookieFor(tenantAdminId) },
       }),
     );
 
@@ -122,7 +141,7 @@ describe('P0-Platform-RBAC - strict platform/tenant separation', () => {
 
   it('does not treat a tenant ADMIN as a platform operator', async () => {
     expect(
-      await platformRoleRepository.hasPermission(adminAId, 'organization.subscription.manage'),
+      await platformRoleRepository.hasPermission(tenantAdminId, 'organization.subscription.manage'),
     ).toBe(false);
   });
 
@@ -239,6 +258,10 @@ describe('P0-Platform-RBAC - strict platform/tenant separation', () => {
   });
 
   afterAll(async () => {
+    if (tenantAdminId) {
+      await prisma.user.delete({ where: { id: tenantAdminId } }).catch(() => undefined);
+    }
+
     if (platformUserId) {
       await prisma.user.delete({ where: { id: platformUserId } }).catch(() => undefined);
     }
