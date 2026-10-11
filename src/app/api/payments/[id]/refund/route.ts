@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { refundService } from '@omnikes/services/refund.service';
 import { requireCurrentOrganizationId, requirePermission, getAuthenticatedUser, requireStoreAccess } from '@omnikes/lib/auth';
-import { refundSchema } from '@omnikes/lib/validation';
+import { idempotencyKeySchema, refundSchema } from '@omnikes/lib/validation';
 import { prisma } from '@omnikes/lib/prisma';
 
 /**
@@ -26,6 +26,9 @@ export async function POST(
     }
 
     await requirePermission(request, 'payment.refund');
+
+    // Every refund mutation must be safely retryable.
+    const idempotencyKey = idempotencyKeySchema.parse(request.headers.get('Idempotency-Key'));
 
     // Verify payment belongs to organization
     const payment = await prisma.payment.findFirst({
@@ -93,7 +96,7 @@ export async function POST(
     }
 
     // Process refund
-    const refund = await refundService.process(organizationId, user.id, refundData);
+    const refund = await refundService.process(organizationId, user.id, refundData, idempotencyKey);
 
     return NextResponse.json(refund, { status: 201 });
   } catch (error) {
