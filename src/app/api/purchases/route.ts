@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireCurrentOrganizationId, requirePermission, requireAuthenticatedUser } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireAuthenticatedUser, requireStoreAccess, getAuthorizedStoreIds } from '@omnikes/lib/auth';
+import { purchaseCreateSchema } from '@omnikes/lib/validation';
 import { purchaseService } from '@omnikes/services/purchase.service';
 
 function authErrorResponse(error: unknown) {
@@ -8,6 +9,7 @@ function authErrorResponse(error: unknown) {
   if (error.message === 'Authentication required' || error.message === 'Invalid or expired session') {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
+  if (error.message.startsWith('Not authorized to access this store')) return NextResponse.json({ error: 'Store access denied' }, { status: 403 });
   if (error.message.startsWith('Permission required')) {
     return NextResponse.json({ error: 'Permission required' }, { status: 403 });
   }
@@ -19,14 +21,17 @@ export async function GET(request: NextRequest) {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'purchase.read');
     const { searchParams } = new URL(request.url);
+    const requestedStoreId = searchParams.get('storeId') || undefined;
+    if (requestedStoreId) await requireStoreAccess(request, requestedStoreId);
+    const authorizedStoreIds = await getAuthorizedStoreIds(request);
     const purchases = await purchaseService.list(organizationId, {
-      storeId: searchParams.get('storeId') || undefined,
+      storeId: requestedStoreId,
       supplierId: searchParams.get('supplierId') || undefined,
       status: searchParams.get('status') || undefined,
       search: searchParams.get('search') || undefined,
       skip: searchParams.get('skip') ?? undefined,
       take: searchParams.get('take') ?? undefined,
-    });
+    }, authorizedStoreIds);
     return NextResponse.json(purchases);
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid purchase parameters' }, { status: 400 });
@@ -42,7 +47,9 @@ export async function POST(request: NextRequest) {
     const user = await requireAuthenticatedUser(request);
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'purchase.manage');
-    const purchase = await purchaseService.create(organizationId, user.id, await request.json());
+    const data = purchaseCreateSchema.parse(await request.json());
+    await requireStoreAccess(request, data.storeId);
+    const purchase = await purchaseService.create(organizationId, user.id, data);
     return NextResponse.json(purchase, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid purchase data' }, { status: 400 });
