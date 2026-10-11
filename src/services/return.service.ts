@@ -29,6 +29,26 @@ export class ReturnService {
         throw new Error('Sale not found or access denied');
       }
 
+      // Recheck after locking the sale so concurrent retries cannot process twice.
+      if (idempotency) {
+        const existing = await tx.return.findFirst({
+          where: { organizationId, idempotencyKey: idempotency.key },
+          include: {
+            items: {
+              include: {
+                saleItem: { include: { variant: { include: { product: true } } } },
+              },
+            },
+          },
+        });
+        if (existing) {
+          if (existing.idempotencyRequestHash !== idempotency.requestHash) {
+            throw new Error('Idempotency-Key already used with different return data');
+          }
+          return existing;
+        }
+      }
+
       // Fetch the sale with items, store, and organization info
       const sale = await tx.sale.findUnique({
         where: { id: validatedData.saleId },
