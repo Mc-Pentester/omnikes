@@ -7,10 +7,38 @@ export class RefundService {
    * Process a refund for a payment
    * This operation is atomic: payment update and refund record happen in one transaction
    */
-  async process(organizationId: string, userId: string, data: RefundInput) {
+  async process(organizationId: string, userId: string, data: RefundInput, idempotencyKey?: string) {
     const validatedData = refundSchema.parse(data);
 
     return prisma.$transaction(async (tx) => {
+      // Replay a completed request when the same key and payload are submitted again.
+      if (idempotencyKey) {
+        const existing = await tx.refund.findUnique({
+          where: { idempotencyKey },
+          include: {
+            payment: {
+              include: {
+                sale: { select: { organizationId: true } },
+              },
+            },
+          },
+        });
+
+        if (existing) {
+          const sameRequest =
+            existing.payment.sale.organizationId === organizationId &&
+            existing.paymentId === validatedData.paymentId &&
+            existing.returnId === validatedData.returnId &&
+            Number(existing.amount) === validatedData.amount;
+
+          if (!sameRequest) {
+            throw new Error('Idempotency key already used for a different refund');
+          }
+
+          return tx.refund.findUniqueOrThrow({ where: { id: existing.id } });
+        }
+      }
+
       // Lock the return row first
       const lockedReturnRows = await tx.$queryRaw<Array<{ id: string; saleId: string; totalRefunded: number }>>`
         SELECT r.id, r."saleId", r."totalRefunded"
@@ -96,6 +124,7 @@ export class RefundService {
           returnId: validatedData.returnId,
           paymentId: validatedData.paymentId,
           amount: validatedData.amount,
+          ...(idempotencyKey ? { idempotencyKey } : {}),
           method: payment.method,
           reference: validatedData.reference,
           status: 'COMPLETED',
