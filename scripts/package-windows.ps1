@@ -4,6 +4,14 @@ Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
+# Next.js build replaces .next; do not run it over an active development server.
+$rootPattern = [regex]::Escape($root)
+$nextProcesses = Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" -ErrorAction SilentlyContinue |
+  Where-Object { $_.CommandLine -and $_.CommandLine -match $rootPattern -and $_.CommandLine -match '(?i)(next[\\/].*\\bdev\\b|next\\s+dev)' }
+if ($nextProcesses) {
+  throw "A Next.js development server is running for this project. Stop it before packaging; no build or runtime preparation was started."
+}
+
 $iscc = $env:ISCC
 if (-not $iscc) {
   $candidates = @(
