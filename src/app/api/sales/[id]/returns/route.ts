@@ -48,6 +48,12 @@ export async function POST(
     // Parse return data
     const body = await request.json();
     const returnData = returnSchema.parse(body);
+    if (returnData.saleId !== saleId) {
+      return NextResponse.json(
+        { error: 'Sale ID in request body must match the URL' },
+        { status: 400 }
+      );
+    }
 
     // Note: For simplicity in this phase, we're not implementing a full idempotency table
     // for returns. The service layer already uses FOR UPDATE locks to prevent
