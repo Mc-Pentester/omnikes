@@ -33,6 +33,13 @@ function pg(file) {
 
 function exists(file) { return fs.existsSync(file); }
 
+function readEnvValue(name) {
+  if (!exists(envPath)) return undefined;
+  const line = fs.readFileSync(envPath, 'utf8').split(/\r?\n/).find((entry) => entry.startsWith(name + '='));
+  if (!line) return undefined;
+  return line.slice(name.length + 1).trim().replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
+}
+
 function isPortFree(port) {
   return new Promise((resolve) => {
     const server = net.createServer();
@@ -141,6 +148,11 @@ async function main() {
     fs.writeFileSync(portFile, String(port) + '\n', { flag: 'wx' });
   }
 
+  const url = 'postgresql://' + encodeURIComponent(dbUser) + ':' + encodeURIComponent(password) + '@127.0.0.1:' + port + '/' + dbName;
+  if (exists(envPath) && readEnvValue('DATABASE_URL') !== url) {
+    throw new Error('The existing app/.env points to a different database. It was preserved; refusing to initialize, start, or migrate a different database.');
+  }
+
   const serviceConfig = readServiceConfig();
   if (serviceConfig) assertServiceBelongsToThisInstall(serviceConfig);
 
@@ -187,7 +199,6 @@ async function main() {
     run(psql, ['-h', '127.0.0.1', '-p', String(port), '-U', dbUser, '-d', 'postgres', '-c', 'CREATE DATABASE omnikes'], psqlEnv);
   }
 
-  const url = 'postgresql://' + encodeURIComponent(dbUser) + ':' + encodeURIComponent(password) + '@127.0.0.1:' + port + '/' + dbName;
   if (!exists(envPath)) {
     fs.writeFileSync(envPath, [
       'DATABASE_URL="' + url + '"',
