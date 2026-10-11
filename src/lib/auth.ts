@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { authService } from '@omnikes/services/auth.service';
 import { roleRepository } from '@omnikes/repositories/role.repository';
+import { platformRoleRepository } from '@omnikes/repositories/platform-role.repository';
 
 export interface AuthenticatedUser {
   id: string;
@@ -158,4 +159,18 @@ export async function requireStoreAccess(request: NextRequest, storeId: string):
 export async function getAuthorizedStoreIds(request: NextRequest): Promise<string[] | null> {
   const user = await requireAuthenticatedUser(request);
   return roleRepository.getAuthorizedStoreIds(user.id);
+}
+
+
+/**
+ * Require a platform-scoped role for operations that affect the whole connected database.
+ * Tenant ADMIN roles are intentionally not sufficient for cross-tenant operations.
+ */
+export async function requirePlatformRole(request: NextRequest, roleName: string): Promise<void> {
+  const user = await requireAuthenticatedUser(request);
+  const hasRole = await platformRoleRepository.hasRole(user.id, roleName);
+
+  if (!hasRole) {
+    throw new Error(`Platform role required: ${roleName}`);
+  }
 }

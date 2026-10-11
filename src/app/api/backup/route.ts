@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { getAuthenticatedUser, requireCurrentOrganizationId, requirePermission, requireRole } from '@omnikes/lib/auth';
+import { getAuthenticatedUser, requireCurrentOrganizationId, requirePermission, requirePlatformRole } from '@omnikes/lib/auth';
+import { PLATFORM_OPERATOR_ROLE } from '@omnikes/repositories/platform-role.repository';
 import { localBackupService } from '@omnikes/services/local-backup.service';
 
 export const runtime = 'nodejs';
@@ -10,7 +11,7 @@ export const runtime = 'nodejs';
 function errorResponse(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes('Authentication')) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-  if (message.startsWith('Permission required') || message.startsWith('Role required')) return NextResponse.json({ error: 'Permission required' }, { status: 403 });
+  if (message.startsWith('Permission required') || message.startsWith('Role required') || message.startsWith('Platform role required')) return NextResponse.json({ error: 'Permission required' }, { status: 403 });
   if (message.includes('already in progress')) return NextResponse.json({ error: message }, { status: 409 });
   if (message.includes('Invalid backup') || message.includes('DATABASE_URL is required')) {
     return NextResponse.json({ error: message }, { status: 400 });
@@ -53,9 +54,9 @@ export async function PUT(request: NextRequest) {
     const user = await getAuthenticatedUser(request);
     if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     await requirePermission(request, 'backup.restore');
-    // Restoring a dump replaces the entire connected database, not just the current organization.
-    // Require the organization administrator role in addition to the explicit permission.
-    await requireRole(request, 'ADMIN');
+    // Restoring a dump replaces the entire connected database, across tenant boundaries.
+    // A tenant ADMIN role is insufficient; require the dedicated platform-scoped operator role.
+    await requirePlatformRole(request, PLATFORM_OPERATOR_ROLE);
 
     const form = await request.formData();
     const entry = form.get('backup');
