@@ -6,7 +6,7 @@ vi.mock('../../lib/auth', () => ({
   getAuthenticatedUser: vi.fn(),
   requireCurrentOrganizationId: vi.fn(),
   requirePermission: vi.fn(),
-  requireRole: vi.fn(),
+  requirePlatformRole: vi.fn(),
 }));
 
 vi.mock('../../services/local-backup.service', () => ({
@@ -17,13 +17,13 @@ vi.mock('../../services/local-backup.service', () => ({
   },
 }));
 
-import { getAuthenticatedUser, requireCurrentOrganizationId, requirePermission, requireRole } from '../../lib/auth';
+import { getAuthenticatedUser, requireCurrentOrganizationId, requirePermission, requirePlatformRole } from '../../lib/auth';
 import { localBackupService } from '../../services/local-backup.service';
 
 const mockedGetAuthenticatedUser = getAuthenticatedUser as ReturnType<typeof vi.fn>;
 const mockedRequireCurrentOrganizationId = requireCurrentOrganizationId as ReturnType<typeof vi.fn>;
 const mockedRequirePermission = requirePermission as ReturnType<typeof vi.fn>;
-const mockedRequireRole = requireRole as ReturnType<typeof vi.fn>;
+const mockedRequirePlatformRole = requirePlatformRole as ReturnType<typeof vi.fn>;
 const mockedRestoreBackup = localBackupService.restoreBackup as ReturnType<typeof vi.fn>;
 
 describe('Database restore authorization', () => {
@@ -32,7 +32,7 @@ describe('Database restore authorization', () => {
     mockedRequireCurrentOrganizationId.mockResolvedValue('org-a');
     mockedGetAuthenticatedUser.mockResolvedValue({ id: 'user-a', organizationId: 'org-a' });
     mockedRequirePermission.mockResolvedValue(undefined);
-    mockedRequireRole.mockResolvedValue(undefined);
+    mockedRequirePlatformRole.mockResolvedValue(undefined);
   });
 
   it('rejects a user without backup.restore permission before checking the role or restoring', async () => {
@@ -42,19 +42,19 @@ describe('Database restore authorization', () => {
     const response = await PUT(request);
 
     expect(response.status).toBe(403);
-    expect(mockedRequireRole).not.toHaveBeenCalled();
+    expect(mockedRequirePlatformRole).not.toHaveBeenCalled();
     expect(mockedRestoreBackup).not.toHaveBeenCalled();
   });
 
-  it('rejects a user without the ADMIN role even when backup.restore permission is present', async () => {
-    mockedRequireRole.mockRejectedValue(new Error('Role required: ADMIN'));
+  it('rejects a tenant ADMIN without the platform operator role even when backup.restore permission is present', async () => {
+    mockedRequirePlatformRole.mockRejectedValue(new Error('Role required: ADMIN'));
     const request = new NextRequest('http://localhost/api/backup', { method: 'PUT' });
 
     const response = await PUT(request);
 
     expect(response.status).toBe(403);
     expect(mockedRequirePermission).toHaveBeenCalledWith(expect.anything(), 'backup.restore');
-    expect(mockedRequireRole).toHaveBeenCalledWith(expect.anything(), 'ADMIN');
+    expect(mockedRequirePlatformRole).toHaveBeenCalledWith(expect.anything(), 'OMNIKES_PLATFORM_OPERATOR');
     expect(mockedRestoreBackup).not.toHaveBeenCalled();
   });
 });
