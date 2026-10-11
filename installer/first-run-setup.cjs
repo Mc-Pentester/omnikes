@@ -76,7 +76,7 @@ async function main() {
     if (!slugBase) throw new Error('The organization name cannot be converted to a valid identifier.');
 
     await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw(Prisma.sql\`SELECT pg_advisory_xact_lock(81427362)\`);
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(81427362)`);
       if (await tx.user.count() > 0) {
         throw new Error('An administrator was created concurrently; no initial data was changed.');
       }
@@ -84,7 +84,7 @@ async function main() {
       let slug = slugBase;
       let suffix = 2;
       while (await tx.organization.findUnique({ where: { slug }, select: { id: true } })) {
-        slug = \`\${slugBase}-\${suffix++}\`;
+        slug = `${slugBase}-${suffix++}`;
       }
 
       const organization = await tx.organization.create({
@@ -115,7 +115,7 @@ async function main() {
         permissions.push(await tx.permission.upsert({
           where: { code },
           update: {},
-          create: { code, description: \`Permission \${code}\`, module: moduleFromCode(code) },
+          create: { code, description: `Permission ${code}`, module: moduleFromCode(code) },
         }));
       }
 
