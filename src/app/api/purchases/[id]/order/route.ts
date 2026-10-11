@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
 import { purchaseService } from '@omnikes/services/purchase.service';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -9,6 +9,7 @@ function authErrorResponse(error: unknown) {
   if (error.message === 'Authentication required' || error.message === 'Invalid or expired session') {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
+  if (error.message.startsWith('Not authorized to access this store')) return NextResponse.json({ error: 'Store access denied' }, { status: 403 });
   if (error.message.startsWith('Permission required')) {
     return NextResponse.json({ error: 'Permission required' }, { status: 403 });
   }
@@ -20,6 +21,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'purchase.manage');
     const { id } = await context.params;
+    const purchase = await purchaseService.getById(id, organizationId);
+    if (!purchase) return NextResponse.json({ error: 'Purchase not found' }, { status: 404 });
+    await requireStoreAccess(request, purchase.storeId);
     return NextResponse.json(await purchaseService.order(id, organizationId));
   } catch (error) {
     const auth = authErrorResponse(error);
