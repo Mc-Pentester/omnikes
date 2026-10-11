@@ -954,6 +954,8 @@ model Return {
   status         String   @default("PENDING") // PENDING, COMPLETED, CANCELLED
   totalRefunded  Decimal  @db.Decimal(12, 2)
   reason         String?
+  idempotencyKey String?
+  idempotencyRequestHash String?
   returnedBy     String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -968,6 +970,7 @@ model Return {
 
   @@index([organizationId])
   @@index([storeId])
+  @@unique([organizationId, idempotencyKey])
   @@index([saleId])
   @@index([status])
   @@index([createdAt])
