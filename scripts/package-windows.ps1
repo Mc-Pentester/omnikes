@@ -31,7 +31,16 @@ if (Test-Path $installerOutput) {
 New-Item -ItemType Directory -Path $dist -Force | Out-Null
 
 if (-not $env:DATABASE_URL) {
-  $env:DATABASE_URL = "postgresql://build:build@127.0.0.1:5432/omnikes_build"
+  $envFile = Join-Path $root ".env"
+  if (Test-Path $envFile) {
+    $databaseLine = Get-Content $envFile | Where-Object { $_ -match '^\s*DATABASE_URL\s*=' } | Select-Object -First 1
+    if ($databaseLine) {
+      $env:DATABASE_URL = ($databaseLine -replace '^\s*DATABASE_URL\s*=\s*', '').Trim().Trim('"').Trim("'")
+    }
+  }
+}
+if (-not $env:DATABASE_URL) {
+  throw "DATABASE_URL is required for the production build. Set it in the process environment or in the local .env file; no placeholder database URL will be used."
 }
 
 npm run prepare:embedded-postgres
