@@ -55,6 +55,7 @@ const mockedPrisma = prisma as {
     update: ReturnType<typeof vi.fn>;
   };
   sale: {
+    findFirst: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
   };
   store: {
@@ -82,6 +83,7 @@ describe('P0-24-F.1-A Payment Idempotency Tests', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedPrisma.sale.findFirst.mockResolvedValue({ storeId, organizationId: mockOrganizationId });
   });
 
   describe('F1-01: Normal payment creation', () => {
@@ -683,4 +685,36 @@ describe('P0-24-F.1-A Payment Idempotency Tests', () => {
       expect(mockedPrisma.$transaction).toHaveBeenCalled();
     });
   });
+  describe('F1-16: Cached replay requires current store access', () => {
+    it('should reject a cached payment replay when store access has been revoked', async () => {
+      mockedRequireCurrentOrganizationId.mockResolvedValue(mockOrganizationId);
+      mockedGetAuthenticatedUser.mockResolvedValue({ id: mockUserId });
+      mockedRequirePermission.mockResolvedValue(undefined);
+      mockedPrisma.sale.findFirst.mockResolvedValue({ storeId, organizationId: mockOrganizationId });
+      mockedRequireStoreAccess.mockRejectedValue(new Error('Not authorized to access this store'));
+      mockedPrisma.paymentIdempotency.findUnique.mockResolvedValue({
+        id: 'idemp-1',
+        organizationId: mockOrganizationId,
+        userId: mockUserId,
+        saleId,
+        key: idempotencyKey,
+        status: 'COMPLETED',
+        responseStatus: 201,
+        responseBody: JSON.stringify({ id: 'payment-1', method: 'CASH', amount: 100 }),
+      });
+
+      const request = new NextRequest(`http://localhost/api/sales/${saleId}/payments`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ method: 'CASH', amount: 100 }),
+      });
+
+      const response = await POSTPayments(request, { params: Promise.resolve({ id: saleId }) });
+
+      expect(response.status).toBe(403);
+      expect(mockedPrisma.paymentIdempotency.findUnique).not.toHaveBeenCalled();
+      expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+    });
+  });
+
 });
