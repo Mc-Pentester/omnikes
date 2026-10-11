@@ -69,6 +69,11 @@ async function main() {
       console.log('Existing OmniKès users found; organization and accounts preserved. Initial provisioning skipped.');
       return;
     }
+    const existingOrganizations = await prisma.organization.count();
+    const existingStores = await prisma.store.count();
+    if (existingOrganizations > 0 || existingStores > 0) {
+      throw new Error('The database contains organization or store records but no users. Initial provisioning was refused; existing data was preserved.');
+    }
 
     const slugBase = organizationName.toLowerCase().normalize('NFKD')
       .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-')
@@ -79,6 +84,9 @@ async function main() {
       await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(81427362)`);
       if (await tx.user.count() > 0) {
         throw new Error('An administrator was created concurrently; no initial data was changed.');
+      }
+      if (await tx.organization.count() > 0 || await tx.store.count() > 0) {
+        throw new Error('Organization or store records already exist. Initial provisioning was refused; existing data was preserved.');
       }
 
       let slug = slugBase;
