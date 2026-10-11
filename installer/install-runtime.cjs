@@ -23,8 +23,8 @@ function run(file, args, env) {
   execFileSync(file, args, { stdio: 'inherit', windowsHide: true, env: env || process.env });
 }
 
-function capture(file, args) {
-  return execFileSync(file, args, { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+function capture(file, args, env) {
+  return execFileSync(file, args, { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: env || process.env });
 }
 
 function pg(file) {
@@ -33,7 +33,7 @@ function pg(file) {
 
 function exists(file) { return fs.existsSync(file); }
 
-function canConnect(port) {
+function isPortFree(port) {
   return new Promise((resolve) => {
     const server = net.createServer();
     server.once('error', () => resolve(false));
@@ -79,7 +79,7 @@ function readPort() {
 
 async function choosePort() {
   for (let candidate = 5433; candidate <= 5532; candidate += 1) {
-    if (await canConnect(candidate)) return candidate;
+    if (await isPortFree(candidate)) return candidate;
   }
   throw new Error('No free local PostgreSQL port was found between 5433 and 5532. No existing service was changed.');
 }
@@ -99,7 +99,7 @@ async function verifyOwnServer(port, password) {
     output = capture(psql, [
       '-h', '127.0.0.1', '-p', String(port), '-U', dbUser, '-d', 'postgres',
       '-Atqc', 'SELECT current_user; SHOW data_directory; SHOW port',
-    ]);
+    ], psqlEnv);
   } catch {
     throw new Error(
       'A process is already listening on the saved OmniKès PostgreSQL port, but its credentials could not be verified. It was not stopped or modified.'
@@ -160,7 +160,7 @@ async function main() {
   }
 
   const psqlEnv = { ...process.env, PGPASSWORD: password };
-  if (await canConnect(port)) {
+  if (!(await isPortFree(port))) {
     await verifyOwnServer(port, password);
   } else {
     if (!serviceConfig) {
