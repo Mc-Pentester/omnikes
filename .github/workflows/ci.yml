@@ -62,6 +62,40 @@ jobs:
         # Validate that package-lock.json is installable with standard npm ci.
         run: npm ci
 
+      - name: Full dependency vulnerability diagnostics
+        # Keep the production-only audit as the release gate, but print actionable details
+        # for development/transitive vulnerabilities instead of only npm's aggregate count.
+        shell: bash
+        run: |
+          set +e
+          npm audit --json > npm-audit-full.json
+          set -e
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('npm-audit-full.json', 'utf8'));
+          const entries = Object.entries(report.vulnerabilities || {});
+          console.log(`Full dependency audit: ${entries.length} vulnerable package(s).`);
+          console.log(JSON.stringify(report.metadata?.vulnerabilities || {}, null, 2));
+          for (const [name, item] of entries) {
+            console.log(`\n[${String(item.severity).toUpperCase()}] ${name}`);
+            console.log(`  direct: ${item.isDirect}; range: ${item.range || 'unknown'}`);
+            console.log(`  fix available: ${JSON.stringify(item.fixAvailable ?? false)}`);
+            for (const advisory of item.via || []) {
+              if (typeof advisory === 'string') {
+                console.log(`  via package: ${advisory}`);
+              } else {
+                console.log(`  advisory: ${advisory.title || 'untitled'}`);
+                if (advisory.url) console.log(`  details: ${advisory.url}`);
+                if (advisory.range) console.log(`  affected: ${advisory.range}`);
+              }
+            }
+          }
+          NODE
+
+          # Diagnostic only: the production dependency audit below remains the blocking gate.
+          exit 0
+
       - name: Prisma validate
         run: npx prisma validate
 
