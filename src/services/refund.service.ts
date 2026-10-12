@@ -56,7 +56,8 @@ export class RefundService {
             existing.payment.sale.organizationId === organizationId &&
             existing.paymentId === validatedData.paymentId &&
             existing.returnId === validatedData.returnId &&
-            Number(existing.amount) === validatedData.amount;
+            Number(existing.amount) === validatedData.amount &&
+            existing.reference === validatedData.reference;
 
           if (!sameRequest) {
             throw new Error('Idempotency key already used for a different refund');
