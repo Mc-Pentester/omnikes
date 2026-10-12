@@ -52,7 +52,7 @@ export class RegistrationService {
     // one global ip:unknown bucket for the whole instance.
     const normalizedEmail = this.normalizeEmail(email);
     if (ipAddress) {
-      const ipRateLimitResult = await checkRateLimit(getIpRateLimitIdentifier(ipAddress));
+      const ipRateLimitResult = await checkRateLimit(getIpRateLimitIdentifier(ipAddress, 'registration'));
       if (!ipRateLimitResult.allowed) {
         throw new RateLimitError(
           'Too many registration attempts. Please try again later.',
