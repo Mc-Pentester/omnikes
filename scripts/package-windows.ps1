@@ -29,9 +29,9 @@ if (-not $env:DATABASE_URL) {
   $env:DATABASE_URL = "postgresql://build:build@127.0.0.1:5432/omnikes_build"
 }
 
-npm run prepare:embedded-postgres
-npm run prepare:node-runtime
-npm run build
+npm.cmd run prepare:embedded-postgres
+npm.cmd run prepare:node-runtime
+npm.cmd run build
 
 $standalone = Join-Path $root ".next\standalone"
 if (-not (Test-Path (Join-Path $standalone "server.js"))) {
@@ -52,7 +52,7 @@ Copy-Item "package.json" (Join-Path $app "package.json") -Force
 Copy-Item "package-lock.json" (Join-Path $app "package-lock.json") -Force
 
 # Prisma CLI and migration engines are required at client install time.
-npm ci --omit=dev --prefix $app
+npm.cmd ci --omit=dev --prefix $app
 
 $nodeRoot = Join-Path $root "vendor\node\runtime\node-v22.20.0-win-x64"
 if (-not (Test-Path (Join-Path $nodeRoot "node.exe"))) { throw "Prepared Node.js runtime not found." }
