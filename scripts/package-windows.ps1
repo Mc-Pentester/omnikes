@@ -31,6 +31,7 @@ if (-not $env:DATABASE_URL) {
 
 npm.cmd run prepare:embedded-postgres
 npm.cmd run prepare:node-runtime
+npm.cmd exec prisma generate
 npm.cmd run build
 
 $standalone = Join-Path $root ".next\standalone"
