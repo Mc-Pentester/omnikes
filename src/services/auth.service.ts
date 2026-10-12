@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { userRepository } from '@omnikes/repositories/user.repository';
 import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { generateToken } from '@omnikes/lib/crypto';
-import { checkRateLimit, resetRateLimit, getRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
+import { checkRateLimit, resetRateLimit, getRateLimitIdentifier, getIpRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
 import { securityLogger } from '@omnikes/lib/security-logger';
 
 const MAX_SESSIONS_PER_USER = 10; // Limit concurrent sessions per user
@@ -33,8 +33,19 @@ export class AuthService {
    */
   async login(email: string, password: string, ipAddress?: string, userAgent?: string) {
     // Check rate limit
+    if (ipAddress) {
+      const ipRateLimitResult = await checkRateLimit(getIpRateLimitIdentifier(ipAddress, 'login'), 50);
+      if (!ipRateLimitResult.allowed) {
+        securityLogger.rateLimitExceeded(getIpRateLimitIdentifier(ipAddress, 'login'), ipAddress);
+        throw new RateLimitError(
+          'Too many login attempts. Please try again later.',
+          ipRateLimitResult.resetTime,
+        );
+      }
+    }
+
     const rateLimitId = getRateLimitIdentifier(email, ipAddress);
-    const rateLimitResult = checkRateLimit(rateLimitId);
+    const rateLimitResult = await checkRateLimit(rateLimitId);
     
     if (!rateLimitResult.allowed) {
       securityLogger.rateLimitExceeded(rateLimitId, ipAddress);
@@ -75,7 +86,7 @@ export class AuthService {
     }
 
     // Reset rate limit on successful login
-    resetRateLimit(rateLimitId);
+    await resetRateLimit(rateLimitId);
 
     // Update last login
     await userRepository.updateLastLogin(user.id);

@@ -1132,3 +1132,18 @@ model PaymentIdempotency {
   @@index([userId])
   @@map("payment_idempotency")
 }
+
+// ============================================================
+// RATE LIMIT BUCKET (Shared across application processes)
+// ============================================================
+
+model RateLimitBucket {
+  id         String   @id
+  identifier String   @unique
+  count      Int      @default(1)
+  resetTime  DateTime
+  updatedAt  DateTime @updatedAt
+
+  @@index([resetTime])
+  @@map("rate_limit_buckets")
+}

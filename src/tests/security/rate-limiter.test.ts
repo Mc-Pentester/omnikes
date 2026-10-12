@@ -1,82 +1,144 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { queryRawMock, executeRawMock } = vi.hoisted(() => ({
+  queryRawMock: vi.fn(),
+  executeRawMock: vi.fn(),
+}));
+
+vi.mock('@omnikes/lib/prisma', () => ({
+  prisma: {
+    $queryRaw: queryRawMock,
+    $executeRaw: executeRawMock,
+  },
+}));
+
 import {
   checkRateLimit,
   cleanupExpiredEntries,
+  getClientIP,
   getIpRateLimitIdentifier,
   getRateLimitIdentifier,
-  getRateLimitStoreSize,
   resetRateLimit,
   startRateLimitCleanup,
   stopRateLimitCleanup,
 } from '@omnikes/lib/rate-limiter';
 
-describe('rate-limiter', () => {
+interface MockBucket {
+  count: number;
+  resetTime: Date;
+}
+
+const buckets = new Map<string, MockBucket>();
+
+describe('PostgreSQL-backed rate limiter', () => {
   beforeEach(() => {
     stopRateLimitCleanup();
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
-    cleanupExpiredEntries();
+    buckets.clear();
+    queryRawMock.mockReset();
+    executeRawMock.mockReset();
+
+    queryRawMock.mockImplementation(async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+      // The SQL key is a SHA-256 digest, never the original email/IP identifier.
+      const key = String(values[1]);
+      const now = Date.now();
+      const existing = buckets.get(key);
+      const bucket: MockBucket = !existing || existing.resetTime.getTime() <= now
+        ? { count: 1, resetTime: new Date(now + 15 * 60 * 1000) }
+        : {
+            count: Math.min(existing.count + 1, 11),
+            resetTime: existing.resetTime,
+          };
+      buckets.set(key, bucket);
+      return [{ count: bucket.count, resetTime: bucket.resetTime }];
+    });
+
+    executeRawMock.mockImplementation(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const sql = strings.join('?');
+      if (sql.includes('WHERE "identifier" =')) {
+        buckets.delete(String(values[0]));
+      }
+      return 1;
+    });
   });
 
-  it('allows 10 attempts and rejects the 11th within the window', () => {
-    const id = 'test-rate-limit-10';
+  afterEach(() => {
+    stopRateLimitCleanup();
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
 
+  it('allows ten attempts and rejects the eleventh within the 15-minute window', async () => {
     for (let i = 0; i < 10; i += 1) {
-      const result = checkRateLimit(id);
+      const result = await checkRateLimit('test-rate-limit-10');
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(9 - i);
     }
 
-    const blocked = checkRateLimit(id);
+    const blocked = await checkRateLimit('test-rate-limit-10');
     expect(blocked.allowed).toBe(false);
     expect(blocked.remaining).toBe(0);
     expect(blocked.resetTime).toBe(Date.parse('2026-01-01T00:15:00.000Z'));
   });
 
-  it('resets an identifier explicitly', () => {
-    const id = 'test-rate-limit-reset';
+  it('resets an identifier explicitly', async () => {
+    await checkRateLimit('test-rate-limit-reset');
+    await resetRateLimit('test-rate-limit-reset');
 
-    checkRateLimit(id);
-    resetRateLimit(id);
-
-    const result = checkRateLimit(id);
+    const result = await checkRateLimit('test-rate-limit-reset');
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBe(9);
   });
 
-  it('expires entries after the 15-minute window', () => {
-    const id = 'test-rate-limit-expiry';
-
-    checkRateLimit(id);
+  it('expires a bucket after the 15-minute window', async () => {
+    await checkRateLimit('test-rate-limit-expiry');
     vi.advanceTimersByTime(15 * 60 * 1000 + 1);
-    cleanupExpiredEntries();
 
-    const result = checkRateLimit(id);
+    const result = await checkRateLimit('test-rate-limit-expiry');
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBe(9);
   });
 
-  it('bounds the store when many identifiers are added', () => {
-    for (let i = 0; i < 10001; i += 1) {
-      checkRateLimit(`test-rate-limit-bounded-${i}`);
+  it('caps a blocked counter instead of growing indefinitely', async () => {
+    for (let i = 0; i < 30; i += 1) {
+      await checkRateLimit('test-rate-limit-capped');
     }
 
-    expect(getRateLimitStoreSize()).toBeLessThanOrEqual(10000);
+    const bucket = [...buckets.values()][0];
+    expect(bucket.count).toBe(11);
   });
 
   it('starts and stops cleanup without creating duplicate timers', () => {
     startRateLimitCleanup();
     startRateLimitCleanup();
     stopRateLimitCleanup();
-
     expect(true).toBe(true);
   });
 
-  it('builds deterministic email and IP identifiers', () => {
-    expect(getRateLimitIdentifier('user@example.com', '127.0.0.1')).toBe(
-      'user@example.com:127.0.0.1',
+  it('removes expired buckets and applies a hard table ceiling during cleanup', async () => {
+    await cleanupExpiredEntries();
+    expect(executeRawMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('builds stable normalized email and IP identifiers', () => {
+    expect(getRateLimitIdentifier(' User@Example.com ', '127.0.0.1')).toBe(
+      'email:user@example.com:ip:127.0.0.1',
     );
-    expect(getIpRateLimitIdentifier('127.0.0.1')).toBe('ip:127.0.0.1');
-    expect(getIpRateLimitIdentifier()).toBe('ip:unknown');
+    expect(getIpRateLimitIdentifier('127.0.0.1')).toBe('ip:auth:127.0.0.1');
+    expect(getIpRateLimitIdentifier('127.0.0.1', 'login')).toBe('ip:login:127.0.0.1');
+    expect(getIpRateLimitIdentifier()).toBe('ip:auth:unknown');
+  });
+
+  it('ignores forwarded headers unless a trusted proxy is configured', () => {
+    vi.stubEnv('TRUSTED_PROXY', 'false');
+    expect(getClientIP(new Headers({ 'x-forwarded-for': '203.0.113.10' }))).toBeUndefined();
+  });
+
+  it('accepts only valid client IPs from a configured trusted proxy', () => {
+    vi.stubEnv('TRUSTED_PROXY', 'true');
+    expect(getClientIP(new Headers({ 'x-forwarded-for': '203.0.113.10, 10.0.0.1' }))).toBe('203.0.113.10');
+    expect(getClientIP(new Headers({ 'x-forwarded-for': 'attacker-value', 'x-real-ip': '203.0.113.11' }))).toBeUndefined();
+    expect(getClientIP(new Headers({ 'x-real-ip': '2001:db8::1' }))).toBe('2001:db8::1');
   });
 });

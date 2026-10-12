@@ -28,8 +28,18 @@ export class PasswordResetService {
     // Combine normalized email and IP. Without a trusted proxy IP, this stays
     // per email instead of sharing one global ip:unknown bucket.
     const normalizedEmail = email.trim().toLowerCase();
+    if (ipAddress) {
+      const ipRateLimitResult = await checkRateLimit(getIpRateLimitIdentifier(ipAddress, 'password-reset'));
+      if (!ipRateLimitResult.allowed) {
+        throw new RateLimitError(
+          'Too many password reset requests. Please try again later.',
+          ipRateLimitResult.resetTime,
+        );
+      }
+    }
+
     const rateLimitId = getRateLimitIdentifier(`reset:${normalizedEmail}`, ipAddress);
-    const rateLimitResult = checkRateLimit(rateLimitId);
+    const rateLimitResult = await checkRateLimit(rateLimitId);
     
     if (!rateLimitResult.allowed) {
       throw new RateLimitError(
@@ -110,13 +120,14 @@ export class PasswordResetService {
     // attacker can rotate invalid tokens, that allowed the attacker to obtain
     // a fresh bucket for every token. Use a stable IP bucket first, then add a
     // stable user bucket after the token lookup succeeds.
-    const ipRateLimitId = getIpRateLimitIdentifier(ipAddress);
-    const ipRateLimitResult = checkRateLimit(ipRateLimitId);
-    if (!ipRateLimitResult.allowed) {
-      throw new RateLimitError(
-        'Too many password reset attempts. Please try again later.',
-        ipRateLimitResult.resetTime,
-      );
+    if (ipAddress) {
+      const ipRateLimitResult = await checkRateLimit(getIpRateLimitIdentifier(ipAddress, 'password-reset'));
+      if (!ipRateLimitResult.allowed) {
+        throw new RateLimitError(
+          'Too many password reset attempts. Please try again later.',
+          ipRateLimitResult.resetTime,
+        );
+      }
     }
 
     // Find user with valid reset token
@@ -124,7 +135,7 @@ export class PasswordResetService {
 
     if (user) {
       const userRateLimitId = getRateLimitIdentifier(`reset-consume-user:${user.id}`, ipAddress);
-      const userRateLimitResult = checkRateLimit(userRateLimitId);
+      const userRateLimitResult = await checkRateLimit(userRateLimitId);
       if (!userRateLimitResult.allowed) {
         throw new RateLimitError(
           'Too many password reset attempts. Please try again later.',
