@@ -7,14 +7,19 @@ Set-Location $root
 $iscc = $env:ISCC
 if (-not $iscc) {
   $candidates = @(
-    "$env:ProgramFiles(x86)\Inno Setup 7\ISCC.exe",
-    "$env:ProgramFiles\Inno Setup 7\ISCC.exe",
-    "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe",
-    "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
-  )
-  $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+    (Join-Path ${env:ProgramFiles(x86)} "Inno Setup 7\ISCC.exe"),
+    (Join-Path $env:ProgramFiles "Inno Setup 7\ISCC.exe"),
+    (Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"),
+    (Join-Path $env:ProgramFiles "Inno Setup 6\ISCC.exe"),
+    (Join-Path $env:ChocolateyInstall "lib\innosetup\tools\ISCC.exe")
+  ) | Where-Object { $_ -and (Test-Path $_) }
+  $command = Get-Command "ISCC.exe" -ErrorAction SilentlyContinue
+  if ($command) { $iscc = $command.Source }
+  else { $iscc = $candidates | Select-Object -First 1 }
 }
-if (-not $iscc) { throw "ISCC.exe not found. Set ISCC or install Inno Setup 7/6." }
+if (-not $iscc -or -not (Test-Path $iscc)) {
+  throw "ISCC.exe not found. Set ISCC or install Inno Setup 7/6."
+}
 
 $dist = Join-Path $root "dist\windows"
 if (Test-Path $dist) { Remove-Item $dist -Recurse -Force }
