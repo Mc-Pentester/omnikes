@@ -34,7 +34,7 @@ export class AuthService {
   async login(email: string, password: string, ipAddress?: string, userAgent?: string) {
     // Check rate limit
     if (ipAddress) {
-      const ipRateLimitResult = await checkRateLimit(getIpRateLimitIdentifier(ipAddress));
+      const ipRateLimitResult = await checkRateLimit(getIpRateLimitIdentifier(ipAddress), 50);
       if (!ipRateLimitResult.allowed) {
         securityLogger.rateLimitExceeded(getIpRateLimitIdentifier(ipAddress), ipAddress);
         throw new RateLimitError(
