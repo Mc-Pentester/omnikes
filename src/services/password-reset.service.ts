@@ -1,7 +1,7 @@
 import { userRepository } from '@omnikes/repositories/user.repository';
 import { authService } from '@omnikes/services/auth.service';
 import { generateToken, hashToken } from '@omnikes/lib/crypto';
-import { checkRateLimit, getIpRateLimitIdentifier, getRateLimitIdentifier } from '@omnikes/lib/rate-limiter';
+import { checkRateLimit, getIpRateLimitIdentifier, getAccountRateLimitIdentifier } from '@omnikes/lib/rate-limiter';
 import { securityLogger } from '@omnikes/lib/security-logger';
 import { deliverPasswordResetLink, isPasswordResetDeliveryConfigured } from '@omnikes/lib/password-reset-delivery';
 
@@ -38,7 +38,7 @@ export class PasswordResetService {
       }
     }
 
-    const rateLimitId = getRateLimitIdentifier(`reset:${normalizedEmail}`, ipAddress);
+    const rateLimitId = getAccountRateLimitIdentifier(normalizedEmail, 'password-reset-request');
     const rateLimitResult = await checkRateLimit(rateLimitId);
     
     if (!rateLimitResult.allowed) {
@@ -134,7 +134,7 @@ export class PasswordResetService {
     const user = await userRepository.findByResetToken(tokenHash);
 
     if (user) {
-      const userRateLimitId = getRateLimitIdentifier(`reset-consume-user:${user.id}`, ipAddress);
+      const userRateLimitId = getAccountRateLimitIdentifier(user.id, 'password-reset-consume');
       const userRateLimitResult = await checkRateLimit(userRateLimitId);
       if (!userRateLimitResult.allowed) {
         throw new RateLimitError(
