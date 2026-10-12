@@ -76,6 +76,27 @@ export class ReturnService {
         throw new Error(`Sale cannot be returned from status ${sale.status}. Only COMPLETED sales can be returned.`);
       }
 
+      // Allocate the sale-level tax to its lines in a deterministic order. The
+      // cumulative method ensures all line allocations add back to the exact
+      // recorded sale tax instead of losing cents through independent rounding.
+      const saleTax = roundMoney(Number(sale.tax) || 0);
+      const sortedSaleItems = [...sale.items].sort((a, b) => a.id.localeCompare(b.id));
+      const saleLineNetTotal = roundMoney(sortedSaleItems.reduce(
+        (sum, item) => sum + Number(item.totalPrice),
+        0,
+      ));
+      const lineTaxAllocations = new Map<string, number>();
+      let cumulativeLineNet = 0;
+      let previouslyAllocatedSaleTax = 0;
+      for (const item of sortedSaleItems) {
+        cumulativeLineNet = roundMoney(cumulativeLineNet + Number(item.totalPrice));
+        const cumulativelyAllocatedTax = saleLineNetTotal > 0
+          ? roundMoney(saleTax * cumulativeLineNet / saleLineNetTotal)
+          : 0;
+        lineTaxAllocations.set(item.id, roundMoney(cumulativelyAllocatedTax - previouslyAllocatedSaleTax));
+        previouslyAllocatedSaleTax = cumulativelyAllocatedTax;
+      }
+
       // Process each return item
       const returnItemsData = [];
       let totalRefunded = 0;
@@ -140,10 +161,10 @@ export class ReturnService {
           data: { returnedQuantity: newReturnedQuantity },
         });
 
-        // Refund the line's net amount after its recorded discount, not the
-        // undiscounted unit price. Prorate cumulatively so partial returns do
-        // not lose or create cents when the remaining quantity is returned.
+        // Refund the discounted line amount plus its allocated share of the
+        // sale-level tax. Cumulative allocation keeps partial returns cent-safe.
         const lineNetTotal = roundMoney(Number(saleItem.totalPrice));
+        const lineTaxTotal = lineTaxAllocations.get(saleItem.id) ?? 0;
         const previousReturnedQuantity = saleItem.returnedQuantity || 0;
         const previouslyAllocatedAmount = roundMoney(
           lineNetTotal * previousReturnedQuantity / saleItem.quantity,
@@ -151,7 +172,16 @@ export class ReturnService {
         const newlyAllocatedAmount = roundMoney(
           lineNetTotal * newReturnedQuantity / saleItem.quantity,
         );
-        const itemRefundAmount = roundMoney(newlyAllocatedAmount - previouslyAllocatedAmount);
+        const previouslyAllocatedTax = roundMoney(
+          lineTaxTotal * previousReturnedQuantity / saleItem.quantity,
+        );
+        const newlyAllocatedTax = roundMoney(
+          lineTaxTotal * newReturnedQuantity / saleItem.quantity,
+        );
+        const itemRefundAmount = roundMoney(
+          newlyAllocatedAmount - previouslyAllocatedAmount +
+          newlyAllocatedTax - previouslyAllocatedTax,
+        );
         const unitPrice = roundMoney(itemRefundAmount / itemData.quantity);
         totalRefunded = roundMoney(totalRefunded + itemRefundAmount);
 
