@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
-import { prisma } from '@omnikes/lib/prisma';
 import { checkRateLimit, resetRateLimit } from '@omnikes/lib/rate-limiter';
 
 describe('rate limiter PostgreSQL concurrency proof', () => {
@@ -8,7 +7,6 @@ describe('rate limiter PostgreSQL concurrency proof', () => {
 
   afterAll(async () => {
     await resetRateLimit(identifier);
-    await prisma.$disconnect();
   });
 
   it('enforces one atomic quota for concurrent requests sharing the database', async () => {
