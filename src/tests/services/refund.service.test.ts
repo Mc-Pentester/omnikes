@@ -322,5 +322,39 @@ describe('RefundService', () => {
       ),
     ).rejects.toThrow('Idempotency key already used for a different refund');
   });
+  it('rejects reuse of a refund idempotency key when the reference changes', async () => {
+    const tx = {
+      $queryRaw: vi.fn()
+        .mockResolvedValueOnce([{ id: 'clh1234567890op', saleId: 'clh1234567890cd', totalRefunded: 500 }])
+        .mockResolvedValueOnce([{ id: 'clh1234567890ab' }]),
+      refund: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'clh1234567890rs',
+          returnId: 'clh1234567890op',
+          paymentId: 'clh1234567890ab',
+          amount: 250,
+          reference: 'ORIGINAL-REFERENCE',
+          payment: { sale: { organizationId: 'clh1234567890ef' } },
+        }),
+      },
+    };
+
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+
+    await expect(
+      refundService.process(
+        'clh1234567890ef',
+        'clh1234567890mn',
+        {
+          returnId: 'clh1234567890op',
+          paymentId: 'clh1234567890ab',
+          amount: 250,
+          reference: 'DIFFERENT-REFERENCE',
+        },
+        'refund-retry-key-003',
+      ),
+    ).rejects.toThrow('Idempotency key already used for a different refund');
+  });
+
 
 });
