@@ -29,7 +29,7 @@ export class PasswordResetService {
     // per email instead of sharing one global ip:unknown bucket.
     const normalizedEmail = email.trim().toLowerCase();
     if (ipAddress) {
-      const ipRateLimitResult = await checkRateLimit(getIpRateLimitIdentifier(ipAddress));
+      const ipRateLimitResult = await checkRateLimit(getIpRateLimitIdentifier(ipAddress, 'password-reset'));
       if (!ipRateLimitResult.allowed) {
         throw new RateLimitError(
           'Too many password reset requests. Please try again later.',
@@ -121,7 +121,7 @@ export class PasswordResetService {
     // a fresh bucket for every token. Use a stable IP bucket first, then add a
     // stable user bucket after the token lookup succeeds.
     if (ipAddress) {
-      const ipRateLimitResult = await checkRateLimit(getIpRateLimitIdentifier(ipAddress));
+      const ipRateLimitResult = await checkRateLimit(getIpRateLimitIdentifier(ipAddress, 'password-reset'));
       if (!ipRateLimitResult.allowed) {
         throw new RateLimitError(
           'Too many password reset attempts. Please try again later.',
