@@ -29,7 +29,8 @@ function errorResponse(error: unknown) {
   if (message.includes('Invalid backup') || message.includes('Backup file size is invalid') || message.includes('A backup file is required') || message.includes('Unsupported content type') || message.includes('DATABASE_URL is required')) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
-  return NextResponse.json({ error: message }, { status: 500 });
+  console.error('[backup] Operation failed', error);
+  return NextResponse.json({ error: 'Backup operation failed. Check local application logs for details.' }, { status: 500 });
 }
 
 function safeSourceFileName(request: NextRequest): string {
@@ -51,7 +52,6 @@ export async function POST(request: NextRequest) {
       size: result.size,
     });
 
-    // Stream the generated dump instead of loading the entire backup into Node.js memory.
     const body = Readable.toWeb(createReadStream(result.filePath)) as ReadableStream<Uint8Array>;
     return new NextResponse(body, {
       status: 200,
@@ -71,25 +71,25 @@ export async function PUT(request: NextRequest) {
   let tempPath: string | null = null;
   let organizationId: string | null = null;
   let actorId: string | null = null;
+  let restoreStarted = false;
+  let operationId: string | null = null;
+  let sourceFileName = 'uploaded-backup.dump';
+  let receivedBytes = 0;
+
   try {
     organizationId = await requireCurrentOrganizationId(request);
     const user = await getAuthenticatedUser(request);
     if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     actorId = user.id;
     await requirePermission(request, 'backup.restore');
-    // Restoring a dump replaces the entire connected database, across tenant boundaries.
-    // A tenant ADMIN role is insufficient; require the dedicated platform-scoped operator role.
+    // Restore replaces the entire connected database, so a tenant ADMIN role is insufficient.
     await requirePlatformRole(request, PLATFORM_OPERATOR_ROLE);
 
-    // Accept a raw binary body so it can be streamed to disk. request.formData() buffers
-    // multipart uploads in memory before application-level limits can protect the process.
     const contentType = request.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase();
     if (contentType !== 'application/octet-stream') {
       return NextResponse.json({ error: 'Unsupported content type; send the backup as application/octet-stream' }, { status: 415 });
     }
-    if (!request.body) {
-      return NextResponse.json({ error: 'A backup file is required' }, { status: 400 });
-    }
+    if (!request.body) return NextResponse.json({ error: 'A backup file is required' }, { status: 400 });
 
     const maxBytes = maxRestoreBytes();
     const contentLengthHeader = request.headers.get('content-length');
@@ -98,16 +98,14 @@ export async function PUT(request: NextRequest) {
       if (!Number.isSafeInteger(contentLength) || contentLength < 0) {
         return NextResponse.json({ error: 'Invalid Content-Length header' }, { status: 400 });
       }
-      if (contentLength > maxBytes) {
-        return NextResponse.json({ error: 'Backup file exceeds the configured size limit' }, { status: 413 });
-      }
+      if (contentLength > maxBytes) return NextResponse.json({ error: 'Backup file exceeds the configured size limit' }, { status: 413 });
     }
 
+    sourceFileName = safeSourceFileName(request);
     const tempDir = path.join(process.cwd(), '.omnikes', 'tmp');
     await fs.mkdir(tempDir, { recursive: true });
     tempPath = path.join(tempDir, `restore-${randomUUID()}.dump`);
 
-    let receivedBytes = 0;
     const byteLimit = new Transform({
       transform(chunk: Buffer | string, _encoding, callback) {
         const size = Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk);
@@ -125,23 +123,81 @@ export async function PUT(request: NextRequest) {
       byteLimit,
       createWriteStream(tempPath, { flags: 'wx', mode: 0o600 }),
     );
+    if (receivedBytes <= 0) return NextResponse.json({ error: 'Backup file size is invalid' }, { status: 400 });
 
-    if (receivedBytes <= 0) {
-      return NextResponse.json({ error: 'Backup file size is invalid' }, { status: 400 });
-    }
+    operationId = randomUUID();
+    const auditContext = {
+      operationId,
+      actorId,
+      organizationId,
+      sourceFileName,
+      sourceSize: receivedBytes,
+    };
+    // Write-ahead event must be durable before any database replacement begins.
+    // The journal lives beside local backups, not inside the database being restored.
+    await localBackupService.recordRestoreJournal({ ...auditContext, event: 'RESTORE_STARTED' });
+    restoreStarted = true;
 
     const result = await localBackupService.restoreBackup(tempPath);
-    await localBackupService.recordAudit(user.id, organizationId, 'BACKUP_RESTORED', {
-      sourceFileName: safeSourceFileName(request),
-      sourceSize: receivedBytes,
-      safetyBackupFileName: result.safetyBackup.fileName,
-    });
+
+    let localAuditRecorded = false;
+    try {
+      await localBackupService.recordRestoreJournal({
+        ...auditContext,
+        event: 'RESTORE_SUCCEEDED',
+        safetyBackupFileName: result.safetyBackup.fileName,
+      });
+      localAuditRecorded = true;
+    } catch (journalError) {
+      // Restore already completed; do not report it as failed just because the
+      // post-restore journal write failed. The preceding STARTED event remains evidence.
+      console.error('[backup] Restore completed but success journal could not be persisted', {
+        operationId,
+        error: journalError,
+      });
+    }
+
+    try {
+      await localBackupService.recordAudit(user.id, organizationId, 'BACKUP_RESTORED', {
+        operationId,
+        sourceFileName,
+        sourceSize: receivedBytes,
+        safetyBackupFileName: result.safetyBackup.fileName,
+        localAuditRecorded,
+      });
+    } catch (databaseAuditError) {
+      // The restored dump may have replaced users, organizations, or audit rows.
+      // PostgreSQL audit is supplemental; the local journal is the durable record.
+      console.warn('[backup] PostgreSQL audit row could not be written after restore', {
+        operationId,
+        error: databaseAuditError,
+      });
+    }
 
     return NextResponse.json({
       restored: true,
+      operationId,
       safetyBackup: result.safetyBackup.fileName,
+      auditRecorded: localAuditRecorded,
+      ...(localAuditRecorded ? {} : { auditWarning: 'Restore completed, but its final audit event could not be saved to the local journal.' }),
     });
   } catch (error) {
+    if (restoreStarted && operationId && actorId && organizationId) {
+      try {
+        await localBackupService.recordRestoreJournal({
+          event: 'RESTORE_FAILED',
+          operationId,
+          actorId,
+          organizationId,
+          sourceFileName,
+          sourceSize: receivedBytes,
+          failureCode: 'restore_failed',
+        });
+      } catch (journalError) {
+        console.error('[backup] Failed to persist restore failure event', { operationId, error: journalError });
+      }
+    }
+
     const message = error instanceof Error ? error.message : String(error);
     if (message.startsWith('Permission required') || message.startsWith('Role required') || message.startsWith('Platform role required')) {
       console.warn(JSON.stringify({
