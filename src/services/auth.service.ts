@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { userRepository } from '@omnikes/repositories/user.repository';
 import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { generateToken } from '@omnikes/lib/crypto';
-import { checkRateLimit, resetRateLimit, getRateLimitIdentifier, getIpRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
+import { checkRateLimit, resetRateLimit, getAccountRateLimitIdentifier, getIpRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
 import { securityLogger } from '@omnikes/lib/security-logger';
 
 const MAX_SESSIONS_PER_USER = 10; // Limit concurrent sessions per user
@@ -44,7 +44,7 @@ export class AuthService {
       }
     }
 
-    const rateLimitId = getRateLimitIdentifier(email, ipAddress);
+    const rateLimitId = getAccountRateLimitIdentifier(email, 'login');
     const rateLimitResult = await checkRateLimit(rateLimitId);
     
     if (!rateLimitResult.allowed) {

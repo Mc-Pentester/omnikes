@@ -4,7 +4,7 @@ import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { userRepository } from '@omnikes/repositories/user.repository';
 import { organizationRepository } from '@omnikes/repositories/organization.repository';
 import { generateUniqueSlug } from '@omnikes/lib/slug';
-import { checkRateLimit, getRateLimitIdentifier, getIpRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
+import { checkRateLimit, getAccountRateLimitIdentifier, getIpRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
 import { randomBytes } from 'crypto';
 
 export interface RegisterInput {
@@ -61,7 +61,7 @@ export class RegistrationService {
       }
     }
 
-    const rateLimitId = getRateLimitIdentifier(normalizedEmail, ipAddress);
+    const rateLimitId = getAccountRateLimitIdentifier(normalizedEmail, 'registration');
     const rateLimitResult = await checkRateLimit(rateLimitId);
 
     if (!rateLimitResult.allowed) {
