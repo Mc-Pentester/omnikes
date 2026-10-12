@@ -128,12 +128,32 @@ export async function POST(
       );
     }
 
-    if (error instanceof Error && (
-      error.message === 'An open cash session is required for CASH refunds' ||
-      error.message.startsWith('Refund amount exceeds remaining refundable amount')
-    )) {
+    const errorMessage = error instanceof Error ? error.message : '';
+    const prismaError = typeof error === 'object' && error !== null
+      ? error as { code?: string; meta?: { target?: unknown } }
+      : null;
+    const uniqueTarget = prismaError?.meta?.target;
+    const isIdempotencyUniqueConflict = prismaError?.code === 'P2002' && (
+      (Array.isArray(uniqueTarget) && uniqueTarget.some((field) => String(field).includes('idempotencyKey'))) ||
+      (typeof uniqueTarget === 'string' && uniqueTarget.includes('idempotencyKey'))
+    );
+
+    if (
+      errorMessage === 'An open cash session is required for CASH refunds' ||
+      errorMessage.startsWith('Refund amount exceeds remaining refundable amount')
+    ) {
       return NextResponse.json(
-        { error: error.message },
+        { error: errorMessage },
+        { status: 409 }
+      );
+    }
+
+    if (
+      errorMessage === 'Idempotency key already used for a different refund' ||
+      isIdempotencyUniqueConflict
+    ) {
+      return NextResponse.json(
+        { error: 'Idempotency key conflict. Retry with the same key and identical refund data, or use a new key for a different refund.' },
         { status: 409 }
       );
     }
