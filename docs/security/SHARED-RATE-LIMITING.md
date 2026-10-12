@@ -5,7 +5,7 @@
 Le limiteur utilise la table PostgreSQL `rate_limit_buckets` comme stockage partagé. Les compteurs sont mis à jour par un `INSERT ... ON CONFLICT` atomique : plusieurs processus qui utilisent la même base appliquent donc le même quota. Redis et un service cloud ne sont pas requis.
 
 - Quota par identifiant email/IP : 10 tentatives sur 15 minutes.
-- Quota IP pour la connexion : 50 tentatives sur 15 minutes afin de ne pas bloquer trop vite les postes de caisse partageant une adresse réseau.
+- Quota IP distinct par opération : 50 tentatives de connexion sur 15 minutes afin de ne pas bloquer trop vite les postes de caisse partageant une adresse réseau ; les quotas d’inscription et de réinitialisation sont isolés des connexions.
 - Inscription et réinitialisation : quota IP et quota lié à l’identifiant lorsque l’adresse IP est connue.
 - Les identifiants persistés sont hachés en SHA-256 ; les adresses email et IP en clair ne sont pas stockées dans cette table.
 - Nettoyage périodique des entrées expirées et plafond de 10 000 entrées.
