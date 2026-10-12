@@ -34,9 +34,9 @@ export class AuthService {
   async login(email: string, password: string, ipAddress?: string, userAgent?: string) {
     // Check rate limit
     if (ipAddress) {
-      const ipRateLimitResult = await checkRateLimit(getIpRateLimitIdentifier(ipAddress), 50);
+      const ipRateLimitResult = await checkRateLimit(getIpRateLimitIdentifier(ipAddress, 'login'), 50);
       if (!ipRateLimitResult.allowed) {
-        securityLogger.rateLimitExceeded(getIpRateLimitIdentifier(ipAddress), ipAddress);
+        securityLogger.rateLimitExceeded(getIpRateLimitIdentifier(ipAddress, 'login'), ipAddress);
         throw new RateLimitError(
           'Too many login attempts. Please try again later.',
           ipRateLimitResult.resetTime,
