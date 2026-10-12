@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'node:fs';
+import { createReadStream, promises as fs } from 'node:fs';
+import { Readable } from 'node:stream';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { getAuthenticatedUser, requireCurrentOrganizationId, requirePermission, requirePlatformRole } from '@omnikes/lib/auth';
@@ -7,6 +8,17 @@ import { PLATFORM_OPERATOR_ROLE } from '@omnikes/repositories/platform-role.repo
 import { localBackupService } from '@omnikes/services/local-backup.service';
 
 export const runtime = 'nodejs';
+
+const DEFAULT_MAX_RESTORE_BYTES = 256 * 1024 * 1024;
+const MAX_RESTORE_BYTES_CAP = 1024 * 1024 * 1024;
+const MULTIPART_OVERHEAD_BYTES = 1024 * 1024;
+
+function maxRestoreBytes(): number {
+  const configured = Number(process.env.OMNIKES_MAX_RESTORE_BYTES);
+  if (!process.env.OMNIKES_MAX_RESTORE_BYTES) return DEFAULT_MAX_RESTORE_BYTES;
+  if (!Number.isSafeInteger(configured) || configured <= 0) return DEFAULT_MAX_RESTORE_BYTES;
+  return Math.min(configured, MAX_RESTORE_BYTES_CAP);
+}
 
 function errorResponse(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
@@ -32,13 +44,14 @@ export async function POST(request: NextRequest) {
       size: result.size,
     });
 
-    const data = await fs.readFile(result.filePath);
-    return new NextResponse(new Uint8Array(data), {
+    // Stream the generated dump instead of loading the entire backup into Node.js memory.
+    const body = Readable.toWeb(createReadStream(result.filePath)) as ReadableStream<Uint8Array>;
+    return new NextResponse(body, {
       status: 200,
       headers: {
         'Content-Type': 'application/octet-stream',
         'Content-Disposition': `attachment; filename="${result.fileName}"`,
-        'Content-Length': String(data.byteLength),
+        'Content-Length': String(result.size),
         'Cache-Control': 'no-store',
       },
     });
@@ -61,13 +74,23 @@ export async function PUT(request: NextRequest) {
     // A tenant ADMIN role is insufficient; require the dedicated platform-scoped operator role.
     await requirePlatformRole(request, PLATFORM_OPERATOR_ROLE);
 
+    const maxBytes = maxRestoreBytes();
+    const contentLength = Number(request.headers.get('content-length'));
+    // Reject oversized requests before formData() can buffer their multipart body.
+    if (Number.isFinite(contentLength) && contentLength > maxBytes + MULTIPART_OVERHEAD_BYTES) {
+      return NextResponse.json({ error: 'Backup file exceeds the configured size limit' }, { status: 413 });
+    }
+
     const form = await request.formData();
     const entry = form.get('backup');
     if (!(entry instanceof File)) {
       return NextResponse.json({ error: 'A backup file is required' }, { status: 400 });
     }
-    if (entry.size <= 0 || entry.size > 1024 * 1024 * 1024) {
+    if (entry.size <= 0) {
       return NextResponse.json({ error: 'Backup file size is invalid' }, { status: 400 });
+    }
+    if (entry.size > maxBytes) {
+      return NextResponse.json({ error: 'Backup file exceeds the configured size limit' }, { status: 413 });
     }
 
     const tempDir = path.join(process.cwd(), '.omnikes', 'tmp');
