@@ -421,10 +421,12 @@ describe('SaleService - Tax Calculation', () => {
 
       expect(result).toEqual({ id: 'item-123' });
       expect(mutationTx.saleItem.create).toHaveBeenCalledWith(expect.objectContaining({
-        quantity: 1250,
-        unitPrice: 0.45,
-        totalPrice: 562.5,
-        discount: 0,
+        data: expect.objectContaining({
+          quantity: 1250,
+          unitPrice: 0.45,
+          totalPrice: 562.5,
+          discount: 0,
+        }),
       }));
     });
 
@@ -448,9 +450,11 @@ describe('SaleService - Tax Calculation', () => {
       });
 
       expect(mutationTx.saleItem.create).toHaveBeenCalledWith(expect.objectContaining({
-        quantity: 2,
-        unitPrice: 250,
-        totalPrice: 500,
+        data: expect.objectContaining({
+          quantity: 2,
+          unitPrice: 250,
+          totalPrice: 500,
+        }),
       }));
     });
   });
