@@ -88,9 +88,13 @@ export async function resetRateLimit(identifier: string): Promise<void> {
   `;
 }
 
-export function getRateLimitIdentifier(email: string, ipAddress?: string): string {
-  const normalizedEmail = email.trim().toLowerCase();
-  return ipAddress ? `email:${normalizedEmail}:ip:${ipAddress}` : `email:${normalizedEmail}`;
+/**
+ * Stable account-level quota key, independent of the source IP. Callers should
+ * apply a separate getIpRateLimitIdentifier quota when an IP is available.
+ */
+export function getAccountRateLimitIdentifier(accountIdentifier: string, scope = 'auth'): string {
+  const normalizedIdentifier = accountIdentifier.trim().toLowerCase();
+  return `account:${scope}:${normalizedIdentifier}`;
 }
 
 export function getIpRateLimitIdentifier(ipAddress?: string, scope = 'auth'): string {
