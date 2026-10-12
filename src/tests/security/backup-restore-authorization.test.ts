@@ -26,8 +26,11 @@ const mockedRequirePermission = requirePermission as ReturnType<typeof vi.fn>;
 const mockedRequirePlatformRole = requirePlatformRole as ReturnType<typeof vi.fn>;
 const mockedRestoreBackup = localBackupService.restoreBackup as ReturnType<typeof vi.fn>;
 
-describe('Database restore authorization', () => {
-  afterEach(() => vi.restoreAllMocks());
+describe('Database restore authorization and upload limits', () => {
+  afterEach(() => {
+    delete process.env.OMNIKES_MAX_RESTORE_BYTES;
+    vi.restoreAllMocks();
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -68,5 +71,32 @@ describe('Database restore authorization', () => {
       organizationId: 'org-a',
       reason: 'platform_role_required',
     });
+  });
+
+  it('rejects multipart uploads instead of buffering them through formData()', async () => {
+    const request = new NextRequest('http://localhost/api/backup', {
+      method: 'PUT',
+      headers: { 'content-type': 'multipart/form-data; boundary=test' },
+      body: '--test--',
+    });
+
+    const response = await PUT(request);
+
+    expect(response.status).toBe(415);
+    expect(mockedRestoreBackup).not.toHaveBeenCalled();
+  });
+
+  it('rejects an oversized declared upload before writing it to disk', async () => {
+    process.env.OMNIKES_MAX_RESTORE_BYTES = '1';
+    const request = new NextRequest('http://localhost/api/backup', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/octet-stream' },
+      body: Buffer.from('xx'),
+    });
+
+    const response = await PUT(request);
+
+    expect(response.status).toBe(413);
+    expect(mockedRestoreBackup).not.toHaveBeenCalled();
   });
 });
