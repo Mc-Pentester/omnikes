@@ -4,7 +4,7 @@ Set-StrictMode -Version Latest
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-# Next.js build replaces .next; do not run it over an active development server.
+# Next.js build replaces .next; never package over an active dev server.
 $rootPattern = [regex]::Escape($root)
 $nextProcesses = Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" -ErrorAction SilentlyContinue |
   Where-Object { $_.CommandLine -and $_.CommandLine -match $rootPattern -and $_.CommandLine -match '(?i)(next[\\/].*\bdev\b|next\s+dev)' }
@@ -28,15 +28,14 @@ $distRoot = Join-Path $root "dist"
 $dist = Join-Path $distRoot "windows"
 $installerOutput = Join-Path $distRoot "installer"
 
-# Never erase a previous package automatically: it may contain a build the user
-# still needs. Move/archive these generated folders explicitly before rebuilding.
+# Never erase a previous package automatically: preserve artifacts for recovery.
 if (Test-Path $dist) {
   throw "Existing package output found at '$dist'. It was preserved. Archive or move it manually before rebuilding."
 }
 if (Test-Path $installerOutput) {
   throw "Existing installer output found at '$installerOutput'. It was preserved. Archive or move it manually before rebuilding."
 }
-New-Item -ItemType Directory -Path $dist -Force | Out-Null
+New-Item -ItemType Directory -Path $dist,$installerOutput -Force | Out-Null
 
 if (-not $env:DATABASE_URL) {
   $envFile = Join-Path $root ".env"
@@ -52,8 +51,11 @@ if (-not $env:DATABASE_URL) {
 }
 
 npm run prepare:embedded-postgres
+if ($LASTEXITCODE -ne 0) { throw "Embedded PostgreSQL runtime preparation failed." }
 npm run prepare:node-runtime
+if ($LASTEXITCODE -ne 0) { throw "Node.js runtime preparation failed." }
 npm run build
+if ($LASTEXITCODE -ne 0) { throw "Next.js production build failed." }
 
 $standalone = Join-Path $root ".next\standalone"
 if (-not (Test-Path (Join-Path $standalone "server.js"))) {
@@ -67,53 +69,23 @@ $installer = Join-Path $dist "installer"
 New-Item -ItemType Directory -Path $app,$node,$postgres,$installer -Force | Out-Null
 
 Copy-Item (Join-Path $standalone "*") $app -Recurse -Force
-# Runtime secrets must be generated on the target machine, never shipped from the build machine.
-Get-ChildItem -Path $app -Force -File |
-  Where-Object { $_.Name -match '^\.env(\..+)?
-if (Test-Path ".next\static") { Copy-Item ".next\static" (Join-Path $app ".next") -Recurse -Force }
-if (Test-Path "public") { Copy-Item "public" (Join-Path $app "public") -Recurse -Force }
-if (Test-Path "prisma\migrations") { Copy-Item "prisma\migrations" (Join-Path $app "prisma") -Recurse -Force }
-New-Item -ItemType Directory -Path (Join-Path $app "prisma") -Force | Out-Null
-Copy-Item "prisma\schema.prisma" (Join-Path $app "prisma\schema.prisma") -Force
-Copy-Item "prisma.config.ts" (Join-Path $app "prisma.config.ts") -Force
-Copy-Item "package.json" (Join-Path $app "package.json") -Force
-Copy-Item "package-lock.json" (Join-Path $app "package-lock.json") -Force
-
-# Prisma CLI and migration engines are required at client install time.
-npm ci --omit=dev --prefix $app
-
-$nodeRoot = Join-Path $root "vendor\node\runtime\node-v22.20.0-win-x64"
-if (-not (Test-Path (Join-Path $nodeRoot "node.exe"))) { throw "Prepared Node.js runtime not found." }
-Copy-Item (Join-Path $nodeRoot "*") $node -Recurse -Force
-
-$pgRoot = Join-Path $root "vendor\postgresql\runtime\pgsql"
-if (-not (Test-Path (Join-Path $pgRoot "bin\postgres.exe"))) { throw "Prepared PostgreSQL runtime not found." }
-Copy-Item (Join-Path $pgRoot "*") $postgres -Recurse -Force
-
-Copy-Item "installer\OmniKesLauncher.cmd" $installer -Force
-Copy-Item "installer\install-runtime.cmd" $installer -Force
-Copy-Item "installer\install-runtime.cjs" $installer -Force
-Copy-Item "installer\first-run-setup.cjs" $installer -Force
-Copy-Item "installer\uninstall-runtime.cmd" $installer -Force
-Copy-Item "installer\uninstall-runtime.cjs" $installer -Force
-
-& $iscc "installer\OmniKes.iss"
-if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
-
-Write-Host "OmniKes Windows offline Setup: PASS"
- } |
+# Remove environment files at every depth: machine-specific secrets must never ship.
+Get-ChildItem -Path $app -Recurse -Force -File |
+  Where-Object { $_.Name -match '^\.env($|\.)' } |
   Remove-Item -Force
+
 if (Test-Path ".next\static") { Copy-Item ".next\static" (Join-Path $app ".next") -Recurse -Force }
 if (Test-Path "public") { Copy-Item "public" (Join-Path $app "public") -Recurse -Force }
-if (Test-Path "prisma\migrations") { Copy-Item "prisma\migrations" (Join-Path $app "prisma") -Recurse -Force }
-New-Item -ItemType Directory -Path (Join-Path $app "prisma") -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $app "prisma\migrations") -Force | Out-Null
+if (Test-Path "prisma\migrations") { Copy-Item "prisma\migrations\*" (Join-Path $app "prisma\migrations") -Recurse -Force }
 Copy-Item "prisma\schema.prisma" (Join-Path $app "prisma\schema.prisma") -Force
 Copy-Item "prisma.config.ts" (Join-Path $app "prisma.config.ts") -Force
 Copy-Item "package.json" (Join-Path $app "package.json") -Force
 Copy-Item "package-lock.json" (Join-Path $app "package-lock.json") -Force
 
-# Prisma CLI and migration engines are required at client install time.
+# Prisma CLI and migration engines are required for target-machine migrations.
 npm ci --omit=dev --prefix $app
+if ($LASTEXITCODE -ne 0) { throw "Production dependency installation inside the package failed." }
 
 $nodeRoot = Join-Path $root "vendor\node\runtime\node-v22.20.0-win-x64"
 if (-not (Test-Path (Join-Path $nodeRoot "node.exe"))) { throw "Prepared Node.js runtime not found." }
