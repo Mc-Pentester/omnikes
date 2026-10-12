@@ -52,7 +52,7 @@ export async function checkRateLimit(identifier: string): Promise<{
   resetTime?: number;
 }> {
   const key = hashIdentifier(identifier);
-  const rows = await prisma.$queryRaw<RateLimitRow[]>\`
+  const rows = await prisma.$queryRaw<RateLimitRow[]>`
     INSERT INTO "rate_limit_buckets" ("id", "identifier", "count", "resetTime", "updatedAt")
     VALUES (${randomUUID()}, ${key}, 1, NOW() + (${WINDOW_MS} * INTERVAL '1 millisecond'), NOW())
     ON CONFLICT ("identifier") DO UPDATE
@@ -70,7 +70,7 @@ export async function checkRateLimit(identifier: string): Promise<{
       END,
       "updatedAt" = NOW()
     RETURNING "count", "resetTime"
-  \`;
+  `;
 
   const entry = rows[0];
   if (!entry) throw new Error('Rate limiter failed to return a quota result');
@@ -83,9 +83,9 @@ export async function checkRateLimit(identifier: string): Promise<{
 }
 
 export async function resetRateLimit(identifier: string): Promise<void> {
-  await prisma.$executeRaw\`
+  await prisma.$executeRaw`
     DELETE FROM "rate_limit_buckets" WHERE "identifier" = ${hashIdentifier(identifier)}
-  \`;
+  `;
 }
 
 export function getRateLimitIdentifier(email: string, ipAddress?: string): string {
@@ -117,7 +117,7 @@ export function getClientIP(headers: Headers): string | undefined {
 
 /** Remove expired buckets and enforce a hard storage ceiling. */
 export async function cleanupExpiredEntries(): Promise<void> {
-  await prisma.$executeRaw\`
+  await prisma.$executeRaw`
     DELETE FROM "rate_limit_buckets"
     WHERE "id" IN (
       SELECT "id"
@@ -126,9 +126,9 @@ export async function cleanupExpiredEntries(): Promise<void> {
       ORDER BY "resetTime" ASC
       LIMIT 2000
     )
-  \`;
+  `;
 
-  await prisma.$executeRaw\`
+  await prisma.$executeRaw`
     DELETE FROM "rate_limit_buckets"
     WHERE "id" IN (
       SELECT "id"
@@ -136,5 +136,5 @@ export async function cleanupExpiredEntries(): Promise<void> {
       ORDER BY "resetTime" ASC
       OFFSET ${MAX_ENTRIES}
     )
-  \`;
+  `;
 }
