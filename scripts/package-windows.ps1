@@ -54,6 +54,11 @@ npm run prepare:embedded-postgres
 if ($LASTEXITCODE -ne 0) { throw "Embedded PostgreSQL runtime preparation failed." }
 npm run prepare:node-runtime
 if ($LASTEXITCODE -ne 0) { throw "Node.js runtime preparation failed." }
+
+# Runtime preparation must not be allowed to leave Prisma Client stale or absent.
+npx prisma generate
+if ($LASTEXITCODE -ne 0) { throw "Prisma Client generation failed." }
+
 npm run build
 if ($LASTEXITCODE -ne 0) { throw "Next.js production build failed." }
 
