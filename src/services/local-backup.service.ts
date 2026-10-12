@@ -22,12 +22,8 @@ function databaseConnection() {
   const url = new URL(raw);
   const password = url.password;
   url.password = '';
-  // pg_dump does not accept schema parameter in connection string
   url.searchParams.delete('schema');
-  return {
-    connection: url.toString(),
-    password,
-  };
+  return { connection: url.toString(), password };
 }
 
 function toolEnvironment(password: string) {
@@ -35,93 +31,58 @@ function toolEnvironment(password: string) {
 }
 
 export async function resolvePostgresTool(toolName: 'pg_dump' | 'pg_restore', envVar: string): Promise<string> {
-  // 1. Check explicit environment variable override
   if (process.env[envVar]) {
     const envPath = process.env[envVar]!;
     try {
       await fs.access(envPath);
       return envPath;
     } catch {
-      throw new Error(
-        `PostgreSQL tool specified in ${envVar} not found: ${envPath}. Please verify the path is correct.`,
-      );
+      throw new Error(`PostgreSQL tool specified in ${envVar} not found: ${envPath}. Please verify the path is correct.`);
     }
   }
 
-  // 2. Check if tool is available in PATH
-  if (process.platform !== 'win32') {
-    // On Unix-like systems, try the command directly
-    return toolName;
-  }
+  if (process.platform !== 'win32') return toolName;
 
-  // 3. Windows-specific detection
-  const windowsPaths = [
-    'C:\\Program Files\\PostgreSQL',
-    'C:\\Program Files (x86)\\PostgreSQL',
-  ];
-
-  interface Candidate {
-    toolPath: string;
-    version: string;
-  }
-
-  const candidates: Candidate[] = [];
-
+  const windowsPaths = ['C:\\Program Files\\PostgreSQL', 'C:\\Program Files (x86)\\PostgreSQL'];
+  const candidates: Array<{ toolPath: string; version: string }> = [];
   for (const basePath of windowsPaths) {
     try {
       const entries = await fs.readdir(basePath, { withFileTypes: true });
       for (const entry of entries) {
         if (entry.isDirectory()) {
-          const versionPath = path.join(basePath, entry.name, 'bin');
-          const toolPath = path.join(versionPath, `${toolName}.exe`);
+          const toolPath = path.join(basePath, entry.name, 'bin', `${toolName}.exe`);
           candidates.push({ toolPath, version: entry.name });
         }
       }
     } catch {
-      // Directory doesn't exist or is not accessible, skip
+      // Missing or inaccessible PostgreSQL installation directory.
     }
   }
 
-  // Sort by version (newest first) - PostgreSQL versions are numeric
-  candidates.sort((a, b) => {
-    const aNum = parseFloat(a.version);
-    const bNum = parseFloat(b.version);
-    return bNum - aNum; // Descending
-  });
-
-  // Try candidates from newest to oldest
+  candidates.sort((a, b) => parseFloat(b.version) - parseFloat(a.version));
   for (const candidate of candidates) {
     try {
       await fs.access(candidate.toolPath);
       return candidate.toolPath;
     } catch {
-      // File doesn't exist, try next
+      // Try the next detected installation.
     }
   }
 
-  // 4. Not found - provide explicit error
-  const availableVersions = candidates
-    .map((c) => `  - PostgreSQL ${c.version}: ${c.toolPath}`)
-    .join('\n');
-
+  const availableVersions = candidates.map((c) => `  - PostgreSQL ${c.version}: ${c.toolPath}`).join('\n');
   throw new Error(
     `PostgreSQL tool '${toolName}' not found.\n` +
-      `Solutions:\n` +
-      `  1. Set ${envVar} environment variable to the full path (e.g., C:\\Program Files\\PostgreSQL\\18\\bin\\${toolName}.exe)\n` +
-      `  2. Add PostgreSQL bin directory to your system PATH\n` +
-      `  3. Ensure PostgreSQL is installed in a standard location\n` +
-      (availableVersions ? `\nDetected PostgreSQL installations (binary may be missing):\n${availableVersions}` : ''),
+    `Solutions:\n` +
+    `  1. Set ${envVar} environment variable to the full path (e.g., C:\\Program Files\\PostgreSQL\\18\\bin\\${toolName}.exe)\n` +
+    `  2. Add PostgreSQL bin directory to your system PATH\n` +
+    `  3. Ensure PostgreSQL is installed in a standard location\n` +
+    (availableVersions ? `\nDetected PostgreSQL installations (binary may be missing):\n${availableVersions}` : ''),
   );
 }
 
 function runTool(command: string, args: string[], env: NodeJS.ProcessEnv): Promise<ToolResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      env,
-      shell: false,
-      windowsHide: true,
-    });
-
+    const child = spawn(command, args, { env, shell: false, windowsHide: true });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
@@ -148,22 +109,27 @@ async function runBackup(prefix = 'omnikes') {
   const fileName = generatedBackupName(prefix);
   const filePath = path.join(backupDir(), fileName);
   const { connection, password } = databaseConnection();
-
   const pgDumpPath = await resolvePostgresTool('pg_dump', 'PG_DUMP_PATH');
-
-  await runTool(
-    pgDumpPath,
-    ['--format=custom', '--no-owner', '--no-acl', '--file', filePath, connection],
-    toolEnvironment(password),
-  );
+  await runTool(pgDumpPath, ['--format=custom', '--no-owner', '--no-acl', '--file', filePath, connection], toolEnvironment(password));
 
   const stat = await fs.stat(filePath);
   if (stat.size <= 0 || stat.size > MAX_BACKUP_BYTES) {
     await fs.rm(filePath, { force: true });
     throw new Error('Generated backup has an invalid size');
   }
-
   return { fileName, filePath, size: stat.size, createdAt: new Date().toISOString() };
+}
+
+export interface RestoreAuditEntry {
+  event: 'RESTORE_STARTED' | 'RESTORE_SUCCEEDED' | 'RESTORE_FAILED';
+  operationId: string;
+  timestamp?: string;
+  actorId: string;
+  organizationId: string;
+  sourceFileName: string;
+  sourceSize: number;
+  safetyBackupFileName?: string;
+  failureCode?: string;
 }
 
 export class LocalBackupService {
@@ -180,52 +146,45 @@ export class LocalBackupService {
   }
 
   async createBackup() {
-    return this.exclusive(async () => {
-      const result = await runBackup();
-      return result;
-    });
+    return this.exclusive(async () => runBackup());
+  }
+
+  /**
+   * Append to a local journal that is independent of PostgreSQL. A database restore
+   * can delete or replace audit rows in that same database, so this journal is the
+   * durable record of the restore lifecycle.
+   */
+  async recordRestoreJournal(entry: RestoreAuditEntry) {
+    await ensureDirectory();
+    const journalPath = path.join(backupDir(), 'restore-audit.jsonl');
+    const handle = await fs.open(journalPath, 'a', 0o600);
+    try {
+      await handle.chmod(0o600);
+      await handle.writeFile(`${JSON.stringify({ ...entry, timestamp: entry.timestamp ?? new Date().toISOString() })}\n`, 'utf8');
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
   }
 
   async restoreBackup(sourcePath: string) {
     return this.exclusive(async () => {
       const stat = await fs.stat(sourcePath);
-      if (!stat.isFile() || stat.size <= 0 || stat.size > MAX_BACKUP_BYTES) {
-        throw new Error('Invalid backup file');
-      }
+      if (!stat.isFile() || stat.size <= 0 || stat.size > MAX_BACKUP_BYTES) throw new Error('Invalid backup file');
 
       const { connection, password } = databaseConnection();
       const pgRestorePath = await resolvePostgresTool('pg_restore', 'PG_RESTORE_PATH');
-
-      await runTool(
-        pgRestorePath,
-        ['--list', sourcePath],
-        toolEnvironment(password),
-      );
-
+      await runTool(pgRestorePath, ['--list', sourcePath], toolEnvironment(password));
       const safetyBackup = await runBackup('pre-restore');
 
       try {
-        await runTool(
-          pgRestorePath,
-          [
-            '--exit-on-error',
-            '--single-transaction',
-            '--clean',
-            '--if-exists',
-            '--no-owner',
-            '--no-acl',
-            '--dbname',
-            connection,
-            sourcePath,
-          ],
-          toolEnvironment(password),
-        );
+        await runTool(pgRestorePath, [
+          '--exit-on-error', '--single-transaction', '--clean', '--if-exists',
+          '--no-owner', '--no-acl', '--dbname', connection, sourcePath,
+        ], toolEnvironment(password));
       } catch (error) {
-        throw new Error(
-          `Restore failed. Safety backup preserved at ${safetyBackup.fileName}. ${error instanceof Error ? error.message : String(error)}`,
-        );
+        throw new Error(`Restore failed. Safety backup preserved at ${safetyBackup.fileName}. ${error instanceof Error ? error.message : String(error)}`);
       }
-
       return { restored: true, safetyBackup };
     });
   }
