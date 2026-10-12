@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { createWriteStream, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import { execFileSync } from 'node:child_process';
@@ -25,7 +25,18 @@ async function main(): Promise<void> {
   const hash = createHash('sha256').update(readFileSync(download)).digest('hex').toUpperCase();
   if (hash !== EXPECTED_SHA256) throw new Error(`Node.js SHA-256 mismatch: expected ${EXPECTED_SHA256}, got ${hash}`);
 
-  if (existsSync(extracted)) rmSync(extracted, { recursive: true, force: true });
+  const nodeExe = path.join(extracted, `node-v${VERSION}-win-x64`, 'node.exe');
+  if (existsSync(extracted)) {
+    if (!existsSync(nodeExe)) {
+      throw new Error(`Existing runtime folder is incomplete and was preserved: ${extracted}. Archive or move it manually before retrying.`);
+    }
+    const installedVersion = execFileSync(nodeExe, ['--version'], { encoding: 'utf8', windowsHide: true }).trim();
+    if (installedVersion !== `v${VERSION}`) {
+      throw new Error(`Existing Node.js runtime ${installedVersion} was preserved. Expected v${VERSION}; archive or move the folder manually before replacing it.`);
+    }
+    console.log(`Node.js ${VERSION} runtime already prepared and verified; existing files preserved.`);
+    return;
+  }
   mkdirSync(extracted, { recursive: true });
 
   execFileSync('powershell.exe', [
@@ -33,7 +44,6 @@ async function main(): Promise<void> {
     'Expand-Archive', '-LiteralPath', download, '-DestinationPath', extracted, '-Force',
   ], { stdio: 'inherit' });
 
-  const nodeExe = path.join(extracted, `node-v${VERSION}-win-x64`, 'node.exe');
   if (!existsSync(nodeExe)) throw new Error('Node.js runtime extraction did not produce node.exe');
 
   console.log(`Node.js ${VERSION} Windows x64 runtime: PASS`);

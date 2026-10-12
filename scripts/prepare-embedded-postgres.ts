@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { createWriteStream, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import { execFileSync } from 'node:child_process';
@@ -33,7 +33,9 @@ function sha256(file: string): string {
 }
 
 function extract(): void {
-  if (existsSync(extracted)) rmSync(extracted, { recursive: true, force: true });
+  if (existsSync(extracted)) {
+    throw new Error(`Existing PostgreSQL runtime folder was preserved: ${extracted}. Archive or move it manually before retrying.`);
+  }
   mkdirSync(extracted, { recursive: true });
   if (process.platform !== 'win32') {
     throw new Error('Embedded PostgreSQL packaging currently targets Windows x64 only.');
@@ -49,7 +51,7 @@ function extract(): void {
   ], { stdio: 'inherit' });
 }
 
-function verifyLayout(): void {
+function verifyLayout(): string {
   const candidates = [
     path.join(extracted, 'pgsql', 'bin'),
     path.join(extracted, 'bin'),
@@ -60,6 +62,7 @@ function verifyLayout(): void {
     if (!existsSync(path.join(bin, file))) throw new Error(`Missing PostgreSQL runtime binary: ${file}`);
   }
   console.log(`Embedded PostgreSQL runtime: ${bin}`);
+  return bin;
 }
 
 async function main(): Promise<void> {
@@ -72,6 +75,16 @@ async function main(): Promise<void> {
     throw new Error(`SHA-256 mismatch: expected ${EXPECTED_SHA256}, got ${actual}`);
   }
   console.log(`SHA-256: ${actual} PASS`);
+
+  if (existsSync(extracted)) {
+    const bin = verifyLayout();
+    const version = execFileSync(path.join(bin, 'postgres.exe'), ['--version'], { encoding: 'utf8', windowsHide: true }).trim();
+    if (!version.includes(VERSION)) {
+      throw new Error(`Existing PostgreSQL runtime was preserved but has an unexpected version: ${version}. Expected ${VERSION}; archive or move the folder manually before replacing it.`);
+    }
+    console.log(`PostgreSQL ${VERSION} runtime already prepared and verified; existing files preserved.`);
+    return;
+  }
 
   extract();
   verifyLayout();

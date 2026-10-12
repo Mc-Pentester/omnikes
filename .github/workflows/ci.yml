@@ -58,6 +58,12 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      - name: Validate Windows installer JavaScript syntax
+        run: |
+          node --check installer/install-runtime.cjs
+          node --check installer/first-run-setup.cjs
+          node --check installer/uninstall-runtime.cjs
+
       - name: Install dependencies
         # Validate that package-lock.json is installable with standard npm ci.
         run: npm ci

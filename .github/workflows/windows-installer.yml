@@ -1,0 +1,79 @@
+name: Windows Installer
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "installer/**"
+      - "scripts/package-windows.ps1"
+      - "scripts/prepare-embedded-postgres.ts"
+      - "scripts/prepare-node-runtime.ts"
+      - "prisma/**"
+      - "prisma.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/windows-installer.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      # Build-time URL only. The packaging job does not connect to this database.
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/omnikes_ci
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup --yes --no-progress
+
+      - name: Locate Inno Setup compiler
+        shell: powershell
+        run: |
+          $candidates = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "${env:ProgramFiles}\Inno Setup 6\ISCC.exe",
+            "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe",
+            "${env:ProgramFiles}\Inno Setup 7\ISCC.exe"
+          )
+          $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) { throw "ISCC.exe was not installed." }
+          "ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Inno Setup compiler: $iscc"
+
+      - name: Build offline Windows installer
+        shell: powershell
+        run: npm run package:windows
+
+      - name: Verify installer artifact
+        shell: powershell
+        run: |
+          $installer = Get-ChildItem dist\installer -Filter "OmniKes-Setup-*-x64.exe" -File
+          if (-not $installer) { throw "The Windows Setup executable was not produced." }
+          if ($installer.Length -lt 1MB) { throw "The Windows Setup executable is unexpectedly small." }
+          Write-Host "Windows installer compilation PASS: $($installer.FullName) ($($installer.Length) bytes)"
+
+      - name: Upload installer artifact for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: omnikes-windows-installer
+          path: dist/installer/OmniKes-Setup-*-x64.exe
+          if-no-files-found: error
+          retention-days: 7
