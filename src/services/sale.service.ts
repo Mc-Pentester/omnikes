@@ -277,7 +277,26 @@ export class SaleService {
    * item/totals update. Mutations already inside a transaction use the helper.
    */
   async recalculateTotals(saleId: string, organizationId: string) {
-    return prisma.$transaction((tx) => this.recalculateTotalsInTransaction(tx, saleId, organizationId));
+    const items = await saleRepository.listItems(saleId, organizationId);
+    const subtotal = roundMoney(items.reduce((sum: number, item: SaleItem) => sum + Number(item.totalPrice), 0));
+    const discount = roundMoney(items.reduce((sum: number, item: SaleItem) => sum + Number(item.discount), 0));
+
+    const sale = await prisma.sale.findFirst({
+      where: { id: saleId, organizationId },
+      include: { organization: { include: { taxConfiguration: true } } },
+    });
+
+    const configuredRate = sale?.organization?.taxConfiguration?.taxRate;
+    const effectiveRate = (sale?.applyTax !== false && configuredRate !== null && configuredRate !== undefined)
+      ? Number(configuredRate)
+      : 0;
+    const tax = roundMoney(subtotal * effectiveRate);
+    const total = roundMoney(subtotal + tax);
+
+    await saleRepository.updateWithTaxRate(saleId, organizationId, {
+      subtotal, discount, tax, taxRate: effectiveRate, total,
+      applyTax: sale?.applyTax !== false,
+    });
   }
 
   private async recalculateTotalsInTransaction(
