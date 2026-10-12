@@ -140,9 +140,19 @@ export class ReturnService {
           data: { returnedQuantity: newReturnedQuantity },
         });
 
-        // Calculate refund amount
-        const unitPrice = Number(saleItem.unitPrice);
-        const itemRefundAmount = roundMoney(unitPrice * itemData.quantity);
+        // Refund the line's net amount after its recorded discount, not the
+        // undiscounted unit price. Prorate cumulatively so partial returns do
+        // not lose or create cents when the remaining quantity is returned.
+        const lineNetTotal = roundMoney(Number(saleItem.totalPrice));
+        const previousReturnedQuantity = saleItem.returnedQuantity || 0;
+        const previouslyAllocatedAmount = roundMoney(
+          lineNetTotal * previousReturnedQuantity / saleItem.quantity,
+        );
+        const newlyAllocatedAmount = roundMoney(
+          lineNetTotal * newReturnedQuantity / saleItem.quantity,
+        );
+        const itemRefundAmount = roundMoney(newlyAllocatedAmount - previouslyAllocatedAmount);
+        const unitPrice = roundMoney(itemRefundAmount / itemData.quantity);
         totalRefunded = roundMoney(totalRefunded + itemRefundAmount);
 
         returnItemsData.push({
