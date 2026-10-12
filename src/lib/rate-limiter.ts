@@ -93,8 +93,8 @@ export function getRateLimitIdentifier(email: string, ipAddress?: string): strin
   return ipAddress ? `email:${normalizedEmail}:ip:${ipAddress}` : `email:${normalizedEmail}`;
 }
 
-export function getIpRateLimitIdentifier(ipAddress?: string): string {
-  return ipAddress ? `ip:${ipAddress}` : 'ip:unknown';
+export function getIpRateLimitIdentifier(ipAddress?: string, scope = 'auth'): string {
+  return ipAddress ? `ip:${scope}:${ipAddress}` : `ip:${scope}:unknown`;
 }
 
 /**
