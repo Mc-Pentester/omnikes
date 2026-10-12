@@ -4,7 +4,7 @@ import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { userRepository } from '@omnikes/repositories/user.repository';
 import { organizationRepository } from '@omnikes/repositories/organization.repository';
 import { generateUniqueSlug } from '@omnikes/lib/slug';
-import { checkRateLimit, getRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
+import { checkRateLimit, getRateLimitIdentifier, getIpRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
 import { randomBytes } from 'crypto';
 
 export interface RegisterInput {
@@ -51,8 +51,18 @@ export class RegistrationService {
     // proxy IP is available, the quota remains per email instead of becoming
     // one global ip:unknown bucket for the whole instance.
     const normalizedEmail = this.normalizeEmail(email);
+    if (ipAddress) {
+      const ipRateLimitResult = await checkRateLimit(getIpRateLimitIdentifier(ipAddress));
+      if (!ipRateLimitResult.allowed) {
+        throw new RateLimitError(
+          'Too many registration attempts. Please try again later.',
+          ipRateLimitResult.resetTime,
+        );
+      }
+    }
+
     const rateLimitId = getRateLimitIdentifier(normalizedEmail, ipAddress);
-    const rateLimitResult = checkRateLimit(rateLimitId);
+    const rateLimitResult = await checkRateLimit(rateLimitId);
 
     if (!rateLimitResult.allowed) {
       throw new RateLimitError(
