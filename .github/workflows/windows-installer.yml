@@ -1,0 +1,69 @@
+name: Windows offline installer
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    env:
+      DATABASE_URL: postgresql://build:build@127.0.0.1:5432/omnikes_build
+      NODE_ENV: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.20.0'
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build Windows offline installer
+        shell: powershell
+        run: npm run package:windows
+
+      - name: Verify production package excludes development lint chain
+        shell: powershell
+        run: |
+          $app = Join-Path $PWD "dist\windows\app"
+          if (-not (Test-Path (Join-Path $app "server.js"))) {
+            throw "Standalone server.js is missing from the packaged application."
+          }
+          foreach ($package in @("eslint-config-next", "@next\eslint-plugin-next")) {
+            $packagePath = Join-Path $app ("node_modules\" + $package)
+            if (Test-Path $packagePath) {
+              throw "Development-only package was included in the distributed application: $package"
+            }
+          }
+          npm audit --omit=dev --prefix $app
+          $installer = Get-ChildItem "dist\installer\OmniKes-Setup-*-x64.exe" -File
+          if (-not $installer) {
+            throw "The Inno Setup executable was not produced."
+          }
+          $installer | ForEach-Object { Write-Host "Installer: $($_.FullName) ($($_.Length) bytes)" }
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmniKes-Windows-Offline-Installer
+          path: dist/installer/OmniKes-Setup-*-x64.exe
+          if-no-files-found: error
+          retention-days: 14
