@@ -121,7 +121,7 @@ export async function PUT(request: NextRequest) {
     });
 
     await pipeline(
-      Readable.fromWeb(request.body as ReadableStream<Uint8Array>),
+      Readable.fromWeb(request.body as unknown as import('node:stream/web').ReadableStream<Uint8Array>),
       byteLimit,
       createWriteStream(tempPath, { flags: 'wx', mode: 0o600 }),
     );
