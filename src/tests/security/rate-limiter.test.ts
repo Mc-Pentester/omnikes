@@ -125,8 +125,9 @@ describe('PostgreSQL-backed rate limiter', () => {
     expect(getRateLimitIdentifier(' User@Example.com ', '127.0.0.1')).toBe(
       'email:user@example.com:ip:127.0.0.1',
     );
-    expect(getIpRateLimitIdentifier('127.0.0.1')).toBe('ip:127.0.0.1');
-    expect(getIpRateLimitIdentifier()).toBe('ip:unknown');
+    expect(getIpRateLimitIdentifier('127.0.0.1')).toBe('ip:auth:127.0.0.1');
+    expect(getIpRateLimitIdentifier('127.0.0.1', 'login')).toBe('ip:login:127.0.0.1');
+    expect(getIpRateLimitIdentifier()).toBe('ip:auth:unknown');
   });
 
   it('ignores forwarded headers unless a trusted proxy is configured', () => {
