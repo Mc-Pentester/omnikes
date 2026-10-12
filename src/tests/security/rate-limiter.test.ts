@@ -17,7 +17,7 @@ import {
   cleanupExpiredEntries,
   getClientIP,
   getIpRateLimitIdentifier,
-  getRateLimitIdentifier,
+  getAccountRateLimitIdentifier,
   resetRateLimit,
   startRateLimitCleanup,
   stopRateLimitCleanup,
@@ -121,9 +121,12 @@ describe('PostgreSQL-backed rate limiter', () => {
     expect(executeRawMock).toHaveBeenCalledTimes(2);
   });
 
-  it('builds stable normalized email and IP identifiers', () => {
-    expect(getRateLimitIdentifier(' User@Example.com ', '127.0.0.1')).toBe(
-      'email:user@example.com:ip:127.0.0.1',
+  it('builds stable normalized account and IP identifiers independently', () => {
+    expect(getAccountRateLimitIdentifier(' User@Example.com ', 'login')).toBe(
+      'account:login:user@example.com',
+    );
+    expect(getAccountRateLimitIdentifier('user@example.com', 'login')).toBe(
+      'account:login:user@example.com',
     );
     expect(getIpRateLimitIdentifier('127.0.0.1')).toBe('ip:auth:127.0.0.1');
     expect(getIpRateLimitIdentifier('127.0.0.1', 'login')).toBe('ip:login:127.0.0.1');
