@@ -46,7 +46,7 @@ export function stopRateLimitCleanup(): void {
  * Atomically increments one quota in PostgreSQL. The extra count is capped at
  * MAX_ATTEMPTS + 1 so repeated blocked requests cannot grow the counter forever.
  */
-export async function checkRateLimit(identifier: string): Promise<{
+export async function checkRateLimit(identifier: string, maxAttempts = MAX_ATTEMPTS): Promise<{
   allowed: boolean;
   remaining: number;
   resetTime?: number;
@@ -59,7 +59,7 @@ export async function checkRateLimit(identifier: string): Promise<{
     SET
       "count" = CASE
         WHEN "rate_limit_buckets"."resetTime" <= NOW() THEN 1
-        WHEN "rate_limit_buckets"."count" < ${MAX_ATTEMPTS + 1}
+        WHEN "rate_limit_buckets"."count" < ${maxAttempts + 1}
           THEN "rate_limit_buckets"."count" + 1
         ELSE "rate_limit_buckets"."count"
       END,
@@ -76,8 +76,8 @@ export async function checkRateLimit(identifier: string): Promise<{
   if (!entry) throw new Error('Rate limiter failed to return a quota result');
 
   return {
-    allowed: entry.count <= MAX_ATTEMPTS,
-    remaining: Math.max(0, MAX_ATTEMPTS - entry.count),
+    allowed: entry.count <= maxAttempts,
+    remaining: Math.max(0, maxAttempts - entry.count),
     resetTime: new Date(entry.resetTime).getTime(),
   };
 }
@@ -134,7 +134,7 @@ export async function cleanupExpiredEntries(): Promise<void> {
       SELECT "id"
       FROM "rate_limit_buckets"
       ORDER BY "resetTime" ASC
-      OFFSET ${MAX_ENTRIES}
+      LIMIT GREATEST((SELECT COUNT(*) FROM "rate_limit_buckets") - ${MAX_ENTRIES}, 0)
     )
   `;
 }
