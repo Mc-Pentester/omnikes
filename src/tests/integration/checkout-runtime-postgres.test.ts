@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { prisma } from '@omnikes/lib/prisma';
 import { POST as checkout } from '@omnikes/app/api/sales/[id]/checkout/route';
+import { saleService } from '@omnikes/services/sale.service';
 
 const authState = vi.hoisted(() => ({
   organizationId: '',
@@ -502,4 +503,65 @@ describe('P0-22 — Real PostgreSQL Runtime Validation', () => {
 
     console.log('✅ Real atomicity (double checkout) test passed');
   });
+
+  it('real PostgreSQL concurrency: sale item mutation cannot race checkout into an inconsistent completed sale', async () => {
+    if (!databaseConnected) {
+      console.warn('⏭️ Skipping test - database not connected');
+      return;
+    }
+
+    const sale = await createSale();
+    const key = `${testPrefix}-mutation-checkout-${sale.id}`;
+    const request = () => new NextRequest(`http://localhost/api/sales/${sale.id}/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
+      body: JSON.stringify({ method: 'CARD', amount: 1000 }),
+    });
+
+    const outcomes = await Promise.allSettled([
+      saleService.updateItem(
+        (await prisma.saleItem.findFirstOrThrow({ where: { saleId: sale.id }, select: { id: true } })).id,
+        orgId,
+        { quantity: 2 },
+      ),
+      checkout(request(), { params: Promise.resolve({ id: sale.id }) }),
+    ]);
+
+    const finalSale = await prisma.sale.findUniqueOrThrow({
+      where: { id: sale.id },
+      include: { items: true },
+    });
+
+    if (finalSale.status === 'COMPLETED') {
+      // Checkout won the sale-row lock: the concurrent edit must not alter a completed sale.
+      expect(finalSale.items).toHaveLength(1);
+      expect(finalSale.items[0].quantity).toBe(1);
+      expect(Number(finalSale.total)).toBe(1000);
+      expect(outcomes[0].status).toBe('rejected');
+    } else {
+      // The edit won the lock: totals and item mutation commit together, and checkout
+      // cannot complete the now-underpaid sale using the old amount.
+      expect(finalSale.status).toBe('PENDING');
+      expect(finalSale.items[0].quantity).toBe(2);
+      expect(Number(finalSale.total)).toBe(2000);
+      expect(outcomes[0].status).toBe('fulfilled');
+      expect(outcomes[1].status).toBe('fulfilled');
+      if (outcomes[1].status === 'fulfilled') {
+        expect(outcomes[1].value.status).not.toBe(201);
+      }
+    }
+
+    const paymentCount = await prisma.payment.count({ where: { saleId: sale.id } });
+    const saleMovementCount = await prisma.inventoryMovement.count({
+      where: { referenceId: sale.id, type: 'SALE' },
+    });
+    if (finalSale.status === 'COMPLETED') {
+      expect(paymentCount).toBe(1);
+      expect(saleMovementCount).toBe(1);
+    } else {
+      expect(paymentCount).toBe(0);
+      expect(saleMovementCount).toBe(0);
+    }
+  });
+
 });
