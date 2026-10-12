@@ -46,6 +46,9 @@ vi.mock('@omnikes/lib/prisma', () => ({
       findFirst: vi.fn(),
       update: vi.fn(),
     },
+    saleItem: {
+      findFirst: vi.fn(),
+    },
     organization: {
       findUnique: vi.fn(),
     },
@@ -83,6 +86,27 @@ vi.mock('@omnikes/services/store.service', () => ({
 import { saleRepository } from '@omnikes/repositories/sale.repository';
 import { productVariantRepository } from '@omnikes/repositories/product-variant.repository';
 import { storeService } from '@omnikes/services/store.service';
+
+const mutationTx = {
+  $queryRaw: vi.fn(),
+  sale: { findFirst: vi.fn(), update: vi.fn() },
+  saleItem: {
+    create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), delete: vi.fn(),
+  },
+};
+
+function configureMutationTransaction() {
+  mutationTx.$queryRaw.mockResolvedValue([{ id: 'sale-123' }]);
+  mutationTx.sale.findFirst.mockResolvedValue({
+    id: 'sale-123', status: 'PENDING', applyTax: false,
+    organization: { taxConfiguration: null },
+  });
+  mutationTx.sale.update.mockResolvedValue({ id: 'sale-123' });
+  mutationTx.saleItem.findMany.mockResolvedValue([]);
+  mutationTx.saleItem.create.mockResolvedValue({ id: 'item-123' });
+  mutationTx.saleItem.findFirst.mockResolvedValue({ id: 'item-123' });
+  (prisma.$transaction as any).mockImplementation(async (callback: any) => callback(mutationTx));
+}
 
 describe('SaleService - Tax Calculation', () => {
   beforeEach(() => {
@@ -374,21 +398,19 @@ describe('SaleService - Tax Calculation', () => {
     });
   });
   describe('weighted product pricing', () => {
+    beforeEach(() => configureMutationTransaction());
     it('uses server price per kilogram and quantity stored in grams', async () => {
       const variant = {
         id: 'cvariant123',
         price: 450,
         saleUnit: 'KG',
       };
-      (saleRepository.belongsToOrganization as any).mockResolvedValue(true);
       (productVariantRepository.findByIdWithOrganizationCheck as any).mockResolvedValue(variant);
-      (saleRepository.createItem as any).mockResolvedValue({ id: 'item-123' });
-      (saleRepository.listItems as any).mockResolvedValue([]);
+
       (prisma.sale.findFirst as any).mockResolvedValue({
         applyTax: false,
         organization: { taxConfiguration: null },
       });
-      (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
 
       const result = await saleService.addItem('sale-123', 'corg1234567', {
         variantId: 'cvariant123',
@@ -398,28 +420,27 @@ describe('SaleService - Tax Calculation', () => {
       });
 
       expect(result).toEqual({ id: 'item-123' });
-      expect(saleRepository.createItem).toHaveBeenCalledWith(expect.objectContaining({
-        quantity: 1250,
-        unitPrice: 0.45,
-        totalPrice: 562.5,
-        discount: 0,
+      expect(mutationTx.saleItem.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          quantity: 1250,
+          unitPrice: 0.45,
+          totalPrice: 562.5,
+          discount: 0,
+        }),
       }));
     });
 
     it('keeps legacy unit pricing unchanged', async () => {
-      (saleRepository.belongsToOrganization as any).mockResolvedValue(true);
       (productVariantRepository.findByIdWithOrganizationCheck as any).mockResolvedValue({
         id: 'cvariant123',
         price: 250,
         saleUnit: 'UNIT',
       });
-      (saleRepository.createItem as any).mockResolvedValue({ id: 'item-123' });
-      (saleRepository.listItems as any).mockResolvedValue([]);
+
       (prisma.sale.findFirst as any).mockResolvedValue({
         applyTax: false,
         organization: { taxConfiguration: null },
       });
-      (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
 
       await saleService.addItem('sale-123', 'corg1234567', {
         variantId: 'cvariant123',
@@ -428,10 +449,12 @@ describe('SaleService - Tax Calculation', () => {
         discount: 0,
       });
 
-      expect(saleRepository.createItem).toHaveBeenCalledWith(expect.objectContaining({
-        quantity: 2,
-        unitPrice: 250,
-        totalPrice: 500,
+      expect(mutationTx.saleItem.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          quantity: 2,
+          unitPrice: 250,
+          totalPrice: 500,
+        }),
       }));
     });
   });
@@ -442,6 +465,7 @@ describe('SaleService - Tax Calculation', () => {
 describe('P1-C - Customer tenant isolation in sales', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    configureMutationTransaction();
     (storeService.validateStoreBelongsToOrganization as any).mockResolvedValue(undefined);
     (prisma.organization.findUnique as any).mockResolvedValue({
       id: 'corg1234567',
@@ -505,7 +529,6 @@ describe('P1-C - Customer tenant isolation in sales', () => {
   });
 
   it('rejects sale update when the new customer belongs to another organization', async () => {
-    (saleRepository.belongsToOrganization as any).mockResolvedValue(true);
     (prisma.customer.findFirst as any).mockResolvedValue(null);
 
     await expect(
@@ -518,10 +541,11 @@ describe('P1-C - Customer tenant isolation in sales', () => {
   });
 
   it('scopes customer validation to the authenticated organization on sale update', async () => {
-    (saleRepository.belongsToOrganization as any).mockResolvedValue(true);
     (prisma.customer.findFirst as any).mockResolvedValue({ id: 'ccustomer99999999999999999' });
-    (saleRepository.update as any).mockResolvedValue({});
-    (saleRepository.findById as any).mockResolvedValue({ id: 'sale-p1c' });
+    (prisma.saleItem.findFirst as any).mockResolvedValue({ saleId: 'sale-p1c' });
+    mutationTx.$queryRaw.mockResolvedValue([{ id: 'sale-p1c' }]);
+    mutationTx.sale.findFirst.mockResolvedValue({ id: 'sale-p1c', status: 'PENDING' });
+    mutationTx.sale.update.mockResolvedValue({ id: 'sale-p1c' });
 
     await saleService.update('sale-p1c', 'corg1234567', {
       customerId: 'ccustomer99999999999999999',
@@ -534,11 +558,10 @@ describe('P1-C - Customer tenant isolation in sales', () => {
       },
       select: { id: true },
     });
-    expect(saleRepository.update).toHaveBeenCalledWith(
-      'sale-p1c',
-      'corg1234567',
-      expect.objectContaining({ customerId: 'ccustomer99999999999999999' })
-    );
+    expect(mutationTx.sale.update).toHaveBeenCalledWith({
+      where: { id: 'sale-p1c' },
+      data: expect.objectContaining({ customerId: 'ccustomer99999999999999999' }),
+    });
   });
 });
 

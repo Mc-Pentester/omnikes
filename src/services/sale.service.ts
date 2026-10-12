@@ -116,256 +116,224 @@ export class SaleService {
   }
 
   /**
-   * Update a sale
+   * Serialize edits against checkout/finalization using the same PostgreSQL sale-row lock.
+   * The status is read only after the lock is acquired, inside the transaction.
    */
-  async update(id: string, organizationId: string, data: SaleUpdateInput) {
-    const exists = await saleRepository.belongsToOrganization(id, organizationId);
-    
-    if (!exists) {
+  private async lockPendingSale(
+    tx: Prisma.TransactionClient,
+    saleId: string,
+    organizationId: string,
+  ) {
+    const rows = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM sales
+      WHERE id = ${saleId} AND "organizationId" = ${organizationId}
+      FOR UPDATE
+    `;
+    if (rows.length === 0) {
       throw new Error('Sale not found or access denied');
     }
 
+    const sale = await tx.sale.findFirst({
+      where: { id: saleId, organizationId },
+      select: { id: true, status: true },
+    });
+    if (!sale) throw new Error('Sale not found or access denied');
+    if (sale.status !== 'PENDING') {
+      throw new Error('Sale can only be modified while PENDING');
+    }
+  }
+
+  /**
+   * Update a sale under the same row lock used by checkout.
+   */
+  async update(id: string, organizationId: string, data: SaleUpdateInput) {
     const validatedData = saleUpdateSchema.parse(data);
 
-    // CRITICAL: If storeId is being updated, validate it belongs to the organization
     if (validatedData.storeId) {
       await storeService.validateStoreBelongsToOrganization(validatedData.storeId, organizationId);
     }
-
-    // Customer references are tenant-scoped. Never allow a sale to be updated
-    // with a customer belonging to another organization.
     if (validatedData.customerId !== undefined && validatedData.customerId !== null) {
       const customer = await prisma.customer.findFirst({
-        where: {
-          id: validatedData.customerId,
-          organizationId,
-        },
+        where: { id: validatedData.customerId, organizationId },
         select: { id: true },
       });
+      if (!customer) throw new Error('Invalid customer');
+    }
 
-      if (!customer) {
-        throw new Error('Invalid customer');
+    return prisma.$transaction(async (tx) => {
+      await this.lockPendingSale(tx, id, organizationId);
+      await tx.sale.update({
+        where: { id },
+        data: validatedData as Prisma.SaleUpdateInput,
+      });
+      if (validatedData.applyTax !== undefined) {
+        await this.recalculateTotalsInTransaction(tx, id, organizationId);
       }
-    }
-
-    // If applyTax is being updated, recalculate totals after the update
-    const shouldRecalculate = validatedData.applyTax !== undefined;
-
-    await saleRepository.update(id, organizationId, validatedData as Prisma.SaleUpdateInput);
-    
-    if (shouldRecalculate) {
-      await this.recalculateTotals(id, organizationId);
-    }
-    
-    return saleRepository.findById(id, organizationId);
+      return tx.sale.findFirst({ where: { id, organizationId } });
+    });
   }
 
   /**
-   * Add an item to a sale
+   * Add a sale item atomically while holding the sale row lock.
    */
   async addItem(saleId: string, organizationId: string, data: SaleItemInput) {
-    const exists = await saleRepository.belongsToOrganization(saleId, organizationId);
-    
-    if (!exists) {
-      throw new Error('Sale not found or access denied');
-    }
-
-    let validatedData;
-    try {
-      validatedData = saleItemSchema.parse(data);
-    } catch (validationError) {
-      throw validationError;
-    }
-
-    // Verify variant belongs to organization
+    const validatedData = saleItemSchema.parse(data);
     const variant = await productVariantRepository.findByIdWithOrganizationCheck(
-      validatedData.variantId,
-      organizationId
+      validatedData.variantId, organizationId,
     );
+    if (!variant) throw new Error('Product variant not found or access denied');
+    if (validatedData.quantity <= 0) throw new Error('Quantity must be greater than 0');
 
-    if (!variant) {
-      throw new Error('Product variant not found or access denied');
-    }
-
-    // INVARIANT: quantity must be > 0
-    if (validatedData.quantity <= 0) {
-      throw new Error('Quantity must be greater than 0');
-    }
-
-    // INVARIANT: Use server-side price, do not trust client
     const serverPrice = roundMoney(getStoredUnitPrice(Number(variant.price), variant.saleUnit ?? 'UNIT'));
-    const quantity = validatedData.quantity;
     const discount = roundMoney(validatedData.discount || 0);
-
-    // INVARIANT: discount cannot exceed gross amount
-    const grossAmount = serverPrice * quantity;
-    if (discount > grossAmount) {
-      throw new Error('Discount cannot exceed gross amount');
-    }
-
-    // INVARIANT: line total must never be negative
+    const grossAmount = serverPrice * validatedData.quantity;
+    if (discount > grossAmount) throw new Error('Discount cannot exceed gross amount');
     const totalPrice = roundMoney(grossAmount - discount);
-    if (totalPrice < 0) {
-      throw new Error('Line total cannot be negative');
-    }
-    
-    const item = await saleRepository.createItem({
-      quantity: validatedData.quantity,
-      unitPrice: serverPrice, // Use server-side price
-      totalPrice,
-      discount: validatedData.discount,
-      sale: {
-        connect: { id: saleId },
-      },
-      variant: {
-        connect: { id: validatedData.variantId },
-      },
+    if (totalPrice < 0) throw new Error('Line total cannot be negative');
+
+    return prisma.$transaction(async (tx) => {
+      await this.lockPendingSale(tx, saleId, organizationId);
+      const item = await tx.saleItem.create({
+        data: {
+          saleId,
+          variantId: validatedData.variantId,
+          quantity: validatedData.quantity,
+          unitPrice: serverPrice,
+          discount: validatedData.discount ?? 0,
+          totalPrice,
+        },
+      });
+      await this.recalculateTotalsInTransaction(tx, saleId, organizationId);
+      return item;
     });
-
-    // Recalculate sale totals
-    await this.recalculateTotals(saleId, organizationId);
-
-    return item;
   }
 
   /**
-   * Update a sale item
+   * Update a sale item atomically under the parent sale lock.
    */
   async updateItem(itemId: string, organizationId: string, data: Partial<SaleItemInput>) {
     const validatedData = saleItemSchema.partial().parse(data);
+    const itemLookup = await prisma.saleItem.findFirst({
+      where: { id: itemId, sale: { organizationId } },
+      select: { saleId: true },
+    });
+    if (!itemLookup) throw new Error('Sale item not found or access denied');
 
-    // Calculate new total if quantity or price changed
-    if (validatedData.quantity !== undefined || validatedData.unitPrice !== undefined || validatedData.discount !== undefined) {
-      const item = await prisma.saleItem.findFirst({
-        where: {
-          id: itemId,
-          sale: { organizationId },
-        },
-        include: {
-          sale: true,
-          variant: true,
-        },
+    return prisma.$transaction(async (tx) => {
+      await this.lockPendingSale(tx, itemLookup.saleId, organizationId);
+      const item = await tx.saleItem.findFirst({
+        where: { id: itemId, saleId: itemLookup.saleId },
+        include: { variant: true },
       });
+      if (!item) throw new Error('Sale item not found or access denied');
 
-      if (!item || item.sale.organizationId !== organizationId) {
-        throw new Error('Sale item not found or access denied');
-      }
-
-      // INVARIANT: quantity must be > 0
       const quantity = validatedData.quantity ?? item.quantity;
-      if (quantity <= 0) {
-        throw new Error('Quantity must be greater than 0');
-      }
-
-      // INVARIANT: Use server-side price from variant, do not trust client
+      if (quantity <= 0) throw new Error('Quantity must be greater than 0');
       const unitPrice = validatedData.unitPrice !== undefined
-        ? roundMoney(getStoredUnitPrice(Number(item.variant.price), item.variant.saleUnit ?? 'UNIT')) // Always use server price if client tries to change it
+        ? roundMoney(getStoredUnitPrice(Number(item.variant.price), item.variant.saleUnit ?? 'UNIT'))
         : roundMoney(Number(item.unitPrice));
       const discount = roundMoney(validatedData.discount ?? Number(item.discount));
-
-      // INVARIANT: discount cannot exceed gross amount
       const grossAmount = unitPrice * quantity;
-      if (discount > grossAmount) {
-        throw new Error('Discount cannot exceed gross amount');
-      }
+      if (discount > grossAmount) throw new Error('Discount cannot exceed gross amount');
+      const totalPrice = roundMoney(grossAmount - discount);
+      if (totalPrice < 0) throw new Error('Line total cannot be negative');
 
-      // INVARIANT: line total must never be negative
-      const totalPrice = grossAmount - discount;
-      if (totalPrice < 0) {
-        throw new Error('Line total cannot be negative');
-      }
-
-      await saleRepository.updateItem(itemId, organizationId, {
-        ...validatedData,
-        unitPrice, // Force server-side price
-        totalPrice,
-      } as Prisma.SaleItemUpdateInput);
-
-      await this.recalculateTotals(item.saleId, organizationId);
-    } else {
-      await saleRepository.updateItem(itemId, organizationId, validatedData as Prisma.SaleItemUpdateInput);
-    }
-
-    return prisma.saleItem.findFirst({
-      where: {
-        id: itemId,
-        sale: { organizationId },
-      },
-      include: {
-        variant: {
-          include: {
-            product: true,
-          },
+      await tx.saleItem.update({
+        where: { id: itemId },
+        data: {
+          ...(validatedData.quantity !== undefined ? { quantity: validatedData.quantity } : {}),
+          ...(validatedData.discount !== undefined ? { discount: validatedData.discount } : {}),
+          unitPrice,
+          totalPrice,
         },
-      },
+      });
+      await this.recalculateTotalsInTransaction(tx, itemLookup.saleId, organizationId);
+      return tx.saleItem.findFirst({
+        where: { id: itemId, sale: { organizationId } },
+        include: { variant: { include: { product: true } } },
+      });
     });
   }
 
   /**
-   * Remove an item from a sale
+   * Remove a sale item atomically under the parent sale lock.
    */
   async removeItem(itemId: string, organizationId: string) {
     const item = await prisma.saleItem.findFirst({
-      where: {
-        id: itemId,
-        sale: { organizationId },
-      },
-      include: {
-        sale: true,
-      },
+      where: { id: itemId, sale: { organizationId } },
+      select: { id: true, saleId: true },
     });
+    if (!item) throw new Error('Sale item not found or access denied');
 
-    if (!item || item.sale.organizationId !== organizationId) {
-      throw new Error('Sale item not found or access denied');
-    }
-
-    await saleRepository.deleteItem(itemId, organizationId);
-    await this.recalculateTotals(item.saleId, organizationId);
+    await prisma.$transaction(async (tx) => {
+      await this.lockPendingSale(tx, item.saleId, organizationId);
+      await tx.saleItem.delete({ where: { id: itemId } });
+      await this.recalculateTotalsInTransaction(tx, item.saleId, organizationId);
+    });
   }
 
   /**
-   * Recalculate sale totals from items
+   * Recalculate totals transactionally so callers never persist a partial
+   * item/totals update. Mutations already inside a transaction use the helper.
    */
   async recalculateTotals(saleId: string, organizationId: string) {
     const items = await saleRepository.listItems(saleId, organizationId);
-
     const subtotal = roundMoney(items.reduce((sum: number, item: SaleItem) => sum + Number(item.totalPrice), 0));
     const discount = roundMoney(items.reduce((sum: number, item: SaleItem) => sum + Number(item.discount), 0));
-    
-    // Get tax rate from organization's tax configuration
+
     const sale = await prisma.sale.findFirst({
-      where: {
-        id: saleId,
-        organizationId,
-      },
-      include: {
-        organization: {
-          include: {
-            taxConfiguration: true,
-          },
-        },
-      },
+      where: { id: saleId, organizationId },
+      include: { organization: { include: { taxConfiguration: true } } },
     });
 
     const configuredRate = sale?.organization?.taxConfiguration?.taxRate;
-    
-    // Determine effective tax rate based on applyTax flag
     const effectiveRate = (sale?.applyTax !== false && configuredRate !== null && configuredRate !== undefined)
       ? Number(configuredRate)
       : 0;
-    
-    // SaleItem.totalPrice is already net of its line discount.
-    // Keep discount as an audit/reporting aggregate, but do not subtract it again.
     const tax = roundMoney(subtotal * effectiveRate);
     const total = roundMoney(subtotal + tax);
 
     await saleRepository.updateWithTaxRate(saleId, organizationId, {
-      subtotal,
-      discount,
-      tax,
-      taxRate: effectiveRate,
-      total,
+      subtotal, discount, tax, taxRate: effectiveRate, total,
       applyTax: sale?.applyTax !== false,
+    });
+  }
+
+  private async recalculateTotalsInTransaction(
+    tx: Prisma.TransactionClient,
+    saleId: string,
+    organizationId: string,
+  ) {
+    const items = await tx.saleItem.findMany({
+      where: { saleId, sale: { organizationId } },
+      select: { totalPrice: true, discount: true },
+    });
+    const subtotal = roundMoney(items.reduce((sum, item) => sum + Number(item.totalPrice), 0));
+    const discount = roundMoney(items.reduce((sum, item) => sum + Number(item.discount), 0));
+
+    const sale = await tx.sale.findFirst({
+      where: { id: saleId, organizationId },
+      include: { organization: { include: { taxConfiguration: true } } },
+    });
+    if (!sale) throw new Error('Sale not found or access denied');
+
+    const configuredRate = sale.organization?.taxConfiguration?.taxRate;
+    const effectiveRate = (sale.applyTax !== false && configuredRate !== null && configuredRate !== undefined)
+      ? Number(configuredRate)
+      : 0;
+    const tax = roundMoney(subtotal * effectiveRate);
+    const total = roundMoney(subtotal + tax);
+
+    await tx.sale.update({
+      where: { id: saleId },
+      data: {
+        subtotal,
+        discount,
+        tax,
+        taxRate: effectiveRate,
+        total,
+        applyTax: sale.applyTax !== false,
+      },
     });
   }
 
