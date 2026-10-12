@@ -47,6 +47,8 @@
     "node_modules",
     "src/tests",
     "vitest.config.ts",
-    "public/sw.js"
+    "public/sw.js",
+    "vendor",
+    "dist"
   ]
 }
