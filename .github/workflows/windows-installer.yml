@@ -39,18 +39,37 @@ jobs:
         shell: powershell
         run: npm run package:windows
 
-      - name: Inspect packaged application contents
+      - name: Inspect and reject repository documentation in package
         shell: powershell
         run: |
           $app = Join-Path $PWD "dist\windows\app"
           if (-not (Test-Path $app)) { throw "Packaged application directory is missing." }
-          Write-Host "=== Packaged application files ==="
-          Get-ChildItem $app -Recurse -File | ForEach-Object { $_.FullName.Substring($app.Length + 1) }
-          Write-Host "=== Potential report/document files ==="
-          Get-ChildItem $app -Recurse -File | Where-Object {
-            $_.Extension -in @('.md','.txt','.pdf','.doc','.docx','.rtf') -or
-            $_.Name -match '(?i)(audit|report|rapport|diagnostic|analysis|analyse)'
-          } | ForEach-Object { Write-Host $_.FullName.Substring($app.Length + 1) }
+
+          Write-Host "=== Application package root ==="
+          Get-ChildItem $app -Force | Select-Object Mode, Name
+
+          $forbiddenDirectories = @("docs", "audit")
+          foreach ($directory in $forbiddenDirectories) {
+            if (Test-Path (Join-Path $app $directory)) {
+              throw "Repository documentation directory leaked into package: $directory"
+            }
+          }
+
+          $rootMarkdown = @(Get-ChildItem $app -File -Filter "*.md" -ErrorAction SilentlyContinue)
+          if ($rootMarkdown.Count -gt 0) {
+            $names = ($rootMarkdown | ForEach-Object { $_.Name }) -join ", "
+            throw "Repository Markdown files leaked into application root: $names"
+          }
+
+          $rootReports = @(Get-ChildItem $app -File -ErrorAction SilentlyContinue | Where-Object {
+            $_.Name -match '(?i)(audit|report|rapport|diagnostic|forensic|remediation|analysis|analyse)'
+          })
+          if ($rootReports.Count -gt 0) {
+            $names = ($rootReports | ForEach-Object { $_.Name }) -join ", "
+            throw "Audit/report files leaked into application root: $names"
+          }
+
+          Write-Host "Package documentation exclusion checks: PASS"
 
       - name: Verify production package excludes development lint chain
         shell: powershell
