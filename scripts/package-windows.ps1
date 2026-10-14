@@ -52,6 +52,63 @@ if (Test-Path "prisma\migrations") { Copy-Item "prisma\migrations" (Join-Path $a
 Copy-Item "package.json" (Join-Path $app "package.json") -Force
 Copy-Item "package-lock.json" (Join-Path $app "package-lock.json") -Force
 
+# Remove repository-only documentation and audit artifacts copied by Next standalone tracing.
+$documentationDirectories = @("docs", "audit")
+foreach ($directory in $documentationDirectories) {
+  $path = Join-Path $app $directory
+  if (Test-Path $path) {
+    Remove-Item $path -Recurse -Force
+    Write-Host "Excluded repository documentation directory: $directory"
+  }
+}
+
+# Markdown files at the application root are development/repository documentation, not runtime assets.
+Get-ChildItem $app -File -Filter "*.md" -ErrorAction SilentlyContinue | ForEach-Object {
+  Write-Host "Excluded repository documentation file: $($_.Name)"
+  Remove-Item $_.FullName -Force
+}
+
+# Remove known repository-only helper/config files if Next standalone tracing copied them.
+$repositoryOnlyFiles = @(
+  "docker-compose.yml",
+  "eslint.config.mjs",
+  "omnikes.code-workspace",
+  "playwright.config.ts",
+  "vitest.config.ts",
+  "vitest.integration.config.ts",
+  "tsconfig.json",
+  "tsconfig.bootstrap.json",
+  "check_admin_permissions.ts",
+  "check_data_counts.ts",
+  "check_permissions_forensic.ts",
+  "check_store_delete_permission.ts",
+  "reactivate_store_a.ts",
+  "test_api.ts",
+  "verify-rbac.ts",
+  "verify_store_state.ts"
+)
+foreach ($file in $repositoryOnlyFiles) {
+  $path = Join-Path $app $file
+  if (Test-Path $path) {
+    Remove-Item $path -Force
+    Write-Host "Excluded repository-only file: $file"
+  }
+}
+
+# Fail closed if audit/report documentation still leaks into the packaged app root.
+$forbiddenRootFiles = Get-ChildItem $app -File -ErrorAction SilentlyContinue | Where-Object {
+  $_.Name -match '(?i)(audit|report|rapport|diagnostic|forensic|remediation|analysis|analyse)'
+}
+if ($forbiddenRootFiles) {
+  $names = ($forbiddenRootFiles | ForEach-Object { $_.Name }) -join ", "
+  throw "Audit/report files remain at application root: $names"
+}
+foreach ($directory in $documentationDirectories) {
+  if (Test-Path (Join-Path $app $directory)) {
+    throw "Repository documentation directory remains in package: $directory"
+  }
+}
+
 # Prisma CLI and migration engines are required at client install time.
 npm.cmd ci --omit=dev --prefix $app
 
