@@ -4,6 +4,8 @@ import "./globals.css";
 import { AuthProvider } from "@omnikes/contexts/AuthContext";
 import { StoreProvider } from "@omnikes/contexts/StoreContext";
 
+export const dynamic = "force-dynamic";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
