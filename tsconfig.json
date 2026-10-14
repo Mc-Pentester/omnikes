@@ -45,6 +45,7 @@
   ],
   "exclude": [
     "node_modules",
+    "vendor",
     "src/tests",
     "vitest.config.ts",
     "public/sw.js"
