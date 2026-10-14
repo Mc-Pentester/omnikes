@@ -39,6 +39,19 @@ jobs:
         shell: powershell
         run: npm run package:windows
 
+      - name: Inspect packaged application contents
+        shell: powershell
+        run: |
+          $app = Join-Path $PWD "dist\windows\app"
+          if (-not (Test-Path $app)) { throw "Packaged application directory is missing." }
+          Write-Host "=== Packaged application files ==="
+          Get-ChildItem $app -Recurse -File | ForEach-Object { $_.FullName.Substring($app.Length + 1) }
+          Write-Host "=== Potential report/document files ==="
+          Get-ChildItem $app -Recurse -File | Where-Object {
+            $_.Extension -in @('.md','.txt','.pdf','.doc','.docx','.rtf') -or
+            $_.Name -match '(?i)(audit|report|rapport|diagnostic|analysis|analyse)'
+          } | ForEach-Object { Write-Host $_.FullName.Substring($app.Length + 1) }
+
       - name: Verify production package excludes development lint chain
         shell: powershell
         run: |
