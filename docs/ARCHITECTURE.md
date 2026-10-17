@@ -271,3 +271,19 @@ OmniKès is a Local-First POS system designed for multi-tenant, multi-store, mul
 - API testing
 - Database testing
 - Hardware integration testing
+
+
+## Security Operations Notes
+
+### Supplier and Supplier-Payment Scope
+- Suppliers are organization-scoped records; they are not owned by an individual store.
+- Purchases and supplier payments are scoped to both the organization and the store. A payment linked to a purchase must match that purchase's organization, store, and supplier.
+- Store-restricted users must only list payments and calculate balances for their authorized stores. An explicitly requested store must be checked against the user's store access before querying.
+- Cash supplier payments require an open cash session belonging to the same organization and store.
+- Any new supplier or payment endpoint must preserve these scope checks in both the route authorization and service-layer query; route-only checks are not a substitute for tenant-scoped database filters.
+
+### Database Backup and Restore
+- Backup files are capped at 1 GiB by the current service. Restore requires the `backup.restore` permission and the platform-scoped `OMNIKES_PLATFORM_OPERATOR` role because the restore replaces the entire connected PostgreSQL database, not one tenant.
+- A pre-restore safety backup is created before applying a restore. Successful create/restore operations are written to the audit log; denied restore authorization emits a structured JSON security event.
+- Automatic backup retention or deletion is not currently configured. Operators must monitor disk capacity and manage backup copies deliberately. Do not introduce automatic deletion without an explicit retention setting, clear file-selection rules, and tests proving that pre-restore safety backups and unrelated files are never removed.
+- Keep backup storage access restricted to trusted local operators. Treat dumps as containing data from every organization in the connected database, even when an individual organization initiated the request.
