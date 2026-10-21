@@ -75,7 +75,12 @@ export default function CashPage() {
 
     const detail = await fetch('/api/cash-sessions/' + data.id);
     if (!detail.ok) throw new Error('Impossible de charger le détail de la caisse');
-    setSession(await detail.json());
+    const detailData = await detail.json();
+    if (!detailData || !detailData.session) {
+      setSession(null);
+      return;
+    }
+    setSession(detailData);
   }, [storeId]);
 
   useEffect(() => {
@@ -115,7 +120,7 @@ export default function CashPage() {
   };
 
   const addMovement = async () => {
-    if (!session || !isPositiveAmount(movementAmount) || isMoving) return;
+    if (!session || !session.session || !isPositiveAmount(movementAmount) || isMoving) return;
     setIsMoving(true);
     setMessage('');
     const res = await fetch('/api/cash-sessions/' + session.session.id, {
@@ -140,12 +145,12 @@ export default function CashPage() {
   };
 
   const countedPreview = counted ? parseAmount(counted) : null;
-  const closingDifference = countedPreview !== null && Number.isFinite(countedPreview) && session
+  const closingDifference = countedPreview !== null && Number.isFinite(countedPreview) && session && session.expectedAmount
     ? countedPreview - session.expectedAmount
     : null;
 
   const closeCash = async () => {
-    if (!session || !isNonNegativeAmount(counted) || isClosing) return;
+    if (!session || !session.session || !isNonNegativeAmount(counted) || isClosing) return;
     setIsClosing(true);
     setMessage('');
     const res = await fetch('/api/cash-sessions/' + session.session.id, {
@@ -161,7 +166,11 @@ export default function CashPage() {
     }
     setCounted('');
     setMessage('Caisse clôturée.');
-    setSession(data);
+    if (data && data.session) {
+      setSession(data);
+    } else {
+      await loadSession();
+    }
     setIsClosing(false);
   };
 
@@ -268,8 +277,8 @@ export default function CashPage() {
                       {stores.find(store => store.id === storeId)?.name ?? 'Point de vente'} · montants calculés à partir des opérations enregistrées.
                     </p>
                   </div>
-                  <Badge variant={session.session.status === 'OPEN' ? 'success' : 'neutral'}>
-                    {session.session.status === 'OPEN' ? 'Caisse ouverte' : 'Caisse clôturée'}
+                  <Badge variant={session?.session?.status === 'OPEN' ? 'success' : 'neutral'}>
+                    {session?.session?.status === 'OPEN' ? 'Caisse ouverte' : 'Caisse clôturée'}
                   </Badge>
                 </div>
 
@@ -277,22 +286,22 @@ export default function CashPage() {
                   <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Disponible théorique</p>
-                      <p className="mt-2 text-4xl font-bold tracking-tight text-foreground">{formatAmount(session.expectedAmount)} <span className="text-lg font-semibold text-muted">HTG</span></p>
+                      <p className="mt-2 text-4xl font-bold tracking-tight text-foreground">{formatAmount(session?.expectedAmount ?? 0)} <span className="text-lg font-semibold text-muted">HTG</span></p>
                       <p className="mt-2 text-sm text-muted">Montant attendu en espèces à cet instant, après les ventes, entrées, sorties et remboursements.</p>
                     </div>
                     <div className="rounded-[var(--radius-md)] bg-primary-soft px-4 py-3 text-left sm:min-w-44">
                       <p className="text-xs font-medium text-muted">Fond initial</p>
-                      <p className="mt-1 text-lg font-semibold text-foreground">{formatAmount(session.openingAmount)} HTG</p>
+                      <p className="mt-1 text-lg font-semibold text-foreground">{formatAmount(session?.openingAmount ?? 0)} HTG</p>
                     </div>
                   </div>
                 </Card>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
                   {[
-                    ['Ventes espèces', session.cashSales, 'text-success'],
-                    ['Entrées', session.cashIn, 'text-success'],
-                    ['Sorties', session.cashOut, 'text-warning'],
-                    ['Remboursements', session.refunds, 'text-danger'],
+                    ['Ventes espèces', session?.cashSales ?? 0, 'text-success'],
+                    ['Entrées', session?.cashIn ?? 0, 'text-success'],
+                    ['Sorties', session?.cashOut ?? 0, 'text-warning'],
+                    ['Remboursements', session?.refunds ?? 0, 'text-danger'],
                   ].map(([label, value, tone]) => (
                     <Card key={label} className="p-5">
                       <p className="text-sm text-muted">{label}</p>
@@ -301,11 +310,11 @@ export default function CashPage() {
                   ))}
                   <Card className="p-5 bg-surface-muted">
                     <p className="text-sm text-muted">Fond initial</p>
-                    <p className="mt-2 text-xl font-bold text-foreground">{formatAmount(session.openingAmount)} <span className="text-xs font-medium">HTG</span></p>
+                    <p className="mt-2 text-xl font-bold text-foreground">{formatAmount(session?.openingAmount ?? 0)} <span className="text-xs font-medium">HTG</span></p>
                   </Card>
                 </div>
 
-                {session.session.status === 'OPEN' && (
+                {session?.session?.status === 'OPEN' && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                     <Card className="p-6">
                       <Badge variant="info">Opération manuelle</Badge>
@@ -360,7 +369,7 @@ export default function CashPage() {
 
                       <div className="mt-5 rounded-[var(--radius-md)] bg-surface-muted p-4">
                         <p className="text-sm text-muted">Montant théorique</p>
-                        <p className="mt-1 text-2xl font-bold text-primary">{formatAmount(session.expectedAmount)} HTG</p>
+                        <p className="mt-1 text-2xl font-bold text-primary">{formatAmount(session?.expectedAmount ?? 0)} HTG</p>
                       </div>
 
                       <div className="mt-4">
@@ -397,31 +406,31 @@ export default function CashPage() {
                   </div>
                 )}
 
-                {session.session.status === 'CLOSED' && (
+                {session?.session?.status === 'CLOSED' && (
                   <Card className="p-6">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
-                        <Badge variant={Number(session.difference ?? 0) === 0 ? 'success' : 'warning'}>
-                          {Number(session.difference ?? 0) === 0 ? 'Caisse équilibrée' : 'Écart constaté'}
+                        <Badge variant={Number(session?.difference ?? 0) === 0 ? 'success' : 'warning'}>
+                          {Number(session?.difference ?? 0) === 0 ? 'Caisse équilibrée' : 'Écart constaté'}
                         </Badge>
                         <h2 className="mt-3 text-lg font-semibold text-foreground">Rapprochement de clôture</h2>
                         <p className="mt-1 text-sm text-muted">Résultat enregistré lors de la fermeture de la caisse.</p>
                       </div>
                       <div className="text-right">
                         <p className="text-xs uppercase tracking-wide text-muted">Écart</p>
-                        <p className={`mt-1 text-2xl font-bold ${Number(session.difference ?? 0) === 0 ? 'text-success' : Number(session.difference ?? 0) > 0 ? 'text-success' : 'text-danger'}`}>
-                          {Number(session.difference ?? 0) > 0 ? '+' : ''}{formatAmount(session.difference)} HTG
+                        <p className={`mt-1 text-2xl font-bold ${Number(session?.difference ?? 0) === 0 ? 'text-success' : Number(session?.difference ?? 0) > 0 ? 'text-success' : 'text-danger'}`}>
+                          {Number(session?.difference ?? 0) > 0 ? '+' : ''}{formatAmount(session?.difference ?? 0)} HTG
                         </p>
                       </div>
                     </div>
                     <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="rounded-[var(--radius-md)] bg-surface-muted p-4">
                         <p className="text-sm text-muted">Montant compté</p>
-                        <p className="mt-1 text-xl font-semibold text-foreground">{formatAmount(session.countedAmount)} HTG</p>
+                        <p className="mt-1 text-xl font-semibold text-foreground">{formatAmount(session?.countedAmount ?? 0)} HTG</p>
                       </div>
                       <div className="rounded-[var(--radius-md)] bg-surface-muted p-4">
                         <p className="text-sm text-muted">Montant théorique</p>
-                        <p className="mt-1 text-xl font-semibold text-foreground">{formatAmount(session.expectedAmount)} HTG</p>
+                        <p className="mt-1 text-xl font-semibold text-foreground">{formatAmount(session?.expectedAmount ?? 0)} HTG</p>
                       </div>
                     </div>
                   </Card>

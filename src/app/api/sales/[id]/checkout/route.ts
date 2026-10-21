@@ -493,6 +493,13 @@ export async function POST(
       );
     }
 
+    if (error instanceof Error && error.message === 'An open cash session is required for CASH payments') {
+      return NextResponse.json(
+        { error: 'No open cash session. Please open a cash session before processing cash payments.' },
+        { status: 409 }
+      );
+    }
+
     console.error('Checkout error:', error);
     return NextResponse.json(
       { error: 'Checkout failed' },

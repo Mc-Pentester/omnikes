@@ -89,6 +89,41 @@ export default function HomePage() {
     setShowPaymentModal(true);
   }, [cart.length]);
 
+  // Persist cart state when navigating to cash page
+  const persistCartState = useCallback(() => {
+    if (currentSaleId && cart.length > 0) {
+      const cartState = {
+        currentSaleId,
+        cart,
+        serverTotals,
+        paymentMethod,
+        amountReceived,
+        selectedCustomer,
+      };
+      localStorage.setItem('omnikes_pending_cart', JSON.stringify(cartState));
+    }
+  }, [currentSaleId, cart, serverTotals, paymentMethod, amountReceived, selectedCustomer]);
+
+  // Restore cart state when returning from cash page
+  const restoreCartState = useCallback(() => {
+    const saved = localStorage.getItem('omnikes_pending_cart');
+    if (saved) {
+      try {
+        const cartState = JSON.parse(saved);
+        setCurrentSaleId(cartState.currentSaleId);
+        setCart(cartState.cart);
+        setServerTotals(cartState.serverTotals);
+        setPaymentMethod(cartState.paymentMethod);
+        setAmountReceived(cartState.amountReceived);
+        setSelectedCustomer(cartState.selectedCustomer);
+        localStorage.removeItem('omnikes_pending_cart');
+      } catch (error) {
+        console.error('Failed to restore cart state:', error);
+        localStorage.removeItem('omnikes_pending_cart');
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (!loading && !error) {
       const searchInput = document.getElementById('product-search') as HTMLInputElement;
@@ -237,6 +272,13 @@ export default function HomePage() {
       router.push('/login');
     }
   }, [user, authLoading, router]);
+
+  // Restore cart state on mount if returning from cash page
+  useEffect(() => {
+    if (user && !loading && !error) {
+      restoreCartState();
+    }
+  }, [user, loading, error, restoreCartState]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -441,15 +483,15 @@ export default function HomePage() {
     try {
       // Sync cart to ensure server totals are up to date
       const totals = await syncCartToSale();
-      
+
       // Validate server totals
       if (!totals || totals.total <= 0) {
         throw new Error('Le total serveur de la vente est invalide. Veuillez réessayer.');
       }
-      
+
       // Generate idempotency key for this checkout attempt
       const idempotencyKey = crypto.randomUUID();
-      
+
       const response = await fetch(`/api/sales/${currentSaleId}/checkout`, {
         method: 'POST',
         headers: {
@@ -462,22 +504,40 @@ export default function HomePage() {
           reference: generatePaymentReference(),
         }),
       });
-      
+
       if (!response.ok) {
         let errorMessage = 'Échec du checkout';
+        let isCashSessionError = false;
         try {
           const data = await response.json();
           if (typeof data?.error === 'string') {
             errorMessage = data.error;
+            isCashSessionError = data.error.includes('open cash session');
           } else if (typeof data?.message === 'string') {
             errorMessage = data.message;
+            isCashSessionError = data.message.includes('open cash session');
           }
         } catch {
           // conserver le message générique
         }
+
+        // Special handling for cash session error
+        if (isCashSessionError && response.status === 409) {
+          const userConfirmed = confirm(
+            'La caisse est fermée. Pour finaliser cette vente en espèces, vous devez d\'abord ouvrir la caisse.\n\n' +
+            'Voulez-vous aller à la page de caisse pour l\'ouvrir ?\n\n' +
+            'Votre panier sera conservé.'
+          );
+          if (userConfirmed) {
+            persistCartState();
+            router.push('/cash');
+          }
+          throw new Error('Caisse fermée');
+        }
+
         throw new Error(errorMessage);
       }
-      
+
       const completedId = currentSaleId;
       setCart([]);
       setCurrentSaleId(null);
@@ -485,12 +545,20 @@ export default function HomePage() {
       setShowPaymentModal(false);
       setAmountReceived('');
       setServerTotals(null);
+      localStorage.removeItem('omnikes_pending_cart');
       setTimeout(() => {
         const searchInput = document.getElementById('product-search') as HTMLInputElement;
         searchInput?.focus();
       }, 100);
     } catch (error) {
-      console.error('Error completing sale:', error);
+      // Don't show alert for cash session error (user already handled it)
+      if (error instanceof Error && error.message === 'Caisse fermée') {
+        return;
+      }
+      // Log unexpected errors only
+      if (!(error instanceof Error && error.message === 'Caisse fermée')) {
+        console.error('Error completing sale:', error);
+      }
       alert(error instanceof Error ? error.message : 'Erreur lors de la validation de la vente');
     } finally {
       setIsProcessing(false);
