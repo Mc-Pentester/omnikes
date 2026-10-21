@@ -9,6 +9,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 import { prisma } from '@omnikes/lib/prisma';
+import { errorLogger } from '@omnikes/lib/error-logger';
 
 interface RateLimitRow {
   count: number;
@@ -30,7 +31,7 @@ export function startRateLimitCleanup(): void {
   if (cleanupTimer) return;
   cleanupTimer = setInterval(() => {
     void cleanupExpiredEntries().catch((error: unknown) => {
-      console.error('Rate-limit cleanup failed:', error instanceof Error ? error.message : 'unknown error');
+      errorLogger.unknown(error, { context: 'RateLimit cleanup' });
     });
   }, CLEANUP_INTERVAL_MS);
   cleanupTimer.unref?.();

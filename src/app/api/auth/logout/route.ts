@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authService } from '@omnikes/services/auth.service';
 import { getSessionToken } from '@omnikes/lib/auth';
+import { errorLogger } from '@omnikes/lib/error-logger';
 
 /**
  * POST /api/auth/logout
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error('Logout error:', error);
+    errorLogger.auth(error, { endpoint: 'POST /api/auth/logout' });
     return NextResponse.json(
       { error: 'Logout failed' },
       { status: 500 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { errorLogger } from '@omnikes/lib/error-logger';
 
 interface User {
   id: string;
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       }
     } catch (err) {
-      console.error('Failed to refresh user:', err);
+      errorLogger.auth(err, { context: 'AuthContext.refreshUser' });
       setUser(null);
     } finally {
       setLoading(false);
@@ -85,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await fetch('/api/auth/logout', { method: 'POST' });
       setUser(null);
     } catch (err) {
-      console.error('Logout failed:', err);
+      errorLogger.auth(err, { context: 'AuthContext.logout' });
     }
   };
 

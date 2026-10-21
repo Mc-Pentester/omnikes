@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authService, RateLimitError } from '@omnikes/services/auth.service';
 import { roleRepository } from '@omnikes/repositories/role.repository';
 import { getClientIP } from '@omnikes/lib/rate-limiter';
+import { errorLogger } from '@omnikes/lib/error-logger';
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error('Login error:', error);
+    errorLogger.auth(error, { endpoint: 'POST /api/auth/login' });
     return NextResponse.json(
       { error: 'Login failed' },
       { status: 500 }

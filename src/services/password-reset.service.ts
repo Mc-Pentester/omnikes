@@ -4,6 +4,7 @@ import { generateToken, hashToken } from '@omnikes/lib/crypto';
 import { checkRateLimit, getIpRateLimitIdentifier, getAccountRateLimitIdentifier } from '@omnikes/lib/rate-limiter';
 import { securityLogger } from '@omnikes/lib/security-logger';
 import { deliverPasswordResetLink, isPasswordResetDeliveryConfigured } from '@omnikes/lib/password-reset-delivery';
+import { errorLogger } from '@omnikes/lib/error-logger';
 
 const TOKEN_EXPIRY_HOURS = 1; // Token valid for 1 hour
 
@@ -100,7 +101,7 @@ export class PasswordResetService {
         await deliverPasswordResetLink({ email, token, expiresAt });
       } catch (error) {
         securityLogger.passwordResetRequested(user.id, email, ipAddress, 'Password reset delivery failed');
-        console.error('Password reset delivery failed:', error instanceof Error ? error.message : error);
+        errorLogger.network(error, { context: 'Password reset delivery' });
       }
     }
 

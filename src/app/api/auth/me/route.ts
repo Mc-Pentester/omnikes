@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@omnikes/lib/auth';
 import { roleRepository } from '@omnikes/repositories/role.repository';
+import { errorLogger } from '@omnikes/lib/error-logger';
 
 /**
  * GET /api/auth/me
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Get current user error:', error);
+    errorLogger.auth(error, { endpoint: 'GET /api/auth/me' });
     return NextResponse.json(
       { error: 'Failed to get current user' },
       { status: 500 }
