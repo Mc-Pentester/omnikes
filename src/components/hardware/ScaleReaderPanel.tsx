@@ -27,11 +27,25 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
   } | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'reading' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [canReadHardwareBridge, setCanReadHardwareBridge] = useState(false);
 
   const bridge = useMemo(
     () => (bridgeToken ? createLocalHardwareBridge({ token: bridgeToken }) : null),
     [bridgeToken],
   );
+
+  useEffect(() => {
+    let mounted = true;
+    fetch('/api/auth/me')
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (mounted) setCanReadHardwareBridge(data?.user?.canReadHardwareBridge === true);
+      })
+      .catch(() => {
+        if (mounted) setCanReadHardwareBridge(false);
+      });
+    return () => { mounted = false; };
+  }, []);
 
   const loadBridgeToken = useCallback(async () => {
     const response = await fetch('/api/hardware/bridge-token', {
@@ -57,6 +71,11 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
   }, []);
 
   const discover = useCallback(async () => {
+    if (!canReadHardwareBridge) {
+      setError('Permission bridge matériel requise');
+      return;
+    }
+
     setStatus('loading');
     setError(null);
 
@@ -88,9 +107,10 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
           : 'Bridge matériel indisponible',
       );
     }
-  }, [bridge, bridgeToken, loadBridgeToken]);
+  }, [bridge, bridgeToken, loadBridgeToken, canReadHardwareBridge]);
 
   useEffect(() => {
+    if (!canReadHardwareBridge) return;
     const timer = window.setTimeout(() => {
       void discover();
     }, 0);
@@ -101,6 +121,11 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
   const read = async () => {
     if (!scaleId) {
       setError('Aucun port COM de balance sélectionné.');
+      return;
+    }
+
+    if (!canReadHardwareBridge) {
+      setError('Permission bridge matériel requise');
       return;
     }
 

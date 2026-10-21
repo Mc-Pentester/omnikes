@@ -233,6 +233,12 @@ export default function HomePage() {
   }, [user, fetchStores, fetchProducts, fetchTaxRate]);
 
   useEffect(() => {
+    if (!user && !authLoading) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       if (stores.length === 0) return;
       if (stores.length === 1 && !currentStoreId) {
@@ -296,11 +302,6 @@ export default function HomePage() {
 
   if (authLoading || storeLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted">Chargement...</p></div>;
-  }
-
-  if (!user) {
-    router.push('/login');
-    return null;
   }
 
   if (stores.length === 0) {
