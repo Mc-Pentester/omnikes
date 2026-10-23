@@ -43,7 +43,7 @@ jobs:
         shell: powershell
         run: npm test -- src/tests/build/prisma-packaging-verification.test.ts
 
-      - name: Verify launcher configuration
+      - name: Verify launcher and PostgreSQL service configuration
         shell: powershell
         run: npm test -- src/tests/build/launcher-verification.test.ts
 
