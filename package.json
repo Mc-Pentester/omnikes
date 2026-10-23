@@ -29,14 +29,14 @@
     "@prisma/client": "7.10.0",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.3",
-    "next": "16.3.8",
+    "dotenv": "^17.4.2",
+    "next": "^16.4.3",
     "pg": "^8.23.0",
     "prisma": "7.10.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "sharp": "0.35.5",
-    "source-map-js": "1.2.2",
-    "dotenv": "^17.4.2"
+    "source-map-js": "1.2.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
@@ -49,7 +49,7 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^9",
-    "eslint-config-next": "16.3.8",
+    "eslint-config-next": "16.4.3",
     "jsdom": "^30.0.1",
     "serwist": "^9.5.12",
     "tailwindcss": "^4",
@@ -67,7 +67,7 @@
     },
     "fast-uri": "3.1.8",
     "mysql2": "3.24.4",
-    "@next/eslint-plugin-next": "16.3.8",
+    "@next/eslint-plugin-next": "16.4.3",
     "fast-glob": "3.3.3",
     "micromatch": "4.0.8",
     "browserslist": "4.29.3"
