@@ -1,60 +1,61 @@
 /**
- * Verification test for Prisma packaging in standalone build
- * Verifies that Prisma schema and generated client files are present
+ * Verify Prisma assets in the distributable Windows application package.
+ *
+ * The general CI test suite runs before a production/Windows package is built.
+ * In that context there is no artifact to inspect, so these packaging checks
+ * are skipped. The Windows installer workflow runs this test after
+ * scripts/package-windows.ps1 creates dist/windows/app.
  */
-
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-describe('Prisma Packaging Verification', () => {
-  const root = process.cwd();
-  const standalonePath = path.join(root, '.next', 'standalone');
-  const prismaPath = path.join(standalonePath, 'prisma');
-  const prismaClientPath = path.join(standalonePath, 'node_modules', '@prisma', 'client');
+const root = process.cwd();
+const packagedAppPath = path.join(root, 'dist', 'windows', 'app');
+const packageReady = existsSync(path.join(packagedAppPath, 'server.js'));
+const prismaPath = path.join(packagedAppPath, 'prisma');
+const prismaClientPath = path.join(packagedAppPath, 'node_modules', '@prisma', 'client');
 
-  it('should have prisma directory in standalone build', () => {
+describe.skipIf(!packageReady)('Prisma Packaging Verification', () => {
+  it('includes the Prisma directory in the packaged application', () => {
     expect(existsSync(prismaPath)).toBe(true);
   });
 
-  it('should have schema.prisma in standalone build', () => {
+  it('includes a valid schema.prisma in the packaged application', () => {
     const schemaPath = path.join(prismaPath, 'schema.prisma');
     expect(existsSync(schemaPath)).toBe(true);
-    
+
     const schemaContent = readFileSync(schemaPath, 'utf8');
     expect(schemaContent).toContain('generator client');
     expect(schemaContent).toContain('datasource db');
   });
 
-  it('should have migrations directory in standalone build', () => {
-    const migrationsPath = path.join(prismaPath, 'migrations');
-    expect(existsSync(migrationsPath)).toBe(true);
+  it('includes the Prisma migrations directory in the package', () => {
+    expect(existsSync(path.join(prismaPath, 'migrations'))).toBe(true);
   });
 
-  it('should have Prisma Client in standalone build', () => {
+  it('includes Prisma Client in the packaged dependencies', () => {
     expect(existsSync(prismaClientPath)).toBe(true);
   });
 
-  it('should have default.js in Prisma Client', () => {
+  it('includes a non-empty default.js entry point for Prisma Client', () => {
     const defaultPath = path.join(prismaClientPath, 'default.js');
     expect(existsSync(defaultPath)).toBe(true);
-    
+
     const content = readFileSync(defaultPath, 'utf8');
-    expect(content.length).toBeGreaterThan(0);
+    expect(content.trim().length).toBeGreaterThan(0);
     expect(content).toContain('require');
   });
 
-  it('should have runtime directory in Prisma Client', () => {
-    const runtimePath = path.join(prismaClientPath, 'runtime');
-    expect(existsSync(runtimePath)).toBe(true);
+  it('includes the Prisma Client runtime directory', () => {
+    expect(existsSync(path.join(prismaClientPath, 'runtime'))).toBe(true);
   });
 
-  it('should have package.json in Prisma Client', () => {
+  it('includes the correct Prisma Client package metadata', () => {
     const packagePath = path.join(prismaClientPath, 'package.json');
     expect(existsSync(packagePath)).toBe(true);
-    
-    const content = readFileSync(packagePath, 'utf8');
-    const pkg = JSON.parse(content);
+
+    const pkg = JSON.parse(readFileSync(packagePath, 'utf8'));
     expect(pkg.name).toBe('@prisma/client');
   });
 });
