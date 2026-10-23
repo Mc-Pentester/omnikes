@@ -82,8 +82,10 @@ if (!exists(envPath)) {
 }
 
 const prismaCli = path.join(app, 'node_modules', 'prisma', 'build', 'index.js');
+const schema = path.join(app, 'prisma', 'schema.prisma');
 const migrations = path.join(app, 'prisma', 'migrations');
 if (!exists(prismaCli)) throw new Error('Prisma CLI is missing from the offline package.');
+if (!exists(schema)) throw new Error('Prisma schema.prisma is missing from the offline package.');
 if (!exists(migrations)) throw new Error('Prisma migrations are missing from the offline package.');
 
 process.env.DATABASE_URL = url;

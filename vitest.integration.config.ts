@@ -14,6 +14,7 @@ export default defineConfig({
       '@omnikes/lib': path.resolve(__dirname, './src/lib'),
       '@omnikes/repositories': path.resolve(__dirname, './src/repositories'),
       '@omnikes/services': path.resolve(__dirname, './src/services'),
+      '@omnikes/core': path.resolve(__dirname, './src/core'),
     },
   },
 });

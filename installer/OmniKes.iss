@@ -29,20 +29,18 @@ Source: "..\dist\windows\app\*"; DestDir: "{app}\app"; Flags: recursesubdirs cre
 Source: "..\dist\windows\node\*"; DestDir: "{app}\runtime\node"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "..\dist\windows\postgresql\*"; DestDir: "{app}\runtime\postgresql"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "..\dist\windows\installer\*"; DestDir: "{app}\installer"; Flags: recursesubdirs createallsubdirs ignoreversion
-Source: "..\public\*"; DestDir: "{app}\app\public"; Flags: recursesubdirs createallsubdirs ignoreversion
-Source: "..\prisma\migrations\*"; DestDir: "{app}\app\prisma\migrations"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Dirs]
 Name: "{commonappdata}\OmniKes"
 Name: "{commonappdata}\OmniKes\postgresql-data"
 
 [Icons]
-Name: "{autoprograms}\OmniKès"; Filename: "{app}\OmniKesLauncher.cmd"; WorkingDir: "{app}"
-Name: "{autodesktop}\OmniKès"; Filename: "{app}\OmniKesLauncher.cmd"; WorkingDir: "{app}"
+Name: "{autoprograms}\OmniKès"; Filename: "{app}\installer\OmniKesLauncher.cmd"; WorkingDir: "{app}"
+Name: "{autodesktop}\OmniKès"; Filename: "{app}\installer\OmniKesLauncher.cmd"; WorkingDir: "{app}"
 
 [Run]
 Filename: "{app}\installer\install-runtime.cmd"; Parameters: ""; StatusMsg: "Configuration du runtime local OmniKès..."; Flags: waituntilterminated runhidden
-Filename: "{app}\OmniKesLauncher.cmd"; WorkingDir: "{app}"; StatusMsg: "Démarrage d'OmniKès..."; Flags: nowait postinstall skipifsilent
+Filename: "{app}\installer\OmniKesLauncher.cmd"; WorkingDir: "{app}"; StatusMsg: "Démarrage d'OmniKès..."; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 Filename: "{sys}\sc.exe"; Parameters: "stop OmniKesPostgreSQL"; Flags: runhidden

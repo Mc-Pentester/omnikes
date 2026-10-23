@@ -39,6 +39,14 @@ jobs:
         shell: powershell
         run: npm run package:windows
 
+      - name: Verify Prisma packaging
+        shell: powershell
+        run: npm test -- src/tests/build/prisma-packaging-verification.test.ts
+
+      - name: Verify launcher configuration
+        shell: powershell
+        run: npm test -- src/tests/build/launcher-verification.test.ts
+
       - name: Inspect and reject repository documentation in package
         shell: powershell
         run: |

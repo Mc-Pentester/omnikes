@@ -33,6 +33,8 @@ npm.cmd run prepare:embedded-postgres
 npm.cmd run prepare:node-runtime
 npm.cmd exec prisma generate
 npm.cmd run build
+# Regenerate Prisma Client after build to ensure it's compatible with the bundled dependencies
+npm.cmd exec prisma generate
 
 $standalone = Join-Path $root ".next\standalone"
 if (-not (Test-Path (Join-Path $standalone "server.js"))) {
@@ -48,7 +50,8 @@ New-Item -ItemType Directory -Path $app,$node,$postgres,$installer -Force | Out-
 Copy-Item (Join-Path $standalone "*") $app -Recurse -Force
 if (Test-Path ".next\static") { Copy-Item ".next\static" (Join-Path $app ".next") -Recurse -Force }
 if (Test-Path "public") { Copy-Item "public" (Join-Path $app "public") -Recurse -Force }
-if (Test-Path "prisma\migrations") { Copy-Item "prisma\migrations" (Join-Path $app "prisma") -Recurse -Force }
+# Copy entire prisma directory (schema.prisma + migrations) for client regeneration at install time
+if (Test-Path "prisma") { Copy-Item "prisma" (Join-Path $app "prisma") -Recurse -Force }
 Copy-Item "package.json" (Join-Path $app "package.json") -Force
 Copy-Item "package-lock.json" (Join-Path $app "package-lock.json") -Force
 
@@ -123,6 +126,7 @@ Copy-Item (Join-Path $pgRoot "*") $postgres -Recurse -Force
 Copy-Item "installer\OmniKesLauncher.cmd" $installer -Force
 Copy-Item "installer\install-runtime.cmd" $installer -Force
 Copy-Item "installer\install-runtime.cjs" $installer -Force
+Copy-Item "installer\prepare-user-env.cjs" $installer -Force
 
 & $iscc "installer\OmniKes.iss"
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
