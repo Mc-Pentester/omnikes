@@ -49,6 +49,13 @@ New-Item -ItemType Directory -Path $app,$node,$postgres,$installer -Force | Out-
 
 Copy-Item (Join-Path $standalone "*") $app -Recurse -Force
 if (Test-Path ".next\static") { Copy-Item ".next\static" (Join-Path $app ".next") -Recurse -Force }
+# Next standalone tracing can omit Turbopack server chunks referenced by route wrappers.
+# Merge the complete production server output so every R.c("server/chunks/...") reference resolves.
+$sourceServer = Join-Path $root ".next\server"
+$packagedServer = Join-Path $app ".next\server"
+if (-not (Test-Path $sourceServer)) { throw "Production Next.js server output is missing: $sourceServer" }
+New-Item -ItemType Directory -Path $packagedServer -Force | Out-Null
+Copy-Item (Join-Path $sourceServer "*") $packagedServer -Recurse -Force
 if (Test-Path "public") { Copy-Item "public" (Join-Path $app "public") -Recurse -Force }
 # Copy entire prisma directory (schema.prisma + migrations) for client regeneration at install time
 if (Test-Path "prisma") { Copy-Item "prisma" (Join-Path $app "prisma") -Recurse -Force }
