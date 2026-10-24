@@ -15,60 +15,96 @@ const dbPasswordFile = path.join(data, '.omnikes-pg-password');
 const envPath = path.join(app, '.env');
 const port = 5432;
 
-function run(file, args, env) {
-  execFileSync(file, args, { stdio: 'inherit', windowsHide: true, env: env || process.env });
-}
-
+function exists(file) { return fs.existsSync(file); }
 function pg(file) {
   return path.join(pgBin, process.platform === 'win32' ? file + '.exe' : file);
 }
+function run(file, args, env) {
+  if (!exists(file) && !['sc.exe'].includes(path.basename(file).toLowerCase())) {
+    throw new Error('Executable introuvable : ' + file);
+  }
+  execFileSync(file, args, { stdio: 'inherit', windowsHide: true, env: env || process.env });
+}
+function runCapture(file, args, env) {
+  return execFileSync(file, args, { encoding: 'utf8', windowsHide: true, env: env || process.env }).trim();
+}
 
-function exists(file) { return fs.existsSync(file); }
-
+for (const required of [pg('initdb'), pg('pg_ctl'), pg('psql')]) {
+  if (!exists(required)) throw new Error('Fichier PostgreSQL manquant : ' + required);
+}
+if (!exists(app)) throw new Error('Dossier applicatif manquant : ' + app);
 fs.mkdirSync(data, { recursive: true });
 
 let password;
 if (exists(dbPasswordFile)) {
   password = fs.readFileSync(dbPasswordFile, 'utf8').trim();
 } else if (exists(envPath)) {
-  const line = fs.readFileSync(envPath, 'utf8').split(/\\r?\\n/).find((x) => x.startsWith('OMNIKES_POSTGRES_PASSWORD='));
-  password = line?.split('=').slice(1).join('=').replace(/^"|"$/g, '');
-  if (password) fs.writeFileSync(dbPasswordFile, password + '\\n', { flag: 'wx', mode: 0o600 });
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  const line = envContent.split(/\r?\n/).find((x) => x.startsWith('OMNIKES_POSTGRES_PASSWORD='));
+  password = line?.slice('OMNIKES_POSTGRES_PASSWORD='.length).replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
+  if (password) fs.writeFileSync(dbPasswordFile, password + '\n', { flag: 'wx', mode: 0o600 });
 }
 if (!password) {
   if (exists(path.join(data, 'PG_VERSION'))) {
-    throw new Error('Existing PostgreSQL cluster has no preserved OmniKès password file; refusing to guess or overwrite credentials.');
+    throw new Error('Le cluster PostgreSQL existe mais son mot de passe OmniKes est introuvable. Aucune donnée n’a été modifiée.');
   }
   password = crypto.randomBytes(32).toString('hex');
-  fs.writeFileSync(dbPasswordFile, password + '\\n', { flag: 'wx', mode: 0o600 });
+  fs.writeFileSync(dbPasswordFile, password + '\n', { flag: 'wx', mode: 0o600 });
 }
 
 if (!exists(path.join(data, 'PG_VERSION'))) {
-  if (!exists(pg('initdb'))) throw new Error('Embedded PostgreSQL runtime is missing initdb.exe');
-  if (!exists(dbPasswordFile)) fs.writeFileSync(dbPasswordFile, password + '\n', { flag: 'wx', mode: 0o600 });
   run(pg('initdb'), ['-D', data, '-U', dbUser, '--pwfile=' + dbPasswordFile, '--encoding=UTF8', '--no-locale']);
 }
 
+let serviceExists = false;
 try {
-  run('sc.exe', ['query', 'OmniKesPostgreSQL']);
-} catch {
+  runCapture('sc.exe', ['query', 'OmniKesPostgreSQL']);
+  serviceExists = true;
+} catch {}
+if (!serviceExists) {
   run(pg('pg_ctl'), ['register', '-D', data, '-N', 'OmniKesPostgreSQL', '-S', 'auto', '-o', '-p ' + port]);
 }
 
-const logFile = path.join(data, 'omnikes-postgresql.log');
-try { run(pg('pg_ctl'), ['start', '-D', data, '-l', logFile, '-w', '-o', '-p ' + port]); } catch {}
+try {
+  run('sc.exe', ['config', 'OmniKesPostgreSQL', 'start=', 'auto']);
+} catch (error) {
+  throw new Error('Impossible de configurer le service OmniKesPostgreSQL en démarrage automatique : ' + error.message);
+}
+try {
+  run('sc.exe', ['start', 'OmniKesPostgreSQL']);
+} catch {
+  // Windows returns a nonzero exit code if the service is already running.
+  // The database readiness check below is authoritative.
+}
 
 const psql = pg('psql');
 const psqlEnv = { ...process.env, PGPASSWORD: password };
-let dbExists = '';
+let ready = false;
+let lastError;
+for (let attempt = 0; attempt < 30; attempt++) {
+  try {
+    runCapture(psql, ['-h', '127.0.0.1', '-p', String(port), '-U', dbUser, '-d', 'postgres', '-Atqc', 'SELECT 1'], psqlEnv);
+    ready = true;
+    break;
+  } catch (error) {
+    lastError = error;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);
+  }
+}
+if (!ready) {
+  throw new Error('Le service OmniKesPostgreSQL ne répond pas après 30 secondes. Vérifiez ' + path.join(data, 'omnikes-postgresql.log') + '. Détail : ' + (lastError?.message || 'connexion impossible'));
+}
+
+let dbExists;
 try {
-  dbExists = execFileSync(psql, ['-h', '127.0.0.1', '-p', String(port), '-U', dbUser, '-d', 'postgres', '-Atqc', "SELECT 1 FROM pg_database WHERE datname = 'omnikes'"], { encoding: 'utf8', windowsHide: true, env: psqlEnv }).trim();
-} catch {
-  throw new Error('Unable to connect to the embedded PostgreSQL server.');
+  dbExists = runCapture(psql, ['-h', '127.0.0.1', '-p', String(port), '-U', dbUser, '-d', 'postgres', '-Atqc', "SELECT 1 FROM pg_database WHERE datname = 'omnikes'"], psqlEnv);
+} catch (error) {
+  throw new Error('Connexion PostgreSQL réussie au démarrage mais impossible de vérifier la base : ' + error.message);
 }
 if (dbExists !== '1') {
   run(psql, ['-h', '127.0.0.1', '-p', String(port), '-U', dbUser, '-d', 'postgres', '-c', 'CREATE DATABASE omnikes'], psqlEnv);
 }
+
 const url = 'postgresql://' + encodeURIComponent(dbUser) + ':' + encodeURIComponent(password) + '@127.0.0.1:' + port + '/' + dbName;
 if (!exists(envPath)) {
   fs.writeFileSync(envPath, [
@@ -84,10 +120,10 @@ if (!exists(envPath)) {
 const prismaCli = path.join(app, 'node_modules', 'prisma', 'build', 'index.js');
 const schema = path.join(app, 'prisma', 'schema.prisma');
 const migrations = path.join(app, 'prisma', 'migrations');
-if (!exists(prismaCli)) throw new Error('Prisma CLI is missing from the offline package.');
-if (!exists(schema)) throw new Error('Prisma schema.prisma is missing from the offline package.');
-if (!exists(migrations)) throw new Error('Prisma migrations are missing from the offline package.');
+if (!exists(prismaCli)) throw new Error('Prisma CLI manquant : ' + prismaCli);
+if (!exists(schema)) throw new Error('Schéma Prisma manquant : ' + schema);
+if (!exists(migrations)) throw new Error('Dossier des migrations Prisma manquant : ' + migrations);
 
 process.env.DATABASE_URL = url;
 run(process.execPath, [prismaCli, 'migrate', 'deploy']);
-console.log('OmniKès offline runtime installation: PASS');
+console.log('Installation du runtime PostgreSQL OmniKes : PASS');
