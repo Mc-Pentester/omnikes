@@ -71,14 +71,14 @@ describe.skipIf(!packageReady)('Prisma Packaging Verification', () => {
       });
     };
 
-    const routeFiles = collectFiles(serverAppPath).filter((file) => /[\\/]route\\.js$/.test(file));
+    const routeFiles = collectFiles(serverAppPath).filter((file) => file.replace(/\\/g, '/').endsWith('/route.js'));
     expect(routeFiles.length).toBeGreaterThan(0);
 
     const missingChunks: string[] = [];
     let referencedChunkCount = 0;
     for (const routeFile of routeFiles) {
       const source = readFileSync(routeFile, 'utf8');
-      const references = /R\\.c\\(["']server\\/chunks\\/([^"']+)["']\\)/g;
+      const references = /R\.c\(["']server\/chunks\/([^"']+)["']\)/g;
       for (const match of source.matchAll(references)) {
         referencedChunkCount += 1;
         if (!existsSync(path.join(chunksPath, match[1]))) {
