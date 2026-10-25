@@ -33,7 +33,6 @@ npm.cmd run prepare:embedded-postgres
 npm.cmd run prepare:node-runtime
 npm.cmd exec prisma generate
 npm.cmd run build
-# Regenerate Prisma Client after build to ensure it's compatible with the bundled dependencies
 npm.cmd exec prisma generate
 
 $standalone = Join-Path $root ".next\standalone"
@@ -50,13 +49,12 @@ New-Item -ItemType Directory -Path $app,$node,$postgres,$installer -Force | Out-
 Copy-Item (Join-Path $standalone "*") $app -Recurse -Force
 if (Test-Path ".next\static") { Copy-Item ".next\static" (Join-Path $app ".next") -Recurse -Force }
 if (Test-Path "public") { Copy-Item "public" (Join-Path $app "public") -Recurse -Force }
-# Copy entire prisma directory (schema.prisma + migrations) for client regeneration at install time
 if (Test-Path "prisma") { Copy-Item "prisma" (Join-Path $app "prisma") -Recurse -Force }
 Copy-Item "package.json" (Join-Path $app "package.json") -Force
 Copy-Item "package-lock.json" (Join-Path $app "package-lock.json") -Force
 
 # Remove repository-only documentation and audit artifacts copied by Next standalone tracing.
-$documentationDirectories = @("docs", "audit")
+$documentationDirectories = @("docs", "audit", "reports", "report", "rapports", "rapport")
 foreach ($directory in $documentationDirectories) {
   $path = Join-Path $app $directory
   if (Test-Path $path) {
@@ -98,21 +96,36 @@ foreach ($file in $repositoryOnlyFiles) {
   }
 }
 
-# Fail closed if audit/report documentation still leaks into the packaged app root.
-$forbiddenRootFiles = Get-ChildItem $app -File -ErrorAction SilentlyContinue | Where-Object {
-  $_.Name -match '(?i)(audit|report|rapport|diagnostic|forensic|remediation|analysis|analyse)'
+# Fail closed if repository audit/report material leaked anywhere outside runtime dependencies.
+$runtimeDependencyRoot = Join-Path $app "node_modules"
+$forbiddenDirectoryNames = @("docs", "audit", "reports", "report", "rapports", "rapport")
+$leakedDirectories = Get-ChildItem $app -Directory -Recurse -ErrorAction SilentlyContinue |
+  Where-Object {
+    $_.FullName -ne $runtimeDependencyRoot -and
+    $_.FullName -notlike "$runtimeDependencyRoot\*" -and
+    $forbiddenDirectoryNames -contains $_.Name.ToLowerInvariant()
+  }
+if ($leakedDirectories) {
+  $names = ($leakedDirectories | ForEach-Object { $_.FullName }) -join ", "
+  throw "Repository audit/report directories remain in package: $names"
 }
-if ($forbiddenRootFiles) {
-  $names = ($forbiddenRootFiles | ForEach-Object { $_.Name }) -join ", "
-  throw "Audit/report files remain at application root: $names"
+
+$leakedFiles = Get-ChildItem $app -File -Recurse -ErrorAction SilentlyContinue |
+  Where-Object {
+    $_.FullName -notlike "$runtimeDependencyRoot\*" -and
+    $_.Name -match '(?i)^(.*(audit|report|rapport|diagnostic|forensic|remediation|analysis|analyse).*)\.(md|txt|log|json|html|csv|pdf)$'
+  }
+if ($leakedFiles) {
+  $names = ($leakedFiles | ForEach-Object { $_.FullName }) -join ", "
+  throw "Audit/report files remain in package: $names"
 }
+
 foreach ($directory in $documentationDirectories) {
   if (Test-Path (Join-Path $app $directory)) {
     throw "Repository documentation directory remains in package: $directory"
   }
 }
 
-# Prisma CLI and migration engines are required at client install time.
 npm.cmd ci --omit=dev --prefix $app
 
 $nodeRoot = Join-Path $root "vendor\node\runtime\node-v22.20.0-win-x64"
