@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@omnikes/contexts/AuthContext";
 import { StoreProvider } from "@omnikes/contexts/StoreContext";
+import { FirstLaunchGuard } from "@omnikes/components/setup/FirstLaunchGuard";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>
+          <FirstLaunchGuard />
           <StoreProvider>{children}</StoreProvider>
         </AuthProvider>
       </body>
