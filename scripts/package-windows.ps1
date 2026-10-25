@@ -96,34 +96,23 @@ foreach ($file in $repositoryOnlyFiles) {
   }
 }
 
-# Fail closed if repository audit/report material leaked anywhere outside runtime dependencies.
-$runtimeDependencyRoot = Join-Path $app "node_modules"
-$forbiddenDirectoryNames = @("docs", "audit", "reports", "report", "rapports", "rapport")
-$leakedDirectories = Get-ChildItem $app -Directory -Recurse -ErrorAction SilentlyContinue |
-  Where-Object {
-    $_.FullName -ne $runtimeDependencyRoot -and
-    $_.FullName -notlike "$runtimeDependencyRoot\*" -and
-    $forbiddenDirectoryNames -contains $_.Name.ToLowerInvariant()
-  }
-if ($leakedDirectories) {
-  $names = ($leakedDirectories | ForEach-Object { $_.FullName }) -join ", "
-  throw "Repository audit/report directories remain in package: $names"
-}
-
-$leakedFiles = Get-ChildItem $app -File -Recurse -ErrorAction SilentlyContinue |
-  Where-Object {
-    $_.FullName -notlike "$runtimeDependencyRoot\*" -and
-    $_.Name -match '(?i)^(.*(audit|report|rapport|diagnostic|forensic|remediation|analysis|analyse).*)\.(md|txt|log|json|html|csv|pdf)$'
-  }
-if ($leakedFiles) {
-  $names = ($leakedFiles | ForEach-Object { $_.FullName }) -join ", "
-  throw "Audit/report files remain in package: $names"
-}
-
+# Verify only repository-level documentation was excluded. Do not scan nested runtime
+# routes or vendor dependencies by basename: /reports and /administration/audit are
+# application features, and PostgreSQL/pgAdmin may ship their own documentation.
 foreach ($directory in $documentationDirectories) {
   if (Test-Path (Join-Path $app $directory)) {
     throw "Repository documentation directory remains in package: $directory"
   }
+}
+
+$repositoryReportFiles = Get-ChildItem $app -File -ErrorAction SilentlyContinue |
+  Where-Object {
+    $_.Name -match '(?i)(audit|report|rapport|diagnostic|forensic|remediation|analysis|analyse)' -and
+    $_.Extension -match '(?i)^\.(md|txt|log|csv|pdf)$'
+  }
+if ($repositoryReportFiles) {
+  $names = ($repositoryReportFiles | ForEach-Object { $_.FullName }) -join ", "
+  throw "Repository audit/report files remain at the application root: $names"
 }
 
 npm.cmd ci --omit=dev --prefix $app
