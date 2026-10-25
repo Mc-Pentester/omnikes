@@ -56,11 +56,28 @@ jobs:
           Write-Host "=== Application package root ==="
           Get-ChildItem $app -Force | Select-Object Mode, Name
 
-          $forbiddenDirectories = @("docs", "audit")
-          foreach ($directory in $forbiddenDirectories) {
-            if (Test-Path (Join-Path $app $directory)) {
-              throw "Repository documentation directory leaked into package: $directory"
+          $forbiddenDirectories = @("docs", "audit", "reports", "report", "rapports", "rapport")
+          $nodeModules = Join-Path $app "node_modules"
+
+          $leakedDirectories = Get-ChildItem $app -Directory -Recurse -ErrorAction SilentlyContinue |
+            Where-Object {
+              $_.FullName -ne $nodeModules -and
+              $_.FullName -notlike "$nodeModules\*" -and
+              $forbiddenDirectories -contains $_.Name.ToLowerInvariant()
             }
+          if ($leakedDirectories) {
+            $names = ($leakedDirectories | ForEach-Object { $_.FullName }) -join ", "
+            throw "Repository audit/report directories leaked into package: $names"
+          }
+
+          $leakedFiles = Get-ChildItem $app -File -Recurse -ErrorAction SilentlyContinue |
+            Where-Object {
+              $_.FullName -notlike "$nodeModules\*" -and
+              $_.Name -match '(?i)^(.*(audit|report|rapport|diagnostic|forensic|remediation|analysis|analyse).*)\.(md|txt|log|json|html|csv|pdf)$'
+            }
+          if ($leakedFiles) {
+            $names = ($leakedFiles | ForEach-Object { $_.FullName }) -join ", "
+            throw "Audit/report files leaked into package: $names"
           }
 
           $rootMarkdown = @(Get-ChildItem $app -File -Filter "*.md" -ErrorAction SilentlyContinue)
@@ -69,15 +86,7 @@ jobs:
             throw "Repository Markdown files leaked into application root: $names"
           }
 
-          $rootReports = @(Get-ChildItem $app -File -ErrorAction SilentlyContinue | Where-Object {
-            $_.Name -match '(?i)(audit|report|rapport|diagnostic|forensic|remediation|analysis|analyse)'
-          })
-          if ($rootReports.Count -gt 0) {
-            $names = ($rootReports | ForEach-Object { $_.Name }) -join ", "
-            throw "Audit/report files leaked into application root: $names"
-          }
-
-          Write-Host "Package documentation exclusion checks: PASS"
+          Write-Host "Package documentation and audit/report exclusion checks: PASS"
 
       - name: Verify production package excludes development lint chain
         shell: powershell
