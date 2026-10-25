@@ -43,10 +43,19 @@ export default function RegisterPage() {
         }),
       });
 
-      const data = await response.json();
+      const raw = await response.text();
+      let data: { error?: string } = {};
+
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        data = {};
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Inscription échouée');
+        throw new Error(
+          data.error || `Inscription échouée (HTTP ${response.status})`
+        );
       }
 
       router.push('/');
