@@ -92,8 +92,7 @@ jobs:
             throw "Standalone server.js is missing from the packaged application."
           }
           foreach ($package in @("eslint-config-next", "@next\\eslint-plugin-next")) {
-            $packagePath = Join-Path $app ("node_modules\\ " + $package)
-            $packagePath = $packagePath.Replace("node_modules\\ ", "node_modules\\")
+            $packagePath = Join-Path $app ("node_modules\\" + $package)
             if (Test-Path $packagePath) {
               throw "Development-only package was included in the distributed application: $package"
             }
