@@ -7,7 +7,10 @@ import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-describe('Prisma Packaging Verification', () => {
+// This suite validates a generated Next.js standalone artifact. The regular CI test
+// step runs before the production build, so skip only when no artifact exists; the
+// Windows packaging workflow performs its own mandatory post-build verification.
+describe.skipIf(!existsSync(path.join(process.cwd(), '.next', 'standalone')))('Prisma Packaging Verification', () => {
   const root = process.cwd();
   const standalonePath = path.join(root, '.next', 'standalone');
   const prismaPath = path.join(standalonePath, 'prisma');
