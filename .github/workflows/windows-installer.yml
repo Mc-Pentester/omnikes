@@ -59,10 +59,10 @@ jobs:
           $forbiddenDirectories = @("docs", "audit", "reports", "report", "rapports", "rapport")
           $nodeModules = Join-Path $app "node_modules"
 
-          $leakedDirectories = Get-ChildItem $app -Directory -Recurse -ErrorAction SilentlyContinue |
+          # Only inspect repository-level paths. Recursive basename checks would
+          # incorrectly reject real application routes (reports/audit) and vendor docs.
+          $leakedDirectories = Get-ChildItem $app -Directory -ErrorAction SilentlyContinue |
             Where-Object {
-              $_.FullName -ne $nodeModules -and
-              $_.FullName -notlike "$nodeModules\*" -and
               $forbiddenDirectories -contains $_.Name.ToLowerInvariant()
             }
           if ($leakedDirectories) {
@@ -70,10 +70,52 @@ jobs:
             throw "Repository audit/report directories leaked into package: $names"
           }
 
-          $leakedFiles = Get-ChildItem $app -File -Recurse -ErrorAction SilentlyContinue |
+          # Repository report artifacts are only forbidden at package root.
+          # Runtime application reports and third-party vendor files are allowed.
+          $leakedFiles = Get-ChildItem $app -File -ErrorAction SilentlyContinue |
             Where-Object {
-              $_.FullName -notlike "$nodeModules\*" -and
-              $_.Name -match '(?i)^(.*(audit|report|rapport|diagnostic|forensic|remediation|analysis|analyse).*)\.(md|txt|log|json|html|csv|pdf)$'
+              $_.Name -match '(?i)^(.*(audit|report|rapport|diagnostic|forensic|remediation|analysis|analyse).*)\.(md|txt|log|json|html|csv|pdf)
+          if ($leakedFiles) {
+            $names = ($leakedFiles | ForEach-Object { $_.FullName }) -join ", "
+            throw "Audit/report files leaked into package: $names"
+          }
+
+          $rootMarkdown = @(Get-ChildItem $app -File -Filter "*.md" -ErrorAction SilentlyContinue)
+          if ($rootMarkdown.Count -gt 0) {
+            $names = ($rootMarkdown | ForEach-Object { $_.Name }) -join ", "
+            throw "Repository Markdown files leaked into application root: $names"
+          }
+
+          Write-Host "Package documentation and audit/report exclusion checks: PASS"
+
+      - name: Verify production package excludes development lint chain
+        shell: powershell
+        run: |
+          $app = Join-Path $PWD "dist\windows\app"
+          if (-not (Test-Path (Join-Path $app "server.js"))) {
+            throw "Standalone server.js is missing from the packaged application."
+          }
+          foreach ($package in @("eslint-config-next", "@next\eslint-plugin-next")) {
+            $packagePath = Join-Path $app ("node_modules\" + $package)
+            if (Test-Path $packagePath) {
+              throw "Development-only package was included in the distributed application: $package"
+            }
+          }
+          npm audit --omit=dev --prefix $app
+          $installer = Get-ChildItem "dist\installer\OmniKes-Setup-*-x64.exe" -File
+          if (-not $installer) {
+            throw "The Inno Setup executable was not produced."
+          }
+          $installer | ForEach-Object { Write-Host "Installer: $($_.FullName) ($($_.Length) bytes)" }
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmniKes-Windows-Offline-Installer
+          path: dist/installer/OmniKes-Setup-*-x64.exe
+          if-no-files-found: error
+          retention-days: 14
+
             }
           if ($leakedFiles) {
             $names = ($leakedFiles | ForEach-Object { $_.FullName }) -join ", "
