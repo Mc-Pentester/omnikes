@@ -116,7 +116,7 @@ export function ScaleReaderPanel({ compact = false, onReading }: ScaleReaderPane
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [discover]);
+  }, [discover, canReadHardwareBridge]);
 
   const read = async () => {
     if (!scaleId) {
