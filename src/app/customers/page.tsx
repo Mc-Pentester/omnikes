@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
 import { EmptyState } from '@omnikes/components/ui/empty-state';
@@ -20,20 +20,20 @@ export default function CustomersPage() {
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
-      setError(null);
       const query = search.trim() ? `?search=${encodeURIComponent(search.trim())}` : '';
       const response = await fetch(`/api/customers${query}`, { cache: 'no-store' });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error ?? 'Impossible de charger les clients.');
+      setError(null);
       setCustomers(data.customers ?? data.data ?? []);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Impossible de charger les clients.');
     }
-  };
+  }, [search]);
 
-  useEffect(() => { void fetchCustomers(); }, [search]);
+  useEffect(() => { void fetchCustomers(); }, [fetchCustomers]);
 
   const activeCount = useMemo(() => customers.filter((customer) => customer.isActive).length, [customers]);
   const inactiveCount = customers.length - activeCount;
