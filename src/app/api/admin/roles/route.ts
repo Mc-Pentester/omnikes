@@ -29,7 +29,8 @@ export async function GET(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'role.read');
-    const result = await adminRoleService.list(organizationId);
+    const actor = await requireAuthenticatedUser(request);
+    const result = await adminRoleService.list(organizationId, actor.id);
     return NextResponse.json(result);
   } catch (error) {
     const mapped = mapError(error);
