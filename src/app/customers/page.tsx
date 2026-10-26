@@ -26,7 +26,6 @@ export default function CustomersPage() {
       const response = await fetch(`/api/customers${query}`, { cache: 'no-store' });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error ?? 'Impossible de charger les clients.');
-      setError(null);
       setCustomers(data.customers ?? data.data ?? []);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Impossible de charger les clients.');
@@ -47,7 +46,7 @@ export default function CustomersPage() {
             <h1 className="text-2xl font-bold text-foreground">Clients</h1>
             <p className="text-sm text-muted">Gérez vos clients et leur historique.</p>
           </div>
-          <Button onClick={() => void fetchCustomers()}>Actualiser</Button>
+          <Button onClick={() => { setError(null); void fetchCustomers(); }}>Actualiser</Button>
         </div>
       </header>
 
@@ -55,7 +54,7 @@ export default function CustomersPage() {
         {error ? (
           <Card className="p-6 text-center">
             <p className="text-danger mb-4">{error}</p>
-            <Button variant="outline" onClick={() => void fetchCustomers()}>Réessayer</Button>
+            <Button variant="outline" onClick={() => { setError(null); void fetchCustomers(); }}>Réessayer</Button>
           </Card>
         ) : customers.length === 0 && !search.trim() ? (
           <EmptyState
@@ -75,8 +74,8 @@ export default function CustomersPage() {
             </div>
             <Card className="p-4">
               <div className="flex flex-col gap-3 md:flex-row">
-                <div className="flex-1"><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher par nom..." aria-label="Rechercher un client" /></div>
-                <Button variant="outline" onClick={() => setSearch('')} disabled={!search}>Réinitialiser</Button>
+                <div className="flex-1"><Input value={search} onChange={(event) => { setError(null); setSearch(event.target.value); }} placeholder="Rechercher par nom..." aria-label="Rechercher un client" /></div>
+                <Button variant="outline" onClick={() => { setError(null); setSearch(''); }} disabled={!search}>Réinitialiser</Button>
               </div>
             </Card>
             <Card className="overflow-hidden">
