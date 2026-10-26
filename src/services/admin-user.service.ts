@@ -183,7 +183,7 @@ export class AdminUserService {
         role.isGlobal || !role.storeId || !actorStoreIds.includes(role.storeId),
       );
       if (targetIsOutOfScope) {
-        throw new Error('Target user is outside the actor store scope');
+        throw new Error('Permission required: target user is outside the actor store scope');
       }
     }
 
