@@ -276,7 +276,10 @@ export default function HomePage() {
   // Restore cart state on mount if returning from cash page
   useEffect(() => {
     if (user && !loading && !error) {
-      restoreCartState();
+      const timer = window.setTimeout(() => {
+        restoreCartState();
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [user, loading, error, restoreCartState]);
 
