@@ -8,6 +8,16 @@ import {
 } from '@omnikes/lib/validation';
 
 export class AdminRoleService {
+  private async assertOrganizationWideRoleAdmin(actorUserId: string) {
+    // Role CRUD currently lists and mutates organization-wide roles. Until
+    // each operation is fully scoped to a target store, deny delegated
+    // store-scoped actors even if they hold role.* permissions.
+    const authorizedStoreIds = await roleRepository.getAuthorizedStoreIds(actorUserId);
+    if (authorizedStoreIds !== null) {
+      throw new Error('Permission required: role administration requires organization-wide store scope');
+    }
+  }
+
   private async assertStoreScope(organizationId: string, isGlobal: boolean, storeId: string | null | undefined) {
     if (isGlobal) {
       if (storeId) throw new Error('Global role cannot be assigned to a store');
@@ -46,7 +56,8 @@ export class AdminRoleService {
     return permissions;
   }
 
-  async list(organizationId: string) {
+  async list(organizationId: string, actorUserId: string) {
+    await this.assertOrganizationWideRoleAdmin(actorUserId);
     const [roles, permissions, stores] = await Promise.all([
       prisma.role.findMany({
         where: { organizationId },
@@ -91,6 +102,7 @@ export class AdminRoleService {
 
   async create(organizationId: string, input: AdminRoleCreateInput, actorUserId: string) {
     const data = adminRoleCreateSchema.parse(input);
+    await this.assertOrganizationWideRoleAdmin(actorUserId);
     await this.assertStoreScope(organizationId, data.isGlobal, data.storeId);
     await this.assertPermissionsCanBeDelegated(actorUserId, data.permissionIds);
 
@@ -159,6 +171,7 @@ export class AdminRoleService {
     actorUserId: string,
   ) {
     const data = adminRoleUpdateSchema.parse(input);
+    await this.assertOrganizationWideRoleAdmin(actorUserId);
     const current = await prisma.role.findFirst({
       where: { id: roleId, organizationId },
       include: {

@@ -211,10 +211,10 @@ export class SaleService {
   /**
    * Update a sale item atomically under the parent sale lock.
    */
-  async updateItem(itemId: string, organizationId: string, data: Partial<SaleItemInput>) {
+  async updateItem(itemId: string, organizationId: string, data: Partial<SaleItemInput>, expectedSaleId: string) {
     const validatedData = saleItemSchema.partial().parse(data);
     const itemLookup = await prisma.saleItem.findFirst({
-      where: { id: itemId, sale: { organizationId } },
+      where: { id: itemId, saleId: expectedSaleId, sale: { id: expectedSaleId, organizationId } },
       select: { saleId: true },
     });
     if (!itemLookup) throw new Error('Sale item not found or access denied');
@@ -258,9 +258,9 @@ export class SaleService {
   /**
    * Remove a sale item atomically under the parent sale lock.
    */
-  async removeItem(itemId: string, organizationId: string) {
+  async removeItem(itemId: string, organizationId: string, expectedSaleId: string) {
     const item = await prisma.saleItem.findFirst({
-      where: { id: itemId, sale: { organizationId } },
+      where: { id: itemId, saleId: expectedSaleId, sale: { id: expectedSaleId, organizationId } },
       select: { id: true, saleId: true },
     });
     if (!item) throw new Error('Sale item not found or access denied');

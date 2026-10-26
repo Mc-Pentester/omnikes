@@ -172,6 +172,21 @@ export class AdminUserService {
     const data = adminUserUpdateSchema.parse(input);
     const target = await userRepository.findByIdWithOrganization(userId, organizationId);
     if (!target) throw new Error('User not found');
+
+    // A store-scoped administrator may mutate only users whose complete role
+    // scope is contained in the administrator's own store scope. This check
+    // applies to every field, not only roleId/storeId changes.
+    const actorStoreIds = await roleRepository.getAuthorizedStoreIds(actorUserId);
+    if (actorStoreIds !== null) {
+      const targetRoles = target.userRoles.map(({ role }) => role);
+      const targetIsOutOfScope = targetRoles.length === 0 || targetRoles.some((role) =>
+        role.isGlobal || !role.storeId || !actorStoreIds.includes(role.storeId),
+      );
+      if (targetIsOutOfScope) {
+        throw new Error('Permission required: target user is outside the actor store scope');
+      }
+    }
+
     if (userId === actorUserId && data.isActive === false) throw new Error('You cannot deactivate your own account');
     if (data.email && data.email !== target.email) {
       const existing = await prisma.user.findUnique({ where: { email: data.email }, select: { id: true } });

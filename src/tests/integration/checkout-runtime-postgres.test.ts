@@ -523,6 +523,7 @@ describe('P0-22 — Real PostgreSQL Runtime Validation', () => {
         (await prisma.saleItem.findFirstOrThrow({ where: { saleId: sale.id }, select: { id: true } })).id,
         orgId,
         { quantity: 2 },
+        sale.id,
       ),
       checkout(request(), { params: Promise.resolve({ id: sale.id }) }),
     ]);

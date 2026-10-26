@@ -32,7 +32,7 @@ export async function PATCH(
       );
     }
 
-    const item = await saleService.updateItem(itemId, organizationId, body);
+    const item = await saleService.updateItem(itemId, organizationId, body, id);
 
     return NextResponse.json(item);
   } catch (error) {
@@ -98,7 +98,7 @@ export async function DELETE(
       await requireStoreAccess(request, sale.storeId);
     }
 
-    await saleService.removeItem(itemId, organizationId);
+    await saleService.removeItem(itemId, organizationId, id);
 
     return NextResponse.json({ success: true });
   } catch (error) {
