@@ -41,6 +41,7 @@ export async function PATCH(
       error.message === 'Role not found' ||
       error.message === 'Actor cannot delegate one or more permissions' ||
       error.message === 'Role is outside the actor store scope' ||
+      error.message === 'Target user is outside the actor store scope' ||
       error.message.includes('outside the current organization') ||
       error.message.includes('Store not found') ||
       error.message.includes('Role is not scoped')
