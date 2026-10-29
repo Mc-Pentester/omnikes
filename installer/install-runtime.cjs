@@ -90,4 +90,8 @@ if (!exists(migrations)) throw new Error('Prisma migrations are missing from the
 
 process.env.DATABASE_URL = url;
 run(process.execPath, [prismaCli, 'migrate', 'deploy']);
-console.log('OmniKès offline runtime installation: PASS');
+
+const rbacInitializer = path.join(app, 'scripts', 'initialize-rbac.cjs');
+if (!exists(rbacInitializer)) throw new Error('RBAC initializer is missing from the offline package.');
+run(process.execPath, [rbacInitializer], { ...process.env, DATABASE_URL: url });
+console.log('OmniKès offline runtime installation and RBAC initialization: PASS');
