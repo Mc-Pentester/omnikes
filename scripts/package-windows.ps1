@@ -53,6 +53,14 @@ if (Test-Path "prisma") { Copy-Item "prisma" (Join-Path $app "prisma") -Recurse 
 Copy-Item "package.json" (Join-Path $app "package.json") -Force
 Copy-Item "package-lock.json" (Join-Path $app "package-lock.json") -Force
 
+# Ship a dedicated, idempotent RBAC catalogue initializer. It creates no users or demo data.
+$rbacScripts = Join-Path $app "scripts"
+New-Item -ItemType Directory -Path $rbacScripts -Force | Out-Null
+Copy-Item "scripts\initialize-rbac.cjs" (Join-Path $rbacScripts "initialize-rbac.cjs") -Force
+if (-not (Test-Path (Join-Path $rbacScripts "initialize-rbac.cjs"))) {
+  throw "RBAC initializer was not included in the Windows application package."
+}
+
 # Remove repository-only documentation and audit artifacts copied by Next standalone tracing.
 $documentationDirectories = @("docs", "audit", "reports", "report", "rapports", "rapport")
 foreach ($directory in $documentationDirectories) {
