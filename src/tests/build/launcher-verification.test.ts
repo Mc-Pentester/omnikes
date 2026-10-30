@@ -43,6 +43,12 @@ describe('Windows Launcher Verification', () => {
     expect(readFileSync(launcherPath, 'utf8')).toContain('/api/health');
   });
 
+  it('should resolve the installer parent directory before invoking the runtime installer', () => {
+    const content = readFileSync(path.join(installerPath, 'install-runtime.cmd'), 'utf8');
+    expect(content).toContain('OMNIKES_HOME=%~dp0..');
+    expect(content).toContain('%OMNIKES_HOME%installer\\\\install-runtime.cjs');
+  });
+
   it('should register, start, and verify the PostgreSQL Windows service during installation', () => {
     const content = readFileSync(runtimeInstallerPath, 'utf8');
     expect(content).toContain("['register', '-D', data, '-N', serviceName, '-S', 'auto'");
