@@ -53,6 +53,7 @@ if (Test-Path "prisma") { Copy-Item "prisma" (Join-Path $app "prisma") -Recurse 
 Copy-Item "package.json" (Join-Path $app "package.json") -Force
 Copy-Item "package-lock.json" (Join-Path $app "package-lock.json") -Force
 
+
 # Remove repository-only documentation and audit artifacts copied by Next standalone tracing.
 $documentationDirectories = @("docs", "audit", "reports", "report", "rapports", "rapport")
 foreach ($directory in $documentationDirectories) {
@@ -160,6 +161,7 @@ Copy-Item (Join-Path $pgRoot "*") $postgres -Recurse -Force
 Copy-Item "installer\OmniKesLauncher.cmd" $installer -Force
 Copy-Item "installer\install-runtime.cmd" $installer -Force
 Copy-Item "installer\install-runtime.cjs" $installer -Force
+Copy-Item "installer\initialize-rbac.cjs" $installer -Force
 Copy-Item "installer\prepare-user-env.cjs" $installer -Force
 
 & $iscc "installer\OmniKes.iss"
