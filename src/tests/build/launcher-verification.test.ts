@@ -12,7 +12,17 @@ describe('Windows Launcher Verification', () => {
   const runtimeInstallerPath = path.join(installerPath, 'install-runtime.cjs');
   const issPath = path.join(installerPath, 'OmniKes.iss');
 
-  it('should have OmniKesLauncher.cmd', () => {
+  it('should provide the native omnikes.exe launcher source', () => {
+    const source = readFileSync(path.join(installerPath, 'OmniKesLauncher.cs'), 'utf8');
+    expect(source).toContain('ProcessWindowStyle.Hidden');
+    expect(source).toContain('http://127.0.0.1:3000/api/health');
+    expect(source).toContain('MessageBox.Show');
+    const packaging = readFileSync(path.join(root, 'scripts', 'package-windows.ps1'), 'utf8');
+    expect(packaging).toContain('target:winexe');
+    expect(packaging).toContain('omnikes.exe');
+  });
+
+  it('should have OmniKesLauncher.cmd as the hidden internal startup helper', () => {
     expect(existsSync(launcherPath)).toBe(true);
   });
 
@@ -70,7 +80,7 @@ describe('Windows Launcher Verification', () => {
   it('should retain the Inno Setup launcher and runtime installation configuration', () => {
     const content = readFileSync(issPath, 'utf8');
     expect(content).toContain('installer\\\\OmniKesLauncher.cmd');
-    expect(content).toContain('install-runtime.cmd');
+    expect(content).toContain('install-runtime.cmd');\n    expect(content).toContain('omnikes.exe');\n    expect(content).toContain('{autoprograms}');
     expect(content).toContain('PrivilegesRequired=admin');
   });
 });
