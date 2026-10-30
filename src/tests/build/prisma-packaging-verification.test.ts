@@ -8,7 +8,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 // The Windows packaging workflow runs this suite after package:windows has completed.
-describe('Prisma Packaging Verification', () => {
+// The general Linux CI runs the full Vitest suite without creating dist/windows/app;
+// skip this packaging-only suite there, while keeping every assertion active in the
+// Windows installer workflow where the staged application must exist.
+describe.skipIf(!existsSync(path.join(process.cwd(), 'dist', 'windows', 'app')))('Prisma Packaging Verification', () => {
   const root = process.cwd();
   const standalonePath = path.join(root, '.next', 'standalone');
   const standalonePrismaPath = path.join(standalonePath, 'prisma');
