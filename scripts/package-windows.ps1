@@ -115,7 +115,39 @@ if ($repositoryReportFiles) {
   throw "Repository audit/report files remain at the application root: $names"
 }
 
+# Install only production dependencies into the final staged app, then generate Prisma
+# Client inside that exact directory. A client generated in the source repository is
+# not guaranteed to be included in Next's standalone trace or in the staged installer.
 npm.cmd ci --omit=dev --prefix $app
+if ($LASTEXITCODE -ne 0) { throw "Production dependency installation failed." }
+
+Push-Location $app
+try {
+  npm.cmd exec -- prisma generate --schema prisma/schema.prisma
+  if ($LASTEXITCODE -ne 0) { throw "Prisma Client generation failed in the staged application." }
+}
+finally {
+  Pop-Location
+}
+
+$generatedPrismaClient = Join-Path $app "node_modules\.prisma\client"
+$generatedPrismaDefault = Join-Path $generatedPrismaClient "default.js"
+if (-not (Test-Path $generatedPrismaDefault)) {
+  throw "Generated Prisma Client is missing from the staged app: $generatedPrismaDefault"
+}
+
+# Next may trace Prisma's generated runtime under .next/node_modules. Mirror the
+# generated client there as well so both Node module-resolution paths are satisfied.
+$nextNodeModules = Join-Path $app ".next\node_modules"
+if (Test-Path $nextNodeModules) {
+  $nextGeneratedClient = Join-Path $nextNodeModules ".prisma\client"
+  New-Item -ItemType Directory -Path $nextGeneratedClient -Force | Out-Null
+  Copy-Item (Join-Path $generatedPrismaClient "*") $nextGeneratedClient -Recurse -Force
+  if (-not (Test-Path (Join-Path $nextGeneratedClient "default.js"))) {
+    throw "Generated Prisma Client was not copied into .next/node_modules."
+  }
+}
+Write-Host "Generated Prisma Client verified in staged Windows application."
 
 $nodeRoot = Join-Path $root "vendor\node\runtime\node-v22.20.0-win-x64"
 if (-not (Test-Path (Join-Path $nodeRoot "node.exe"))) { throw "Prepared Node.js runtime not found." }
