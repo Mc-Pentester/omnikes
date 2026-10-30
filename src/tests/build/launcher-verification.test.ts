@@ -33,7 +33,7 @@ describe('Windows Launcher Verification', () => {
 
   it('should verify the packaged PostgreSQL readiness executable', () => {
     const content = readFileSync(launcherPath, 'utf8');
-    expect(content).toContain('runtime\\\\postgresql\\\\bin\\\\pg_isready.exe');
+    expect(content).toContain('runtime\\postgresql\\bin\\pg_isready.exe');
     expect(content).toContain('sc.exe query OmniKesPostgreSQL');
     expect(content).toContain('sc.exe start OmniKesPostgreSQL');
     expect(content).toContain(':postgres_wait');
