@@ -124,7 +124,7 @@ if (!exists(envPath)) {
     'SESSION_SECRET="' + crypto.randomBytes(32).toString('hex') + '"',
     'AUTH_SECRET="' + crypto.randomBytes(32).toString('hex') + '"',
     ''
-  ].join('\\n'), { flag: 'wx' });
+  ].join('\n'), { flag: 'wx' });
 }
 
 const prismaCli = path.join(app, 'node_modules', 'prisma', 'build', 'index.js');
