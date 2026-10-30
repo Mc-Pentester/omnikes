@@ -51,6 +51,15 @@ describe('Windows Launcher Verification', () => {
     expect(content).toContain('serviceState()');
   });
 
+  it('should require the PostgreSQL readiness binary during packaging', () => {
+    const content = readFileSync(path.join(root, 'scripts', 'prepare-embedded-postgres.ts'), 'utf8');
+    expect(content).toContain("'pg_isready.exe'");
+  });
+
+  it('should retain the first-launch environment preparation script', () => {
+    expect(existsSync(path.join(installerPath, 'prepare-user-env.cjs'))).toBe(true);
+  });
+
   it('should retain the Inno Setup launcher and runtime installation configuration', () => {
     const content = readFileSync(issPath, 'utf8');
     expect(content).toContain('installer\\\\OmniKesLauncher.cmd');
