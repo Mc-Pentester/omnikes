@@ -33,7 +33,12 @@ export default function CustomersPage() {
     }
   };
 
-  useEffect(() => { void fetchCustomers(); }, [search]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchCustomers();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   const activeCount = useMemo(() => customers.filter((customer) => customer.isActive).length, [customers]);
   const inactiveCount = customers.length - activeCount;
