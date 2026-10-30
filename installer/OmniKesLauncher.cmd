@@ -3,21 +3,21 @@ setlocal EnableExtensions
 
 REM Get the installation root (OmniKesLauncher.cmd is in installer/ subdirectory)
 set "OMNIKES_HOME=%~dp0.."
-set "APP_DIR=%OMNIKES_HOME%\\app"
-set "NODE_EXE=%OMNIKES_HOME%\\runtime\\node\\node.exe"
-set "PG_READY=%OMNIKES_HOME%\\runtime\\postgresql\\bin\\pg_isready.exe"
+set "APP_DIR=%OMNIKES_HOME%\app"
+set "NODE_EXE=%OMNIKES_HOME%\runtime\node\node.exe"
+set "PG_READY=%OMNIKES_HOME%\runtime\postgresql\bin\pg_isready.exe"
 set "NODE_ENV=production"
 
 REM Configure user-writable directories and initialize logging before any operation.
-set "OMNIKES_DATA_DIR=%LOCALAPPDATA%\\OmniKes"
-set "OMNIKES_CACHE_DIR=%OMNIKES_DATA_DIR%\\cache"
-set "OMNIKES_LOGS_DIR=%OMNIKES_DATA_DIR%\\logs"
-set "OMNIKES_TEMP_DIR=%OMNIKES_DATA_DIR%\\temp"
+set "OMNIKES_DATA_DIR=%LOCALAPPDATA%\OmniKes"
+set "OMNIKES_CACHE_DIR=%OMNIKES_DATA_DIR%\cache"
+set "OMNIKES_LOGS_DIR=%OMNIKES_DATA_DIR%\logs"
+set "OMNIKES_TEMP_DIR=%OMNIKES_DATA_DIR%\temp"
 if not exist "%OMNIKES_DATA_DIR%" mkdir "%OMNIKES_DATA_DIR%"
 if not exist "%OMNIKES_CACHE_DIR%" mkdir "%OMNIKES_CACHE_DIR%"
 if not exist "%OMNIKES_LOGS_DIR%" mkdir "%OMNIKES_LOGS_DIR%"
 if not exist "%OMNIKES_TEMP_DIR%" mkdir "%OMNIKES_TEMP_DIR%"
-set "LOG_FILE=%OMNIKES_LOGS_DIR%\\launcher-%date:~-4,4%%date:~-7,2%%date:~-10,2%.log"
+set "LOG_FILE=%OMNIKES_LOGS_DIR%\launcher-%date:~-4,4%%date:~-7,2%%date:~-10,2%.log"
 set "NEXT_CACHE_DIR=%OMNIKES_CACHE_DIR%"
 
 echo [%date% %time%] OmniKes Launcher starting >> "%LOG_FILE%"
@@ -29,7 +29,7 @@ if not exist "%NODE_EXE%" (
     pause
     exit /b 1
 )
-if not exist "%APP_DIR%\\server.js" (
+if not exist "%APP_DIR%\server.js" (
     echo [%time%] ERROR: Application server not found at %APP_DIR% >> "%LOG_FILE%"
     echo ERROR: Application OmniKes introuvable. Reinstallez OmniKes.
     pause
@@ -43,9 +43,9 @@ if not exist "%PG_READY%" (
 )
 
 REM Prepare user-writable environment on first launch.
-if not exist "%OMNIKES_DATA_DIR%\\.next" (
+if not exist "%OMNIKES_DATA_DIR%\.next" (
     echo [%time%] Preparing user-writable environment... >> "%LOG_FILE%"
-    "%NODE_EXE%" "%OMNIKES_HOME%\\installer\\prepare-user-env.cjs" >> "%LOG_FILE%" 2>&1
+    "%NODE_EXE%" "%OMNIKES_HOME%\installer\prepare-user-env.cjs" >> "%LOG_FILE%" 2>&1
     if errorlevel 1 (
         echo [%time%] ERROR: Failed to prepare user environment >> "%LOG_FILE%"
         echo ERROR: Impossible de préparer l'environnement utilisateur.
@@ -99,7 +99,7 @@ echo [%time%] PostgreSQL service is ready on 127.0.0.1:5432 >> "%LOG_FILE%"
 REM Start the application server.
 echo [%time%] Starting OmniKes server... >> "%LOG_FILE%"
 cd /d "%APP_DIR%"
-start "" /B "%NODE_EXE%" "%APP_DIR%\\server.js" >> "%LOG_FILE%" 2>&1
+start "" /B "%NODE_EXE%" "%APP_DIR%\server.js" >> "%LOG_FILE%" 2>&1
 
 REM Wait for server health check (max 60 seconds).
 set "MAX_WAIT=60"
