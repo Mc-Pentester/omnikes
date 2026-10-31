@@ -1,7 +1,7 @@
 #define MyAppName "OmniKès"
 #define MyAppVersion "0.1.0"
 #define MyAppPublisher "OmniKès"
-#define MyAppExeName "OmniKesLauncher.cmd"
+#define MyAppExeName "omnikes.exe"
 
 [Setup]
 AppId={{A2F77B5A-7D0E-4B15-9B8A-0A9B6E6A5C11}}
@@ -19,7 +19,7 @@ PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UseSetupLdr=x64
-UninstallDisplayIcon={app}\omnikes.ico
+UninstallDisplayIcon={app}\installer\omnikes.exe
 DisableProgramGroupPage=yes
 CloseApplications=yes
 RestartApplications=no
@@ -35,12 +35,12 @@ Name: "{commonappdata}\OmniKes"
 Name: "{commonappdata}\OmniKes\postgresql-data"
 
 [Icons]
-Name: "{autoprograms}\OmniKès"; Filename: "{app}\installer\OmniKesLauncher.cmd"; WorkingDir: "{app}"
-Name: "{autodesktop}\OmniKès"; Filename: "{app}\installer\OmniKesLauncher.cmd"; WorkingDir: "{app}"
+Name: "{autoprograms}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"
+Name: "{autodesktop}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"
 
 [Run]
 Filename: "{app}\installer\install-runtime.cmd"; Parameters: ""; StatusMsg: "Configuration du runtime local OmniKès..."; Flags: waituntilterminated runhidden
-Filename: "{app}\installer\OmniKesLauncher.cmd"; WorkingDir: "{app}"; StatusMsg: "Démarrage d'OmniKès..."; Flags: nowait postinstall skipifsilent
+Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"; StatusMsg: "Démarrage d'OmniKès..."; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 Filename: "{sys}\sc.exe"; Parameters: "stop OmniKesPostgreSQL"; Flags: runhidden
