@@ -79,7 +79,7 @@ describe('Windows Launcher Verification', () => {
 
   it('should retain the Inno Setup launcher and runtime installation configuration', () => {
     const content = readFileSync(issPath, 'utf8');
-    expect(content).toContain('installer\\\\OmniKesLauncher.cmd');
+    expect(content).toContain('installer\\\\omnikes.exe');
     expect(content).toContain('install-runtime.cmd');\n    expect(content).toContain('omnikes.exe');\n    expect(content).toContain('{autoprograms}');
     expect(content).toContain('PrivilegesRequired=admin');
   });
