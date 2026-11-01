@@ -56,9 +56,7 @@ describe('Windows Launcher Verification', () => {
   it('should resolve the installer parent directory before invoking the runtime installer', () => {
     const content = readFileSync(path.join(installerPath, 'install-runtime.cmd'), 'utf8');
     expect(content).toContain('OMNIKES_HOME=%~dp0..');
-    expect(content).toContain('%OMNIKES_HOME%\\runtime
-ode
-ode.exe');
+    expect(content).toContain('%OMNIKES_HOME%\\runtime\\node\\node.exe');
     expect(content).toContain('%OMNIKES_HOME%\\installer\\install-runtime.cjs');
   });
 
