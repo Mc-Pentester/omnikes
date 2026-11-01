@@ -85,4 +85,19 @@ describe('Windows Launcher Verification', () => {
     expect(content).toContain('{autoprograms}');
     expect(content).toContain('PrivilegesRequired=admin');
   });
+  
+  it('should support in-place reinstall without replacing local configuration or PostgreSQL data', () => {
+    const installer = readFileSync(issPath, 'utf8');
+    const runtime = readFileSync(runtimeInstallerPath, 'utf8');
+    expect(installer).toContain('AppId={{A2F77B5A-7D0E-4B15-9B8A-0A9B6E6A5C11}}');
+    expect(installer).toContain('Excludes: ".env, .env.*"');
+    expect(installer).toContain('{commonappdata}\\\\OmniKes\\\\postgresql-data');
+    expect(installer).not.toContain('[UninstallDelete]');
+    expect(runtime).toContain("path.join(process.env.ProgramData || 'C:\\\\ProgramData', 'OmniKes', 'postgresql-data')");
+    expect(runtime).toContain("if (exists(path.join(data, 'PG_VERSION')))");
+    expect(runtime).toContain("if (!exists(envPath))");
+    expect(runtime).toContain("if (!state)");
+    expect(runtime).toContain("prisma, 'migrate', 'deploy'");
+  });
+
 });
