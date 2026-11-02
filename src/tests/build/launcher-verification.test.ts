@@ -97,7 +97,7 @@ describe('Windows Launcher Verification', () => {
     expect(runtime).toContain("if (exists(path.join(data, 'PG_VERSION')))");
     expect(runtime).toContain("if (!exists(envPath))");
     expect(runtime).toContain("if (!state)");
-    expect(runtime).toContain("prisma, 'migrate', 'deploy'");
+    expect(runtime).toContain("run(process.execPath, [prismaCli, 'migrate', 'deploy'])");
   });
 
 });
