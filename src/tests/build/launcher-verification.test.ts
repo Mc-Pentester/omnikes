@@ -1,8 +1,6 @@
 /**
- * Verification test for Windows launcher configuration
- * Verifies that launcher scripts are correctly configured
+ * Verification test for Windows launcher configuration and PostgreSQL startup.
  */
-
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -11,56 +9,95 @@ describe('Windows Launcher Verification', () => {
   const root = process.cwd();
   const installerPath = path.join(root, 'installer');
   const launcherPath = path.join(installerPath, 'OmniKesLauncher.cmd');
+  const runtimeInstallerPath = path.join(installerPath, 'install-runtime.cjs');
   const issPath = path.join(installerPath, 'OmniKes.iss');
 
-  it('should have OmniKesLauncher.cmd', () => {
+  it('should provide the native omnikes.exe launcher source', () => {
+    const source = readFileSync(path.join(installerPath, 'OmniKesLauncher.cs'), 'utf8');
+    expect(source).toContain('ProcessWindowStyle.Hidden');
+    expect(source).toContain('http://127.0.0.1:3000/api/health');
+    expect(source).toContain('MessageBox.Show');
+    const packaging = readFileSync(path.join(root, 'scripts', 'package-windows.ps1'), 'utf8');
+    expect(packaging).toContain('target:winexe');
+    expect(packaging).toContain('omnikes.exe');
+  });
+
+  it('should have OmniKesLauncher.cmd as the hidden internal startup helper', () => {
     expect(existsSync(launcherPath)).toBe(true);
   });
 
   it('should configure OMNIKES_HOME correctly', () => {
-    const content = readFileSync(launcherPath, 'utf8');
-    expect(content).toContain('OMNIKES_HOME=%~dp0..');
+    expect(readFileSync(launcherPath, 'utf8')).toContain('OMNIKES_HOME=%~dp0..');
   });
 
-  it('should create user-writable directories', () => {
+  it('should create user-writable directories and initialize logging first', () => {
     const content = readFileSync(launcherPath, 'utf8');
     expect(content).toContain('OMNIKES_DATA_DIR=%LOCALAPPDATA%');
     expect(content).toContain('OMNIKES_CACHE_DIR');
-    expect(content).toContain('OMNIKES_LOGS_DIR');
+    expect(content.indexOf('set "LOG_FILE=')).toBeLessThan(content.indexOf('Preparing user-writable environment'));
   });
 
-  it('should check for existing instance on port 3000', () => {
+  it('should detect an existing application instance', () => {
+    expect(readFileSync(launcherPath, 'utf8')).toContain(':3000');
+  });
+
+  it('should verify the packaged PostgreSQL readiness executable', () => {
     const content = readFileSync(launcherPath, 'utf8');
-    expect(content).toContain('netstat -ano');
-    expect(content).toContain(':3000');
+    expect(content).toContain('runtime\\postgresql\\bin\\pg_isready.exe');
+    expect(content).toContain('sc.exe query OmniKesPostgreSQL');
+    expect(content).toContain('sc.exe start OmniKesPostgreSQL');
+    expect(content).toContain(':postgres_wait');
   });
 
-  it('should check for PostgreSQL on port 5432', () => {
-    const content = readFileSync(launcherPath, 'utf8');
-    expect(content).toContain(':5432');
+  it('should wait for application health', () => {
+    expect(readFileSync(launcherPath, 'utf8')).toContain('/api/health');
   });
 
-  it('should wait for server health check', () => {
-    const content = readFileSync(launcherPath, 'utf8');
-    expect(content).toContain('/api/health');
+  it('should resolve the installer parent directory before invoking the runtime installer', () => {
+    const content = readFileSync(path.join(installerPath, 'install-runtime.cmd'), 'utf8');
+    expect(content).toContain('OMNIKES_HOME=%~dp0..');
+    expect(content).toContain('%OMNIKES_HOME%\\runtime\\node\\node.exe');
+    expect(content).toContain('%OMNIKES_HOME%\\installer\\install-runtime.cjs');
   });
 
-  it('should have logging configuration', () => {
-    const content = readFileSync(launcherPath, 'utf8');
-    expect(content).toContain('LOG_FILE');
+  it('should register, start, and verify the PostgreSQL Windows service during installation', () => {
+    const content = readFileSync(runtimeInstallerPath, 'utf8');
+    expect(content).toContain("['register', '-D', data, '-N', serviceName, '-S', 'auto'");
+    expect(content).toContain("['start', serviceName]");
+    expect(content).toContain('waitForPostgres(password)');
+    expect(content).toContain('serviceState()');
   });
 
-  it('should have OmniKes.iss configuration', () => {
-    expect(existsSync(issPath)).toBe(true);
+  it('should require the PostgreSQL readiness binary during packaging', () => {
+    const content = readFileSync(path.join(root, 'scripts', 'prepare-embedded-postgres.ts'), 'utf8');
+    expect(content).toContain("'pg_isready.exe'");
   });
 
-  it('should configure correct launcher path in Inno Setup', () => {
+  it('should retain the first-launch environment preparation script', () => {
+    expect(existsSync(path.join(installerPath, 'prepare-user-env.cjs'))).toBe(true);
+  });
+
+  it('should retain the Inno Setup launcher and runtime installation configuration', () => {
     const content = readFileSync(issPath, 'utf8');
-    expect(content).toContain('installer\\OmniKesLauncher.cmd');
+    expect(content).toContain('installer\\omnikes.exe');
+    expect(content).toContain('install-runtime.cmd');
+    expect(content).toContain('omnikes.exe');
+    expect(content).toContain('{autoprograms}');
+    expect(content).toContain('PrivilegesRequired=admin');
+  });
+  
+  it('should support in-place reinstall without replacing local configuration or PostgreSQL data', () => {
+    const installer = readFileSync(issPath, 'utf8');
+    const runtime = readFileSync(runtimeInstallerPath, 'utf8');
+    expect(installer).toContain('AppId={{A2F77B5A-7D0E-4B15-9B8A-0A9B6E6A5C11}}');
+    expect(installer).toContain('Excludes: ".env, .env.*"');
+    expect(installer).toContain('{commonappdata}\\OmniKes\\postgresql-data');
+    expect(installer).not.toContain('[UninstallDelete]');
+    expect(runtime).toContain("path.join(process.env.ProgramData || 'C:\\\\ProgramData', 'OmniKes', 'postgresql-data')");
+    expect(runtime).toContain("if (exists(path.join(data, 'PG_VERSION')))");
+    expect(runtime).toContain("if (!exists(envPath))");
+    expect(runtime).toContain("if (!state)");
+    expect(runtime).toContain("prisma, 'migrate', 'deploy'");
   });
 
-  it('should have prepare-user-env.cjs', () => {
-    const prepareEnvPath = path.join(installerPath, 'prepare-user-env.cjs');
-    expect(existsSync(prepareEnvPath)).toBe(true);
-  });
 });

@@ -164,6 +164,22 @@ Copy-Item "installer\install-runtime.cjs" $installer -Force
 Copy-Item "installer\initialize-rbac.cjs" $installer -Force
 Copy-Item "installer\prepare-user-env.cjs" $installer -Force
 
+# Build a native, windowless Windows launcher. The .NET Framework compiler is present
+# on Windows build agents and on supported Windows installations.
+$cscCandidates = @(
+  (Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"),
+  (Join-Path $env:WINDIR "Microsoft.NET\Framework\v4.0.30319\csc.exe")
+) | Where-Object { Test-Path $_ }
+$csc = $cscCandidates | Select-Object -First 1
+if (-not $csc) { throw "C# compiler (csc.exe) was not found on the Windows build agent." }
+$launcherSource = Join-Path $root "installer\OmniKesLauncher.cs"
+$launcherExe = Join-Path $installer "omnikes.exe"
+& $csc /nologo /target:winexe /optimize+ /out:$launcherExe /reference:System.dll /reference:System.Windows.Forms.dll $launcherSource
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path $launcherExe)) {
+  throw "Native omnikes.exe launcher compilation failed."
+}
+Write-Host "Native Windows launcher built: $launcherExe"
+
 & $iscc "installer\OmniKes.iss"
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
 
