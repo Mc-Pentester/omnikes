@@ -91,7 +91,7 @@ describe('Windows Launcher Verification', () => {
     const runtime = readFileSync(runtimeInstallerPath, 'utf8');
     expect(installer).toContain('AppId={{A2F77B5A-7D0E-4B15-9B8A-0A9B6E6A5C11}}');
     expect(installer).toContain('Excludes: ".env, .env.*"');
-    expect(installer).toContain('{commonappdata}\\\\OmniKes\\\\postgresql-data');
+    expect(installer).toContain('{commonappdata}\\OmniKes\\postgresql-data');
     expect(installer).not.toContain('[UninstallDelete]');
     expect(runtime).toContain("path.join(process.env.ProgramData || 'C:\\\\ProgramData', 'OmniKes', 'postgresql-data')");
     expect(runtime).toContain("if (exists(path.join(data, 'PG_VERSION')))");
