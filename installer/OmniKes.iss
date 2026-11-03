@@ -52,10 +52,12 @@ begin
   begin
     RuntimeNode := ExpandConstant('{app}\runtime\node\node.exe');
     RuntimeInstaller := ExpandConstant('{app}\installer\install-runtime.cjs');
-    if not Exec(RuntimeNode, '"' + RuntimeInstaller + '"', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    if not Exec(RuntimeNode, '"' + RuntimeInstaller + '" --program-data-dir "' + ExpandConstant('{commonappdata}') + '"', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
       RaiseException('Impossible de lancer la configuration du runtime PostgreSQL OmniKes.');
     if ResultCode <> 0 then
       RaiseException('La configuration du runtime PostgreSQL OmniKes a échoué (code ' + IntToStr(ResultCode) + '). L’installation est interrompue.');
+    if not FileExists(ExpandConstant('{commonappdata}\\OmniKes\\postgresql-port.txt')) then
+      RaiseException('La configuration PostgreSQL est incomplète : le fichier postgresql-port.txt n’a pas été créé dans ProgramData.');
   end;
 end;
 
