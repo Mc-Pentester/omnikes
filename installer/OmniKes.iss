@@ -39,8 +39,25 @@ Name: "{autoprograms}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; Workin
 Name: "{autodesktop}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"
 
 [Run]
-Filename: "{app}\runtime\node\node.exe"; Parameters: """{app}\installer\install-runtime.cjs"""; WorkingDir: "{app}"; StatusMsg: "Configuration du runtime local OmniKès..."; Flags: waituntilterminated runhidden
-Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"; StatusMsg: "Démarrage d'OmniKès..."; Flags: nowait postinstall skipifsilent
+Filename: "{app}\\installer\\omnikes.exe"; WorkingDir: "{app}"; StatusMsg: "Démarrage d'OmniKès..."; Flags: nowait postinstall skipifsilent
+
+[Code]
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+  RuntimeNode: string;
+  RuntimeInstaller: string;
+begin
+  if CurStep = ssPostInstall then
+  begin
+    RuntimeNode := ExpandConstant('{app}\\runtime\\node\\node.exe');
+    RuntimeInstaller := ExpandConstant('{app}\\installer\\install-runtime.cjs');
+    if not Exec(RuntimeNode, '"' + RuntimeInstaller + '"', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+      RaiseException('Impossible de lancer la configuration du runtime PostgreSQL OmniKes.');
+    if ResultCode <> 0 then
+      RaiseException('La configuration du runtime PostgreSQL OmniKes a échoué (code ' + IntToStr(ResultCode) + '). L’installation est interrompue.');
+  end;
+end;
 
 [UninstallRun]
 Filename: "{sys}\sc.exe"; Parameters: "stop OmniKesPostgreSQL"; Flags: runhidden
