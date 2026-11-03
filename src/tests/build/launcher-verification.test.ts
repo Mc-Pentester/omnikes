@@ -70,7 +70,7 @@ describe('Windows Launcher Verification', () => {
     const content = readFileSync(runtimeInstallerPath, 'utf8');
     expect(content).toContain("['register', '-D', data, '-N', serviceName, '-S', 'auto'");
     expect(content).toContain("['start', serviceName]");
-    expect(content).toContain('waitForPostgres(password)');
+    expect(content).toContain('waitForPostgres(password, port)');
     expect(content).toContain('serviceState()');
   });
 
