@@ -30,8 +30,9 @@ internal static class OmniKesLauncher
 
             ProcessStartInfo start = new ProcessStartInfo();
             start.FileName = Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe";
-            // cmd.exe /s /c requires the extra quote pair to preserve paths containing spaces.
-            start.Arguments = "/d /s /c \\"" + script + "\\"";
+            // Use cmd.exe's required doubled quotes; this also supports installation paths with spaces.
+            string quote = ((char)34).ToString();
+            start.Arguments = "/d /s /c " + quote + quote + script + quote + quote;
             start.WorkingDirectory = installRoot;
             start.UseShellExecute = false;
             start.CreateNoWindow = true;
@@ -59,13 +60,13 @@ internal static class OmniKesLauncher
             }
 
             MessageBox.Show(
-                "OmniKes n'a pas pu démarrer. Vérifiez le service PostgreSQL Windows et consultez le journal :\\r\\n" + log,
+                "OmniKes n'a pas pu démarrer. Vérifiez le service PostgreSQL Windows et consultez le journal :" + Environment.NewLine + log,
                 "Démarrage d'OmniKes", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         catch (Exception ex)
         {
             MessageBox.Show(
-                "Impossible de lancer OmniKes :\\r\\n" + ex.Message + "\\r\\n\\r\\nJournal : " + log,
+                "Impossible de lancer OmniKes :" + Environment.NewLine + ex.Message + Environment.NewLine + Environment.NewLine + "Journal : " + log,
                 "Démarrage d'OmniKes", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
