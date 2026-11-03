@@ -11,9 +11,9 @@ internal static class OmniKesLauncher
     private static void Main()
     {
         // The executable and command script are both installed in {app}\\installer.
-        string launcherDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        string installRoot = Directory.GetParent(launcherDirectory).FullName;
-        string script = Path.Combine(launcherDirectory, "OmniKesLauncher.cmd");
+        string launcherDirectory = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory);
+        string installRoot = Path.GetFullPath(Path.Combine(launcherDirectory, ".."));
+        string script = Path.GetFullPath(Path.Combine(launcherDirectory, "OmniKesLauncher.cmd"));
         string log = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "OmniKes", "logs",
