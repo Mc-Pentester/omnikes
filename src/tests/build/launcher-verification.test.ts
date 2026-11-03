@@ -120,7 +120,10 @@ describe('Windows Launcher Verification', () => {
     expect(installer).toContain('Excludes: ".env, .env.*"');
     expect(installer).toContain('{commonappdata}\\OmniKes\\postgresql-data');
     expect(installer).not.toContain('[UninstallDelete]');
-    expect(runtime).toContain("path.join(process.env.ProgramData || 'C:\\\\ProgramData', 'OmniKes', 'postgresql-data')");
+    expect(runtime).toContain("const programDataArg = process.argv.indexOf('--program-data-dir')");
+    expect(runtime).toContain("const omniKesDataDir = path.join(programDataDir, 'OmniKes')");
+    expect(runtime).toContain("const data = path.join(omniKesDataDir, 'postgresql-data')");
+    expect(runtime).toContain("const portFile = path.join(omniKesDataDir, 'postgresql-port.txt')");
     expect(runtime).toContain("if (exists(path.join(data, 'PG_VERSION')))");
     expect(runtime).toContain("if (!exists(envPath))");
     expect(runtime).toContain("if (!state)");
