@@ -47,9 +47,9 @@ function portIsListening(candidate) {
     const output = execFileSync('netstat.exe', ['-ano', '-p', 'tcp'], {
       encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'],
     });
-    return output.split(/\\r?\\n/).some((line) => {
-      if (!/\\sLISTENING\\s/i.test(line)) return false;
-      const columns = line.trim().split(/\\s+/);
+    return output.split(/\r?\n/).some((line) => {
+      if (!/\sLISTENING\s/i.test(line)) return false;
+      const columns = line.trim().split(/\s+/);
       const local = columns[1] || '';
       return local.endsWith(':' + candidate);
     });
@@ -97,16 +97,16 @@ let password;
 if (exists(dbPasswordFile)) {
   password = fs.readFileSync(dbPasswordFile, 'utf8').trim();
 } else if (exists(envPath)) {
-  const line = fs.readFileSync(envPath, 'utf8').split(/\\r?\\n/).find((x) => x.startsWith('OMNIKES_POSTGRES_PASSWORD='));
+  const line = fs.readFileSync(envPath, 'utf8').split(/\r?\n/).find((x) => x.startsWith('OMNIKES_POSTGRES_PASSWORD='));
   password = line?.split('=').slice(1).join('=').replace(/^"|"$/g, '');
-  if (password) fs.writeFileSync(dbPasswordFile, password + '\\n', { flag: 'wx', mode: 0o600 });
+  if (password) fs.writeFileSync(dbPasswordFile, password + '\n', { flag: 'wx', mode: 0o600 });
 }
 if (!password) {
   if (exists(path.join(data, 'PG_VERSION'))) {
     throw new Error('Existing PostgreSQL cluster has no preserved OmniKès password file; refusing to guess or overwrite credentials.');
   }
   password = crypto.randomBytes(32).toString('hex');
-  fs.writeFileSync(dbPasswordFile, password + '\\n', { flag: 'wx', mode: 0o600 });
+  fs.writeFileSync(dbPasswordFile, password + '\n', { flag: 'wx', mode: 0o600 });
 }
 
 if (!exists(path.join(data, 'PG_VERSION'))) {
@@ -148,7 +148,7 @@ if (mustRegister) {
   run(pg('pg_ctl'), ['register', '-D', data, '-N', serviceName, '-S', 'auto', '-o', '-p ' + port]);
   state = serviceState();
   if (!state) throw new Error('PostgreSQL service registration did not create Windows service OmniKesPostgreSQL.');
-  fs.writeFileSync(portFile, String(port) + '\\n', { flag: 'w' });
+  fs.writeFileSync(portFile, String(port) + '\n', { flag: 'w' });
 }
 
 try {
@@ -179,7 +179,7 @@ if (!exists(envPath)) {
     'SESSION_SECRET="' + crypto.randomBytes(32).toString('hex') + '"',
     'AUTH_SECRET="' + crypto.randomBytes(32).toString('hex') + '"',
     ''
-  ].join('\\n'), { flag: 'wx' });
+  ].join('\n'), { flag: 'wx' });
 } else {
   const existingEnv = fs.readFileSync(envPath, 'utf8');
   const updatedEnv = existingEnv.match(/^DATABASE_URL=.*$/m)
@@ -187,7 +187,7 @@ if (!exists(envPath)) {
     : existingEnv.replace(/\\s*$/, '') + '\\nDATABASE_URL="' + url + '"\\n';
   if (updatedEnv !== existingEnv) fs.writeFileSync(envPath, updatedEnv);
 }
-fs.writeFileSync(portFile, String(port) + '\\n');
+fs.writeFileSync(portFile, String(port) + '\n');
 
 const prismaCli = path.join(app, 'node_modules', 'prisma', 'build', 'index.js');
 const schema = path.join(app, 'prisma', 'schema.prisma');
