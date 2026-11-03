@@ -184,7 +184,7 @@ if (!exists(envPath)) {
   const existingEnv = fs.readFileSync(envPath, 'utf8');
   const updatedEnv = existingEnv.match(/^DATABASE_URL=.*$/m)
     ? existingEnv.replace(/^DATABASE_URL=.*$/m, 'DATABASE_URL="' + url + '"')
-    : existingEnv.replace(/\\s*$/, '') + '\\nDATABASE_URL="' + url + '"\\n';
+    : existingEnv.replace(/\s*$/, '') + '\nDATABASE_URL="' + url + '"\n';
   if (updatedEnv !== existingEnv) fs.writeFileSync(envPath, updatedEnv);
 }
 fs.writeFileSync(portFile, String(port) + '\n');
