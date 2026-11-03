@@ -39,7 +39,7 @@ Name: "{autoprograms}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; Workin
 Name: "{autodesktop}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"
 
 [Run]
-Filename: "{app}\\installer\\omnikes.exe"; WorkingDir: "{app}"; StatusMsg: "Démarrage d'OmniKès..."; Flags: nowait postinstall skipifsilent
+Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"; StatusMsg: "Démarrage d'OmniKès..."; Flags: nowait postinstall skipifsilent
 
 [Code]
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -50,8 +50,8 @@ var
 begin
   if CurStep = ssPostInstall then
   begin
-    RuntimeNode := ExpandConstant('{app}\\runtime\\node\\node.exe');
-    RuntimeInstaller := ExpandConstant('{app}\\installer\\install-runtime.cjs');
+    RuntimeNode := ExpandConstant('{app}\runtime\node\node.exe');
+    RuntimeInstaller := ExpandConstant('{app}\installer\install-runtime.cjs');
     if not Exec(RuntimeNode, '"' + RuntimeInstaller + '"', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
       RaiseException('Impossible de lancer la configuration du runtime PostgreSQL OmniKes.');
     if ResultCode <> 0 then
