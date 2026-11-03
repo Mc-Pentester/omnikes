@@ -10,22 +10,36 @@ internal static class OmniKesLauncher
     [STAThread]
     private static void Main()
     {
-        string root = AppDomain.CurrentDomain.BaseDirectory;
-        string script = Path.Combine(root, "installer", "OmniKesLauncher.cmd");
-        string log = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OmniKes", "logs", "launcher-" + DateTime.Now.ToString("yyyyMMdd") + ".log");
+        // The executable and command script are both installed in {app}\\installer.
+        string launcherDirectory = AppDomain.CurrentDomain.BaseDirectory;
+        string installRoot = Directory.GetParent(launcherDirectory).FullName;
+        string script = Path.Combine(launcherDirectory, "OmniKesLauncher.cmd");
+        string log = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "OmniKes", "logs",
+            "launcher-" + DateTime.Now.ToString("yyyyMMdd") + ".log");
+
         try
         {
             if (!File.Exists(script))
-                throw new FileNotFoundException("Le lanceur interne OmniKes est introuvable. Réinstallez l'application.", script);
+                throw new FileNotFoundException(
+                    "Le lanceur interne OmniKes est introuvable. Réinstallez l'application.",
+                    script);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(log));
 
             ProcessStartInfo start = new ProcessStartInfo();
             start.FileName = Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe";
-            start.Arguments = "/d /s /c \"" + script + "\"";
-            start.WorkingDirectory = root;
+            // cmd.exe /s /c requires the extra quote pair to preserve paths containing spaces.
+            start.Arguments = "/d /s /c \\"" + script + "\\"";
+            start.WorkingDirectory = installRoot;
             start.UseShellExecute = false;
             start.CreateNoWindow = true;
             start.WindowStyle = ProcessWindowStyle.Hidden;
-            Process.Start(start);
+
+            Process process = Process.Start(start);
+            if (process == null)
+                throw new InvalidOperationException("Impossible de démarrer le lanceur interne OmniKes.");
 
             DateTime deadline = DateTime.UtcNow.AddSeconds(75);
             while (DateTime.UtcNow < deadline)
@@ -44,12 +58,14 @@ internal static class OmniKesLauncher
                 Thread.Sleep(1000);
             }
 
-            MessageBox.Show("OmniKes n'a pas pu démarrer. Vérifiez le service PostgreSQL Windows et consultez le journal :\r\n" + log,
+            MessageBox.Show(
+                "OmniKes n'a pas pu démarrer. Vérifiez le service PostgreSQL Windows et consultez le journal :\\r\\n" + log,
                 "Démarrage d'OmniKes", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Impossible de lancer OmniKes :\r\n" + ex.Message + "\r\n\r\nJournal : " + log,
+            MessageBox.Show(
+                "Impossible de lancer OmniKes :\\r\\n" + ex.Message + "\\r\\n\\r\\nJournal : " + log,
                 "Démarrage d'OmniKes", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
