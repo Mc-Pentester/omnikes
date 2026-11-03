@@ -6,6 +6,7 @@ set "OMNIKES_HOME=%~dp0.."
 set "APP_DIR=%OMNIKES_HOME%\app"
 set "NODE_EXE=%OMNIKES_HOME%\runtime\node\node.exe"
 set "PG_READY=%OMNIKES_HOME%\runtime\postgresql\bin\pg_isready.exe"
+set "PG_PORT_FILE=%ProgramData%\OmniKes\postgresql-port.txt"
 set "NODE_ENV=production"
 
 REM Configure user-writable directories and initialize logging before any operation.
@@ -39,6 +40,27 @@ if not exist "%PG_READY%" (
     echo [%time%] ERROR: PostgreSQL readiness tool missing at %PG_READY% >> "%LOG_FILE%"
     echo ERROR: Runtime PostgreSQL incomplet. Reinstallez OmniKes.
     pause
+    exit /b 1
+)
+if not exist "%PG_PORT_FILE%" (
+    echo [%time%] ERROR: PostgreSQL port configuration missing at %PG_PORT_FILE% >> "%LOG_FILE%"
+    echo ERREUR: Configuration du port PostgreSQL introuvable. Relancez l'installation OmniKes.
+    pause
+    exit /b 1
+)
+set /p PG_PORT=<"%PG_PORT_FILE%"
+echo %PG_PORT%| findstr /R "^[0-9][0-9]*$" >nul || (
+    echo [%time%] ERROR: Invalid PostgreSQL port value: %PG_PORT% >> "%LOG_FILE%"
+    echo ERREUR: Port PostgreSQL OmniKes invalide.
+    pause
+    exit /b 1
+)
+if %PG_PORT% LSS 5433 (
+    echo [%time%] ERROR: PostgreSQL port outside reserved range: %PG_PORT% >> "%LOG_FILE%"
+    exit /b 1
+)
+if %PG_PORT% GTR 5532 (
+    echo [%time%] ERROR: PostgreSQL port outside reserved range: %PG_PORT% >> "%LOG_FILE%"
     exit /b 1
 )
 
@@ -80,7 +102,7 @@ REM ERRORLEVEL 1056 means the service is already running; readiness is checked b
 REM Wait up to 45 seconds for PostgreSQL itself, not merely an open TCP port.
 set "WAIT_COUNT=0"
 :postgres_wait
-"%PG_READY%" -h 127.0.0.1 -p 5432 -t 2 >nul 2>&1
+"%PG_READY%" -h 127.0.0.1 -p %PG_PORT% -t 2 >nul 2>&1
 if not errorlevel 1 goto postgres_ready
 if %WAIT_COUNT% geq 45 (
     echo [%time%] ERROR: PostgreSQL service did not become ready. >> "%LOG_FILE%"
@@ -94,7 +116,7 @@ set /a WAIT_COUNT+=1
 goto postgres_wait
 
 :postgres_ready
-echo [%time%] PostgreSQL service is ready on 127.0.0.1:5432 >> "%LOG_FILE%"
+echo [%time%] PostgreSQL service is ready on 127.0.0.1:%PG_PORT% >> "%LOG_FILE%"
 
 REM Start the application server.
 echo [%time%] Starting OmniKes server... >> "%LOG_FILE%"
