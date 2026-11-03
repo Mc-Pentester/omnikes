@@ -101,6 +101,10 @@ describe('Windows Launcher Verification', () => {
     expect(content).toContain('runtime\\node\\node.exe');
     expect(content).toContain('install-runtime.cjs');
     expect(content).not.toContain('install-runtime.cmd');
+    expect(content).toContain('procedure CurStepChanged(CurStep: TSetupStep)');
+    expect(content).toContain('if ResultCode <> 0 then');
+    expect(content).toContain('ewWaitUntilTerminated');
+    expect(content).toContain('RaiseException');
     expect(content).toContain('omnikes.exe');
     expect(content).toContain('{autoprograms}');
     expect(content).toContain('PrivilegesRequired=admin');
