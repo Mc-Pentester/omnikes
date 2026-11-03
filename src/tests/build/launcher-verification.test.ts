@@ -76,6 +76,7 @@ describe('Windows Launcher Verification', () => {
 
   it('should avoid an existing PostgreSQL listener on port 5432 by selecting and persisting a dedicated port', () => {
     const runtime = readFileSync(runtimeInstallerPath, 'utf8');
+    expect(runtime).toContain('programDataArg');
     expect(runtime).toContain('const minPort = 5433');
     expect(runtime).toContain('const maxPort = 5532');
     expect(runtime).toContain("execFileSync('netstat.exe'");
@@ -103,6 +104,8 @@ describe('Windows Launcher Verification', () => {
     expect(content).not.toContain('install-runtime.cmd');
     expect(content).toContain('procedure CurStepChanged(CurStep: TSetupStep)');
     expect(content).toContain('if ResultCode <> 0 then');
+    expect(content).toContain('--program-data-dir');
+    expect(content).toContain('postgresql-port.txt');
     expect(content).toContain('ewWaitUntilTerminated');
     expect(content).toContain('RaiseException');
     expect(content).toContain('omnikes.exe');
