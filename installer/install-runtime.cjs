@@ -8,11 +8,16 @@ const home = path.resolve(__dirname, '..');
 const app = path.join(home, 'app');
 const runtime = path.join(home, 'runtime');
 const pgBin = path.join(runtime, 'postgresql', 'bin');
-const data = path.join(process.env.ProgramData || 'C:\\ProgramData', 'OmniKes', 'postgresql-data');
+const programDataArg = process.argv.indexOf('--program-data-dir');
+const programDataDir = programDataArg >= 0 && process.argv[programDataArg + 1]
+  ? path.resolve(process.argv[programDataArg + 1])
+  : (process.env.ProgramData || 'C:\\ProgramData');
+const omniKesDataDir = path.join(programDataDir, 'OmniKes');
+const data = path.join(omniKesDataDir, 'postgresql-data');
 const dbUser = 'omnikes';
 const dbName = 'omnikes';
 const serviceName = 'OmniKesPostgreSQL';
-const portFile = path.join(path.dirname(data), 'postgresql-port.txt');
+const portFile = path.join(omniKesDataDir, 'postgresql-port.txt');
 const minPort = 5433;
 const maxPort = 5532;
 const dbPasswordFile = path.join(data, '.omnikes-pg-password');
