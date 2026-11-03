@@ -17,6 +17,9 @@ describe('Windows Launcher Verification', () => {
     expect(source).toContain('ProcessWindowStyle.Hidden');
     expect(source).toContain('http://127.0.0.1:3000/api/health');
     expect(source).toContain('MessageBox.Show');
+    expect(source).toContain('Path.GetFullPath(Path.Combine(launcherDirectory, ".."))');
+    expect(source).toContain('Path.GetFullPath(Path.Combine(launcherDirectory, "OmniKesLauncher.cmd"))');
+    expect(source).not.toContain('Path.Combine(launcherDirectory, "installer"');
     const packaging = readFileSync(path.join(root, 'scripts', 'package-windows.ps1'), 'utf8');
     expect(packaging).toContain('target:winexe');
     expect(packaging).toContain('omnikes.exe');
@@ -47,6 +50,9 @@ describe('Windows Launcher Verification', () => {
     expect(content).toContain('sc.exe query OmniKesPostgreSQL');
     expect(content).toContain('sc.exe start OmniKesPostgreSQL');
     expect(content).toContain(':postgres_wait');
+    expect(content).toContain('PG_PORT_FILE=%ProgramData%\\OmniKes\\postgresql-port.txt');
+    expect(content).toContain('-p %PG_PORT%');
+    expect(content).not.toContain('-p 5432');
   });
 
   it('should wait for application health', () => {
@@ -66,6 +72,18 @@ describe('Windows Launcher Verification', () => {
     expect(content).toContain("['start', serviceName]");
     expect(content).toContain('waitForPostgres(password)');
     expect(content).toContain('serviceState()');
+  });
+
+  it('should avoid an existing PostgreSQL listener on port 5432 by selecting and persisting a dedicated port', () => {
+    const runtime = readFileSync(runtimeInstallerPath, 'utf8');
+    expect(runtime).toContain('const minPort = 5433');
+    expect(runtime).toContain('const maxPort = 5532');
+    expect(runtime).toContain("execFileSync('netstat.exe'");
+    expect(runtime).toContain('function choosePort()');
+    expect(runtime).toContain("String(port) + '\\n'");
+    expect(runtime).toContain('String(targetPort)');
+    expect(runtime).not.toContain('const port = 5432');
+    expect(runtime).toContain("'@127.0.0.1:' + port + '/' + dbName");
   });
 
   it('should require the PostgreSQL readiness binary during packaging', () => {
