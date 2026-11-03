@@ -39,7 +39,7 @@ Name: "{autoprograms}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; Workin
 Name: "{autodesktop}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"
 
 [Run]
-Filename: "{app}\installer\install-runtime.cmd"; Parameters: ""; StatusMsg: "Configuration du runtime local OmniKès..."; Flags: waituntilterminated runhidden
+Filename: "{app}\runtime\node\node.exe"; Parameters: """{app}\installer\install-runtime.cjs"""; WorkingDir: "{app}"; StatusMsg: "Configuration du runtime local OmniKès..."; Flags: waituntilterminated runhidden
 Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"; StatusMsg: "Démarrage d'OmniKès..."; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
