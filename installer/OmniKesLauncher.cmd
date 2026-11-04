@@ -80,8 +80,7 @@ if not exist "%OMNIKES_DATA_DIR%\.next" (
 REM Avoid starting a second application instance.
 netstat -ano | findstr /R /C:":3000 .*LISTENING" >nul 2>&1
 if not errorlevel 1 (
-    echo [%time%] OmniKes is already listening on port 3000 >> "%LOG_FILE%"
-    start "" "http://127.0.0.1:3000"
+    echo [%time%] OmniKes is already listening on port 3000; native WebView2 window will attach. >> "%LOG_FILE%"
     exit /b 0
 )
 
@@ -142,6 +141,5 @@ goto wait_loop
 
 :server_ready
 echo [%time%] OmniKes server is ready >> "%LOG_FILE%"
-start "" "http://127.0.0.1:3000"
-echo [%time%] OmniKes Launcher completed successfully >> "%LOG_FILE%"
+echo [%time%] OmniKes server is ready; native WebView2 window will display the application. >> "%LOG_FILE%"
 endlocal
