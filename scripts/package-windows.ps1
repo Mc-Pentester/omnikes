@@ -182,7 +182,7 @@ foreach ($required in @($webView2WinForms, $webView2Core, $webView2Loader)) {
 Copy-Item $webView2WinForms,$webView2Core,$webView2Loader $installer -Force
 
 $webView2Runtime = Join-Path $installer "MicrosoftEdgeWebView2RuntimeInstallerX64.exe"
-Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile $webView2Runtime -UseBasicParsing
+Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124701" -OutFile $webView2Runtime -UseBasicParsing
 if (-not (Test-Path $webView2Runtime) -or (Get-Item $webView2Runtime).Length -lt 50000000) {
   throw "The offline Evergreen WebView2 Runtime installer download is missing or unexpectedly small."
 }
