@@ -20,7 +20,8 @@ const serviceName = 'OmniKesPostgreSQL';
 const portFile = path.join(omniKesDataDir, 'postgresql-port.txt');
 const minPort = 5433;
 const maxPort = 5532;
-const dbPasswordFile = path.join(data, '.omnikes-pg-password');
+const dbPasswordFile = path.join(omniKesDataDir, '.omnikes-pg-password');
+const legacyDbPasswordFile = path.join(data, '.omnikes-pg-password');
 const envPath = path.join(app, '.env');
 let port = null;
 
@@ -96,7 +97,23 @@ function waitForPostgres(password, targetPort) {
   throw new Error('Windows service OmniKesPostgreSQL did not become ready on 127.0.0.1:' + targetPort + ' within 30 seconds.');
 }
 
+fs.mkdirSync(omniKesDataDir, { recursive: true });
 fs.mkdirSync(data, { recursive: true });
+
+// Older installer builds stored the password inside the PostgreSQL data directory.
+// Move only this known credential file out before initdb; never clear unknown files.
+if (exists(legacyDbPasswordFile)) {
+  if (!exists(dbPasswordFile)) {
+    fs.renameSync(legacyDbPasswordFile, dbPasswordFile);
+  } else {
+    const legacyPassword = fs.readFileSync(legacyDbPasswordFile, 'utf8');
+    const savedPassword = fs.readFileSync(dbPasswordFile, 'utf8');
+    if (legacyPassword !== savedPassword) {
+      throw new Error('Conflicting OmniKes PostgreSQL password files were found. Both were preserved; refusing to initialize or change database credentials.');
+    }
+    fs.unlinkSync(legacyDbPasswordFile);
+  }
+}
 
 let password;
 if (exists(dbPasswordFile)) {
@@ -115,6 +132,10 @@ if (!password) {
 }
 
 if (!exists(path.join(data, 'PG_VERSION'))) {
+  const remainingEntries = fs.readdirSync(data);
+  if (remainingEntries.length > 0) {
+    throw new Error('PostgreSQL data directory is not empty and has no PG_VERSION. Preserved existing contents: ' + remainingEntries.join(', ') + '. Refusing to delete or overwrite these files.');
+  }
   if (!exists(pg('initdb'))) throw new Error('Embedded PostgreSQL runtime is missing initdb.exe');
   run(pg('initdb'), ['-D', data, '-U', dbUser, '--pwfile=' + dbPasswordFile, '--encoding=UTF8', '--no-locale']);
 }
