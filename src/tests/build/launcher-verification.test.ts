@@ -124,6 +124,12 @@ describe('Windows Launcher Verification', () => {
     expect(runtime).toContain("const omniKesDataDir = path.join(programDataDir, 'OmniKes')");
     expect(runtime).toContain("const data = path.join(omniKesDataDir, 'postgresql-data')");
     expect(runtime).toContain("const portFile = path.join(omniKesDataDir, 'postgresql-port.txt')");
+    expect(runtime).toContain("const dbPasswordFile = path.join(omniKesDataDir, '.omnikes-pg-password')");
+    expect(runtime).toContain("const legacyDbPasswordFile = path.join(data, '.omnikes-pg-password')");
+    expect(runtime).toContain('fs.renameSync(legacyDbPasswordFile, dbPasswordFile)');
+    expect(runtime).toContain('const remainingEntries = fs.readdirSync(data)');
+    expect(runtime).toContain('Refusing to delete or overwrite these files.');
+    expect(runtime).not.toContain("const dbPasswordFile = path.join(data, '.omnikes-pg-password')");
     expect(runtime).toContain("if (exists(path.join(data, 'PG_VERSION')))");
     expect(runtime).toContain("if (!exists(envPath))");
     expect(runtime).toContain("if (!state)");
