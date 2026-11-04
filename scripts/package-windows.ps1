@@ -167,7 +167,7 @@ Copy-Item "installer\prepare-user-env.cjs" $installer -Force
 # Bundle the WebView2 WinForms SDK and Evergreen Standalone Runtime for offline PCs.
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $webView2Version = "1.0.2903.40"
-$webView2Package = Join-Path $env:TEMP "Microsoft.Web.WebView2.$webView2Version.nupkg"
+$webView2Package = Join-Path $env:TEMP "Microsoft.Web.WebView2.$webView2Version.zip"
 $webView2Extract = Join-Path $env:TEMP "OmniKes-WebView2-$webView2Version"
 Invoke-WebRequest -Uri "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/$webView2Version" -OutFile $webView2Package -UseBasicParsing
 if (Test-Path $webView2Extract) { Remove-Item $webView2Extract -Recurse -Force }
