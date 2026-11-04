@@ -198,7 +198,7 @@ $csc = $cscCandidates | Select-Object -First 1
 if (-not $csc) { throw "C# compiler (csc.exe) was not found on the Windows build agent." }
 $launcherSource = Join-Path $root "installer\OmniKesLauncher.cs"
 $launcherExe = Join-Path $installer "omnikes.exe"
-& $csc /nologo /sdk:4.6.2 /target:winexe /optimize+ /out:$launcherExe /reference:System.dll /reference:System.Core.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:"$webView2WinForms" /reference:"$webView2Core" $launcherSource
+& $csc /nologo /target:winexe /optimize+ /out:$launcherExe /reference:System.dll /reference:System.Core.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:"$webView2WinForms" /reference:"$webView2Core" $launcherSource
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path $launcherExe)) {
   throw "Native omnikes.exe launcher compilation failed."
 }
