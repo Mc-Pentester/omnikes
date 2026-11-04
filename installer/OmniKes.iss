@@ -47,6 +47,7 @@ var
   ResultCode: Integer;
   RuntimeNode: string;
   RuntimeInstaller: string;
+  WebView2Installer: string;
 begin
   if CurStep = ssPostInstall then
   begin
@@ -58,6 +59,13 @@ begin
       RaiseException('La configuration du runtime PostgreSQL OmniKes a échoué (code ' + IntToStr(ResultCode) + '). L’installation est interrompue.');
     if not FileExists(ExpandConstant('{commonappdata}\OmniKes\postgresql-port.txt')) then
       RaiseException('La configuration PostgreSQL est incomplète : le fichier postgresql-port.txt n’a pas été créé dans ProgramData.');
+    WebView2Installer := ExpandConstant('{app}\installer\MicrosoftEdgeWebView2RuntimeInstallerX64.exe');
+    if not FileExists(WebView2Installer) then
+      RaiseException('Le runtime Microsoft WebView2 est absent du paquet OmniKès.');
+    if not Exec(WebView2Installer, '/silent /install', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+      RaiseException('Impossible de lancer l’installation du runtime Microsoft WebView2.');
+    if (ResultCode <> 0) and (ResultCode <> 3010) then
+      RaiseException('L’installation du runtime Microsoft WebView2 a échoué (code ' + IntToStr(ResultCode) + ').');
   end;
 end;
 
