@@ -7,6 +7,32 @@ import { generateUniqueSlug } from '@omnikes/lib/slug';
 import { checkRateLimit, getAccountRateLimitIdentifier, getIpRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
 import { randomBytes } from 'crypto';
 
+// Keep first-launch registration independent from optional installer seed execution.
+// This catalogue is idempotently repaired inside the same transaction as account creation.
+const FIRST_LAUNCH_PERMISSION_CODES = [
+  'store.create','store.read','store.update','store.activate','store.deactivate','store.delete',
+  'proforma.create','proforma.read','proforma.update','proforma.accept','proforma.cancel','proforma.convert',
+  'customer.create','customer.read','customer.update','customer.delete',
+  'sale.create','sale.read','sale.update','sale.complete','sale.credit','sale.cancel','sale.return',
+  'payment.create','payment.read','payment.refund',
+  'cash.read','cash.open','cash.close','cash.movement',
+  'inventory.read','inventory.adjust',
+  'product.manage','product.read','report.read',
+  'organization.read','organization.update',
+  'backup.create','backup.restore','hardware.bridge.read','tax.manage',
+  'user.read','user.create','user.update',
+  'role.read','role.create','role.update','audit.read',
+  'supplier.read','supplier.manage','purchase.read','purchase.manage','purchase.receive',
+  'supplier.payment.manage','supplier.payment.read',
+] as const;
+
+function permissionModule(code: string): string {
+  const prefix = code.split('.')[0];
+  if (prefix === 'sale' || prefix === 'payment') return 'sales';
+  if (prefix === 'report') return 'reports';
+  return prefix;
+}
+
 export interface RegisterInput {
   organizationName: string;
   name: string;
@@ -95,6 +121,18 @@ export class RegistrationService {
           locale: 'fr-HT',
           timezone: 'America/Port-au-Prince',
         },
+      });
+
+      // Repair the permission catalogue at first launch. The offline installer
+      // normally initializes it, but registration must remain reliable if that
+      // optional bootstrap step was skipped or targeted another database.
+      await tx.permission.createMany({
+        data: FIRST_LAUNCH_PERMISSION_CODES.map((code) => ({
+          code,
+          description: 'Permission ' + code,
+          module: permissionModule(code),
+        })),
+        skipDuplicates: true,
       });
 
       // Create an organization-scoped ADMIN role for the new tenant.
