@@ -17,12 +17,21 @@ describe('Windows Launcher Verification', () => {
     expect(source).toContain('ProcessWindowStyle.Hidden');
     expect(source).toContain('http://127.0.0.1:3000/api/health');
     expect(source).toContain('MessageBox.Show');
+    expect(source).toContain('using Microsoft.Web.WebView2.WinForms;');
+    expect(source).toContain('new WebView2()');
+    expect(source).toContain('CoreWebView2Environment.CreateAsync');
+    expect(source).toContain('browser.CoreWebView2.Navigate("http://127.0.0.1:3000/")');
+    expect(source).toContain('AreDevToolsEnabled = false');
+    expect(source).toContain('WebView2');
     expect(source).toContain('Path.GetFullPath(Path.Combine(launcherDirectory, ".."))');
     expect(source).toContain('Path.GetFullPath(Path.Combine(launcherDirectory, "OmniKesLauncher.cmd"))');
     expect(source).not.toContain('Path.Combine(launcherDirectory, "installer"');
     const packaging = readFileSync(path.join(root, 'scripts', 'package-windows.ps1'), 'utf8');
     expect(packaging).toContain('target:winexe');
     expect(packaging).toContain('omnikes.exe');
+    expect(packaging).toContain('Microsoft.Web.WebView2');
+    expect(packaging).toContain('MicrosoftEdgeWebView2RuntimeInstallerX64.exe');
+    expect(packaging).toContain('WebView2Loader.dll');
   });
 
   it('should have OmniKesLauncher.cmd as the hidden internal startup helper', () => {
@@ -30,7 +39,10 @@ describe('Windows Launcher Verification', () => {
   });
 
   it('should configure OMNIKES_HOME correctly', () => {
-    expect(readFileSync(launcherPath, 'utf8')).toContain('OMNIKES_HOME=%~dp0..');
+    const helper = readFileSync(launcherPath, 'utf8');
+    expect(helper).toContain('OMNIKES_HOME=%~dp0..');
+    expect(helper).toContain('native WebView2 window');
+    expect(helper).not.toContain('start "" "http://127.0.0.1:3000"');
   });
 
   it('should create user-writable directories and initialize logging first', () => {
@@ -106,6 +118,9 @@ describe('Windows Launcher Verification', () => {
     expect(content).toContain('if ResultCode <> 0 then');
     expect(content).toContain('--program-data-dir');
     expect(content).toContain('postgresql-port.txt');
+    expect(content).toContain('MicrosoftEdgeWebView2RuntimeInstallerX64.exe');
+    expect(content).toContain("'/silent /install'");
+    expect(content).toContain('WebView2');
     expect(content).toContain('ewWaitUntilTerminated');
     expect(content).toContain('RaiseException');
     expect(content).toContain('omnikes.exe');
