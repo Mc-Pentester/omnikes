@@ -1,11 +1,11 @@
 name: Windows offline installer
 
+# The Windows installer is expensive to build. Run it only on demand or
+# when a release is published, never for ordinary pushes or pull requests.
 on:
-  push:
-    branches: [ main, develop, fix/windows-launcher-prisma-assertion, feature/windows-webview2-desktop ]
-  pull_request:
-    branches: [ main, develop, ci/windows-installer-production-package ]
   workflow_dispatch:
+  release:
+    types: [published]
 
 permissions:
   contents: read
