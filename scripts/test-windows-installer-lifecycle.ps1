@@ -124,11 +124,40 @@ try {
     password = 'OmniKes-QA-Password-2026!'
     confirmPassword = 'OmniKes-QA-Password-2026!'
   } | ConvertTo-Json
-  $registerRaw = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/auth/register' -Method Post -ContentType 'application/json' -Body $registration -Headers @{ Origin = 'http://127.0.0.1:3000' } -WebSession $session
-  $registerResponse = $registerRaw.Content | ConvertFrom-Json
-  Assert ($registerResponse.user.organizationId) 'First administrator registration did not return an organization.'
-  # The production cookie is Secure; pass its token explicitly because the CI smoke test uses local HTTP.
-  $cookieHeader = [string]$registerRaw.Headers['Set-Cookie']
+  # Use .NET HttpClient for this JSON POST. Windows PowerShell 5.1's
+  # Invoke-WebRequest can throw a NullReferenceException while parsing some
+  # responses in the hosted Windows runner, before exposing the actual API reply.
+  $handler = New-Object System.Net.Http.HttpClientHandler
+  $handler.UseCookies = $false
+  $httpClient = New-Object System.Net.Http.HttpClient($handler)
+  try {
+    $request = New-Object System.Net.Http.HttpRequestMessage(
+      [System.Net.Http.HttpMethod]::Post,
+      'http://127.0.0.1:3000/api/auth/register'
+    )
+    $request.Headers.TryAddWithoutValidation('Origin', 'http://127.0.0.1:3000') | Out-Null
+    $request.Content = New-Object System.Net.Http.StringContent(
+      $registration,
+      [System.Text.Encoding]::UTF8,
+      'application/json'
+    )
+    $registerRaw = $httpClient.SendAsync($request).GetAwaiter().GetResult()
+    $registerContent = $registerRaw.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+    Assert ($registerRaw.IsSuccessStatusCode) "First administrator registration failed with HTTP $([int]$registerRaw.StatusCode): $registerContent"
+    $registerResponse = $registerContent | ConvertFrom-Json
+    Assert ($registerResponse.user.organizationId) 'First administrator registration did not return an organization.'
+    # The production cookie is Secure; pass its token explicitly because the CI smoke test uses local HTTP.
+    $setCookieHeaders = @()
+    if ($registerRaw.Headers.TryGetValues('Set-Cookie', [ref]$setCookieHeaders)) {
+      $cookieHeader = ($setCookieHeaders -join '; ')
+    } else {
+      $cookieHeader = ''
+    }
+  } finally {
+    if ($request) { $request.Dispose() }
+    $httpClient.Dispose()
+    $handler.Dispose()
+  }
   $tokenMatch = [regex]::Match($cookieHeader, 'auth_token=([^;]+)')
   Assert ($tokenMatch.Success) 'Registration did not issue an auth_token cookie.'
   $authHeaders = @{
