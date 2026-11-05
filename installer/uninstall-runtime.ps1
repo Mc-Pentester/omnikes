@@ -4,6 +4,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$script:CleanupFailed = $false
 $InstallRoot = [System.IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
 $logDirectory = Join-Path $env:ProgramData 'OmniKes\logs'
 $logFile = Join-Path $logDirectory 'uninstall-runtime.log'
@@ -30,6 +31,7 @@ try {
     }
 } catch {
   Write-Log "Launcher stop warning: $($_.Exception.Message)"
+  $script:CleanupFailed = $true
 }
 
 try {
@@ -47,6 +49,7 @@ try {
     }
 } catch {
   Write-Log "Application process stop warning: $($_.Exception.Message)"
+  $script:CleanupFailed = $true
 }
 
 # The database files and credentials live in ProgramData and are deliberately retained.
@@ -56,11 +59,12 @@ try {
     if ($service.Status -ne 'Stopped') {
       Write-Log 'Stopping PostgreSQL Windows service OmniKesPostgreSQL'
       Stop-Service -Name 'OmniKesPostgreSQL' -Force -ErrorAction Stop
-      (Get-Service -Name 'OmniKesPostgreSQL').WaitForStatus(
+      $service.WaitForStatus(
         [System.ServiceProcess.ServiceControllerStatus]::Stopped,
         [TimeSpan]::FromSeconds(45)
       )
     }
+    $service.Close()
 
     Write-Log 'Deleting PostgreSQL Windows service registration'
     & "$env:SystemRoot\System32\sc.exe" delete OmniKesPostgreSQL | Out-Null
@@ -72,10 +76,12 @@ try {
     do {
       Start-Sleep -Milliseconds 500
       $remaining = Get-Service -Name 'OmniKesPostgreSQL' -ErrorAction SilentlyContinue
+      if ($remaining) { $remaining.Close() }
     } while ($remaining -and (Get-Date) -lt $deadline)
 
     if ($remaining) {
-      Write-Log 'Service deletion is pending; Windows may finish removing the registration after the last handle closes.'
+      Write-Log 'PostgreSQL service registration is still present after the deletion wait.'
+      $script:CleanupFailed = $true
     } else {
       Write-Log 'PostgreSQL service registration removed.'
     }
@@ -84,6 +90,11 @@ try {
   }
 } catch {
   Write-Log "PostgreSQL service cleanup warning: $($_.Exception.Message)"
+  $script:CleanupFailed = $true
 }
 
 Write-Log 'Uninstall cleanup finished. ProgramData database and credentials were not removed.'
+if ($script:CleanupFailed) {
+  Write-Log 'Cleanup could not safely stop all OmniKes processes/services; cancelling uninstall to avoid deleting files in use.'
+  exit 1
+}
