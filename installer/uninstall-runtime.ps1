@@ -29,6 +29,13 @@ try {
       Write-Log "Stopping OmniKes launcher PID $($_.ProcessId)"
       Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
     }
+  Start-Sleep -Milliseconds 750
+  $remainingLauncher = Get-CimInstance Win32_Process -Filter "Name = 'omnikes.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.ExecutablePath -and [System.IO.Path]::GetFullPath($_.ExecutablePath) -ieq $launcherPath }
+  if ($remainingLauncher) {
+    Write-Log 'OmniKes launcher process is still active; uninstall must be cancelled.'
+    $script:CleanupFailed = $true
+  }
 } catch {
   Write-Log "Launcher stop warning: $($_.Exception.Message)"
   $script:CleanupFailed = $true
@@ -47,6 +54,17 @@ try {
       Write-Log "Stopping OmniKes server PID $($_.ProcessId)"
       Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
     }
+  Start-Sleep -Milliseconds 750
+  $remainingNode = Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" -ErrorAction SilentlyContinue |
+    Where-Object {
+      $_.ExecutablePath -and
+      [System.IO.Path]::GetFullPath($_.ExecutablePath) -ieq $nodePath -and
+      $_.CommandLine -and $_.CommandLine.Contains($serverPath)
+    }
+  if ($remainingNode) {
+    Write-Log 'OmniKes Node server process is still active; uninstall must be cancelled.'
+    $script:CleanupFailed = $true
+  }
 } catch {
   Write-Log "Application process stop warning: $($_.Exception.Message)"
   $script:CleanupFailed = $true
