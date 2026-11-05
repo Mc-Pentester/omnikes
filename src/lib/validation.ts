@@ -90,7 +90,7 @@ export const adminUserUpdateSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters').optional(),
   isActive: z.boolean().optional(),
   roleId: z.string().min(1).optional(),
-  roleIds: z.array(z.string().cuid()).min(1, 'At least one role is required').optional(),
+  roleIds: z.array(z.string().min(1)).min(1, 'At least one role is required').optional(),
   storeId: z.string().cuid().optional(),
 }).superRefine((data, ctx) => {
   if (data.roleIds && new Set(data.roleIds).size !== data.roleIds.length) {
