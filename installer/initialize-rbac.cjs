@@ -34,7 +34,7 @@ const permissionCodes = [
 // backups, purchases, or supplier payments.
 const cashierPermissionCodes = [
   'sale.create', 'sale.read', 'sale.complete', 'sale.return',
-  'payment.create', 'payment.read',
+  'payment.create', 'payment.read', 'payment.refund',
   'inventory.read', 'product.read', 'report.read', 'store.read',
   'cash.read', 'cash.open', 'cash.close', 'cash.movement',
 ];
