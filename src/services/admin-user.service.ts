@@ -120,9 +120,8 @@ export class AdminUserService {
 
   async create(organizationId: string, input: AdminUserCreateInput, actorUserId: string) {
     const data = adminUserCreateSchema.parse(input);
-    const role = await this.assertRoleAssignable(actorUserId, organizationId, data.roleId);
-    if (role.isGlobal && data.storeId) throw new Error('Global role cannot be assigned to a specific store');
-    if (!role.isGlobal && data.storeId && role.storeId !== data.storeId) throw new Error('Role is not scoped to the selected store');
+    const roleIds = data.roleIds ?? (data.roleId ? [data.roleId] : []);
+    const roles = await this.assertRolesAssignable(actorUserId, organizationId, roleIds);
 
     const existing = await prisma.user.findUnique({ where: { email: data.email } });
     if (existing) throw new Error('A user with this email already exists');
@@ -141,7 +140,10 @@ export class AdminUserService {
         select: { id: true, email: true, name: true, isActive: true, createdAt: true },
       });
 
-      await tx.userRole.create({ data: { userId: created.id, roleId: role.id } });
+      await tx.userRole.createMany({
+        data: roles.map((role) => ({ userId: created.id, roleId: role.id })),
+        skipDuplicates: true,
+      });
 
       await tx.auditLog.create({
         data: {
@@ -155,9 +157,9 @@ export class AdminUserService {
             email: created.email,
             name: created.name,
             isActive: created.isActive,
-            roleId: role.id,
-            roleName: role.name,
-            storeId: data.storeId ?? null,
+            roleIds: roles.map((role) => role.id),
+            roleNames: roles.map((role) => role.name),
+            storeIds: roles.filter((role) => !role.isGlobal).map((role) => role.storeId),
           },
         },
       });
