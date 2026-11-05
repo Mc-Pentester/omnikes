@@ -6,6 +6,7 @@ const root = process.cwd();
 const initializer = readFileSync(path.join(root, 'installer', 'initialize-rbac.cjs'), 'utf8');
 const runtime = readFileSync(path.join(root, 'installer', 'install-runtime.cjs'), 'utf8');
 const packaging = readFileSync(path.join(root, 'scripts', 'package-windows.ps1'), 'utf8');
+const registration = readFileSync(path.join(root, 'src', 'services', 'registration.service.ts'), 'utf8');
 
 describe('Windows installer RBAC bootstrap', () => {
   it('runs the idempotent permission initializer after Prisma migrations', () => {

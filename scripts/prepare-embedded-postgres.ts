@@ -56,7 +56,7 @@ function verifyLayout(): void {
   ];
   const bin = candidates.find((p) => existsSync(path.join(p, 'postgres.exe')));
   if (!bin) throw new Error('PostgreSQL archive extracted, but postgres.exe was not found.');
-  for (const file of ['postgres.exe', 'initdb.exe', 'pg_ctl.exe']) {
+  for (const file of ['postgres.exe', 'initdb.exe', 'pg_ctl.exe', 'pg_isready.exe']) {
     if (!existsSync(path.join(bin, file))) throw new Error(`Missing PostgreSQL runtime binary: ${file}`);
   }
   console.log(`Embedded PostgreSQL runtime: ${bin}`);
