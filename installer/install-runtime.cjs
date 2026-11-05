@@ -29,7 +29,7 @@ const logFile = path.join(omniKesDataDir, 'logs', 'runtime-install.log');
 function writeLog(message) {
   try {
     fs.mkdirSync(path.dirname(logFile), { recursive: true });
-    fs.appendFileSync(logFile, '[' + new Date().toISOString() + '] ' + String(message) + '\\r\\n', 'utf8');
+    fs.appendFileSync(logFile, '[' + new Date().toISOString() + '] ' + String(message) + '\r\n', 'utf8');
   } catch {
     // Logging must never hide the original installer error.
   }
