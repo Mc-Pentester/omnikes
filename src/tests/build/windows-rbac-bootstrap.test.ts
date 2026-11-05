@@ -10,7 +10,7 @@ const registration = readFileSync(path.join(root, 'src', 'services', 'registrati
 
 describe('Windows installer RBAC bootstrap', () => {
   it('runs the idempotent permission initializer after Prisma migrations', () => {
-    expect(runtime).toContain("run(process.execPath, [prismaCli, 'migrate', 'deploy'])");
+    expect(runtime).toContain("run(process.execPath, [prismaCli, 'migrate', 'deploy', '--schema', schema], { ...process.env, DATABASE_URL: url }, app)");
     expect(runtime).toContain("path.join(__dirname, 'initialize-rbac.cjs')");
     expect(runtime.indexOf("migrate', 'deploy")).toBeLessThan(runtime.indexOf("path.join(__dirname, 'initialize-rbac.cjs')"));
   });
