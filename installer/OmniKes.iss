@@ -56,7 +56,7 @@ begin
     if not Exec(RuntimeNode, '"' + RuntimeInstaller + '" --program-data-dir "' + ExpandConstant('{commonappdata}') + '"', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
       RaiseException('Impossible de lancer la configuration du runtime PostgreSQL OmniKes.');
     if ResultCode <> 0 then
-      RaiseException('La configuration du runtime PostgreSQL OmniKes a échoué (code ' + IntToStr(ResultCode) + '). L’installation est interrompue.');
+      RaiseException('La configuration du runtime PostgreSQL OmniKes a échoué (code ' + IntToStr(ResultCode) + '). Consultez le journal : {commonappdata}\\OmniKes\\logs\\runtime-install.log.');
     if not FileExists(ExpandConstant('{commonappdata}\OmniKes\postgresql-port.txt')) then
       RaiseException('La configuration PostgreSQL est incomplète : le fichier postgresql-port.txt n’a pas été créé dans ProgramData.');
     WebView2Installer := ExpandConstant('{app}\installer\MicrosoftEdgeWebView2RuntimeInstallerX64.exe');
