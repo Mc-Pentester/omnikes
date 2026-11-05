@@ -19,6 +19,13 @@ describe('Windows installer RBAC bootstrap', () => {
     expect(packaging).toContain('Copy-Item "installer\\initialize-rbac.cjs" $installer -Force');
   });
 
+  it('creates a tenant-scoped cashier role during first registration', () => {
+    expect(registration).toContain('FIRST_LAUNCH_CASHIER_PERMISSION_CODES');
+    expect(registration).toContain("name: 'CASHIER'");
+    expect(registration).toContain('cashierPermissions.length !== FIRST_LAUNCH_CASHIER_PERMISSION_CODES.length');
+    expect(registration).toContain('tx.rolePermission.createMany');
+  });
+
   it('upserts the permission catalog and repairs only missing least-privilege cashier roles', () => {
     expect(initializer).toContain('tx.permission.upsert');
     expect(initializer).toContain('tx.platformPermission.upsert');
