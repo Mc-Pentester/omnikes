@@ -120,6 +120,8 @@ echo [%time%] PostgreSQL service is ready on 127.0.0.1:%PG_PORT% >> "%LOG_FILE%"
 REM Start the application server.
 echo [%time%] Starting OmniKes server... >> "%LOG_FILE%"
 cd /d "%APP_DIR%"
+REM Let the packaged .env supply the selected PostgreSQL port; do not inherit a stale DATABASE_URL from the parent process.
+set "DATABASE_URL="
 start "" /B "%NODE_EXE%" "%APP_DIR%\server.js" >> "%LOG_FILE%" 2>&1
 
 REM Wait for server health check (max 60 seconds).
