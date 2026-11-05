@@ -2,7 +2,7 @@ name: Windows offline installer
 
 on:
   push:
-    branches: [ main, develop, fix/windows-launcher-prisma-assertion, feature/windows-webview2-desktop ]
+    branches: [ main, develop, fix/windows-launcher-prisma-assertion, feature/windows-webview2-desktop, feature/rbac-standard-roles ]
   pull_request:
     branches: [ main, develop, ci/windows-installer-production-package ]
   workflow_dispatch:
