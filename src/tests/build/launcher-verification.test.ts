@@ -134,7 +134,13 @@ describe('Windows Launcher Verification', () => {
     expect(installer).toContain('AppId={{A2F77B5A-7D0E-4B15-9B8A-0A9B6E6A5C11}}');
     expect(installer).toContain('Excludes: ".env, .env.*"');
     expect(installer).toContain('{commonappdata}\\OmniKes\\postgresql-data');
-    expect(installer).not.toContain('[UninstallDelete]');
+    expect(installer).toContain('[UninstallRun]');
+    expect(installer).toContain('uninstall-runtime.ps1');
+    expect(installer).toContain('[UninstallDelete]');
+    expect(installer).toContain('Type: filesandordirs; Name: "{app}\\app"');
+    expect(installer).toContain('Type: filesandordirs; Name: "{app}\\runtime"');
+    expect(installer).toContain('Type: filesandordirs; Name: "{app}\\installer"');
+    expect(installer).toContain('ProgramData database and credentials are intentionally retained');
     expect(runtime).toContain("const programDataArg = process.argv.indexOf('--program-data-dir')");
     expect(runtime).toContain("const omniKesDataDir = path.join(programDataDir, 'OmniKes')");
     expect(runtime).toContain("const data = path.join(omniKesDataDir, 'postgresql-data')");
@@ -148,9 +154,30 @@ describe('Windows Launcher Verification', () => {
     expect(runtime).toContain("if (exists(path.join(data, 'PG_VERSION')))");
     expect(runtime).toContain("if (!exists(envPath))");
     expect(runtime).toContain("if (!state)");
+    const uninstall = readFileSync(path.join(installerPath, 'uninstall-runtime.ps1'), 'utf8');
+    expect(uninstall).toContain("Get-Service -Name 'OmniKesPostgreSQL'");
+    expect(uninstall).toContain("sc.exe delete OmniKesPostgreSQL");
+    expect(uninstall).toContain("WaitForStatus");
+    expect(uninstall).toContain("ProgramData database and credentials were not removed");
+    expect(uninstall).not.toContain('Remove-Item');
+    expect(uninstall).toContain("$InstallRoot 'app\\server.js'");
     expect(runtime).toContain("run(process.execPath, [prismaCli, 'migrate', 'deploy'])");
   });
 
+
+  it('should allow first-store creation without optional email and preserve actionable API errors', () => {
+    const onboarding = readFileSync(path.join(root, 'src', 'app', 'onboarding', 'page.tsx'), 'utf8');
+    const storeApi = readFileSync(path.join(root, 'src', 'app', 'api', 'stores', 'route.ts'), 'utf8');
+    const validation = readFileSync(path.join(root, 'src', 'lib', 'validation.ts'), 'utf8');
+    expect(onboarding).toContain("method: 'POST'");
+    expect(onboarding).toContain('name,');
+    expect(onboarding).toContain('code,');
+    expect(onboarding).not.toContain("email: ''");
+    expect(onboarding).toContain('errorData?.error');
+    expect(storeApi).toContain("requirePermission(request, 'store.create')");
+    expect(storeApi).toContain('storeSchema.parse');
+    expect(validation).toContain('email: z.string().email().optional()');
+  });
 
   it('should guide the first administrator to create the first store instead of showing a dead end', () => {
     const page = readFileSync(path.join(root, 'src', 'app', 'page.tsx'), 'utf8');
