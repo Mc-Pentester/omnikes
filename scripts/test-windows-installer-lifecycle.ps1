@@ -124,14 +124,17 @@ try {
     password = 'OmniKes-QA-Password-2026!'
     confirmPassword = 'OmniKes-QA-Password-2026!'
   } | ConvertTo-Json
-  $registerRaw = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/auth/register' -Method Post -ContentType 'application/json' -Body $registration -WebSession $session
+  $registerRaw = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/auth/register' -Method Post -ContentType 'application/json' -Body $registration -Headers @{ Origin = 'http://127.0.0.1:3000' } -WebSession $session
   $registerResponse = $registerRaw.Content | ConvertFrom-Json
   Assert ($registerResponse.user.organizationId) 'First administrator registration did not return an organization.'
   # The production cookie is Secure; pass its token explicitly because the CI smoke test uses local HTTP.
   $cookieHeader = [string]$registerRaw.Headers['Set-Cookie']
   $tokenMatch = [regex]::Match($cookieHeader, 'auth_token=([^;]+)')
   Assert ($tokenMatch.Success) 'Registration did not issue an auth_token cookie.'
-  $authHeaders = @{ Cookie = "auth_token=$($tokenMatch.Groups[1].Value)" }
+  $authHeaders = @{
+    Cookie = "auth_token=$($tokenMatch.Groups[1].Value)"
+    Origin = 'http://127.0.0.1:3000'
+  }
 
   $storePayload = @{
     name = 'Magasin QA'
