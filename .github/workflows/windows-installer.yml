@@ -1,15 +1,12 @@
 name: Windows offline installer
 
-# Keep only the newest run for this workflow and branch/ref.
-# Older queued or running runs are cancelled when a newer PR commit arrives.
+# Installer packaging and full Windows lifecycle tests are intentionally manual.
+# Run this workflow from Actions when an installer build is actually needed.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 on:
-  # Packaging is expensive: validate it for proposed changes, not every push.
-  pull_request:
-    branches: [ main, develop, ci/windows-installer-production-package, fix/windows-launcher-prisma-assertion, feature/windows-webview2-desktop ]
   workflow_dispatch:
 
 permissions:
