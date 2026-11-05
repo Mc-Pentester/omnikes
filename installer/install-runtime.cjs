@@ -35,14 +35,15 @@ function writeLog(message) {
   }
 }
 
-function run(file, args, env) {
-  writeLog('Running ' + path.basename(file) + ' ' + args.join(' '));
+function run(file, args, env, cwd) {
+  writeLog('Running ' + path.basename(file) + ' ' + args.join(' ') + (cwd ? ' (cwd: ' + cwd + ')' : ''));
   try {
     const output = execFileSync(file, args, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
       env: env || process.env,
+      ...(cwd ? { cwd } : {}),
     });
     if (output) writeLog(output.trim());
   } catch (error) {
@@ -259,7 +260,7 @@ if (!exists(migrations)) throw new Error('Prisma migrations are missing from the
 
 process.env.DATABASE_URL = url;
 writeLog('Applying packaged Prisma migrations.');
-run(process.execPath, [prismaCli, 'migrate', 'deploy']);
+run(process.execPath, [prismaCli, 'migrate', 'deploy', '--schema', schema], { ...process.env, DATABASE_URL: url }, app);
 writeLog('Prisma migrations completed.');
 
 const rbacInitializer = path.join(__dirname, 'initialize-rbac.cjs');
