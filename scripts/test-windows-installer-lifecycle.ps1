@@ -124,19 +124,20 @@ try {
     password = 'OmniKes-QA-Password-2026!'
     confirmPassword = 'OmniKes-QA-Password-2026!'
   } | ConvertTo-Json
-  # Use .NET HttpClient for this JSON POST. Windows PowerShell 5.1's
-  # Invoke-WebRequest can throw a NullReferenceException while parsing some
-  # responses in the hosted Windows runner, before exposing the actual API reply.
-  $handler = New-Object System.Net.Http.HttpClientHandler
+  # Windows PowerShell 5.1 may not preload System.Net.Http.
+  Add-Type -AssemblyName System.Net.Http -ErrorAction Stop
+  $handler = [System.Net.Http.HttpClientHandler]::new()
   $handler.UseCookies = $false
-  $httpClient = New-Object System.Net.Http.HttpClient($handler)
+  $httpClient = [System.Net.Http.HttpClient]::new($handler)
+  $request = $null
+  $registerRaw = $null
   try {
-    $request = New-Object System.Net.Http.HttpRequestMessage(
+    $request = [System.Net.Http.HttpRequestMessage]::new(
       [System.Net.Http.HttpMethod]::Post,
       'http://127.0.0.1:3000/api/auth/register'
     )
-    $request.Headers.TryAddWithoutValidation('Origin', 'http://127.0.0.1:3000') | Out-Null
-    $request.Content = New-Object System.Net.Http.StringContent(
+    [void]$request.Headers.TryAddWithoutValidation('Origin', 'http://127.0.0.1:3000')
+    $request.Content = [System.Net.Http.StringContent]::new(
       $registration,
       [System.Text.Encoding]::UTF8,
       'application/json'
@@ -146,15 +147,14 @@ try {
     Assert ($registerRaw.IsSuccessStatusCode) "First administrator registration failed with HTTP $([int]$registerRaw.StatusCode): $registerContent"
     $registerResponse = $registerContent | ConvertFrom-Json
     Assert ($registerResponse.user.organizationId) 'First administrator registration did not return an organization.'
-    # The production cookie is Secure; pass its token explicitly because the CI smoke test uses local HTTP.
-    $setCookieHeaders = @()
-    if ($registerRaw.Headers.TryGetValues('Set-Cookie', [ref]$setCookieHeaders)) {
-      $cookieHeader = ($setCookieHeaders -join '; ')
-    } else {
+    try {
+      $cookieHeader = ($registerRaw.Headers.GetValues('Set-Cookie') -join '; ')
+    } catch [System.InvalidOperationException] {
       $cookieHeader = ''
     }
   } finally {
     if ($request) { $request.Dispose() }
+    if ($registerRaw) { $registerRaw.Dispose() }
     $httpClient.Dispose()
     $handler.Dispose()
   }
