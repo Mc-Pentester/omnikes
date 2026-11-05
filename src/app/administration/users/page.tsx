@@ -280,7 +280,7 @@ export default function AdministrationUsersPage() {
               </label>
             )}
 
-            <button disabled={saving} className="w-full rounded-lg bg-primary px-4 py-2.5 text-white disabled:opacity-50">
+            <button disabled={saving || form.roleIds.length === 0} className="w-full rounded-lg bg-primary px-4 py-2.5 text-white disabled:opacity-50">
               {saving ? 'Enregistrement…' : selectedUser ? 'Enregistrer les modifications' : 'Créer le compte'}
             </button>
           </form>
