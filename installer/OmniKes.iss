@@ -29,6 +29,7 @@ Source: "..\dist\windows\app\*"; DestDir: "{app}\app"; Excludes: ".env, .env.*";
 Source: "..\dist\windows\node\*"; DestDir: "{app}\runtime\node"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "..\dist\windows\postgresql\*"; DestDir: "{app}\runtime\postgresql"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "..\dist\windows\installer\*"; DestDir: "{app}\installer"; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "..\installer\uninstall-runtime.ps1"; DestDir: "{app}\installer"; Flags: ignoreversion
 
 [Dirs]
 Name: "{commonappdata}\OmniKes"
@@ -70,5 +71,11 @@ begin
 end;
 
 [UninstallRun]
-Filename: "{sys}\sc.exe"; Parameters: "stop OmniKesPostgreSQL"; Flags: runhidden
-Filename: "{sys}\sc.exe"; Parameters: "delete OmniKesPostgreSQL"; Flags: runhidden
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{app}\installer\uninstall-runtime.ps1"" -InstallRoot ""{app}"""; Flags: runhidden waituntilterminated
+
+[UninstallDelete]
+; Remove residual program files, including the preserved app/.env configuration.
+; PostgreSQL data, credentials, and logs under ProgramData are intentionally untouched.
+Type: filesandordirs; Name: "{app}\app"
+Type: filesandordirs; Name: "{app}\runtime"
+Type: filesandordirs; Name: "{app}\installer"
