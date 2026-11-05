@@ -19,14 +19,19 @@ describe('Windows installer RBAC bootstrap', () => {
     expect(packaging).toContain('Copy-Item "installer\\initialize-rbac.cjs" $installer -Force');
   });
 
-  it('upserts the tenant and platform permission catalog without creating tenant data', () => {
+  it('upserts the permission catalog and repairs only missing least-privilege cashier roles', () => {
     expect(initializer).toContain('tx.permission.upsert');
     expect(initializer).toContain('tx.platformPermission.upsert');
     expect(initializer).toContain("'store.create'");
     expect(initializer).toContain("'supplier.payment.manage'");
     expect(initializer).toContain("'organization.subscription.manage'");
     expect(initializer).toContain('await prisma.permission.count()');
-    expect(initializer).not.toMatch(/tx\.(organization|user|role)\.create\s*\(/);
+    expect(initializer).toContain("where: { organizationId: organization.id, name: 'CASHIER' }");
+    expect(initializer).toContain('tx.role.create');
+    expect(initializer).toContain('tx.rolePermission.createMany');
+    expect(initializer).toContain("'sale.create'");
+    expect(initializer).toContain("'cash.movement'");
+    expect(initializer).not.toMatch(/tx\.(organization|user)\.create\s*\(/);
     expect(initializer).not.toContain('deleteMany');
     expect(initializer).not.toContain('drop database');
   });
