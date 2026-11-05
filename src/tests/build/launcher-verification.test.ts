@@ -162,7 +162,7 @@ describe('Windows Launcher Verification', () => {
     expect(uninstall).toContain("ProgramData database and credentials were not removed");
     expect(uninstall).not.toContain('Remove-Item');
     expect(uninstall).toContain("$InstallRoot 'app\\server.js'");
-    expect(runtime).toContain("run(process.execPath, [prismaCli, 'migrate', 'deploy'])");
+    expect(runtime).toContain("run(process.execPath, [prismaCli, 'migrate', 'deploy', '--schema', schema], { ...process.env, DATABASE_URL: url }, app)");
   });
 
 
