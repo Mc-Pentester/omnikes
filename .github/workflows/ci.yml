@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop, feature/windows-webview2-desktop ]
+    branches: [ main, develop, feature/windows-webview2-desktop, feature/rbac-standard-roles ]
   pull_request:
     branches: [ main, develop ]
 
