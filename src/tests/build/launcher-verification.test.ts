@@ -42,6 +42,7 @@ describe('Windows Launcher Verification', () => {
     const helper = readFileSync(launcherPath, 'utf8');
     expect(helper).toContain('OMNIKES_HOME=%~dp0..');
     expect(helper).toContain('native WebView2 window');
+    expect(helper).toContain('set "DATABASE_URL="');
     expect(helper).not.toContain('start "" "http://127.0.0.1:3000"');
   });
 
