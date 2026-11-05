@@ -1,16 +1,15 @@
 name: Windows offline installer
 
 # Keep only the newest run for this workflow and branch/ref.
-# Older queued or running runs are cancelled when a newer commit is pushed.
+# Older queued or running runs are cancelled when a newer PR commit arrives.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 on:
-  push:
-    branches: [ main, develop, fix/windows-launcher-prisma-assertion, feature/windows-webview2-desktop, feature/rbac-standard-roles ]
+  # Packaging is expensive: validate it for proposed changes, not every push.
   pull_request:
-    branches: [ main, develop, ci/windows-installer-production-package ]
+    branches: [ main, develop, ci/windows-installer-production-package, fix/windows-launcher-prisma-assertion, feature/windows-webview2-desktop ]
   workflow_dispatch:
 
 permissions:
@@ -113,11 +112,11 @@ jobs:
       - name: Verify Windows install, first-store creation, in-place upgrade, and uninstall
         shell: powershell
         run: |
-          $installer = Get-ChildItem "dist\installer\OmniKes-Setup-*-x64.exe" -File | Select-Object -First 1
+          $installer = Get-ChildItem "dist\\installer\\OmniKes-Setup-*-x64.exe" -File | Select-Object -First 1
           if (-not $installer) {
             throw "The Windows lifecycle test cannot find the generated installer."
           }
-          & "$PWD\scripts\test-windows-installer-lifecycle.ps1" -SetupExe $installer.FullName
+          & "$PWD\\scripts\\test-windows-installer-lifecycle.ps1" -SetupExe $installer.FullName
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
