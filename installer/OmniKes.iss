@@ -32,6 +32,7 @@ Source: "..\dist\windows\node\*"; DestDir: "{app}\runtime\node"; Flags: recurses
 Source: "..\dist\windows\postgresql\*"; DestDir: "{app}\runtime\postgresql"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "..\dist\windows\installer\*"; DestDir: "{app}\installer"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "..\installer\uninstall-runtime.ps1"; DestDir: "{app}\installer"; Flags: ignoreversion
+Source: "..\installer\prepare-upgrade.ps1"; DestDir: "{tmp}"; Flags: dontcopy
 
 [Dirs]
 Name: "{commonappdata}\OmniKes"
@@ -45,6 +46,32 @@ Name: "{autodesktop}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; Working
 Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"; StatusMsg: "Démarrage d'OmniKès..."; Flags: nowait postinstall skipifsilent
 
 [Code]
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+  PowerShellExe: string;
+  PrepareScript: string;
+begin
+  Result := '';
+  PowerShellExe := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
+  try
+    ExtractTemporaryFile('prepare-upgrade.ps1');
+  except
+    Result := 'Impossible de préparer la mise à jour : le script de fermeture sécurisée est absent.';
+    exit;
+  end;
+  PrepareScript := ExpandConstant('{tmp}\prepare-upgrade.ps1');
+  if not Exec(PowerShellExe,
+    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + PrepareScript + '" -InstallRoot "' + ExpandConstant('{app}') + '"',
+    ExpandConstant('{tmp}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  begin
+    Result := 'Impossible de lancer l’arrêt sécurisé des composants OmniKès. Aucun fichier ne sera remplacé.';
+    exit;
+  end;
+  if ResultCode <> 0 then
+    Result := 'Un composant OmniKès est encore actif. La mise à jour est annulée avant remplacement des fichiers. Consultez ProgramData\OmniKes\logs\prepare-upgrade.log.';
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ResultCode: Integer;
