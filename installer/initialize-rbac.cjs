@@ -29,6 +29,16 @@ const permissionCodes = [
   'supplier.payment.manage', 'supplier.payment.read',
 ];
 
+// Standard operational role: can run the register and consult operational
+// information, but cannot administer users, roles, organization settings,
+// backups, purchases, or supplier payments.
+const cashierPermissionCodes = [
+  'sale.create', 'sale.read', 'sale.complete', 'sale.return',
+  'payment.create', 'payment.read',
+  'inventory.read', 'product.read', 'report.read', 'store.read',
+  'cash.read', 'cash.open', 'cash.close', 'cash.movement',
+];
+
 function moduleFromCode(code) {
   const prefix = code.split('.')[0];
   if (prefix === 'sale' || prefix === 'payment') return 'sales';
@@ -68,7 +78,47 @@ async function main() {
 
   const count = await prisma.permission.count();
   if (count === 0) throw new Error('RBAC initialization failed: permission catalogue is empty.');
-  console.log('OmniKès RBAC catalogue initialized: ' + permissionCodes.length + ' tenant permissions defined; ' + count + ' present.');
+
+  // Upgrade-safe tenant bootstrap: add CASHIER only when the organization has
+  // no role with that name. Existing custom roles and assignments are never
+  // rewritten or deleted. Registration creates the same role for new tenants.
+  const organizations = await prisma.organization.findMany({ select: { id: true } });
+  for (const organization of organizations) {
+    await prisma.$transaction(async (tx) => {
+      const existingCashier = await tx.role.findFirst({
+        where: { organizationId: organization.id, name: 'CASHIER' },
+        select: { id: true },
+      });
+      if (existingCashier) return;
+
+      const permissions = await tx.permission.findMany({
+        where: { code: { in: cashierPermissionCodes } },
+        select: { id: true, code: true },
+      });
+      if (permissions.length !== cashierPermissionCodes.length) {
+        throw new Error('RBAC initialization failed: cashier permission catalogue is incomplete for organization ' + organization.id);
+      }
+
+      const cashierRole = await tx.role.create({
+        data: {
+          organizationId: organization.id,
+          name: 'CASHIER',
+          description: 'Accès opérationnel de caisse sans administration',
+          isGlobal: true,
+        },
+        select: { id: true },
+      });
+      await tx.rolePermission.createMany({
+        data: permissions.map((permission) => ({
+          roleId: cashierRole.id,
+          permissionId: permission.id,
+        })),
+        skipDuplicates: true,
+      });
+    });
+  }
+
+  console.log('OmniKès RBAC catalogue initialized: ' + permissionCodes.length + ' tenant permissions defined; ' + count + ' present; missing cashier roles repaired without overwriting existing roles.');
 }
 
 main()
