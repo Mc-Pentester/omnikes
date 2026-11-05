@@ -80,8 +80,14 @@ try {
     password = 'OmniKes-QA-Password-2026!'
     confirmPassword = 'OmniKes-QA-Password-2026!'
   } | ConvertTo-Json
-  $registerResponse = Invoke-RestMethod -Uri 'http://127.0.0.1:3000/api/auth/register' -Method Post -ContentType 'application/json' -Body $registration -WebSession $session
+  $registerRaw = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/auth/register' -Method Post -ContentType 'application/json' -Body $registration -WebSession $session
+  $registerResponse = $registerRaw.Content | ConvertFrom-Json
   Assert ($registerResponse.user.organizationId) 'First administrator registration did not return an organization.'
+  # The production cookie is Secure; pass its token explicitly because the CI smoke test uses local HTTP.
+  $cookieHeader = [string]$registerRaw.Headers['Set-Cookie']
+  $tokenMatch = [regex]::Match($cookieHeader, 'auth_token=([^;]+)')
+  Assert ($tokenMatch.Success) 'Registration did not issue an auth_token cookie.'
+  $authHeaders = @{ Cookie = "auth_token=$($tokenMatch.Groups[1].Value)" }
 
   $storePayload = @{
     name = 'Magasin QA'
@@ -92,7 +98,7 @@ try {
     phone = ''
     # email intentionally omitted: it is optional.
   } | ConvertTo-Json
-  $storeResponse = Invoke-RestMethod -Uri 'http://127.0.0.1:3000/api/stores' -Method Post -ContentType 'application/json' -Body $storePayload -WebSession $session
+  $storeResponse = Invoke-RestMethod -Uri 'http://127.0.0.1:3000/api/stores' -Method Post -ContentType 'application/json' -Body $storePayload -Headers $authHeaders
   Assert ($storeResponse.store.id) 'First store API did not return a persisted store.'
   Assert ($storeResponse.store.code -eq 'QA-FIRST-STORE') 'First store response contains an unexpected store code.'
   Write-Host 'FIRST ADMIN + FIRST STORE API E2E: PASS'
