@@ -230,7 +230,7 @@ export default function AdministrationUsersPage() {
                     </span>
                   </div>
                   <div className="mt-2 text-xs text-muted">
-                    {role?.name ?? 'Sans rôle'}{role?.storeId ? ' · magasin limité' : ' · global'}
+                    {role?.name ?? 'Sans rôle'}{role?.storeId ? ' · magasin limité' : ' · tous les magasins'}
                   </div>
                 </button>
               );
@@ -262,7 +262,7 @@ export default function AdministrationUsersPage() {
               <select required value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value, storeId: '' })} className="mt-1 w-full rounded-lg border px-3 py-2">
                 <option value="">Sélectionner…</option>
                 {roles.map((role) => (
-                  <option key={role.id} value={role.id}>{role.name}{role.isGlobal ? ' — global' : ' — magasin'}</option>
+                  <option key={role.id} value={role.id}>{role.name}{role.isGlobal ? ' — tous les magasins' : ' — magasin'}</option>
                 ))}
               </select>
             </label>
