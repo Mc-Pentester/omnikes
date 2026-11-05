@@ -134,8 +134,9 @@ describe('Windows Launcher Verification', () => {
     expect(installer).toContain('AppId={{A2F77B5A-7D0E-4B15-9B8A-0A9B6E6A5C11}}');
     expect(installer).toContain('Excludes: ".env, .env.*"');
     expect(installer).toContain('{commonappdata}\\OmniKes\\postgresql-data');
-    expect(installer).toContain('[UninstallRun]');
+    expect(installer).toContain('function InitializeUninstall(): Boolean;');
     expect(installer).toContain('uninstall-runtime.ps1');
+    expect(installer).toContain('ResultCode <> 0');
     expect(installer).toContain('[UninstallDelete]');
     expect(installer).toContain('Type: filesandordirs; Name: "{app}\\app"');
     expect(installer).toContain('Type: filesandordirs; Name: "{app}\\runtime"');
