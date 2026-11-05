@@ -69,6 +69,7 @@ try {
     } catch {}
     Start-Sleep -Seconds 1
   }
+
   if (-not $healthReady) {
     Write-Host '=== OmniKes launcher diagnostics ==='
     $launcherLogDir = Join-Path $env:LOCALAPPDATA 'OmniKes\logs'
@@ -103,69 +104,7 @@ try {
 
     Write-Host '--- Relevant processes ---'
     Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-      Where-Object { $_.Name -match '^(node|postgres|omnikes)\.exe
-
-  # Reproduce the first-install user journey: create the admin, then create the first store.
-  $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-  $registration = @{
-    organizationName = 'OmniKes Windows Installer QA'
-    name = 'Installer QA Admin'
-    email = 'installer-qa@omnikes.local'
-    password = 'OmniKes-QA-Password-2026!'
-    confirmPassword = 'OmniKes-QA-Password-2026!'
-  } | ConvertTo-Json
-  $registerRaw = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/auth/register' -Method Post -ContentType 'application/json' -Body $registration -WebSession $session
-  $registerResponse = $registerRaw.Content | ConvertFrom-Json
-  Assert ($registerResponse.user.organizationId) 'First administrator registration did not return an organization.'
-  # The production cookie is Secure; pass its token explicitly because the CI smoke test uses local HTTP.
-  $cookieHeader = [string]$registerRaw.Headers['Set-Cookie']
-  $tokenMatch = [regex]::Match($cookieHeader, 'auth_token=([^;]+)')
-  Assert ($tokenMatch.Success) 'Registration did not issue an auth_token cookie.'
-  $authHeaders = @{ Cookie = "auth_token=$($tokenMatch.Groups[1].Value)" }
-
-  $storePayload = @{
-    name = 'Magasin QA'
-    code = 'QA-FIRST-STORE'
-    address = ''
-    city = ''
-    country = ''
-    phone = ''
-    # email intentionally omitted: it is optional.
-  } | ConvertTo-Json
-  $storeResponse = Invoke-RestMethod -Uri 'http://127.0.0.1:3000/api/stores' -Method Post -ContentType 'application/json' -Body $storePayload -Headers $authHeaders
-  Assert ($storeResponse.store.id) 'First store API did not return a persisted store.'
-  Assert ($storeResponse.store.code -eq 'QA-FIRST-STORE') 'First store response contains an unexpected store code.'
-  Write-Host 'FIRST ADMIN + FIRST STORE API E2E: PASS'
-
-  # Put a durable marker in the local database, then reinstall over the same directory.
-  [void](Invoke-Psql "CREATE TABLE IF NOT EXISTS installer_upgrade_probe (probe_key text PRIMARY KEY, probe_value text NOT NULL); INSERT INTO installer_upgrade_probe VALUES ('preservation', 'must-survive-upgrade') ON CONFLICT (probe_key) DO UPDATE SET probe_value = EXCLUDED.probe_value;")
-  Stop-OmniKesServer
-  Install-OmniKes
-  $probe = Invoke-Psql "SELECT probe_value FROM installer_upgrade_probe WHERE probe_key = 'preservation';"
-  Assert ($probe -eq 'must-survive-upgrade') 'In-place upgrade did not preserve the PostgreSQL database.'
-  Write-Host 'IN-PLACE UPGRADE + DATABASE PRESERVATION: PASS'
-
-  # Uninstall must remove Program Files while intentionally preserving ProgramData data.
-  Stop-OmniKesServer
-  $uninstaller = Join-Path $installDir 'unins000.exe'
-  Assert (Test-Path $uninstaller) 'Inno Setup uninstaller is missing.'
-  $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
-  Assert ($uninstallProcess.ExitCode -eq 0) "OmniKes uninstaller failed with exit code $($uninstallProcess.ExitCode)."
-  Start-Sleep -Seconds 2
-  Assert (-not (Test-Path $installDir)) "Program Files installation directory remains after uninstall: $installDir"
-  Assert (Test-Path (Join-Path $databaseDir 'PG_VERSION')) 'Uninstall unexpectedly removed PostgreSQL user data.'
-  Assert (Test-Path $passwordFile) 'Uninstall unexpectedly removed the PostgreSQL credential.'
-  $service = Get-Service -Name 'OmniKesPostgreSQL' -ErrorAction SilentlyContinue
-  Assert (-not $service) 'PostgreSQL Windows service registration remains after uninstall.'
-  Write-Host 'UNINSTALL PROGRAM FILES + PRESERVE PROGRAMDATA: PASS'
-  Write-Host 'WINDOWS INSTALLER LIFECYCLE: PASS'
-} catch {
-  $_ | Out-String | Add-Content -LiteralPath $logFile
-  throw
-} finally {
-  Remove-Item Env:\PGPASSWORD -ErrorAction SilentlyContinue
-}
- } |
+      Where-Object { $_.Name -match '^(node|postgres|omnikes)\.exe$' } |
       Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine |
       Format-List
 
@@ -173,6 +112,7 @@ try {
     netstat.exe -ano -p tcp | Select-String ':3000'
     Write-Host '=== End OmniKes launcher diagnostics ==='
   }
+
   Assert $healthReady 'Packaged OmniKes server did not become healthy.'
 
   # Reproduce the first-install user journey: create the admin, then create the first store.
