@@ -151,4 +151,21 @@ describe('Windows Launcher Verification', () => {
     expect(runtime).toContain("run(process.execPath, [prismaCli, 'migrate', 'deploy'])");
   });
 
+
+  it('should guide the first administrator to create the first store instead of showing a dead end', () => {
+    const page = readFileSync(path.join(root, 'src', 'app', 'page.tsx'), 'utf8');
+    expect(page).toContain('Votre premier magasin reste à configurer');
+    expect(page).toContain("router.push('/onboarding')");
+    expect(page).toContain('Configurer mon premier magasin');
+  });
+
+  it('should persist PostgreSQL runtime failure details for installer diagnostics', () => {
+    const runtime = readFileSync(runtimeInstallerPath, 'utf8');
+    const installer = readFileSync(issPath, 'utf8');
+    expect(runtime).toContain("path.join(omniKesDataDir, 'logs', 'runtime-install.log')");
+    expect(runtime).toContain('function writeLog(message)');
+    expect(runtime).toContain('COMMAND FAILED:');
+    expect(runtime).toContain('RBAC permission catalogue initialization completed.');
+    expect(installer).toContain('runtime-install.log');
+  });
 });
