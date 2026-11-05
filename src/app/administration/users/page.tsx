@@ -99,13 +99,12 @@ export default function AdministrationUsersPage() {
   };
 
   const newUser = () => {
-    const firstGlobal = roles.find((role) => role.isGlobal);
-    setSelectedId(null);
+      setSelectedId(null);
     setForm({
       name: '',
       email: '',
       password: '',
-      roleId: firstGlobal?.id ?? '',
+      roleId: '',
       storeId: '',
       isActive: true,
     });
@@ -262,7 +261,7 @@ export default function AdministrationUsersPage() {
               <select required value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value, storeId: '' })} className="mt-1 w-full rounded-lg border px-3 py-2">
                 <option value="">Sélectionner…</option>
                 {roles.map((role) => (
-                  <option key={role.id} value={role.id}>{role.name}{role.isGlobal ? ' — tous les magasins' : ' — magasin'}</option>
+                  <option key={role.id} value={role.id}>{({ ADMIN: 'Administrateur de l’organisation', MANAGER: 'Directeur / Gérant', STORE_MANAGER: 'Responsable de magasin', CASHIER: 'Caissier', SELLER: 'Vendeur', INVENTORY_MANAGER: 'Gestionnaire de stock', PURCHASING_MANAGER: 'Responsable des achats', ACCOUNTANT: 'Comptable', AUDITOR: 'Auditeur / Consultation' } as Record<string, string>)[role.name] ?? role.name}{role.isGlobal ? ' — tous les magasins' : ' — magasin'}</option>
                 ))}
               </select>
             </label>
