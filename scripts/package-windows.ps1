@@ -52,6 +52,7 @@ if (Test-Path "public") { Copy-Item "public" (Join-Path $app "public") -Recurse 
 if (Test-Path "prisma") { Copy-Item "prisma" (Join-Path $app "prisma") -Recurse -Force }
 Copy-Item "package.json" (Join-Path $app "package.json") -Force
 Copy-Item "package-lock.json" (Join-Path $app "package-lock.json") -Force
+Copy-Item "prisma.config.ts" (Join-Path $app "prisma.config.ts") -Force
 
 
 # Remove repository-only documentation and audit artifacts copied by Next standalone tracing.
