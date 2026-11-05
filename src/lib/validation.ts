@@ -73,7 +73,7 @@ export const adminUserCreateSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   // roleId is retained temporarily for older clients; new clients use roleIds.
   roleId: z.string().min(1).optional(),
-  roleIds: z.array(z.string().cuid()).min(1, 'At least one role is required').optional(),
+  roleIds: z.array(z.string().min(1)).min(1, 'At least one role is required').optional(),
   storeId: z.string().cuid().optional(),
 }).superRefine((data, ctx) => {
   if (!data.roleIds?.length && !data.roleId) {
