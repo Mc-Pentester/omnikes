@@ -11,35 +11,40 @@ import {
 } from '@omnikes/lib/validation';
 
 export class AdminUserService {
-  private async assertRoleAssignable(actorUserId: string, organizationId: string, roleId: string) {
-    const [actorRoles, targetRole] = await Promise.all([
+  private async assertRolesAssignable(actorUserId: string, organizationId: string, roleIds: string[]) {
+    const uniqueRoleIds = [...new Set(roleIds)];
+    if (!uniqueRoleIds.length) throw new Error('At least one role is required');
+    if (uniqueRoleIds.length !== roleIds.length) throw new Error('Duplicate role assignments are not allowed');
+
+    const [actorRoles, targetRoles] = await Promise.all([
       roleRepository.getUserRoles(actorUserId),
-      prisma.role.findFirst({
-        where: { id: roleId, organizationId },
+      prisma.role.findMany({
+        where: { id: { in: uniqueRoleIds }, organizationId },
         include: { rolePermissions: { select: { permission: { select: { code: true } } } } },
       }),
     ]);
 
-    if (!targetRole) throw new Error('Role not found');
+    if (targetRoles.length !== uniqueRoleIds.length) throw new Error('One or more roles were not found');
 
     const actorPermissions = new Set(actorRoles.flatMap((role) => role.permissions));
-    const targetPermissions = targetRole.rolePermissions.map((rp) => rp.permission.code);
-    if (targetPermissions.some((permission) => !actorPermissions.has(permission))) {
-      throw new Error('Actor cannot delegate one or more permissions');
+    for (const targetRole of targetRoles) {
+      const targetPermissions = targetRole.rolePermissions.map((rp) => rp.permission.code);
+      if (targetPermissions.some((permission) => !actorPermissions.has(permission))) {
+        throw new Error('Actor cannot delegate one or more permissions');
+      }
+      if (targetRole.isGlobal) {
+        if (!actorRoles.some((role) => role.isGlobal)) {
+          throw new Error('Global role assignment requires global administration');
+        }
+      } else {
+        const authorizedStoreIds = await roleRepository.getAuthorizedStoreIds(actorUserId);
+        if (authorizedStoreIds !== null && (!targetRole.storeId || !authorizedStoreIds.includes(targetRole.storeId))) {
+          throw new Error('Role is outside the actor store scope');
+        }
+      }
     }
 
-    if (targetRole.isGlobal) {
-      if (!actorRoles.some((role) => role.isGlobal)) {
-        throw new Error('Global role assignment requires global administration');
-      }
-    } else {
-      const authorizedStoreIds = await roleRepository.getAuthorizedStoreIds(actorUserId);
-      if (authorizedStoreIds !== null && (!targetRole.storeId || !authorizedStoreIds.includes(targetRole.storeId))) {
-        throw new Error('Role is outside the actor store scope');
-      }
-    }
-
-    return targetRole;
+    return targetRoles;
   }
 
   async list(
