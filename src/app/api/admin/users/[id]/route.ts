@@ -43,6 +43,7 @@ export async function PATCH(
       error.message === 'At least one role is required' ||
       error.message === 'Duplicate role assignments are not allowed' ||
       error.message === 'Actor cannot delegate one or more permissions' ||
+      error.message === 'Global role assignment requires global administration' ||
       error.message === 'Role is outside the actor store scope' ||
       error.message === 'Target user is outside the actor store scope' ||
       error.message.includes('outside the current organization') ||
