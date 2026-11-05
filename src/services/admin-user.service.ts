@@ -180,9 +180,6 @@ export class AdminUserService {
     const target = await userRepository.findByIdWithOrganization(userId, organizationId);
     if (!target) throw new Error('User not found');
 
-    // A store-scoped administrator may mutate only users whose complete role
-    // scope is contained in the administrator's own store scope. This check
-    // applies to every field, not only roleId/storeId changes.
     const actorStoreIds = await roleRepository.getAuthorizedStoreIds(actorUserId);
     if (actorStoreIds !== null) {
       const targetRoles = target.userRoles.map(({ role }) => role);
@@ -200,18 +197,10 @@ export class AdminUserService {
       if (existing && existing.id !== userId) throw new Error('A user with this email already exists');
     }
 
-    if (data.roleId) {
-      const selectedRole = await this.assertRoleAssignable(actorUserId, organizationId, data.roleId);
-      if (selectedRole.isGlobal && data.storeId) throw new Error('Global role cannot be assigned to a specific store');
-      if (!selectedRole.isGlobal && data.storeId && selectedRole.storeId !== data.storeId) {
-        throw new Error('Role is not scoped to the selected store');
-      }
-    } else if (data.storeId) {
-      const currentRole = target.userRoles[0]?.role;
-      if (!currentRole) throw new Error('User has no role');
-      const resolvedCurrentRole = await this.assertRoleAssignable(actorUserId, organizationId, currentRole.id);
-      if (resolvedCurrentRole.isGlobal || resolvedCurrentRole.storeId !== data.storeId) throw new Error('Role is not scoped to the selected store');
-    }
+    const requestedRoleIds = data.roleIds ?? (data.roleId ? [data.roleId] : undefined);
+    const selectedRoles = requestedRoleIds
+      ? await this.assertRolesAssignable(actorUserId, organizationId, requestedRoleIds)
+      : undefined;
 
     const updateData: Prisma.UserUpdateInput = {};
     if (data.email !== undefined) updateData.email = data.email;
@@ -226,9 +215,12 @@ export class AdminUserService {
         select: { id: true, email: true, name: true, isActive: true, updatedAt: true },
       });
 
-      if (data.roleId) {
+      if (selectedRoles) {
         await tx.userRole.deleteMany({ where: { userId } });
-        await tx.userRole.create({ data: { userId, roleId: data.roleId } });
+        await tx.userRole.createMany({
+          data: selectedRoles.map((role) => ({ userId, roleId: role.id })),
+          skipDuplicates: true,
+        });
       }
 
       if (data.password !== undefined || data.isActive === false) {
@@ -246,12 +238,18 @@ export class AdminUserService {
           module: 'users',
           entityId: userId,
           entityType: 'User',
+          oldValues: requestedRoleIds
+            ? { roleIds: target.userRoles.map(({ role }) => role.id) }
+            : undefined,
           newValues: {
             ...(data.email !== undefined ? { email: data.email } : {}),
             ...(data.name !== undefined ? { name: data.name } : {}),
             ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
-            ...(data.roleId !== undefined ? { roleId: data.roleId } : {}),
-            ...(data.storeId !== undefined ? { storeId: data.storeId } : {}),
+            ...(selectedRoles ? {
+              roleIds: selectedRoles.map((role) => role.id),
+              roleNames: selectedRoles.map((role) => role.name),
+              storeIds: selectedRoles.filter((role) => !role.isGlobal).map((role) => role.storeId),
+            } : {}),
             ...(data.password !== undefined ? { passwordChanged: true } : {}),
           },
         },
@@ -262,6 +260,7 @@ export class AdminUserService {
 
     return updated;
   }
+
 }
 
 export const adminUserService = new AdminUserService();
