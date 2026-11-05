@@ -31,7 +31,7 @@ const FIRST_LAUNCH_PERMISSION_CODES = [
 // never a platform/global administrator role.
 const FIRST_LAUNCH_CASHIER_PERMISSION_CODES = [
   'sale.create', 'sale.read', 'sale.complete', 'sale.return',
-  'payment.create', 'payment.read',
+  'payment.create', 'payment.read', 'payment.refund',
   'inventory.read', 'product.read', 'report.read', 'store.read',
   'cash.read', 'cash.open', 'cash.close', 'cash.movement',
 ] as const;
