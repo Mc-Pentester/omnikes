@@ -40,8 +40,7 @@ export default function AdministrationUsersPage() {
     name: '',
     email: '',
     password: '',
-    roleId: '',
-    storeId: '',
+    roleIds: [] as string[],
     isActive: true,
   });
   const [loading, setLoading] = useState(true);
@@ -53,7 +52,6 @@ export default function AdministrationUsersPage() {
     () => users.find((item) => item.id === selectedId) ?? null,
     [users, selectedId],
   );
-  const selectedRole = roles.find((role) => role.id === form.roleId) ?? null;
 
   const load = async () => {
     setLoading(true);
@@ -84,14 +82,12 @@ export default function AdministrationUsersPage() {
   }, [authLoading, user]);
 
   const selectUser = (item: UserItem) => {
-    const role = item.userRoles[0]?.role;
     setSelectedId(item.id);
     setForm({
       name: item.name ?? '',
       email: item.email,
       password: '',
-      roleId: role?.id ?? '',
-      storeId: role?.storeId ?? '',
+      roleIds: item.userRoles.map(({ role }) => role.id),
       isActive: item.isActive,
     });
     setMessage('');
@@ -99,14 +95,12 @@ export default function AdministrationUsersPage() {
   };
 
   const newUser = () => {
-    const firstGlobal = roles.find((role) => role.isGlobal);
-    setSelectedId(null);
+      setSelectedId(null);
     setForm({
       name: '',
       email: '',
       password: '',
-      roleId: firstGlobal?.id ?? '',
-      storeId: '',
+      roleIds: [],
       isActive: true,
     });
     setMessage('');
@@ -123,16 +117,13 @@ export default function AdministrationUsersPage() {
       const payload: Record<string, unknown> = {
         name: form.name,
         email: form.email,
-        roleId: form.roleId,
+        roleIds: form.roleIds,
       };
       if (form.password) payload.password = form.password;
       if (selectedId) {
         payload.isActive = form.isActive;
       } else {
         payload.password = form.password;
-      }
-      if (selectedRole && !selectedRole.isGlobal && form.storeId) {
-        payload.storeId = form.storeId;
       }
 
       const response = await fetch(
@@ -213,7 +204,6 @@ export default function AdministrationUsersPage() {
           </div>
           <div className="divide-y">
             {users.map((item) => {
-              const role = item.userRoles[0]?.role;
               return (
                 <button
                   key={item.id}
@@ -230,7 +220,7 @@ export default function AdministrationUsersPage() {
                     </span>
                   </div>
                   <div className="mt-2 text-xs text-muted">
-                    {role?.name ?? 'Sans rôle'}{role?.storeId ? ' · magasin limité' : ' · tous les magasins'}
+                    {item.userRoles.length ? item.userRoles.map(({ role }) => `${role.name}${role.storeId ? ' · ' + (stores.find((store) => store.id === role.storeId)?.name ?? 'magasin') : ' · tous les magasins'}`).join(' ; ') : 'Sans rôle'}
                   </div>
                 </button>
               );
@@ -257,27 +247,31 @@ export default function AdministrationUsersPage() {
               <input required={!selectedUser} minLength={8} type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2" />
             </label>
 
-            <label className="block">
-              <span className="text-sm font-medium">Rôle</span>
-              <select required value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value, storeId: '' })} className="mt-1 w-full rounded-lg border px-3 py-2">
-                <option value="">Sélectionner…</option>
-                {roles.map((role) => (
-                  <option key={role.id} value={role.id}>{role.name}{role.isGlobal ? ' — tous les magasins' : ' — magasin'}</option>
-                ))}
-              </select>
-            </label>
-
-            {selectedRole && !selectedRole.isGlobal && (
-              <label className="block">
-                <span className="text-sm font-medium">Magasin autorisé</span>
-                <select required value={form.storeId} onChange={(e) => setForm({ ...form, storeId: e.target.value })} className="mt-1 w-full rounded-lg border px-3 py-2">
-                  <option value="">Sélectionner…</option>
-                  {stores.filter((store) => store.isActive).map((store) => (
-                    <option key={store.id} value={store.id}>{store.name} ({store.code})</option>
-                  ))}
-                </select>
-              </label>
-            )}
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium">Rôles et périmètres d’accès</legend>
+              <p className="text-xs text-muted">Sélectionnez un ou plusieurs rôles. Les rôles limités à un magasin conservent leur périmètre propre.</p>
+              <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border p-3">
+                {roles.map((role) => {
+                  const checked = form.roleIds.includes(role.id);
+                  const label = ({ ADMIN: 'Administrateur de l’organisation', MANAGER: 'Directeur / Gérant', STORE_MANAGER: 'Responsable de magasin', CASHIER: 'Caissier', SELLER: 'Vendeur', INVENTORY_MANAGER: 'Gestionnaire de stock', PURCHASING_MANAGER: 'Responsable des achats', ACCOUNTANT: 'Comptable', AUDITOR: 'Auditeur / Consultation' } as Record<string, string>)[role.name] ?? role.name;
+                  const scope = role.isGlobal ? 'Tous les magasins' : (stores.find((store) => store.id === role.storeId)?.name ?? 'Magasin spécifique');
+                  return (
+                    <label key={role.id} className="flex cursor-pointer items-start gap-2 rounded-md p-2 hover:bg-surface-muted">
+                      <input type="checkbox" checked={checked} onChange={(event) => setForm({
+                        ...form,
+                        roleIds: event.target.checked ? [...form.roleIds, role.id] : form.roleIds.filter((id) => id !== role.id),
+                      })} />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium">{label}</span>
+                        <span className="block text-xs text-muted">{scope}{role.description ? ' · ' + role.description : ''}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+                {!roles.length && <p className="text-sm text-muted">Aucun rôle disponible pour votre périmètre.</p>}
+              </div>
+              {!form.roleIds.length && <p className="text-xs text-danger">Sélectionnez au moins un rôle.</p>}
+            </fieldset>
 
             {selectedUser && (
               <label className="flex items-center gap-2">
@@ -286,7 +280,7 @@ export default function AdministrationUsersPage() {
               </label>
             )}
 
-            <button disabled={saving} className="w-full rounded-lg bg-primary px-4 py-2.5 text-white disabled:opacity-50">
+            <button disabled={saving || form.roleIds.length === 0} className="w-full rounded-lg bg-primary px-4 py-2.5 text-white disabled:opacity-50">
               {saving ? 'Enregistrement…' : selectedUser ? 'Enregistrer les modifications' : 'Créer le compte'}
             </button>
           </form>

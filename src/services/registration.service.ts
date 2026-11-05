@@ -6,6 +6,7 @@ import { organizationRepository } from '@omnikes/repositories/organization.repos
 import { generateUniqueSlug } from '@omnikes/lib/slug';
 import { checkRateLimit, getAccountRateLimitIdentifier, getIpRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
 import { randomBytes } from 'crypto';
+import { provisionStandardTenantRoles } from '@omnikes/lib/rbac/standard-tenant-roles';
 
 // Keep first-launch registration independent from optional installer seed execution.
 // This catalogue is idempotently repaired inside the same transaction as account creation.
@@ -200,6 +201,8 @@ export class RegistrationService {
         })),
         skipDuplicates: true,
       });
+
+      await provisionStandardTenantRoles(tx, organization.id);
 
       // Create User
       const user = await tx.user.create({
