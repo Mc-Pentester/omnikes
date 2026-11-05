@@ -157,7 +157,7 @@ describe('Windows Launcher Verification', () => {
     expect(runtime).toContain("if (!state)");
     const uninstall = readFileSync(path.join(installerPath, 'uninstall-runtime.ps1'), 'utf8');
     expect(uninstall).toContain("Get-Service -Name 'OmniKesPostgreSQL'");
-    expect(uninstall).toContain("sc.exe delete OmniKesPostgreSQL");
+    expect(uninstall).toMatch(/sc\\.exe["\\']?\\s+delete OmniKesPostgreSQL/);
     expect(uninstall).toContain("WaitForStatus");
     expect(uninstall).toContain("ProgramData database and credentials were not removed");
     expect(uninstall).not.toContain('Remove-Item');
