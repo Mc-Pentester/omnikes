@@ -70,8 +70,28 @@ begin
   end;
 end;
 
-[UninstallRun]
-Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File ""{app}\installer\uninstall-runtime.ps1"" -InstallRoot ""{app}"""; Flags: runhidden waituntilterminated
+function InitializeUninstall(): Boolean;
+var
+  ResultCode: Integer;
+  PowerShellExe: string;
+  CleanupScript: string;
+begin
+  PowerShellExe := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
+  CleanupScript := ExpandConstant('{app}\installer\uninstall-runtime.ps1');
+  if not Exec(PowerShellExe, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + CleanupScript + '" -InstallRoot "' + ExpandConstant('{app}') + '"', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  begin
+    MsgBox('Impossible de préparer la désinstallation : les composants OmniKès n’ont pas pu être arrêtés. Aucun fichier ne sera supprimé.', mbError, MB_OK);
+    Result := False;
+    exit;
+  end;
+  if ResultCode <> 0 then
+  begin
+    MsgBox('Un service ou processus OmniKès est encore actif. Fermez OmniKès puis relancez la désinstallation. Vos fichiers et données ont été conservés.', mbError, MB_OK);
+    Result := False;
+    exit;
+  end;
+  Result := True;
+end;
 
 [UninstallDelete]
 ; Remove residual program files, including the preserved app/.env configuration.
