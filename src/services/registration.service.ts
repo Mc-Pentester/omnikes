@@ -26,6 +26,16 @@ const FIRST_LAUNCH_PERMISSION_CODES = [
   'supplier.payment.manage','supplier.payment.read',
 ] as const;
 
+// Keep the initial cashier role aligned with the least-privilege role used by
+// the PostgreSQL RBAC seed. This is tenant-scoped (all stores in this org),
+// never a platform/global administrator role.
+const FIRST_LAUNCH_CASHIER_PERMISSION_CODES = [
+  'sale.create', 'sale.read', 'sale.complete', 'sale.return',
+  'payment.create', 'payment.read',
+  'inventory.read', 'product.read', 'report.read', 'store.read',
+  'cash.read', 'cash.open', 'cash.close', 'cash.movement',
+] as const;
+
 function permissionModule(code: string): string {
   const prefix = code.split('.')[0];
   if (prefix === 'sale' || prefix === 'payment') return 'sales';
@@ -160,6 +170,32 @@ export class RegistrationService {
       await tx.rolePermission.createMany({
         data: permissions.map((permission) => ({
           roleId: adminRole.id,
+          permissionId: permission.id,
+        })),
+        skipDuplicates: true,
+      });
+
+      // Provision the standard cashier role so the first administrator can
+      // create staff accounts immediately. Its permissions are deliberately
+      // narrower than ADMIN and its scope remains inside this organization.
+      const cashierRole = await tx.role.create({
+        data: {
+          name: 'CASHIER',
+          description: 'Accès opérationnel de caisse sans administration',
+          organizationId: organization.id,
+          isGlobal: true,
+        },
+      });
+      const cashierPermissions = await tx.permission.findMany({
+        where: { code: { in: [...FIRST_LAUNCH_CASHIER_PERMISSION_CODES] } },
+        select: { id: true },
+      });
+      if (cashierPermissions.length !== FIRST_LAUNCH_CASHIER_PERMISSION_CODES.length) {
+        throw new Error('Cashier role permission catalogue is incomplete.');
+      }
+      await tx.rolePermission.createMany({
+        data: cashierPermissions.map((permission) => ({
+          roleId: cashierRole.id,
           permissionId: permission.id,
         })),
         skipDuplicates: true,
