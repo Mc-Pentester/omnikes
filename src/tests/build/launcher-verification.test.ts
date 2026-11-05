@@ -141,7 +141,7 @@ describe('Windows Launcher Verification', () => {
     expect(installer).toContain('Type: filesandordirs; Name: "{app}\\app"');
     expect(installer).toContain('Type: filesandordirs; Name: "{app}\\runtime"');
     expect(installer).toContain('Type: filesandordirs; Name: "{app}\\installer"');
-    expect(installer).toContain('ProgramData database and credentials are intentionally retained');
+    expect(installer).toContain('PostgreSQL data, credentials, and logs under ProgramData are intentionally untouched.');
     expect(runtime).toContain("const programDataArg = process.argv.indexOf('--program-data-dir')");
     expect(runtime).toContain("const omniKesDataDir = path.join(programDataDir, 'OmniKes')");
     expect(runtime).toContain("const data = path.join(omniKesDataDir, 'postgresql-data')");
