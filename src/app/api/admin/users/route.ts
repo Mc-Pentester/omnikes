@@ -58,6 +58,9 @@ export async function POST(request: NextRequest) {
       error.message === 'A user with this email already exists' ||
       error.message === 'Global role cannot be assigned to a specific store' ||
       error.message === 'Role not found' ||
+      error.message === 'One or more roles were not found' ||
+      error.message === 'At least one role is required' ||
+      error.message === 'Duplicate role assignments are not allowed' ||
       error.message === 'Actor cannot delegate one or more permissions' ||
       error.message === 'Role is outside the actor store scope' ||
       error.message.includes('outside the current organization') ||
