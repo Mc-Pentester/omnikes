@@ -91,7 +91,6 @@ async function main() {
   for (const organization of organizations) {
     await prisma.$transaction(async (tx) => {
       const catalog = await tx.permission.findMany({ select: { id: true, code: true } });
-      const permissionIdByCode = new Map(catalog.map((permission) => [permission.code, permission.id]));
 
       for (const definition of standardRoles) {
         const existing = await tx.role.findFirst({
