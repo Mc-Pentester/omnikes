@@ -27,6 +27,13 @@ const FIRST_LAUNCH_PERMISSION_CODES = [
   'supplier.payment.manage','supplier.payment.read',
 ] as const;
 
+function permissionModule(code: string): string {
+  const prefix = code.split('.')[0];
+  if (prefix === 'sale' || prefix === 'payment') return 'sales';
+  if (prefix === 'report') return 'reports';
+  return prefix;
+}
+
 export interface RegisterInput {
   organizationName: string;
   name: string;
