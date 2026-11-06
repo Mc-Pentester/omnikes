@@ -195,7 +195,7 @@ try {
       throw "Registration HTTP $($registerResult.StatusCode) did not return Set-Cookie. Body: $($registerResult.Body)"
     }
     $setCookieHeader = $setCookieValues -join '; '
-    $tokenMatch = [regex]::Match($setCookieHeader, '(?:^|[,;]\\s*)auth_token=([^; ,]+)')
+    $tokenMatch = [regex]::Match($setCookieHeader, 'auth_token=([^;,]+)')
     Assert ($tokenMatch.Success) "Registration Set-Cookie did not contain auth_token. Set-Cookie: $setCookieHeader"
     $authCookie = "auth_token=$($tokenMatch.Groups[1].Value)"
     $registerResult.Response.Dispose()
