@@ -116,69 +116,136 @@ try {
   Assert $healthReady 'Packaged OmniKes server did not become healthy.'
 
   # Reproduce the first-install user journey: create the admin, then create the first store.
-  $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-  $registration = @{
-    organizationName = 'OmniKes Windows Installer QA'
-    name = 'Installer QA Admin'
-    email = 'installer-qa@omnikes.local'
-    password = 'OmniKes-QA-Password-2026!'
-    confirmPassword = 'OmniKes-QA-Password-2026!'
-  } | ConvertTo-Json
-  # Windows PowerShell 5.1 may not preload System.Net.Http.
+  # Use one HttpClient for registration, session verification and store creation.
+  # Cookies are disabled in the handler so the exact auth_token from Set-Cookie
+  # is explicitly attached to every authenticated request below.
   Add-Type -AssemblyName System.Net.Http -ErrorAction Stop
   $handler = [System.Net.Http.HttpClientHandler]::new()
   $handler.UseCookies = $false
   $httpClient = [System.Net.Http.HttpClient]::new($handler)
-  $request = $null
-  $registerRaw = $null
-  try {
+  $httpClient.Timeout = [TimeSpan]::FromSeconds(30)
+  $baseUrl = 'http://127.0.0.1:3000'
+
+  function Invoke-OmniKesJsonRequest {
+    param(
+      [Parameter(Mandatory = $true)][string]$Method,
+      [Parameter(Mandatory = $true)][string]$Path,
+      [string]$JsonBody,
+      [string]$CookieHeader
+    )
+
     $request = [System.Net.Http.HttpRequestMessage]::new(
-      [System.Net.Http.HttpMethod]::Post,
-      'http://127.0.0.1:3000/api/auth/register'
+      [System.Net.Http.HttpMethod]::new($Method),
+      ($baseUrl + $Path)
     )
-    [void]$request.Headers.TryAddWithoutValidation('Origin', 'http://127.0.0.1:3000')
-    $request.Content = [System.Net.Http.StringContent]::new(
-      $registration,
-      [System.Text.Encoding]::UTF8,
-      'application/json'
-    )
-    $registerRaw = $httpClient.SendAsync($request).GetAwaiter().GetResult()
-    $registerContent = $registerRaw.Content.ReadAsStringAsync().GetAwaiter().GetResult()
-    Assert ($registerRaw.IsSuccessStatusCode) "First administrator registration failed with HTTP $([int]$registerRaw.StatusCode): $registerContent"
-    $registerResponse = $registerContent | ConvertFrom-Json
-    $organizationId = [string]$registerResponse.user.organizationId
-    Assert (-not [string]::IsNullOrWhiteSpace($organizationId)) 'First administrator registration did not return an organization.'
     try {
-      $cookieHeader = ($registerRaw.Headers.GetValues('Set-Cookie') -join '; ')
-    } catch [System.InvalidOperationException] {
-      $cookieHeader = ''
+      [void]$request.Headers.TryAddWithoutValidation('Origin', $baseUrl)
+      if (-not [string]::IsNullOrWhiteSpace($CookieHeader)) {
+        [void]$request.Headers.TryAddWithoutValidation('Cookie', $CookieHeader)
+      }
+      if ($null -ne $JsonBody) {
+        $request.Content = [System.Net.Http.StringContent]::new(
+          $JsonBody,
+          [System.Text.Encoding]::UTF8,
+          'application/json'
+        )
+      }
+
+      $response = $httpClient.SendAsync($request).GetAwaiter().GetResult()
+      try {
+        $responseBody = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+        return [pscustomobject]@{
+          StatusCode = [int]$response.StatusCode
+          IsSuccessStatusCode = [bool]$response.IsSuccessStatusCode
+          Body = $responseBody
+          Response = $response
+        }
+      } catch {
+        $response.Dispose()
+        throw
+      }
+    } finally {
+      $request.Dispose()
     }
+  }
+
+  try {
+    $registration = @{
+      organizationName = 'OmniKes Windows Installer QA'
+      name = 'Installer QA Admin'
+      email = 'installer-qa@omnikes.local'
+      password = 'OmniKes-QA-Password-2026!'
+      confirmPassword = 'OmniKes-QA-Password-2026!'
+    } | ConvertTo-Json
+
+    $registerResult = Invoke-OmniKesJsonRequest -Method 'POST' -Path '/api/auth/register' -JsonBody $registration
+    Write-Host "Registration HTTP status: $($registerResult.StatusCode)"
+    if (-not $registerResult.IsSuccessStatusCode) {
+      throw "First administrator registration failed with HTTP $($registerResult.StatusCode): $($registerResult.Body)"
+    }
+
+    $registerResponse = $registerResult.Body | ConvertFrom-Json
+    $organizationId = [string]$registerResponse.user.organizationId
+    $registeredUserId = [string]$registerResponse.user.id
+    Assert (-not [string]::IsNullOrWhiteSpace($organizationId)) 'First administrator registration did not return an organization.'
+    Assert (-not [string]::IsNullOrWhiteSpace($registeredUserId)) 'First administrator registration did not return a user.'
+
+    $setCookieValues = $null
+    if (-not $registerResult.Response.Headers.TryGetValues('Set-Cookie', [ref]$setCookieValues)) {
+      throw "Registration HTTP $($registerResult.StatusCode) did not return Set-Cookie. Body: $($registerResult.Body)"
+    }
+    $setCookieHeader = $setCookieValues -join '; '
+    $tokenMatch = [regex]::Match($setCookieHeader, '(?:^|[,;]\\s*)auth_token=([^; ,]+)')
+    Assert ($tokenMatch.Success) "Registration Set-Cookie did not contain auth_token. Set-Cookie: $setCookieHeader"
+    $authCookie = "auth_token=$($tokenMatch.Groups[1].Value)"
+    $registerResult.Response.Dispose()
+
+    # Verify that the issued cookie resolves to the same user and organization
+    # before attempting store creation or proceeding to the upgrade phase.
+    $sessionResult = Invoke-OmniKesJsonRequest -Method 'GET' -Path '/api/auth/me' -CookieHeader $authCookie
+    Write-Host "Session verification HTTP status: $($sessionResult.StatusCode)"
+    if (-not $sessionResult.IsSuccessStatusCode) {
+      throw "Session verification failed with HTTP $($sessionResult.StatusCode): $($sessionResult.Body)"
+    }
+    $sessionResponse = $sessionResult.Body | ConvertFrom-Json
+    Assert ([string]$sessionResponse.user.id -eq $registeredUserId) "Session user does not match registered administrator. Response: $($sessionResult.Body)"
+    Assert ([string]$sessionResponse.user.organizationId -eq $organizationId) "Session organization does not match registration. Response: $($sessionResult.Body)"
+    $sessionResult.Response.Dispose()
+    Write-Host 'REGISTRATION SESSION VALIDATION: PASS'
+
+    $storePayload = @{
+      name = 'Magasin QA'
+      code = 'QA-FIRST-STORE'
+      address = ''
+      city = ''
+      country = ''
+      phone = ''
+      # email intentionally omitted: it is optional.
+    } | ConvertTo-Json
+    $storeResult = Invoke-OmniKesJsonRequest -Method 'POST' -Path '/api/stores' -JsonBody $storePayload -CookieHeader $authCookie
+    Write-Host "First store creation HTTP status: $($storeResult.StatusCode)"
+    if ($storeResult.StatusCode -ne 201) {
+      throw "First store creation failed with HTTP $($storeResult.StatusCode): $($storeResult.Body)"
+    }
+    $storeResponse = $storeResult.Body | ConvertFrom-Json
+    Assert ($storeResponse.store.id) "First store API did not return a persisted store. Response: $($storeResult.Body)"
+    Assert ($storeResponse.store.code -eq 'QA-FIRST-STORE') "First store response contains an unexpected store code. Response: $($storeResult.Body)"
+    $storeResult.Response.Dispose()
+
+    # Recheck the same authenticated session before any upgrade operation.
+    $preUpgradeSession = Invoke-OmniKesJsonRequest -Method 'GET' -Path '/api/auth/me' -CookieHeader $authCookie
+    Write-Host "Pre-upgrade session verification HTTP status: $($preUpgradeSession.StatusCode)"
+    if (-not $preUpgradeSession.IsSuccessStatusCode) {
+      throw "Session was not valid before upgrade: HTTP $($preUpgradeSession.StatusCode): $($preUpgradeSession.Body)"
+    }
+    $preUpgradeResponse = $preUpgradeSession.Body | ConvertFrom-Json
+    Assert ([string]$preUpgradeResponse.user.id -eq $registeredUserId) "Pre-upgrade session resolved to a different user. Response: $($preUpgradeSession.Body)"
+    $preUpgradeSession.Response.Dispose()
+    Write-Host 'FIRST ADMIN + SESSION + FIRST STORE API E2E: PASS'
   } finally {
-    if ($request) { $request.Dispose() }
-    if ($registerRaw) { $registerRaw.Dispose() }
     $httpClient.Dispose()
     $handler.Dispose()
   }
-  $tokenMatch = [regex]::Match($cookieHeader, 'auth_token=([^;]+)')
-  Assert ($tokenMatch.Success) 'Registration did not issue an auth_token cookie.'
-  $authHeaders = @{
-    Cookie = "auth_token=$($tokenMatch.Groups[1].Value)"
-    Origin = 'http://127.0.0.1:3000'
-  }
-
-  $storePayload = @{
-    name = 'Magasin QA'
-    code = 'QA-FIRST-STORE'
-    address = ''
-    city = ''
-    country = ''
-    phone = ''
-    # email intentionally omitted: it is optional.
-  } | ConvertTo-Json
-  $storeResponse = Invoke-RestMethod -Uri 'http://127.0.0.1:3000/api/stores' -Method Post -ContentType 'application/json' -Body $storePayload -Headers $authHeaders
-  Assert ($storeResponse.store.id) 'First store API did not return a persisted store.'
-  Assert ($storeResponse.store.code -eq 'QA-FIRST-STORE') 'First store response contains an unexpected store code.'
-  Write-Host 'FIRST ADMIN + FIRST STORE API E2E: PASS'
 
   # Put a durable marker in the local database, then reinstall over the same directory.
   [void](Invoke-Psql "CREATE TABLE IF NOT EXISTS installer_upgrade_probe (probe_key text PRIMARY KEY, probe_value text NOT NULL); INSERT INTO installer_upgrade_probe VALUES ('preservation', 'must-survive-upgrade') ON CONFLICT (probe_key) DO UPDATE SET probe_value = EXCLUDED.probe_value;")
