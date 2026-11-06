@@ -99,13 +99,15 @@ export default function AdministrationUsersPage() {
   };
 
   const newUser = () => {
-    const firstGlobal = roles.find((role) => role.isGlobal);
+    // Never default a new employee account to ADMIN. CASHIER is the
+    // least-privilege operational default; if unavailable, require an explicit choice.
+    const leastPrivilegeDefault = roles.find((role) => role.name === 'CASHIER');
     setSelectedId(null);
     setForm({
       name: '',
       email: '',
       password: '',
-      roleId: firstGlobal?.id ?? '',
+      roleId: leastPrivilegeDefault?.id ?? '',
       storeId: '',
       isActive: true,
     });
