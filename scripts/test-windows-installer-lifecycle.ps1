@@ -146,7 +146,8 @@ try {
     $registerContent = $registerRaw.Content.ReadAsStringAsync().GetAwaiter().GetResult()
     Assert ($registerRaw.IsSuccessStatusCode) "First administrator registration failed with HTTP $([int]$registerRaw.StatusCode): $registerContent"
     $registerResponse = $registerContent | ConvertFrom-Json
-    Assert ($registerResponse.user.organizationId) 'First administrator registration did not return an organization.'
+    $organizationId = [string]$registerResponse.user.organizationId
+    Assert (-not [string]::IsNullOrWhiteSpace($organizationId)) 'First administrator registration did not return an organization.'
     try {
       $cookieHeader = ($registerRaw.Headers.GetValues('Set-Cookie') -join '; ')
     } catch [System.InvalidOperationException] {
