@@ -7,6 +7,7 @@ set "APP_DIR=%OMNIKES_HOME%\app"
 set "NODE_EXE=%OMNIKES_HOME%\runtime\node\node.exe"
 set "PG_READY=%OMNIKES_HOME%\runtime\postgresql\bin\pg_isready.exe"
 set "PG_PORT_FILE=%ProgramData%\OmniKes\postgresql-port.txt"
+set "APP_PORT_FILE=%ProgramData%\OmniKes\app-port.txt"
 set "NODE_ENV=production"
 
 REM Configure user-writable directories and initialize logging before any operation.
@@ -64,6 +65,28 @@ if %PG_PORT% GTR 5532 (
     exit /b 1
 )
 
+if not exist "%APP_PORT_FILE%" (
+    echo [%time%] ERROR: Application port configuration missing at %APP_PORT_FILE% >> "%LOG_FILE%"
+    echo ERREUR: Configuration du port OmniKes introuvable. Relancez l'installation.
+    pause
+    exit /b 1
+)
+set /p APP_PORT=<"%APP_PORT_FILE%"
+echo %APP_PORT%| findstr /R "^[0-9][0-9]*$" >nul || (
+    echo [%time%] ERROR: Invalid application port value: %APP_PORT% >> "%LOG_FILE%"
+    exit /b 1
+)
+if %APP_PORT% LSS 3001 (
+    echo [%time%] ERROR: Application port outside reserved range: %APP_PORT% >> "%LOG_FILE%"
+    exit /b 1
+)
+if %APP_PORT% GTR 3099 (
+    echo [%time%] ERROR: Application port outside reserved range: %APP_PORT% >> "%LOG_FILE%"
+    exit /b 1
+)
+set "APP_URL=http://127.0.0.1:%APP_PORT%"
+set "APP_HEALTH_URL=%APP_URL%/api/health"
+
 REM Prepare user-writable environment on first launch.
 if not exist "%OMNIKES_DATA_DIR%\.next" (
     echo [%time%] Preparing user-writable environment... >> "%LOG_FILE%"
@@ -77,11 +100,18 @@ if not exist "%OMNIKES_DATA_DIR%\.next" (
     )
 )
 
-REM Avoid starting a second application instance.
-netstat -ano | findstr /R /C:":3000 .*LISTENING" >nul 2>&1
+REM Reuse an existing OmniKes instance only when its health endpoint identifies this application.
+netstat -ano | findstr /R /C:":%APP_PORT% .*LISTENING" >nul 2>&1
 if not errorlevel 1 (
-    echo [%time%] OmniKes is already listening on port 3000; native WebView2 window will attach. >> "%LOG_FILE%"
-    exit /b 0
+    powershell -NoProfile -Command "$r=Invoke-WebRequest -Uri '%APP_HEALTH_URL%' -UseBasicParsing -TimeoutSec 2; if ($r.StatusCode -eq 200 -and $r.Content -match '\"application\"\s*:\s*\"OmniKes\"') { exit 0 }; exit 1" >nul 2>&1
+    if not errorlevel 1 (
+        echo [%time%] Existing OmniKes instance verified on port %APP_PORT%; native WebView2 window will attach. >> "%LOG_FILE%"
+        exit /b 0
+    )
+    echo [%time%] ERROR: Configured application port %APP_PORT% is occupied by another service. >> "%LOG_FILE%"
+    echo ERREUR: Le port OmniKes est utilisé par une autre application. Relancez l'installation.
+    pause
+    exit /b 1
 )
 
 REM Require the Windows service to exist, then request startup if it is stopped.
@@ -116,12 +146,14 @@ goto postgres_wait
 
 :postgres_ready
 echo [%time%] PostgreSQL service is ready on 127.0.0.1:%PG_PORT% >> "%LOG_FILE%"
+echo [%time%] OmniKes application port: %APP_PORT% >> "%LOG_FILE%"
 
 REM Start the application server.
 echo [%time%] Starting OmniKes server... >> "%LOG_FILE%"
 cd /d "%APP_DIR%"
 REM Let the packaged .env supply the selected PostgreSQL port; do not inherit a stale DATABASE_URL from the parent process.
 set "DATABASE_URL="
+set "PORT=%APP_PORT%"
 start "" /B "%NODE_EXE%" "%APP_DIR%\server.js" >> "%LOG_FILE%" 2>&1
 
 REM Wait for server health check (max 60 seconds).
@@ -135,7 +167,7 @@ if %WAIT_COUNT% geq %MAX_WAIT% (
     pause
     exit /b 1
 )
-powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/health' -UseBasicParsing -TimeoutSec 2; if ($r.StatusCode -eq 200) { exit 0 }; exit 1 } catch { exit 1 }" >nul 2>&1
+powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri '%APP_HEALTH_URL%' -UseBasicParsing -TimeoutSec 2; if ($r.StatusCode -eq 200) { exit 0 }; exit 1 } catch { exit 1 }" >nul 2>&1
 if not errorlevel 1 goto server_ready
 timeout /t 1 /nobreak >nul
 set /a WAIT_COUNT+=1
