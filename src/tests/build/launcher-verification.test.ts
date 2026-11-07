@@ -15,12 +15,14 @@ describe('Windows Launcher Verification', () => {
   it('should provide the native omnikes.exe launcher source', () => {
     const source = readFileSync(path.join(installerPath, 'OmniKesLauncher.cs'), 'utf8');
     expect(source).toContain('ProcessWindowStyle.Hidden');
-    expect(source).toContain('http://127.0.0.1:3000/api/health');
+    expect(source).toContain('ReadApplicationUrl');
+    expect(source).toContain('application\\\":\\\"OmniKes');
+    expect(source).not.toContain('3000');
     expect(source).toContain('MessageBox.Show');
     expect(source).toContain('using Microsoft.Web.WebView2.WinForms;');
     expect(source).toContain('new WebView2()');
     expect(source).toContain('CoreWebView2Environment.CreateAsync');
-    expect(source).toContain('browser.CoreWebView2.Navigate("http://127.0.0.1:3000/")');
+    expect(source).toContain('browser.CoreWebView2.Navigate(appUrl)');
     expect(source).toContain('AreDevToolsEnabled = false');
     expect(source).toContain('WebView2');
     expect(source).toContain('Path.GetFullPath(Path.Combine(launcherDirectory, ".."))');
