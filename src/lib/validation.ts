@@ -516,11 +516,15 @@ export const salesReportPaymentMethodSchema = salesReportSummarySchema;
 
 // Registration validation
 export const registrationSchema = z.object({
-  organizationName: z.string().min(1, 'Organization name is required').max(255, 'Organization name must be less than 255 characters'),
-  name: z.string().min(1, 'Name is required').max(255, 'Name must be less than 255 characters'),
+  organizationName: z.string().trim().min(1, 'Organization name is required').max(255, 'Organization name must be less than 255 characters'),
+  name: z.string().trim().min(1, 'Name is required').max(255, 'Name must be less than 255 characters'),
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   confirmPassword: z.string().min(8, 'Password confirmation is required'),
+  country: z.string().trim().length(2).default('HT').transform((value) => value.toUpperCase()),
+  currency: z.string().trim().length(3).default('HTG').transform((value) => value.toUpperCase()),
+  locale: z.string().trim().min(2).max(20).default('fr-HT'),
+  timezone: z.string().trim().min(1).max(100).default('America/Port-au-Prince'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
   path: ['confirmPassword'],
