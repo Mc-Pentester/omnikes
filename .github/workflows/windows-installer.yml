@@ -1,11 +1,12 @@
 name: Windows offline installer
 
+# The Windows installer is expensive to build. Run it only on demand or
+# when a release is published, never for ordinary pushes or pull requests.
 on:
-  push:
-    branches: [ main, develop, fix/windows-launcher-prisma-assertion ]
-  pull_request:
-    branches: [ main, develop, ci/windows-installer-production-package ]
   workflow_dispatch:
+  workflow_call:
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -103,6 +104,15 @@ jobs:
             throw "The Inno Setup executable was not produced."
           }
           $installer | ForEach-Object { Write-Host "Installer: $($_.FullName) ($($_.Length) bytes)" }
+
+      - name: Verify Windows install, first-store creation, in-place upgrade, and uninstall
+        shell: powershell
+        run: |
+          $installer = Get-ChildItem "dist\installer\OmniKes-Setup-*-x64.exe" -File | Select-Object -First 1
+          if (-not $installer) {
+            throw "The Windows lifecycle test cannot find the generated installer."
+          }
+          & "$PWD\scripts\test-windows-installer-lifecycle.ps1" -SetupExe $installer.FullName
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 // Idempotent, data-preserving RBAC catalogue initializer for Windows installs.
 // Safe to run again on an existing installation; creates no users, organizations,
-// roles, or demo data.
+// or demo data. It adds only missing standard tenant roles and never rewrites existing roles.
 const path = require('node:path');
 const app = path.resolve(__dirname, '..', 'app');
 
@@ -12,22 +12,9 @@ if (!databaseUrl) throw new Error('DATABASE_URL is required to initialize the RB
 const { PrismaClient } = require(path.join(app, 'node_modules', '@prisma', 'client'));
 const { PrismaPg } = require(path.join(app, 'node_modules', '@prisma', 'adapter-pg'));
 
-const permissionCodes = [
-  'store.create', 'store.read', 'store.update', 'store.activate', 'store.deactivate', 'store.delete',
-  'proforma.create', 'proforma.read', 'proforma.update', 'proforma.accept', 'proforma.cancel', 'proforma.convert',
-  'customer.create', 'customer.read', 'customer.update', 'customer.delete',
-  'sale.create', 'sale.read', 'sale.update', 'sale.complete', 'sale.credit', 'sale.cancel', 'sale.return',
-  'payment.create', 'payment.read', 'payment.refund',
-  'cash.read', 'cash.open', 'cash.close', 'cash.movement',
-  'inventory.read', 'inventory.adjust',
-  'product.manage', 'product.read', 'report.read',
-  'organization.read', 'organization.update',
-  'backup.create', 'backup.restore', 'hardware.bridge.read', 'tax.manage',
-  'user.read', 'user.create', 'user.update',
-  'role.read', 'role.create', 'role.update', 'audit.read',
-  'supplier.read', 'supplier.manage', 'purchase.read', 'purchase.manage', 'purchase.receive',
-  'supplier.payment.manage', 'supplier.payment.read',
-];
+const rbacCatalog = require(path.join(__dirname, 'rbac-catalog.json'));
+const permissionCodes = rbacCatalog.permissionCodes;
+const standardRoles = rbacCatalog.standardRoles;
 
 function moduleFromCode(code) {
   const prefix = code.split('.')[0];
@@ -68,7 +55,48 @@ async function main() {
 
   const count = await prisma.permission.count();
   if (count === 0) throw new Error('RBAC initialization failed: permission catalogue is empty.');
-  console.log('OmniKès RBAC catalogue initialized: ' + permissionCodes.length + ' tenant permissions defined; ' + count + ' present.');
+
+  // Upgrade-safe tenant bootstrap: provision any missing standard roles.
+  // Existing roles and permissions are never overwritten or deleted.
+  const organizations = await prisma.organization.findMany({ select: { id: true } });
+  for (const organization of organizations) {
+    await prisma.$transaction(async (tx) => {
+      const catalog = await tx.permission.findMany({ select: { id: true, code: true } });
+
+      for (const definition of standardRoles) {
+        const existing = await tx.role.findFirst({
+          where: { organizationId: organization.id, name: definition.name, isGlobal: true, storeId: null },
+          select: { id: true },
+        });
+        if (existing) continue;
+
+        const selectedPermissions = definition.permissionCodes === null
+          ? catalog
+          : definition.permissionCodes.map((code) => {
+              const permission = catalog.find((item) => item.code === code);
+              if (!permission) throw new Error('RBAC initialization failed: missing permission ' + code + ' for role ' + definition.name);
+              return permission;
+            });
+
+        const role = await tx.role.create({
+          data: {
+            organizationId: organization.id,
+            name: definition.name,
+            description: definition.description,
+            isGlobal: true,
+            storeId: null,
+          },
+          select: { id: true },
+        });
+        await tx.rolePermission.createMany({
+          data: selectedPermissions.map((permission) => ({ roleId: role.id, permissionId: permission.id })),
+          skipDuplicates: true,
+        });
+      }
+    });
+  }
+
+  console.log('OmniKès RBAC catalogue initialized: ' + permissionCodes.length + ' tenant permissions defined; ' + count + ' present; missing cashier roles repaired without overwriting existing roles.');
 }
 
 main()

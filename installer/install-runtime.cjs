@@ -18,16 +18,50 @@ const dbUser = 'omnikes';
 const dbName = 'omnikes';
 const serviceName = 'OmniKesPostgreSQL';
 const portFile = path.join(omniKesDataDir, 'postgresql-port.txt');
+const appPortFile = path.join(omniKesDataDir, 'app-port.txt');
+const minAppPort = 3001;
+const maxAppPort = 3099;
 const minPort = 5433;
 const maxPort = 5532;
 const dbPasswordFile = path.join(omniKesDataDir, '.omnikes-pg-password');
 const legacyDbPasswordFile = path.join(data, '.omnikes-pg-password');
 const envPath = path.join(app, '.env');
 let port = null;
+const logFile = path.join(omniKesDataDir, 'logs', 'runtime-install.log');
 
-function run(file, args, env) {
-  execFileSync(file, args, { stdio: 'inherit', windowsHide: true, env: env || process.env });
+function writeLog(message) {
+  try {
+    fs.mkdirSync(path.dirname(logFile), { recursive: true });
+    fs.appendFileSync(logFile, '[' + new Date().toISOString() + '] ' + String(message) + '\r\n', 'utf8');
+  } catch {
+    // Logging must never hide the original installer error.
+  }
 }
+
+function run(file, args, env, cwd) {
+  writeLog('Running ' + path.basename(file) + ' ' + args.join(' ') + (cwd ? ' (cwd: ' + cwd + ')' : ''));
+  try {
+    const output = execFileSync(file, args, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+      env: env || process.env,
+      ...(cwd ? { cwd } : {}),
+    });
+    if (output) writeLog(output.trim());
+  } catch (error) {
+    if (error && error.stdout) writeLog('STDOUT: ' + String(error.stdout));
+    if (error && error.stderr) writeLog('STDERR: ' + String(error.stderr));
+    writeLog('COMMAND FAILED: ' + (error instanceof Error ? error.stack || error.message : String(error)));
+    throw error;
+  }
+}
+
+process.on('uncaughtException', (error) => {
+  writeLog('FATAL: ' + (error instanceof Error ? error.stack || error.message : String(error)));
+  console.error('OmniKes runtime installation failed. Diagnostic log: ' + logFile);
+  process.exit(1);
+});
 
 function pg(file) {
   return path.join(pgBin, process.platform === 'win32' ? file + '.exe' : file);
@@ -71,6 +105,35 @@ function choosePort() {
   throw new Error('No free OmniKes PostgreSQL port is available in the reserved range 5433-5532.');
 }
 
+function chooseAppPort() {
+  for (let candidate = minAppPort; candidate <= maxAppPort; candidate += 1) {
+    if (!portIsListening(candidate)) return candidate;
+  }
+  throw new Error('No free OmniKes application port is available in the reserved range 3001-3099.');
+}
+
+function securePasswordFile() {
+  if (process.platform !== 'win32' || !exists(dbPasswordFile)) return;
+  // The PostgreSQL service does not need this credential file after startup.
+  // Restrict access to LocalSystem and the local Administrators group.
+  run('icacls.exe', [
+    dbPasswordFile,
+    '/inheritance:r',
+    '/grant:r',
+    '*S-1-5-18:(F)',
+    '*S-1-5-32-544:(F)',
+  ]);
+}
+
+function setEnvValue(content, key, value) {
+  const line = key + '="' + String(value).replace(/"/g, '') + '"';
+  const lines = content.split(/\r?\n/);
+  const index = lines.findIndex((existing) => existing.startsWith(key + '='));
+  if (index >= 0) lines[index] = line;
+  else lines.push(line);
+  return lines.join('\n').replace(/\n*$/, '') + '\n';
+}
+
 function waitForPostgres(password, targetPort) {
   const ready = pg('pg_isready');
   if (!exists(ready)) throw new Error('Embedded PostgreSQL runtime is missing pg_isready.exe');
@@ -99,6 +162,9 @@ function waitForPostgres(password, targetPort) {
 
 fs.mkdirSync(omniKesDataDir, { recursive: true });
 fs.mkdirSync(data, { recursive: true });
+writeLog('=== OmniKes PostgreSQL runtime installation started ===');
+writeLog('Install home: ' + home);
+writeLog('PostgreSQL data directory: ' + data);
 
 // Older installer builds stored the password inside the PostgreSQL data directory.
 // Move only this known credential file out before initdb; never clear unknown files.
@@ -130,8 +196,10 @@ if (!password) {
   password = crypto.randomBytes(32).toString('hex');
   fs.writeFileSync(dbPasswordFile, password + '\n', { flag: 'wx', mode: 0o600 });
 }
+securePasswordFile();
 
 if (!exists(path.join(data, 'PG_VERSION'))) {
+  writeLog('No existing PostgreSQL cluster detected; initializing a new cluster without deleting existing files.');
   const remainingEntries = fs.readdirSync(data);
   if (remainingEntries.length > 0) {
     throw new Error('PostgreSQL data directory is not empty and has no PG_VERSION. Preserved existing contents: ' + remainingEntries.join(', ') + '. Refusing to delete or overwrite these files.');
@@ -184,6 +252,7 @@ try {
   if (!current.includes('RUNNING')) throw error;
 }
 waitForPostgres(password, port);
+writeLog('PostgreSQL service is accepting authenticated connections on port ' + port + '.');
 
 const psql = pg('psql');
 const psqlEnv = { ...process.env, PGPASSWORD: password };
@@ -196,24 +265,25 @@ try {
 if (dbExists !== '1') {
   run(psql, ['-h', '127.0.0.1', '-p', String(port), '-U', dbUser, '-d', 'postgres', '-c', 'CREATE DATABASE omnikes'], psqlEnv);
 }
-const url = 'postgresql://' + encodeURIComponent(dbUser) + ':' + encodeURIComponent(password) + '@127.0.0.1:' + port + '/' + dbName;
-if (!exists(envPath)) {
-  fs.writeFileSync(envPath, [
-    'DATABASE_URL="' + url + '"',
-    'NODE_ENV="production"',
-    'NEXT_PUBLIC_APP_URL="http://127.0.0.1:3000"',
-    'SESSION_SECRET="' + crypto.randomBytes(32).toString('hex') + '"',
-    'AUTH_SECRET="' + crypto.randomBytes(32).toString('hex') + '"',
-    ''
-  ].join('\n'), { flag: 'wx' });
-} else {
-  const existingEnv = fs.readFileSync(envPath, 'utf8');
-  const updatedEnv = existingEnv.match(/^DATABASE_URL=.*$/m)
-    ? existingEnv.replace(/^DATABASE_URL=.*$/m, 'DATABASE_URL="' + url + '"')
-    : existingEnv.replace(/\s*$/, '') + '\nDATABASE_URL="' + url + '"\n';
-  if (updatedEnv !== existingEnv) fs.writeFileSync(envPath, updatedEnv);
+const savedAppPort = exists(appPortFile) ? Number(fs.readFileSync(appPortFile, 'utf8').trim()) : null;
+if (savedAppPort !== null && (!Number.isInteger(savedAppPort) || savedAppPort < minAppPort || savedAppPort > maxAppPort)) {
+  throw new Error('The saved OmniKes application port is invalid. Refusing to overwrite the existing application configuration.');
 }
+const appPort = savedAppPort && !portIsListening(savedAppPort) ? savedAppPort : chooseAppPort();
+const url = 'postgresql://' + encodeURIComponent(dbUser) + ':' + encodeURIComponent(password) + '@127.0.0.1:' + port + '/' + dbName;
+let envContent = exists(envPath) ? fs.readFileSync(envPath, 'utf8') : [
+  'NODE_ENV="production"',
+  'SESSION_SECRET="' + crypto.randomBytes(32).toString('hex') + '"',
+  'AUTH_SECRET="' + crypto.randomBytes(32).toString('hex') + '"',
+  '',
+].join('\n');
+envContent = setEnvValue(envContent, 'DATABASE_URL', url);
+envContent = setEnvValue(envContent, 'PORT', appPort);
+envContent = setEnvValue(envContent, 'NEXT_PUBLIC_APP_URL', 'http://127.0.0.1:' + appPort);
+if (!exists(envPath)) fs.writeFileSync(envPath, envContent, { flag: 'wx' });
+else if (fs.readFileSync(envPath, 'utf8') !== envContent) fs.writeFileSync(envPath, envContent);
 fs.writeFileSync(portFile, String(port) + '\n');
+fs.writeFileSync(appPortFile, String(appPort) + '\n');
 
 const prismaCli = path.join(app, 'node_modules', 'prisma', 'build', 'index.js');
 const schema = path.join(app, 'prisma', 'schema.prisma');
@@ -223,9 +293,13 @@ if (!exists(schema)) throw new Error('Prisma schema.prisma is missing from the o
 if (!exists(migrations)) throw new Error('Prisma migrations are missing from the offline package.');
 
 process.env.DATABASE_URL = url;
-run(process.execPath, [prismaCli, 'migrate', 'deploy']);
+writeLog('Applying packaged Prisma migrations.');
+run(process.execPath, [prismaCli, 'migrate', 'deploy', '--schema', schema], { ...process.env, DATABASE_URL: url }, app);
+writeLog('Prisma migrations completed.');
 
 const rbacInitializer = path.join(__dirname, 'initialize-rbac.cjs');
 if (!exists(rbacInitializer)) throw new Error('RBAC initializer is missing from the offline package.');
 run(process.execPath, [rbacInitializer], { ...process.env, DATABASE_URL: url });
+writeLog('RBAC permission catalogue initialization completed.');
+writeLog('=== OmniKès PostgreSQL runtime installation: PASS ===');
 console.log('OmniKès offline runtime installation and PostgreSQL service initialization: PASS');

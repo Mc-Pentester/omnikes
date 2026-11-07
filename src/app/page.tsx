@@ -352,10 +352,15 @@ export default function HomePage() {
 
   if (stores.length === 0) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-danger text-xl mb-4">Aucun magasin disponible</p>
-          <p className="text-muted">Veuillez contacter votre administrateur pour configurer un magasin.</p>
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="max-w-lg text-center">
+          <p className="text-xl font-semibold text-foreground mb-3">Votre premier magasin reste à configurer</p>
+          <p className="text-muted mb-6">
+            Votre compte administrateur est prêt. Créez maintenant le premier magasin de votre organisation pour commencer à utiliser le point de vente.
+          </p>
+          <Button onClick={() => router.push('/onboarding')}>
+            Configurer mon premier magasin
+          </Button>
         </div>
       </div>
     );

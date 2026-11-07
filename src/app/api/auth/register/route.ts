@@ -27,6 +27,10 @@ export async function POST(request: NextRequest) {
       name: validatedData.name,
       email: validatedData.email,
       password: validatedData.password,
+      country: validatedData.country,
+      currency: validatedData.currency,
+      locale: validatedData.locale,
+      timezone: validatedData.timezone,
     };
 
     const result = await registrationService.register(

@@ -14,6 +14,10 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [country, setCountry] = useState('HT');
+  const [currency, setCurrency] = useState('HTG');
+  const [locale, setLocale] = useState('fr-HT');
+  const [timezone, setTimezone] = useState('America/Port-au-Prince');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -40,6 +44,10 @@ export default function RegisterPage() {
           email,
           password,
           confirmPassword,
+          country,
+          currency,
+          locale,
+          timezone,
         }),
       });
 
@@ -121,6 +129,29 @@ export default function RegisterPage() {
               disabled={loading}
             />
           </div>
+
+          <details className="rounded-lg border border-border p-3">
+            <summary className="cursor-pointer text-sm font-medium">Paramètres régionaux de l’organisation</summary>
+            <p className="mt-2 text-xs text-muted">Les valeurs haïtiennes sont proposées par défaut. Vous pouvez les modifier selon votre pays et votre activité.</p>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="country" className="block text-xs font-medium text-foreground mb-1">Pays (ISO)</label>
+                <Input id="country" value={country} onChange={(e) => setCountry(e.target.value.toUpperCase())} maxLength={2} required disabled={loading} />
+              </div>
+              <div>
+                <label htmlFor="currency" className="block text-xs font-medium text-foreground mb-1">Devise (ISO)</label>
+                <Input id="currency" value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={3} required disabled={loading} />
+              </div>
+              <div>
+                <label htmlFor="locale" className="block text-xs font-medium text-foreground mb-1">Langue / région</label>
+                <Input id="locale" value={locale} onChange={(e) => setLocale(e.target.value)} maxLength={20} required disabled={loading} />
+              </div>
+              <div>
+                <label htmlFor="timezone" className="block text-xs font-medium text-foreground mb-1">Fuseau horaire</label>
+                <Input id="timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} maxLength={100} required disabled={loading} />
+              </div>
+            </div>
+          </details>
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">

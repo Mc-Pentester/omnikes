@@ -1,0 +1,14 @@
+name: Launch Windows lifecycle
+
+# Simple manual entry point for the full Windows installer lifecycle.
+# The actual build and tests remain centralized in windows-installer.yml.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-lifecycle:
+    name: Build and test Windows installer lifecycle
+    uses: ./.github/workflows/windows-installer.yml
