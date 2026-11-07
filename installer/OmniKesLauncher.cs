@@ -9,8 +9,19 @@ using Microsoft.Web.WebView2.WinForms;
 
 internal static class OmniKesLauncher
 {
-    private const string AppUrl = "http://127.0.0.1:3000/";
-    private const string HealthUrl = "http://127.0.0.1:3000/api/health";
+    private static string ReadApplicationUrl()
+    {
+        string programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+        string portFile = Path.Combine(programData, "OmniKes", "app-port.txt");
+        if (!File.Exists(portFile))
+            throw new FileNotFoundException("La configuration du port OmniKès est introuvable.", portFile);
+
+        int port;
+        if (!Int32.TryParse(File.ReadAllText(portFile).Trim(), out port) || port < 3001 || port > 3099)
+            throw new InvalidOperationException("Le port configuré pour OmniKès est invalide.");
+
+        return "http://127.0.0.1:" + port + "/";
+    }
 
     [STAThread]
     private static void Main()
@@ -28,14 +39,16 @@ internal static class OmniKesLauncher
                 throw new FileNotFoundException("Le lanceur interne OmniKes est introuvable. Réinstallez l'application.", script);
 
             Directory.CreateDirectory(Path.GetDirectoryName(log));
+            string appUrl = ReadApplicationUrl();
+            string healthUrl = new Uri(new Uri(appUrl), "api/health").ToString();
             StartServerHelper(script, installRoot, log);
 
-            if (!WaitForServer(log, 90))
+            if (!WaitForServer(healthUrl, log, 90))
                 throw new InvalidOperationException("OmniKes n'a pas répondu après 90 secondes. Consultez le journal : " + log);
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new OmniKesWindow(Path.Combine(localData, "OmniKes", "WebView2"), log));
+            Application.Run(new OmniKesWindow(Path.Combine(localData, "OmniKes", "WebView2"), appUrl, log));
         }
         catch (Exception ex)
         {
@@ -65,19 +78,24 @@ internal static class OmniKesLauncher
             throw new InvalidOperationException("Le lanceur interne a échoué (code " + process.ExitCode + "). Consultez : " + log);
     }
 
-    private static bool WaitForServer(string log, int seconds)
+    private static bool WaitForServer(string healthUrl, string log, int seconds)
     {
         DateTime deadline = DateTime.UtcNow.AddSeconds(seconds);
         while (DateTime.UtcNow < deadline)
         {
             try
             {
-                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(HealthUrl);
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(healthUrl);
                 request.Timeout = 1500;
                 request.Proxy = null;
                 using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
                 {
-                    if ((int)response.StatusCode == 200) return true;
+                    using (StreamReader reader = new StreamReader(response.GetResponseStream()))
+                    {
+                        string body = reader.ReadToEnd();
+                        if ((int)response.StatusCode == 200 && body.IndexOf("\\"application\\":\\"OmniKes\\"", StringComparison.OrdinalIgnoreCase) >= 0)
+                            return true;
+                    }
                 }
             }
             catch { }
@@ -91,11 +109,13 @@ internal sealed class OmniKesWindow : Form
 {
     private readonly WebView2 browser;
     private readonly string userDataFolder;
+    private readonly string appUrl;
     private readonly string log;
 
-    public OmniKesWindow(string profilePath, string logPath)
+    public OmniKesWindow(string profilePath, string applicationUrl, string logPath)
     {
         userDataFolder = profilePath;
+        appUrl = applicationUrl;
         log = logPath;
         Text = "OmniKès";
         Width = 1440;
@@ -122,7 +142,7 @@ internal sealed class OmniKesWindow : Form
             browser.CoreWebView2.Settings.IsStatusBarEnabled = false;
             browser.CoreWebView2.NavigationStarting += HandleNavigation;
             browser.CoreWebView2.NewWindowRequested += HandleNewWindow;
-            browser.CoreWebView2.Navigate("http://127.0.0.1:3000/");
+            browser.CoreWebView2.Navigate(appUrl);
         }
         catch (Exception ex)
         {
@@ -139,7 +159,7 @@ internal sealed class OmniKesWindow : Form
     {
         Uri target;
         if (Uri.TryCreate(e.Uri, UriKind.Absolute, out target) &&
-            (target.Scheme != Uri.UriSchemeHttp || target.Host != "127.0.0.1" || target.Port != 3000))
+            (target.Scheme != Uri.UriSchemeHttp || target.Host != "127.0.0.1" || target.Port != new Uri(appUrl).Port))
         {
             e.Cancel = true;
             OpenExternal(target);
