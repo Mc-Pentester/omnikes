@@ -93,7 +93,7 @@ internal static class OmniKesLauncher
                     using (StreamReader reader = new StreamReader(response.GetResponseStream()))
                     {
                         string body = reader.ReadToEnd();
-                        if ((int)response.StatusCode == 200 && body.IndexOf("\\"application\\":\\"OmniKes\\"", StringComparison.OrdinalIgnoreCase) >= 0)
+                        if ((int)response.StatusCode == 200 && body.IndexOf("\"application\":\"OmniKes\"", StringComparison.OrdinalIgnoreCase) >= 0)
                             return true;
                     }
                 }
