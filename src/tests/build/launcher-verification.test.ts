@@ -174,6 +174,7 @@ describe('Windows Launcher Verification', () => {
     expect(content).toContain('if ResultCode <> 0 then');
     expect(content).toContain('--program-data-dir');
     expect(content).toContain('postgresql-port.txt');
+    expect(content).toContain('app-port.txt');
     expect(content).toContain('MicrosoftEdgeWebView2RuntimeInstallerX64.exe');
     expect(content).toContain("'/silent /install'");
     expect(content).toContain('WebView2');
