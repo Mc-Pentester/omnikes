@@ -9,6 +9,7 @@ const packaging = readFileSync(path.join(root, 'scripts', 'package-windows.ps1')
 const registration = readFileSync(path.join(root, 'src', 'services', 'registration.service.ts'), 'utf8');
 const standardRoles = readFileSync(path.join(root, 'src', 'lib', 'rbac', 'standard-organization-roles.ts'), 'utf8');
 const usersPage = readFileSync(path.join(root, 'src', 'app', 'administration', 'users', 'page.tsx'), 'utf8');
+const lifecycle = readFileSync(path.join(root, 'scripts', 'test-windows-installer-lifecycle.ps1'), 'utf8');
 const rbacCatalog = JSON.parse(readFileSync(path.join(root, 'config', 'rbac-catalog.json'), 'utf8')) as { permissionCodes: string[]; standardRoles: Array<{ name: string }> };
 
 describe('Windows installer RBAC bootstrap', () => {
@@ -27,6 +28,8 @@ describe('Windows installer RBAC bootstrap', () => {
     expect(registration).toContain('roleId: adminRoleId');
     expect(standardRoles).toContain('rbacCatalog.standardRoles');
     expect(standardRoles).toContain('Never overwrite a customized role');
+    expect(lifecycle).toContain("-Path '/api/admin/roles'");
+    expect(lifecycle).toContain('FIRST ORGANIZATION STANDARD RBAC ROLES: PASS');
     expect(rbacCatalog.standardRoles.map((role) => role.name)).toEqual(expect.arrayContaining([
       'ADMIN', 'MANAGER', 'SUPERVISOR', 'CASHIER', 'SALES_ASSOCIATE',
       'INVENTORY_MANAGER', 'WAREHOUSE_CLERK', 'PURCHASING_MANAGER',
