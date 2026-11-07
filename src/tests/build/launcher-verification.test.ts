@@ -137,7 +137,7 @@ describe('Windows Launcher Verification', () => {
     expect(roleService).toContain("../../../config/rbac-catalog.json");
     expect(registration).toContain('provisionStandardOrganizationRoles');
     expect(initializer).toContain("rbac-catalog.json");
-    expect(packaging).toContain('config\\\\rbac-catalog.json');
+    expect(packaging).toContain('config\\rbac-catalog.json');
     expect(new Set(catalog.permissionCodes).size).toBe(catalog.permissionCodes.length);
   });
 
