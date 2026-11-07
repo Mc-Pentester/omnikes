@@ -9,6 +9,7 @@ const packaging = readFileSync(path.join(root, 'scripts', 'package-windows.ps1')
 const registration = readFileSync(path.join(root, 'src', 'services', 'registration.service.ts'), 'utf8');
 const standardRoles = readFileSync(path.join(root, 'src', 'lib', 'rbac', 'standard-organization-roles.ts'), 'utf8');
 const usersPage = readFileSync(path.join(root, 'src', 'app', 'administration', 'users', 'page.tsx'), 'utf8');
+const rbacCatalog = JSON.parse(readFileSync(path.join(root, 'config', 'rbac-catalog.json'), 'utf8')) as { permissionCodes: string[]; standardRoles: Array<{ name: string }> };
 
 describe('Windows installer RBAC bootstrap', () => {
   it('runs the idempotent permission initializer after Prisma migrations', () => {
@@ -24,18 +25,13 @@ describe('Windows installer RBAC bootstrap', () => {
   it('provisions the complete tenant role catalogue atomically during first registration', () => {
     expect(registration).toContain('provisionStandardOrganizationRoles(tx, organization.id)');
     expect(registration).toContain('roleId: adminRoleId');
-    expect(standardRoles).toContain("name: 'ADMIN'");
-    expect(standardRoles).toContain("name: 'MANAGER'");
-    expect(standardRoles).toContain("name: 'SUPERVISOR'");
-    expect(standardRoles).toContain("name: 'CASHIER'");
-    expect(standardRoles).toContain("name: 'SALES_ASSOCIATE'");
-    expect(standardRoles).toContain("name: 'INVENTORY_MANAGER'");
-    expect(standardRoles).toContain("name: 'WAREHOUSE_CLERK'");
-    expect(standardRoles).toContain("name: 'PURCHASING_MANAGER'");
-    expect(standardRoles).toContain("name: 'ACCOUNTANT'");
-    expect(standardRoles).toContain("name: 'SALES_MANAGER'");
-    expect(standardRoles).toContain("name: 'CUSTOMER_SERVICE'");
+    expect(standardRoles).toContain('rbacCatalog.standardRoles');
     expect(standardRoles).toContain('Never overwrite a customized role');
+    expect(rbacCatalog.standardRoles.map((role) => role.name)).toEqual(expect.arrayContaining([
+      'ADMIN', 'MANAGER', 'SUPERVISOR', 'CASHIER', 'SALES_ASSOCIATE',
+      'INVENTORY_MANAGER', 'WAREHOUSE_CLERK', 'PURCHASING_MANAGER',
+      'ACCOUNTANT', 'SALES_MANAGER', 'CUSTOMER_SERVICE',
+    ]));
   });
 
   it('defaults new employee accounts to CASHIER instead of the privileged ADMIN role', () => {
@@ -43,22 +39,24 @@ describe('Windows installer RBAC bootstrap', () => {
     expect(usersPage).not.toContain('const firstGlobal = roles.find((role) => role.isGlobal)');
   });
 
-  it('upserts the permission catalog and repairs only missing standard roles without overwriting existing data', () => {
+  it('uses the shared permission and role catalog without overwriting existing data', () => {
+    expect(initializer).toContain('rbacCatalog.permissionCodes');
+    expect(initializer).toContain('rbacCatalog.standardRoles');
+    expect(initializer).toContain('rbac-catalog.json');
     expect(initializer).toContain('tx.permission.upsert');
     expect(initializer).toContain('tx.platformPermission.upsert');
-    expect(initializer).toContain("'store.create'");
-    expect(initializer).toContain("'supplier.payment.manage'");
     expect(initializer).toContain("'organization.subscription.manage'");
     expect(initializer).toContain('await prisma.permission.count()');
-    expect(initializer).toContain('const standardRoles = [');
-    expect(initializer).toContain("name: 'CUSTOMER_SERVICE'");
     expect(initializer).toContain('where: { organizationId: organization.id, name: definition.name, isGlobal: true, storeId: null }');
     expect(initializer).toContain('tx.role.create');
     expect(initializer).toContain('tx.rolePermission.createMany');
-    expect(initializer).toContain("'sale.create'");
-    expect(initializer).toContain("'cash.movement'");
-    expect(initializer).not.toMatch(/tx\.(organization|user)\.create\s*\(/);
+    expect(initializer).not.toMatch(/tx\\.(organization|user)\\.create\\s*\\(/);
     expect(initializer).not.toContain('deleteMany');
     expect(initializer).not.toContain('drop database');
+    expect(rbacCatalog.permissionCodes).toContain('store.create');
+    expect(rbacCatalog.permissionCodes).toContain('supplier.payment.manage');
+    expect(rbacCatalog.permissionCodes).toContain('sale.create');
+    expect(rbacCatalog.permissionCodes).toContain('cash.movement');
+    expect(packaging).toContain('config\\\\rbac-catalog.json');
   });
 });
