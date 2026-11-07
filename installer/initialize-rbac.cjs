@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 // Idempotent, data-preserving RBAC catalogue initializer for Windows installs.
 // Safe to run again on an existing installation; creates no users, organizations,
-// roles, or demo data.
+// or demo data. It adds only missing standard tenant roles and never rewrites existing roles.
 const path = require('node:path');
 const app = path.resolve(__dirname, '..', 'app');
 
