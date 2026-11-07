@@ -16,7 +16,8 @@ describe('Windows Launcher Verification', () => {
     const source = readFileSync(path.join(installerPath, 'OmniKesLauncher.cs'), 'utf8');
     expect(source).toContain('ProcessWindowStyle.Hidden');
     expect(source).toContain('ReadApplicationUrl');
-    expect(source).toContain('application\\\":\\\"OmniKes');
+    expect(source).toContain('application');
+    expect(source).toContain('app-port.txt');
     expect(source).not.toContain('3000');
     expect(source).toContain('MessageBox.Show');
     expect(source).toContain('using Microsoft.Web.WebView2.WinForms;');
@@ -56,7 +57,10 @@ describe('Windows Launcher Verification', () => {
   });
 
   it('should detect an existing application instance', () => {
-    expect(readFileSync(launcherPath, 'utf8')).toContain(':3000');
+    const helper = readFileSync(launcherPath, 'utf8');
+    expect(helper).toContain(':%APP_PORT%');
+    expect(helper).toContain("$j.application -eq 'OmniKes'");
+    expect(helper).toContain('APP_PORT_FILE=%ProgramData%\\OmniKes\\app-port.txt');
   });
 
   it('should verify the packaged PostgreSQL readiness executable', () => {
@@ -66,12 +70,15 @@ describe('Windows Launcher Verification', () => {
     expect(content).toContain('sc.exe start OmniKesPostgreSQL');
     expect(content).toContain(':postgres_wait');
     expect(content).toContain('PG_PORT_FILE=%ProgramData%\\OmniKes\\postgresql-port.txt');
+    expect(content).toContain('APP_PORT_FILE=%ProgramData%\\OmniKes\\app-port.txt');
     expect(content).toContain('-p %PG_PORT%');
     expect(content).not.toContain('-p 5432');
   });
 
   it('should wait for application health', () => {
-    expect(readFileSync(launcherPath, 'utf8')).toContain('/api/health');
+    const helper = readFileSync(launcherPath, 'utf8');
+    expect(helper).toContain('%APP_HEALTH_URL%');
+    expect(helper).toContain('/api/health');
   });
 
   it('should resolve the installer parent directory before invoking the runtime installer', () => {
@@ -94,6 +101,14 @@ describe('Windows Launcher Verification', () => {
     expect(runtime).toContain('programDataArg');
     expect(runtime).toContain('const minPort = 5433');
     expect(runtime).toContain('const maxPort = 5532');
+    expect(runtime).toContain('const minAppPort = 3001');
+    expect(runtime).toContain('const maxAppPort = 3099');
+    expect(runtime).toContain('function chooseAppPort()');
+    expect(runtime).toContain('app-port.txt');
+    expect(runtime).toContain('function securePasswordFile()');
+    expect(runtime).toContain('icacls.exe');
+    expect(runtime).toContain("'/inheritance:r'");
+    expect(runtime).toContain("'/grant:r'");
     expect(runtime).toContain("execFileSync('netstat.exe'");
     expect(runtime).toContain('function choosePort()');
     expect(runtime).toContain("String(port) + '\\n'");
@@ -105,6 +120,25 @@ describe('Windows Launcher Verification', () => {
   it('should require the PostgreSQL readiness binary during packaging', () => {
     const content = readFileSync(path.join(root, 'scripts', 'prepare-embedded-postgres.ts'), 'utf8');
     expect(content).toContain("'pg_isready.exe'");
+  });
+
+
+  it('should use one shared tenant RBAC catalog in registration and offline Windows bootstrap', () => {
+    const catalog = JSON.parse(readFileSync(path.join(root, 'config', 'rbac-catalog.json'), 'utf8')) as {
+      permissionCodes: string[];
+      standardRoles: Array<{ name: string; permissionCodes: string[] | null }>;
+    };
+    const roleService = readFileSync(path.join(root, 'src', 'lib', 'rbac', 'standard-organization-roles.ts'), 'utf8');
+    const registration = readFileSync(path.join(root, 'src', 'services', 'registration.service.ts'), 'utf8');
+    const initializer = readFileSync(path.join(installerPath, 'initialize-rbac.cjs'), 'utf8');
+    const packaging = readFileSync(path.join(root, 'scripts', 'package-windows.ps1'), 'utf8');
+    expect(catalog.standardRoles).toHaveLength(11);
+    expect(catalog.permissionCodes.length).toBeGreaterThan(0);
+    expect(roleService).toContain("../../../config/rbac-catalog.json");
+    expect(registration).toContain('provisionStandardOrganizationRoles');
+    expect(initializer).toContain("rbac-catalog.json");
+    expect(packaging).toContain('config\\\\rbac-catalog.json');
+    expect(new Set(catalog.permissionCodes).size).toBe(catalog.permissionCodes.length);
   });
 
   it('should retain the first-launch environment preparation script', () => {
