@@ -88,9 +88,9 @@ begin
     if ResultCode <> 0 then
       RaiseException('La configuration du runtime PostgreSQL OmniKes a échoué (code ' + IntToStr(ResultCode) + '). Consultez le journal : ' + ExpandConstant('{commonappdata}\OmniKes\logs\runtime-install.log') + '.');
     if not FileExists(ExpandConstant('{commonappdata}\OmniKes\postgresql-port.txt')) then
-    if not FileExists(ExpandConstant('{commonappdata}\\OmniKes\\app-port.txt')) then
-      RaiseException('La configuration OmniKès est incomplète : le fichier app-port.txt n’a pas été créé dans ProgramData.');
       RaiseException('La configuration PostgreSQL est incomplète : le fichier postgresql-port.txt n’a pas été créé dans ProgramData.');
+    if not FileExists(ExpandConstant('{commonappdata}\OmniKes\app-port.txt')) then
+      RaiseException('La configuration OmniKès est incomplète : le fichier app-port.txt n’a pas été créé dans ProgramData.');
     WebView2Installer := ExpandConstant('{app}\installer\MicrosoftEdgeWebView2RuntimeInstallerX64.exe');
     if not FileExists(WebView2Installer) then
       RaiseException('Le runtime Microsoft WebView2 est absent du paquet OmniKès.');
