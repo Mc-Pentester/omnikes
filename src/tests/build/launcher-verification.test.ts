@@ -207,7 +207,15 @@ describe('Windows Launcher Verification', () => {
     expect(installer).toContain('Type: filesandordirs; Name: "{app}\\app"');
     expect(installer).toContain('Type: filesandordirs; Name: "{app}\\runtime"');
     expect(installer).toContain('Type: filesandordirs; Name: "{app}\\installer"');
-    expect(installer).toContain('PostgreSQL data, credentials, and logs under ProgramData are intentionally untouched.');
+    expect(installer).toContain("ProgramData is preserved by default and deleted only after the user's explicit double confirmation.");
+    expect(installer).toContain('UninstallSilent()');
+    expect(installer).toContain('MB_YESNO or MB_DEFBUTTON2');
+    expect(installer).toContain('CONFIRMATION DÉFINITIVE');
+    expect(installer).toContain("CleanupArguments := CleanupArguments + ' -DeleteData'");
+    expect(uninstall).toContain('[switch]$DeleteData');
+    expect(uninstall).toContain('Remove-Item -LiteralPath $dataRoot -Recurse -Force');
+    expect(uninstall).toContain('User chose to keep ProgramData');
+    expect(uninstall).toContain('User explicitly selected deletion');
     expect(runtime).toContain("const programDataArg = process.argv.indexOf('--program-data-dir')");
     expect(runtime).toContain("const omniKesDataDir = path.join(programDataDir, 'OmniKes')");
     expect(runtime).toContain("const data = path.join(omniKesDataDir, 'postgresql-data')");
@@ -225,7 +233,7 @@ describe('Windows Launcher Verification', () => {
     expect(uninstall).toContain("Get-Service -Name 'OmniKesPostgreSQL'");
     expect(uninstall).toContain('& "$env:SystemRoot\\System32\\sc.exe" delete OmniKesPostgreSQL | Out-Null');
     expect(uninstall).toContain("WaitForStatus");
-    expect(uninstall).toContain("ProgramData database and credentials were not removed");
+    expect(uninstall).toContain('ProgramData was left untouched');
     expect(uninstall).not.toContain('Remove-Item');
     expect(uninstall).toContain("$InstallRoot 'app\\server.js'");
     expect(runtime).toContain("run(process.execPath, [prismaCli, 'migrate', 'deploy', '--schema', schema], { ...process.env, DATABASE_URL: url }, app)");
