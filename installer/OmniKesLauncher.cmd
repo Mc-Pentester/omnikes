@@ -103,7 +103,7 @@ if not exist "%OMNIKES_DATA_DIR%\.next" (
 REM Reuse an existing OmniKes instance only when its health endpoint identifies this application.
 netstat -ano | findstr /R /C:":%APP_PORT% .*LISTENING" >nul 2>&1
 if not errorlevel 1 (
-    powershell -NoProfile -Command "$r=Invoke-WebRequest -Uri '%APP_HEALTH_URL%' -UseBasicParsing -TimeoutSec 2; if ($r.StatusCode -eq 200 -and $r.Content -match '\"application\"\s*:\s*\"OmniKes\"') { exit 0 }; exit 1" >nul 2>&1
+    powershell -NoProfile -Command "$r=Invoke-WebRequest -Uri '%APP_HEALTH_URL%' -UseBasicParsing -TimeoutSec 2; $j=$r.Content | ConvertFrom-Json; if ($r.StatusCode -eq 200 -and $j.application -eq 'OmniKes') { exit 0 }; exit 1" >nul 2>&1
     if not errorlevel 1 (
         echo [%time%] Existing OmniKes instance verified on port %APP_PORT%; native WebView2 window will attach. >> "%LOG_FILE%"
         exit /b 0
@@ -167,7 +167,7 @@ if %WAIT_COUNT% geq %MAX_WAIT% (
     pause
     exit /b 1
 )
-powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri '%APP_HEALTH_URL%' -UseBasicParsing -TimeoutSec 2; if ($r.StatusCode -eq 200 -and $r.Content -match '"application"\\s*:\\s*"OmniKes"') { exit 0 }; exit 1 } catch { exit 1 }" >nul 2>&1
+powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri '%APP_HEALTH_URL%' -UseBasicParsing -TimeoutSec 2; $j=$r.Content | ConvertFrom-Json; if ($r.StatusCode -eq 200 -and $j.application -eq 'OmniKes') { exit 0 }; exit 1 } catch { exit 1 }" >nul 2>&1
 if not errorlevel 1 goto server_ready
 timeout /t 1 /nobreak >nul
 set /a WAIT_COUNT+=1
