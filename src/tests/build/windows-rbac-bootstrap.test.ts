@@ -50,13 +50,13 @@ describe('Windows installer RBAC bootstrap', () => {
     expect(initializer).toContain('where: { organizationId: organization.id, name: definition.name, isGlobal: true, storeId: null }');
     expect(initializer).toContain('tx.role.create');
     expect(initializer).toContain('tx.rolePermission.createMany');
-    expect(initializer).not.toMatch(/tx\\.(organization|user)\\.create\\s*\\(/);
+    expect(initializer).not.toMatch(/tx\.(organization|user)\.create\s*\(/);
     expect(initializer).not.toContain('deleteMany');
     expect(initializer).not.toContain('drop database');
     expect(rbacCatalog.permissionCodes).toContain('store.create');
     expect(rbacCatalog.permissionCodes).toContain('supplier.payment.manage');
     expect(rbacCatalog.permissionCodes).toContain('sale.create');
     expect(rbacCatalog.permissionCodes).toContain('cash.movement');
-    expect(packaging).toContain('config\\\\rbac-catalog.json');
+    expect(packaging).toContain('config\\rbac-catalog.json');
   });
 });
