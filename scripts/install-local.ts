@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import rbacCatalog from '../config/rbac-catalog.json';
+import { provisionStandardOrganizationRoles } from '../src/lib/rbac/standard-organization-roles';
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
 if (!databaseUrl) throw new Error('DATABASE_URL is required');
@@ -85,34 +86,7 @@ async function main() {
       },
     });
 
-    const permissions = [];
-    for (const code of PERMISSION_CODES) {
-      const permission = await tx.permission.upsert({
-        where: { code },
-        update: {},
-        create: {
-          code,
-          description: `Permission ${code}`,
-          module: moduleFromCode(code),
-        },
-      });
-      permissions.push(permission);
-    }
-
-    const adminRole = await tx.role.create({
-      data: {
-        organizationId: organization.id,
-        name: 'ADMIN',
-        description: 'Administrateur de l’organisation',
-        isGlobal: false,
-      },
-    });
-
-    for (const permission of permissions) {
-      await tx.rolePermission.create({
-        data: { roleId: adminRole.id, permissionId: permission.id },
-      });
-    }
+    const { adminRoleId } = await provisionStandardOrganizationRoles(tx, organization.id);
 
     const passwordHash = await bcrypt.hash(adminPassword, 12);
     const admin = await tx.user.create({
@@ -122,7 +96,7 @@ async function main() {
         name: adminName,
         password: passwordHash,
         isActive: true,
-        userRoles: { create: { roleId: adminRole.id } },
+        userRoles: { create: { roleId: adminRoleId } },
       },
     });
 
@@ -134,7 +108,7 @@ async function main() {
         module: 'installation',
         entityId: organization.id,
         entityType: 'Organization',
-        metadata: { localFirst: true, storeId: store.id, permissionCount: permissions.length },
+        metadata: { localFirst: true, storeId: store.id, permissionCount: rbacCatalog.permissionCodes.length },
       },
     });
 
