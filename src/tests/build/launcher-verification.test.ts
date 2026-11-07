@@ -75,6 +75,15 @@ describe('Windows Launcher Verification', () => {
     expect(content).not.toContain('-p 5432');
   });
 
+  it('should use the persisted application port in the Windows lifecycle test', () => {
+    const lifecycle = readFileSync(path.join(root, 'scripts', 'test-windows-installer-lifecycle.ps1'), 'utf8');
+    const health = readFileSync(path.join(root, 'src', 'app', 'api', 'health', 'route.ts'), 'utf8');
+    expect(lifecycle).toContain("app-port.txt");
+    expect(lifecycle).toContain("$baseUrl = \"http://127.0.0.1:$appPort\"");
+    expect(lifecycle).not.toContain('127.0.0.1:3000');
+    expect(health).toContain("application: 'OmniKes'");
+  });
+
   it('should wait for application health', () => {
     const helper = readFileSync(launcherPath, 'utf8');
     expect(helper).toContain('%APP_HEALTH_URL%');
