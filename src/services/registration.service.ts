@@ -13,6 +13,10 @@ export interface RegisterInput {
   name: string;
   email: string;
   password: string;
+  country: string;
+  currency: string;
+  locale: string;
+  timezone: string;
 }
 
 export interface RegisterResult {
@@ -46,7 +50,7 @@ export class RegistrationService {
    * Rate limited by IP to prevent mass registration
    */
   async register(data: RegisterInput, ipAddress?: string, userAgent?: string): Promise<RegisterResult> {
-    const { organizationName, name, email, password } = data;
+    const { organizationName, name, email, password, country, currency, locale, timezone } = data;
 
     // Normalize email before applying the registration quota. When no trusted
     // proxy IP is available, the quota remains per email instead of becoming
@@ -91,10 +95,10 @@ export class RegistrationService {
         data: {
           name: organizationName,
           slug,
-          country: 'HT', // Default to Haiti
-          currency: 'HTG', // Default to Haitian Gourde
-          locale: 'fr-HT',
-          timezone: 'America/Port-au-Prince',
+          country,
+          currency,
+          locale,
+          timezone,
         },
       });
 
