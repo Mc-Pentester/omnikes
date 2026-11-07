@@ -12,8 +12,6 @@ if (!databaseUrl) throw new Error('DATABASE_URL is required');
 const adapter = new PrismaPg({ connectionString: databaseUrl });
 const prisma = new PrismaClient({ adapter, log: ['error'] });
 
-const PERMISSION_CODES = rbacCatalog.permissionCodes;;
-
 function required(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is required`);
@@ -24,11 +22,6 @@ function slugify(value: string): string {
   return value.trim().toLowerCase()
     .normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
-}
-
-function moduleFromCode(code: string): string {
-  const prefix = code.split('.')[0];
-  return prefix === 'sale' ? 'sales' : prefix === 'payment' ? 'sales' : prefix;
 }
 
 async function main() {
