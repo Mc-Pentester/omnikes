@@ -4,6 +4,7 @@ name: Windows offline installer
 # when a release is published, never for ordinary pushes or pull requests.
 on:
   workflow_dispatch:
+  workflow_call:
   release:
     types: [published]
 
