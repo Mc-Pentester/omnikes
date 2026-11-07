@@ -167,7 +167,7 @@ if %WAIT_COUNT% geq %MAX_WAIT% (
     pause
     exit /b 1
 )
-powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri '%APP_HEALTH_URL%' -UseBasicParsing -TimeoutSec 2; if ($r.StatusCode -eq 200) { exit 0 }; exit 1 } catch { exit 1 }" >nul 2>&1
+powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri '%APP_HEALTH_URL%' -UseBasicParsing -TimeoutSec 2; if ($r.StatusCode -eq 200 -and $r.Content -match '"application"\\s*:\\s*"OmniKes"') { exit 0 }; exit 1 } catch { exit 1 }" >nul 2>&1
 if not errorlevel 1 goto server_ready
 timeout /t 1 /nobreak >nul
 set /a WAIT_COUNT+=1
