@@ -48,6 +48,7 @@ export async function provisionStandardOrganizationRoles(
       where: { organizationId, name: definition.name, isGlobal: true, storeId: null },
       select: { id: true },
     });
+    // Existing organization roles may have been customized; never overwrite their permissions or description.
     if (existing) {
       if (definition.name === 'ADMIN') adminRoleId = existing.id;
       continue;

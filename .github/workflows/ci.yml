@@ -226,7 +226,8 @@ jobs:
             SELECT count(*) INTO admin_role_count
               FROM roles
               WHERE name = 'ADMIN'
-                AND "isGlobal" = false;
+                AND "isGlobal" = true
+              AND "organizationId" = (SELECT id FROM organizations LIMIT 1);
             SELECT count(*) INTO permission_count FROM permissions;
             SELECT count(*) INTO user_role_count
               FROM user_roles ur

@@ -107,6 +107,7 @@ describe('Windows Launcher Verification', () => {
 
   it('should avoid an existing PostgreSQL listener on port 5432 by selecting and persisting a dedicated port', () => {
     const runtime = readFileSync(runtimeInstallerPath, 'utf8');
+    const uninstall = readFileSync(path.join(installerPath, 'uninstall-runtime.ps1'), 'utf8');
     expect(runtime).toContain('programDataArg');
     expect(runtime).toContain('const minPort = 5433');
     expect(runtime).toContain('const maxPort = 5532');
@@ -229,12 +230,12 @@ describe('Windows Launcher Verification', () => {
     expect(runtime).toContain("if (exists(path.join(data, 'PG_VERSION')))");
     expect(runtime).toContain("if (!exists(envPath))");
     expect(runtime).toContain("if (!state)");
-    const uninstall = readFileSync(path.join(installerPath, 'uninstall-runtime.ps1'), 'utf8');
     expect(uninstall).toContain("Get-Service -Name 'OmniKesPostgreSQL'");
     expect(uninstall).toContain('& "$env:SystemRoot\\System32\\sc.exe" delete OmniKesPostgreSQL | Out-Null');
     expect(uninstall).toContain("WaitForStatus");
     expect(uninstall).toContain('ProgramData was left untouched');
-    expect(uninstall).not.toContain('Remove-Item');
+    expect(uninstall).toContain('Remove-Item -LiteralPath $dataRoot -Recurse -Force -ErrorAction Stop');
+    expect(uninstall).toContain("$dataRoot -ine (Join-Path $programDataRoot 'OmniKes')");
     expect(uninstall).toContain("$InstallRoot 'app\\server.js'");
     expect(runtime).toContain("run(process.execPath, [prismaCli, 'migrate', 'deploy', '--schema', schema], { ...process.env, DATABASE_URL: url }, app)");
   });
