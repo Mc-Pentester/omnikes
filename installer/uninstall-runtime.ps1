@@ -1,6 +1,7 @@
 param(
   [Parameter(Mandatory = $true)]
-  [string]$InstallRoot
+  [string]$InstallRoot,
+  [switch]$DeleteData
 )
 
 $ErrorActionPreference = 'Stop'
@@ -111,8 +112,31 @@ try {
   $script:CleanupFailed = $true
 }
 
-Write-Log 'Uninstall cleanup finished. ProgramData database and credentials were not removed.'
 if ($script:CleanupFailed) {
+  Write-Log 'Uninstall cleanup finished with errors; ProgramData was left untouched.'
   Write-Log 'Cleanup could not safely stop all OmniKes processes/services; cancelling uninstall to avoid deleting files in use.'
   exit 1
+}
+
+if ($DeleteData) {
+  $dataRoot = [System.IO.Path]::GetFullPath((Join-Path $env:ProgramData 'OmniKes')).TrimEnd('\')
+  $programDataRoot = [System.IO.Path]::GetFullPath($env:ProgramData).TrimEnd('\')
+  if ($dataRoot -ine (Join-Path $programDataRoot 'OmniKes') -or $dataRoot -ieq $programDataRoot) {
+    Write-Log "Refusing unsafe ProgramData deletion path: $dataRoot"
+    exit 1
+  }
+  try {
+    Write-Log 'User explicitly selected deletion of all OmniKes data under ProgramData.'
+    if (Test-Path -LiteralPath $dataRoot) {
+      Remove-Item -LiteralPath $dataRoot -Recurse -Force -ErrorAction Stop
+    }
+    if (Test-Path -LiteralPath $dataRoot) {
+      throw 'ProgramData\OmniKes still exists after deletion.'
+    }
+  } catch {
+    Write-Log "ProgramData deletion failed: $($_.Exception.Message)"
+    exit 1
+  }
+} else {
+  Write-Log 'User chose to keep ProgramData database, credentials, backups, settings, and logs.'
 }
