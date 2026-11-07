@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import rbacCatalog from '../config/rbac-catalog.json';
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
 if (!databaseUrl) throw new Error('DATABASE_URL is required');
@@ -10,22 +11,7 @@ if (!databaseUrl) throw new Error('DATABASE_URL is required');
 const adapter = new PrismaPg({ connectionString: databaseUrl });
 const prisma = new PrismaClient({ adapter, log: ['error'] });
 
-const PERMISSION_CODES = [
-  'store.create','store.read','store.update','store.activate','store.deactivate','store.delete',
-  'proforma.create','proforma.read','proforma.update','proforma.accept','proforma.cancel','proforma.convert',
-  'customer.create','customer.read','customer.update','customer.delete',
-  'sale.create','sale.read','sale.update','sale.complete','sale.credit','sale.cancel','sale.return',
-  'payment.create','payment.read','payment.refund',
-  'cash.read','cash.open','cash.close','cash.movement',
-  'inventory.read','inventory.adjust',
-  'product.manage','product.read','report.read',
-  'organization.read','organization.update',
-  'backup.create','backup.restore','hardware.bridge.read','tax.manage',
-  'user.read','user.create','user.update',
-  'role.read','role.create','role.update','audit.read',
-  'supplier.read','supplier.manage','purchase.read','purchase.manage','purchase.receive',
-  'supplier.payment.manage','supplier.payment.read',
-] as const;
+const PERMISSION_CODES = rbacCatalog.permissionCodes;;
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
