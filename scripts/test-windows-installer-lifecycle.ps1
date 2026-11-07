@@ -237,6 +237,20 @@ try {
     Assert ($storeResponse.store.code -eq 'QA-FIRST-STORE') "First store response contains an unexpected store code. Response: $($storeResult.Body)"
     $storeResult.Response.Dispose()
 
+    # Verify that first registration provisioned every standard tenant role.
+    $rolesResult = Invoke-OmniKesJsonRequest -Method 'GET' -Path '/api/admin/roles' -CookieHeader $authCookie
+    if ($rolesResult.StatusCode -ne 200) {
+      throw "Standard role catalog retrieval failed with HTTP $($rolesResult.StatusCode): $($rolesResult.Body)"
+    }
+    $rolesResponse = $rolesResult.Body | ConvertFrom-Json
+    $roleNames = @($rolesResponse.roles | ForEach-Object { [string]$_.name })
+    $expectedRoles = @('ADMIN','MANAGER','SUPERVISOR','CASHIER','SALES_ASSOCIATE','INVENTORY_MANAGER','WAREHOUSE_CLERK','PURCHASING_MANAGER','ACCOUNTANT','SALES_MANAGER','CUSTOMER_SERVICE')
+    foreach ($expectedRole in $expectedRoles) {
+      Assert ($roleNames -contains $expectedRole) "First organization registration did not provision standard role $expectedRole. Returned roles: $($roleNames -join ', ')"
+    }
+    $rolesResult.Response.Dispose()
+    Write-Host 'FIRST ORGANIZATION STANDARD RBAC ROLES: PASS'
+
     # Recheck the same authenticated session before any upgrade operation.
     $preUpgradeSession = Invoke-OmniKesJsonRequest -Method 'GET' -Path '/api/auth/me' -CookieHeader $authCookie
     Write-Host "Pre-upgrade session verification HTTP status: $($preUpgradeSession.StatusCode)"
