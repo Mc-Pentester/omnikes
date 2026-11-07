@@ -27,7 +27,7 @@ describe('Windows installer RBAC bootstrap', () => {
     expect(registration).toContain('provisionStandardOrganizationRoles(tx, organization.id)');
     expect(registration).toContain('roleId: adminRoleId');
     expect(standardRoles).toContain('rbacCatalog.standardRoles');
-    expect(standardRoles).toContain('Never overwrite a customized role');
+    expect(standardRoles).toContain('never overwrite their permissions or description');
     expect(lifecycle).toContain("-Path '/api/admin/roles'");
     expect(lifecycle).toContain('FIRST ORGANIZATION STANDARD RBAC ROLES: PASS');
     expect(rbacCatalog.standardRoles.map((role) => role.name)).toEqual(expect.arrayContaining([

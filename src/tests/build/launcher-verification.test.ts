@@ -11,6 +11,7 @@ describe('Windows Launcher Verification', () => {
   const launcherPath = path.join(installerPath, 'OmniKesLauncher.cmd');
   const runtimeInstallerPath = path.join(installerPath, 'install-runtime.cjs');
   const issPath = path.join(installerPath, 'OmniKes.iss');
+  const uninstall = readFileSync(path.join(installerPath, 'uninstall-runtime.ps1'), 'utf8');
 
   it('should provide the native omnikes.exe launcher source', () => {
     const source = readFileSync(path.join(installerPath, 'OmniKesLauncher.cs'), 'utf8');
@@ -107,7 +108,6 @@ describe('Windows Launcher Verification', () => {
 
   it('should avoid an existing PostgreSQL listener on port 5432 by selecting and persisting a dedicated port', () => {
     const runtime = readFileSync(runtimeInstallerPath, 'utf8');
-    const uninstall = readFileSync(path.join(installerPath, 'uninstall-runtime.ps1'), 'utf8');
     expect(runtime).toContain('programDataArg');
     expect(runtime).toContain('const minPort = 5433');
     expect(runtime).toContain('const maxPort = 5532');
