@@ -8,6 +8,7 @@ $installDir = Join-Path $env:RUNNER_TEMP 'OmniKes-Lifecycle-Test'
 $programDataRoot = Join-Path $env:ProgramData 'OmniKes'
 $databaseDir = Join-Path $programDataRoot 'postgresql-data'
 $portFile = Join-Path $programDataRoot 'postgresql-port.txt'
+$appPortFile = Join-Path $programDataRoot 'app-port.txt'
 $passwordFile = Join-Path $programDataRoot '.omnikes-pg-password'
 $logFile = Join-Path $env:RUNNER_TEMP 'omnikes-installer-lifecycle.log'
 
@@ -23,6 +24,7 @@ function Install-OmniKes {
   Assert (Test-Path (Join-Path $installDir 'installer\omnikes.exe')) 'omnikes.exe was not installed.'
   Assert (Test-Path (Join-Path $databaseDir 'PG_VERSION')) 'PostgreSQL cluster was not initialized in ProgramData.'
   Assert (Test-Path $portFile) 'PostgreSQL port file is missing.'
+  Assert (Test-Path $appPortFile) 'OmniKes application port file is missing.'
   Assert (Test-Path $passwordFile) 'PostgreSQL password file is missing.'
 }
 
@@ -56,6 +58,10 @@ function Invoke-Psql([string]$Sql) {
 try {
   Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
   Install-OmniKes
+  $appPortText = (Get-Content -LiteralPath $appPortFile -Raw).Trim()
+  $appPort = 0
+  Assert ([int]::TryParse($appPortText, [ref]$appPort) -and $appPort -ge 3001 -and $appPort -le 3099) "OmniKes application port is invalid: $appPortText"
+  $baseUrl = "http://127.0.0.1:$appPort"
 
   # Launch the local server without opening a browser or requiring an interactive desktop.
   $launcher = Join-Path $installDir 'installer\OmniKesLauncher.cmd'
@@ -64,8 +70,9 @@ try {
   $healthReady = $false
   for ($attempt = 0; $attempt -lt 90; $attempt++) {
     try {
-      $health = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/health' -UseBasicParsing -TimeoutSec 2
-      if ($health.StatusCode -eq 200) { $healthReady = $true; break }
+      $health = Invoke-WebRequest -Uri ($baseUrl + '/api/health') -UseBasicParsing -TimeoutSec 2
+      $healthBody = $health.Content | ConvertFrom-Json
+      if ($health.StatusCode -eq 200 -and $healthBody.application -eq 'OmniKes') { $healthReady = $true; break }
     } catch {}
     Start-Sleep -Seconds 1
   }
@@ -108,8 +115,8 @@ try {
       Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine |
       Format-List
 
-    Write-Host '--- Port 3000 listeners ---'
-    netstat.exe -ano -p tcp | Select-String ':3000'
+    Write-Host "--- Application port $appPort listeners ---"
+    netstat.exe -ano -p tcp | Select-String (':' + $appPort)
     Write-Host '=== End OmniKes launcher diagnostics ==='
   }
 
@@ -124,8 +131,6 @@ try {
   $handler.UseCookies = $false
   $httpClient = [System.Net.Http.HttpClient]::new($handler)
   $httpClient.Timeout = [TimeSpan]::FromSeconds(30)
-  $baseUrl = 'http://127.0.0.1:3000'
-
   function Invoke-OmniKesJsonRequest {
     param(
       [Parameter(Mandatory = $true)][string]$Method,
