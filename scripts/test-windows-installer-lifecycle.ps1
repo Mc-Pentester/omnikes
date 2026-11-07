@@ -276,6 +276,8 @@ try {
 
   # Uninstall must remove Program Files while intentionally preserving ProgramData data.
   Stop-OmniKesServer
+  $cleanupScriptCopy = Join-Path $env:RUNNER_TEMP 'OmniKes-uninstall-runtime.ps1'
+  Copy-Item -LiteralPath (Join-Path $installDir 'installer\uninstall-runtime.ps1') -Destination $cleanupScriptCopy -Force
   $uninstaller = Join-Path $installDir 'unins000.exe'
   Assert (Test-Path $uninstaller) 'Inno Setup uninstaller is missing.'
   $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
@@ -287,6 +289,13 @@ try {
   $service = Get-Service -Name 'OmniKesPostgreSQL' -ErrorAction SilentlyContinue
   Assert (-not $service) 'PostgreSQL Windows service registration remains after uninstall.'
   Write-Host 'UNINSTALL PROGRAM FILES + PRESERVE PROGRAMDATA: PASS'
+
+  # Exercise the explicit data-deletion branch after proving the default keep-data path.
+  & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $cleanupScriptCopy -InstallRoot $installDir -DeleteData
+  Assert ($LASTEXITCODE -eq 0) 'Explicit OmniKes ProgramData deletion failed.'
+  Assert (-not (Test-Path $programDataRoot)) 'Explicit data deletion left OmniKes ProgramData behind.'
+  Write-Host 'EXPLICIT PROGRAMDATA DELETION: PASS'
+  Remove-Item -LiteralPath $cleanupScriptCopy -Force -ErrorAction SilentlyContinue
   Write-Host 'WINDOWS INSTALLER LIFECYCLE: PASS'
 } catch {
   $_ | Out-String | Add-Content -LiteralPath $logFile
