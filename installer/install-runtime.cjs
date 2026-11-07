@@ -127,7 +127,14 @@ function securePasswordFile() {
 
 function setEnvValue(content, key, value) {
   const line = key + '="' + String(value).replace(/"/g, '') + '"';
-  const pattern = new RegExp('^' + key.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\function choosePort() {
+  const lines = content.split(/\\r?\\n/);
+  const index = lines.findIndex((existing) => existing.startsWith(key + '='));
+  if (index >= 0) lines[index] = line;
+  else lines.push(line);
+  return lines.join('\\n').replace(/\\n*$/, '') + '\\n';
+}
+
+function choosePort() {
   for (let candidate = minPort; candidate <= maxPort; candidate += 1) {
     if (!portIsListening(candidate)) return candidate;
   }
