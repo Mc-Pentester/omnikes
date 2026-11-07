@@ -106,10 +106,24 @@ var
   ResultCode: Integer;
   PowerShellExe: string;
   CleanupScript: string;
+  DeleteData: Boolean;
+  CleanupArguments: string;
 begin
+  DeleteData := False;
+  if not UninstallSilent() then
+  begin
+    if MsgBox('Voulez-vous également supprimer toutes les données OmniKès (comptes, magasins, ventes, inventaire, paramètres, sauvegardes et journaux) ?' + #13#10 + #13#10 + 'Choisissez Non pour conserver vos données et pouvoir les retrouver lors d’une réinstallation.', mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+    begin
+      if MsgBox('CONFIRMATION DÉFINITIVE' + #13#10 + #13#10 + 'Toutes les données locales OmniKès dans ProgramData seront supprimées. Cette opération est irréversible. Continuer ?', mbCriticalError, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+        DeleteData := True;
+    end;
+  end;
   PowerShellExe := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
   CleanupScript := ExpandConstant('{app}\installer\uninstall-runtime.ps1');
-  if not Exec(PowerShellExe, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + CleanupScript + '" -InstallRoot "' + ExpandConstant('{app}') + '"', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  CleanupArguments := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + CleanupScript + '" -InstallRoot "' + ExpandConstant('{app}') + '"';
+  if DeleteData then
+    CleanupArguments := CleanupArguments + ' -DeleteData';
+  if not Exec(PowerShellExe, CleanupArguments, ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
   begin
     MsgBox('Impossible de préparer la désinstallation : les composants OmniKès n’ont pas pu être arrêtés. Aucun fichier ne sera supprimé.', mbError, MB_OK);
     Result := False;
@@ -117,7 +131,7 @@ begin
   end;
   if ResultCode <> 0 then
   begin
-    MsgBox('Un service ou processus OmniKès est encore actif. Fermez OmniKès puis relancez la désinstallation. Vos fichiers et données ont été conservés.', mbError, MB_OK);
+    MsgBox('Un service ou processus OmniKès est encore actif, ou les données n’ont pas pu être supprimées. La désinstallation est annulée. Consultez ProgramData\\OmniKes\\logs\\uninstall-runtime.log.', mbError, MB_OK);
     Result := False;
     exit;
   end;
@@ -126,7 +140,7 @@ end;
 
 [UninstallDelete]
 ; Remove residual program files, including the preserved app/.env configuration.
-; PostgreSQL data, credentials, and logs under ProgramData are intentionally untouched.
+; ProgramData is preserved by default and deleted only after the user's explicit double confirmation.
 Type: filesandordirs; Name: "{app}\app"
 Type: filesandordirs; Name: "{app}\runtime"
 Type: filesandordirs; Name: "{app}\installer"
