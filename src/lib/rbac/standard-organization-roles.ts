@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import rbacCatalog from '../../../config/rbac-catalog.json';
 
 type RbacTransaction = Prisma.TransactionClient;
 
@@ -8,60 +9,33 @@ interface StandardRoleDefinition {
   permissionCodes: readonly string[] | null;
 }
 
-// These are tenant roles. isGlobal means all stores in one organization,
-// never a platform-wide role. ADMIN receives the tenant permission catalogue;
-// every operational role is explicitly least-privilege.
-export const STANDARD_ORGANIZATION_ROLES: readonly StandardRoleDefinition[] = [
-  { name: 'ADMIN', description: 'Administration complète de l’organisation et de ses magasins', permissionCodes: null },
-  { name: 'MANAGER', description: 'Gestion quotidienne des magasins et supervision des opérations', permissionCodes: [
-    'store.read','store.update','product.manage','product.read','customer.create','customer.read','customer.update','customer.delete',
-    'sale.create','sale.read','sale.update','sale.complete','sale.credit','sale.cancel','sale.return',
-    'payment.create','payment.read','payment.refund','cash.read','cash.open','cash.close','cash.movement',
-    'inventory.read','inventory.adjust','report.read','user.read','user.create','user.update','audit.read',
-    'supplier.read','supplier.manage','purchase.read','purchase.manage','purchase.receive','supplier.payment.read','supplier.payment.manage',
-    'proforma.create','proforma.read','proforma.update','proforma.accept','proforma.cancel','proforma.convert',
-    'organization.read',
-  ] },
-  { name: 'SUPERVISOR', description: 'Supervision des ventes, caisses et employés du magasin', permissionCodes: [
-    'store.read','product.read','customer.read','customer.create','customer.update','sale.read','sale.update','sale.complete',
-    'sale.cancel','sale.return','payment.read','payment.refund','cash.read','cash.close','cash.movement',
-    'inventory.read','report.read','user.read','audit.read','proforma.read',
-  ] },
-  { name: 'CASHIER', description: 'Encaissement des ventes et opérations courantes de caisse', permissionCodes: [
-    'sale.create','sale.read','sale.complete','payment.create','payment.read','product.read','inventory.read','store.read',
-    'cash.read','cash.open','cash.close','cash.movement',
-  ] },
-  { name: 'SALES_ASSOCIATE', description: 'Vente, suivi des clients et préparation des proformas', permissionCodes: [
-    'sale.create','sale.read','customer.create','customer.read','customer.update','product.read','inventory.read',
-    'proforma.create','proforma.read','proforma.update','proforma.accept','store.read',
-  ] },
-  { name: 'INVENTORY_MANAGER', description: 'Gestion des produits, inventaires et réceptions', permissionCodes: [
-    'inventory.read','inventory.adjust','product.manage','product.read','purchase.read','purchase.receive','supplier.read','report.read','store.read',
-  ] },
-  { name: 'WAREHOUSE_CLERK', description: 'Réception, rangement et mouvements physiques des marchandises', permissionCodes: [
-    'inventory.read','product.read','purchase.read','purchase.receive','store.read',
-  ] },
-  { name: 'PURCHASING_MANAGER', description: 'Gestion des fournisseurs, commandes et achats', permissionCodes: [
-    'supplier.read','supplier.manage','purchase.read','purchase.manage','purchase.receive','supplier.payment.read','supplier.payment.manage',
-    'product.read','inventory.read','store.read','report.read',
-  ] },
-  { name: 'ACCOUNTANT', description: 'Consultation des opérations comptables et rapports financiers', permissionCodes: [
-    'report.read','sale.read','payment.read','cash.read','purchase.read','supplier.payment.read','customer.read','audit.read','store.read',
-  ] },
-  { name: 'SALES_MANAGER', description: 'Pilotage commercial, clients, ventes et proformas', permissionCodes: [
-    'sale.create','sale.read','sale.update','sale.complete','sale.credit','customer.create','customer.read','customer.update','customer.delete',
-    'proforma.create','proforma.read','proforma.update','proforma.accept','proforma.cancel','proforma.convert',
-    'report.read','product.read','inventory.read','store.read',
-  ] },
-  { name: 'CUSTOMER_SERVICE', description: 'Service clientèle, suivi des clients et traitement des demandes', permissionCodes: [
-    'customer.create','customer.read','customer.update','sale.read','sale.return','payment.read','proforma.read','product.read','store.read',
-  ] },
-];
+// The JSON catalog is shared with the offline Windows bootstrapper.
+export const STANDARD_ORGANIZATION_ROLES = rbacCatalog.standardRoles as readonly StandardRoleDefinition[];
+export const STANDARD_PERMISSION_CODES = rbacCatalog.permissionCodes as readonly string[];
+
+function moduleFromCode(code: string): string {
+  const prefix = code.split('.')[0];
+  if (prefix === 'sale' || prefix === 'payment') return 'sales';
+  if (prefix === 'report') return 'reports';
+  return prefix;
+}
+
+export async function ensureStandardPermissionCatalog(tx: RbacTransaction): Promise<void> {
+  await tx.permission.createMany({
+    data: STANDARD_PERMISSION_CODES.map((code) => ({
+      code,
+      description: 'Permission ' + code,
+      module: moduleFromCode(code),
+    })),
+    skipDuplicates: true,
+  });
+}
 
 export async function provisionStandardOrganizationRoles(
   tx: RbacTransaction,
   organizationId: string,
 ): Promise<{ adminRoleId: string }> {
+  await ensureStandardPermissionCatalog(tx);
   const catalog = await tx.permission.findMany({ select: { id: true, code: true } });
   const permissionIdByCode = new Map(catalog.map((permission) => [permission.code, permission.id]));
   if (catalog.length === 0) {
@@ -76,7 +50,7 @@ export async function provisionStandardOrganizationRoles(
     });
     if (existing) {
       if (definition.name === 'ADMIN') adminRoleId = existing.id;
-      continue; // Never overwrite a customized role or its assignments.
+      continue;
     }
 
     const permissionIds = definition.permissionCodes === null
