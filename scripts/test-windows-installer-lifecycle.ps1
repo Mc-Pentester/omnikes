@@ -22,7 +22,12 @@ function Install-OmniKes {
   $process = Start-Process -FilePath $SetupExe -ArgumentList $arguments -Wait -PassThru
   Assert ($process.ExitCode -eq 0) "OmniKes installer failed with exit code $($process.ExitCode)."
   Assert (Test-Path (Join-Path $installDir 'installer\omnikes.exe')) 'omnikes.exe was not installed.'
-  Assert (Test-Path (Join-Path $databaseDir 'PG_VERSION')) 'PostgreSQL cluster was not initialized in ProgramData.'
+  if (-not (Test-Path (Join-Path $databaseDir 'PG_VERSION'))) {
+    $runtimeLog = Join-Path $programDataRoot 'logs\runtime-install.log'
+    Write-Host "PostgreSQL initialization failed. Expected data directory: $databaseDir"
+    if (Test-Path $runtimeLog) { Get-Content -LiteralPath $runtimeLog -Tail 200 } else { Write-Host "Runtime log not found: $runtimeLog" }
+    throw 'PostgreSQL cluster was not initialized in ProgramData; see runtime-install.log above.'
+  }
   Assert (Test-Path $portFile) 'PostgreSQL port file is missing.'
   Assert (Test-Path $appPortFile) 'OmniKes application port file is missing.'
   Assert (Test-Path $passwordFile) 'PostgreSQL password file is missing.'
