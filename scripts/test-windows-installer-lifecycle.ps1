@@ -153,7 +153,7 @@ try {
       if (-not [string]::IsNullOrWhiteSpace($CookieHeader)) {
         [void]$request.Headers.TryAddWithoutValidation('Cookie', $CookieHeader)
       }
-      if ($null -ne $JsonBody) {
+      if (-not [string]::IsNullOrWhiteSpace($JsonBody)) {
         $request.Content = [System.Net.Http.StringContent]::new(
           $JsonBody,
           [System.Text.Encoding]::UTF8,
