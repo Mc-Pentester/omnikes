@@ -196,7 +196,6 @@ if (!password) {
   password = crypto.randomBytes(32).toString('hex');
   fs.writeFileSync(dbPasswordFile, password + '\n', { flag: 'wx', mode: 0o600 });
 }
-securePasswordFile();
 
 if (!exists(path.join(data, 'PG_VERSION'))) {
   writeLog('No existing PostgreSQL cluster detected; initializing a new cluster without deleting existing files.');
@@ -207,6 +206,10 @@ if (!exists(path.join(data, 'PG_VERSION'))) {
   if (!exists(pg('initdb'))) throw new Error('Embedded PostgreSQL runtime is missing initdb.exe');
   run(pg('initdb'), ['-D', data, '-U', dbUser, '--pwfile=' + dbPasswordFile, '--encoding=UTF8', '--no-locale']);
 }
+
+// initdb must be able to read the password file under the installer account.
+// Restrict it only after cluster initialization; keep the restriction on upgrades too.
+securePasswordFile();
 
 let state = serviceState();
 const savedPort = exists(portFile) ? Number(fs.readFileSync(portFile, 'utf8').trim()) : null;
