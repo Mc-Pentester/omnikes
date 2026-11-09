@@ -124,13 +124,31 @@ try {
     password = 'OmniKes-QA-Password-2026!'
     confirmPassword = 'OmniKes-QA-Password-2026!'
   } | ConvertTo-Json
-  $registerRaw = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/auth/register' -Method Post -ContentType 'application/json' -Body $registration -Headers @{ Origin = 'http://127.0.0.1:3000' } -WebSession $session
-  $registerResponse = $registerRaw.Content | ConvertFrom-Json
-  Assert ($registerResponse.user.organizationId) 'First administrator registration did not return an organization.'
-  # The production cookie is Secure; pass its token explicitly because the CI smoke test uses local HTTP.
-  $cookieHeader = [string]$registerRaw.Headers['Set-Cookie']
-  $tokenMatch = [regex]::Match($cookieHeader, 'auth_token=([^;]+)')
-  Assert ($tokenMatch.Success) 'Registration did not issue an auth_token cookie.'
+  # Use .NET HttpClient for this POST instead of Windows PowerShell 5.1
+  # Invoke-WebRequest, which can throw an internal NullReferenceException on
+  # otherwise valid responses when handling cookies on hosted Windows runners.
+  Add-Type -AssemblyName System.Net.Http
+  $httpClient = New-Object System.Net.Http.HttpClient
+  try {
+    $request = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Post, 'http://127.0.0.1:3000/api/auth/register')
+    $request.Headers.TryAddWithoutValidation('Origin', 'http://127.0.0.1:3000') | Out-Null
+    $request.Content = New-Object System.Net.Http.StringContent($registration, [System.Text.Encoding]::UTF8, 'application/json')
+    $registerHttpResponse = $httpClient.SendAsync($request).GetAwaiter().GetResult()
+    $registerContent = $registerHttpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+    Assert ([int]$registerHttpResponse.StatusCode -eq 200 -or [int]$registerHttpResponse.StatusCode -eq 201) "First administrator registration returned HTTP $([int]$registerHttpResponse.StatusCode): $registerContent"
+    $registerResponse = $registerContent | ConvertFrom-Json
+    Assert ($registerResponse.user.organizationId) 'First administrator registration did not return an organization.'
+    # The production cookie is Secure; pass its token explicitly because the CI smoke test uses local HTTP.
+    $cookieHeader = ''
+    if ($registerHttpResponse.Headers.Contains('Set-Cookie')) {
+      $cookieHeader = [string]::Join('; ', $registerHttpResponse.Headers.GetValues('Set-Cookie'))
+    }
+    $tokenMatch = [regex]::Match($cookieHeader, 'auth_token=([^;]+)')
+    Assert ($tokenMatch.Success) "Registration did not issue an auth_token cookie. Response headers: $($registerHttpResponse.Headers)"
+  } finally {
+    if ($request) { $request.Dispose() }
+    $httpClient.Dispose()
+  }
   $authHeaders = @{
     Cookie = "auth_token=$($tokenMatch.Groups[1].Value)"
     Origin = 'http://127.0.0.1:3000'
