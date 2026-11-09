@@ -260,5 +260,10 @@
       "description": "Activer, renouveler ou annuler l’abonnement OmniKès pour une organisation",
       "module": "subscription"
     }
-  ]
+  ],
+  "adminRole": {
+    "name": "ADMIN",
+    "description": "Administrateur de l’organisation avec accès à l’ensemble des permissions locataires",
+    "permissions": "ALL_TENANT_PERMISSIONS"
+  }
 }

@@ -3,6 +3,7 @@ import catalog from './standard-tenant-rbac.json';
 
 // The JSON catalogue is the single source consumed by the app, seed and Windows installer.
 export const TENANT_PERMISSION_CODES = catalog.tenantPermissions;
+export const ADMIN_ROLE = catalog.adminRole;
 export const CASHIER_ROLE = catalog.cashierRole;
 export const STANDARD_TENANT_ROLES = catalog.standardTenantRoles;
 

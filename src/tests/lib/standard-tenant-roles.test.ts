@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { CASHIER_ROLE, STANDARD_TENANT_ROLES, TENANT_PERMISSION_CODES } from '@omnikes/lib/rbac/standard-tenant-roles';
+import { ADMIN_ROLE, CASHIER_ROLE, STANDARD_TENANT_ROLES, TENANT_PERMISSION_CODES } from '@omnikes/lib/rbac/standard-tenant-roles';
 import catalog from '@omnikes/lib/rbac/standard-tenant-rbac.json';
 
 describe('standard tenant RBAC roles', () => {
   it('uses one canonical permission catalogue for tenant roles', () => {
     expect(TENANT_PERMISSION_CODES).toEqual(catalog.tenantPermissions);
+    expect(ADMIN_ROLE.name).toBe('ADMIN');
+    expect(ADMIN_ROLE.permissions).toBe('ALL_TENANT_PERMISSIONS');
     expect(new Set(TENANT_PERMISSION_CODES).size).toBe(TENANT_PERMISSION_CODES.length);
     for (const role of [CASHIER_ROLE, ...STANDARD_TENANT_ROLES]) {
       for (const permission of role.permissions) expect(TENANT_PERMISSION_CODES).toContain(permission);

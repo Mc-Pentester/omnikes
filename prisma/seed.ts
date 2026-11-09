@@ -136,7 +136,7 @@ async function main() {
     where: { id: 'admin-role-a' },
     update: {
       organizationId: orgA.id,
-      name: 'ADMIN',
+      name: rbacCatalog.adminRole.name,
       description: 'Administrator role for test organization A',
       isGlobal: true,
     },
@@ -153,7 +153,7 @@ async function main() {
     where: { id: 'cashier-role-a' },
     update: {
       organizationId: orgA.id,
-      name: 'CASHIER',
+      name: rbacCatalog.cashierRole.name,
       description: 'Cashier role for test organization A',
       isGlobal: true,
     },
@@ -170,7 +170,7 @@ async function main() {
     where: { id: 'admin-role-b' },
     update: {
       organizationId: orgB.id,
-      name: 'ADMIN',
+      name: rbacCatalog.adminRole.name,
       description: 'Administrator role for test organization B',
       isGlobal: true,
     },

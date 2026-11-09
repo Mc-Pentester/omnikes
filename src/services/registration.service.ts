@@ -6,7 +6,7 @@ import { organizationRepository } from '@omnikes/repositories/organization.repos
 import { generateUniqueSlug } from '@omnikes/lib/slug';
 import { checkRateLimit, getAccountRateLimitIdentifier, getIpRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
 import { randomBytes } from 'crypto';
-import { CASHIER_ROLE, TENANT_PERMISSION_CODES, provisionStandardTenantRoles } from '@omnikes/lib/rbac/standard-tenant-roles';
+import { ADMIN_ROLE, CASHIER_ROLE, TENANT_PERMISSION_CODES, provisionStandardTenantRoles } from '@omnikes/lib/rbac/standard-tenant-roles';
 
 // Permission definitions and standard role grants come from the shared RBAC catalogue.
 function permissionModule(code: string): string {
@@ -122,8 +122,8 @@ export class RegistrationService {
       // "isGlobal" means all stores inside this organization, never cross-tenant.
       const adminRole = await tx.role.create({
         data: {
-          name: 'ADMIN',
-          description: 'Administrator role',
+          name: ADMIN_ROLE.name,
+          description: ADMIN_ROLE.description,
           organizationId: organization.id,
           isGlobal: true,
         },
