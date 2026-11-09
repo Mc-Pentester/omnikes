@@ -46,6 +46,10 @@ Name: "{autodesktop}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; Working
 Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"; StatusMsg: "Démarrage d'OmniKès..."; Flags: nowait postinstall skipifsilent
 
 [Code]
+var
+  PurgeDataPage: TInputOptionWizardPage;
+  PurgeOmniKesData: Boolean;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
@@ -98,10 +102,6 @@ begin
       RaiseException('L’installation du runtime Microsoft WebView2 a échoué (code ' + IntToStr(ResultCode) + ').');
   end;
 end;
-
-var
-  PurgeDataPage: TInputOptionWizardPage;
-  PurgeOmniKesData: Boolean;
 
 procedure InitializeUninstallWizard();
 begin
