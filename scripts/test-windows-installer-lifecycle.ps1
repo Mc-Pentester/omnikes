@@ -204,6 +204,17 @@ try {
   Write-Host 'UNINSTALL WITH CLARODARO-LIKE PROCESS RUNNING: PASS'
   Write-Host 'CLARODARO PROCESS ISOLATION: PASS'
   Write-Host 'UNINSTALL PROGRAM FILES + PRESERVE PROGRAMDATA: PASS'
+
+  # Reinstall using the retained data, then explicitly request a full data purge.
+  Install-OmniKes
+  $purgeUninstaller = Join-Path $installDir 'unins000.exe'
+  $purgeProcess = Start-Process -FilePath $purgeUninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/PURGEDATA=yes') -Wait -PassThru
+  Assert ($purgeProcess.ExitCode -eq 0) "OmniKes full-data uninstaller failed with exit code $($purgeProcess.ExitCode)."
+  Assert (-not (Test-Path $installDir)) "Program Files installation directory remains after full-data uninstall: $installDir"
+  Assert (-not (Test-Path $programDataRoot)) "OmniKes ProgramData remains after explicit full-data uninstall: $programDataRoot"
+  $clarodaroProcess.Refresh()
+  Assert (-not $clarodaroProcess.HasExited) 'Full-data OmniKes uninstall terminated an unrelated Clarodaro-like Node process.'
+  Write-Host 'EXPLICIT FULL DATA PURGE: PASS'
   Write-Host 'WINDOWS INSTALLER LIFECYCLE: PASS'
 } catch {
   $_ | Out-String | Add-Content -LiteralPath $logFile
