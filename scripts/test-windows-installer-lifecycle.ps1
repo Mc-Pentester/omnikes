@@ -178,7 +178,7 @@ try {
 
   # Keep a separate Node process running to simulate Clarodaro. The OmniKes
   # uninstaller must leave applications outside its own installation directory
-  # installation directory untouched, even when they also use Node.js.
+  # untouched, even when they also use Node.js.
   $clarodaroRoot = Join-Path $env:RUNNER_TEMP 'Clarodaro-Uninstall-Isolation'
   New-Item -ItemType Directory -Path $clarodaroRoot -Force | Out-Null
   $clarodaroServer = Join-Path $clarodaroRoot 'server.js'
