@@ -176,8 +176,8 @@ try {
   Assert ($probe -eq 'must-survive-upgrade') 'In-place upgrade did not preserve the PostgreSQL database.'
   Write-Host 'IN-PLACE UPGRADE + DATABASE PRESERVATION: PASS'
 
-  # Uninstall while OmniKes is still running. A separate Node process simulates
-  # Clarodaro: the OmniKes uninstaller must leave applications outside its own
+  # Keep a separate Node process running to simulate Clarodaro. The OmniKes
+  # uninstaller must leave applications outside its own installation directory
   # installation directory untouched, even when they also use Node.js.
   $clarodaroRoot = Join-Path $env:RUNNER_TEMP 'Clarodaro-Uninstall-Isolation'
   New-Item -ItemType Directory -Path $clarodaroRoot -Force | Out-Null
@@ -201,7 +201,7 @@ try {
   Assert (-not $service) 'PostgreSQL Windows service registration remains after uninstall.'
   $clarodaroProcess.Refresh()
   Assert (-not $clarodaroProcess.HasExited) 'OmniKes uninstaller terminated an unrelated Clarodaro-like Node process.'
-  Write-Host 'UNINSTALL WHILE OMNIKES RUNNING: PASS'
+  Write-Host 'UNINSTALL WITH CLARODARO-LIKE PROCESS RUNNING: PASS'
   Write-Host 'CLARODARO PROCESS ISOLATION: PASS'
   Write-Host 'UNINSTALL PROGRAM FILES + PRESERVE PROGRAMDATA: PASS'
   Write-Host 'WINDOWS INSTALLER LIFECYCLE: PASS'
