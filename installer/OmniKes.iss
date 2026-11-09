@@ -109,12 +109,11 @@ begin
     'Données OmniKès',
     'Choisissez ce qu’il faut faire des données locales',
     'Par défaut, vos données sont conservées pour permettre une réinstallation. ' +
-    'La suppression efface définitivement la base PostgreSQL, les identifiants, la configuration et les journaux situés dans ProgramData\\OmniKes. ' +
+    'La suppression efface définitivement la base PostgreSQL, les identifiants, la configuration et les journaux situés dans ProgramData\OmniKes. ' +
     'Cette action ne concerne aucun autre programme.',
     False, False);
   PurgeDataPage.Add('Supprimer définitivement toutes les données locales d’OmniKès');
   PurgeDataPage.Values[0] := False;
-  PurgeOmniKesData := CompareText(ExpandConstant('{param:purgedata|no}'), 'yes') = 0;
 end;
 
 function InitializeUninstall(): Boolean;
@@ -148,7 +147,7 @@ begin
   begin
     if PurgeOmniKesData or ((PurgeDataPage <> nil) and PurgeDataPage.Values[0]) then
     begin
-      DataDirectory := ExpandConstant('{commonappdata}\\OmniKes');
+      DataDirectory := ExpandConstant('{commonappdata}\OmniKes');
       if (CompareText(ExtractFileName(DataDirectory), 'OmniKes') = 0) and DirExists(DataDirectory) then
       begin
         if not DelTree(DataDirectory, True, True, True) then
