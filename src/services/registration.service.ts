@@ -6,37 +6,9 @@ import { organizationRepository } from '@omnikes/repositories/organization.repos
 import { generateUniqueSlug } from '@omnikes/lib/slug';
 import { checkRateLimit, getAccountRateLimitIdentifier, getIpRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
 import { randomBytes } from 'crypto';
-import { provisionStandardTenantRoles } from '@omnikes/lib/rbac/standard-tenant-roles';
+import { CASHIER_ROLE, TENANT_PERMISSION_CODES, provisionStandardTenantRoles } from '@omnikes/lib/rbac/standard-tenant-roles';
 
-// Keep first-launch registration independent from optional installer seed execution.
-// This catalogue is idempotently repaired inside the same transaction as account creation.
-const FIRST_LAUNCH_PERMISSION_CODES = [
-  'store.create','store.read','store.update','store.activate','store.deactivate','store.delete',
-  'proforma.create','proforma.read','proforma.update','proforma.accept','proforma.cancel','proforma.convert',
-  'customer.create','customer.read','customer.update','customer.delete',
-  'sale.create','sale.read','sale.update','sale.complete','sale.credit','sale.cancel','sale.return',
-  'payment.create','payment.read','payment.refund',
-  'cash.read','cash.open','cash.close','cash.movement',
-  'inventory.read','inventory.adjust',
-  'product.manage','product.read','report.read',
-  'organization.read','organization.update',
-  'backup.create','backup.restore','hardware.bridge.read','tax.manage',
-  'user.read','user.create','user.update',
-  'role.read','role.create','role.update','audit.read',
-  'supplier.read','supplier.manage','purchase.read','purchase.manage','purchase.receive',
-  'supplier.payment.manage','supplier.payment.read',
-] as const;
-
-// Keep the initial cashier role aligned with the least-privilege role used by
-// the PostgreSQL RBAC seed. This is tenant-scoped (all stores in this org),
-// never a platform/global administrator role.
-const FIRST_LAUNCH_CASHIER_PERMISSION_CODES = [
-  'sale.create', 'sale.read', 'sale.complete', 'sale.return',
-  'payment.create', 'payment.read', 'payment.refund',
-  'inventory.read', 'product.read', 'report.read', 'store.read',
-  'cash.read', 'cash.open', 'cash.close', 'cash.movement',
-] as const;
-
+// Permission definitions and standard role grants come from the shared RBAC catalogue.
 function permissionModule(code: string): string {
   const prefix = code.split('.')[0];
   if (prefix === 'sale' || prefix === 'payment') return 'sales';
@@ -138,7 +110,7 @@ export class RegistrationService {
       // normally initializes it, but registration must remain reliable if that
       // optional bootstrap step was skipped or targeted another database.
       await tx.permission.createMany({
-        data: FIRST_LAUNCH_PERMISSION_CODES.map((code) => ({
+        data: TENANT_PERMISSION_CODES.map((code) => ({
           code,
           description: 'Permission ' + code,
           module: permissionModule(code),
@@ -181,17 +153,17 @@ export class RegistrationService {
       // narrower than ADMIN and its scope remains inside this organization.
       const cashierRole = await tx.role.create({
         data: {
-          name: 'CASHIER',
-          description: 'Accès opérationnel de caisse sans administration',
+          name: CASHIER_ROLE.name,
+          description: CASHIER_ROLE.description,
           organizationId: organization.id,
           isGlobal: true,
         },
       });
       const cashierPermissions = await tx.permission.findMany({
-        where: { code: { in: [...FIRST_LAUNCH_CASHIER_PERMISSION_CODES] } },
+        where: { code: { in: [...CASHIER_ROLE.permissions] } },
         select: { id: true },
       });
-      if (cashierPermissions.length !== FIRST_LAUNCH_CASHIER_PERMISSION_CODES.length) {
+      if (cashierPermissions.length !== CASHIER_ROLE.permissions.length) {
         throw new Error('Cashier role permission catalogue is incomplete.');
       }
       await tx.rolePermission.createMany({

@@ -163,6 +163,7 @@ Copy-Item "installer\OmniKesLauncher.cmd" $installer -Force
 Copy-Item "installer\install-runtime.cmd" $installer -Force
 Copy-Item "installer\install-runtime.cjs" $installer -Force
 Copy-Item "installer\initialize-rbac.cjs" $installer -Force
+Copy-Item "src\lib\rbac\standard-tenant-rbac.json" (Join-Path $app "standard-tenant-rbac.json") -Force
 Copy-Item "installer\prepare-user-env.cjs" $installer -Force
 
 # Bundle the WebView2 WinForms SDK and Evergreen Standalone Runtime for offline PCs.

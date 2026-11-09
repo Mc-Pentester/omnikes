@@ -12,42 +12,10 @@ if (!databaseUrl) throw new Error('DATABASE_URL is required to initialize the RB
 const { PrismaClient } = require(path.join(app, 'node_modules', '@prisma', 'client'));
 const { PrismaPg } = require(path.join(app, 'node_modules', '@prisma', 'adapter-pg'));
 
-const permissionCodes = [
-  'store.create', 'store.read', 'store.update', 'store.activate', 'store.deactivate', 'store.delete',
-  'proforma.create', 'proforma.read', 'proforma.update', 'proforma.accept', 'proforma.cancel', 'proforma.convert',
-  'customer.create', 'customer.read', 'customer.update', 'customer.delete',
-  'sale.create', 'sale.read', 'sale.update', 'sale.complete', 'sale.credit', 'sale.cancel', 'sale.return',
-  'payment.create', 'payment.read', 'payment.refund',
-  'cash.read', 'cash.open', 'cash.close', 'cash.movement',
-  'inventory.read', 'inventory.adjust',
-  'product.manage', 'product.read', 'report.read',
-  'organization.read', 'organization.update',
-  'backup.create', 'backup.restore', 'hardware.bridge.read', 'tax.manage',
-  'user.read', 'user.create', 'user.update',
-  'role.read', 'role.create', 'role.update', 'audit.read',
-  'supplier.read', 'supplier.manage', 'purchase.read', 'purchase.manage', 'purchase.receive',
-  'supplier.payment.manage', 'supplier.payment.read',
-];
-
-// Standard operational role: can run the register and consult operational
-// information, but cannot administer users, roles, organization settings,
-// backups, purchases, or supplier payments.
-const cashierPermissionCodes = [
-  'sale.create', 'sale.read', 'sale.complete', 'sale.return',
-  'payment.create', 'payment.read', 'payment.refund',
-  'inventory.read', 'product.read', 'report.read', 'store.read',
-  'cash.read', 'cash.open', 'cash.close', 'cash.movement',
-];
-
-const standardTenantRoles = [
-  { name: 'MANAGER', description: 'Gestion quotidienne et supervision commerciale', permissions: ['store.read','store.update','product.manage','product.read','inventory.read','inventory.adjust','customer.create','customer.read','customer.update','customer.delete','proforma.create','proforma.read','proforma.update','proforma.accept','proforma.cancel','proforma.convert','sale.create','sale.read','sale.update','sale.complete','sale.credit','sale.cancel','sale.return','payment.create','payment.read','payment.refund','cash.read','cash.open','cash.close','cash.movement','report.read','supplier.read','supplier.manage','purchase.read','purchase.manage','purchase.receive','supplier.payment.manage','supplier.payment.read','user.read','user.create','user.update','role.read','audit.read','organization.read'] },
-  { name: 'STORE_MANAGER', description: 'Gestion opérationnelle des magasins', permissions: ['store.read','product.manage','product.read','inventory.read','inventory.adjust','customer.create','customer.read','customer.update','proforma.create','proforma.read','proforma.update','proforma.accept','proforma.convert','sale.create','sale.read','sale.update','sale.complete','sale.credit','sale.cancel','sale.return','payment.create','payment.read','payment.refund','cash.read','cash.open','cash.close','cash.movement','report.read','supplier.read','purchase.read','purchase.receive'] },
-  { name: 'SELLER', description: 'Ventes, devis et relation client', permissions: ['store.read','product.read','customer.create','customer.read','customer.update','proforma.create','proforma.read','proforma.update','sale.create','sale.read','sale.complete','payment.create','payment.read','inventory.read'] },
-  { name: 'INVENTORY_MANAGER', description: 'Produits, stocks et inventaires', permissions: ['store.read','product.manage','product.read','inventory.read','inventory.adjust','report.read','purchase.read','purchase.receive'] },
-  { name: 'PURCHASING_MANAGER', description: 'Fournisseurs, achats et réceptions', permissions: ['store.read','product.read','inventory.read','supplier.read','supplier.manage','purchase.read','purchase.manage','purchase.receive','supplier.payment.read'] },
-  { name: 'ACCOUNTANT', description: 'Suivi comptable et financier', permissions: ['store.read','sale.read','payment.read','cash.read','report.read','customer.read','supplier.read','purchase.read','supplier.payment.read','audit.read'] },
-  { name: 'AUDITOR', description: 'Consultation en lecture seule et traçabilité', permissions: ['store.read','product.read','inventory.read','customer.read','proforma.read','sale.read','payment.read','cash.read','report.read','organization.read','user.read','role.read','audit.read','supplier.read','purchase.read','supplier.payment.read'] },
-];
+const rbacCatalog = require(path.join(app, 'standard-tenant-rbac.json'));
+const permissionCodes = rbacCatalog.tenantPermissions;
+const cashierPermissionCodes = rbacCatalog.cashierRole.permissions;
+const standardTenantRoles = rbacCatalog.standardTenantRoles;
 
 function moduleFromCode(code) {
   const prefix = code.split('.')[0];
@@ -157,7 +125,7 @@ async function main() {
     }
   }
 
-  console.log('OmniKès RBAC catalogue initialized: ' + permissionCodes.length + ' tenant permissions defined; ' + count + ' present; missing cashier roles repaired without overwriting existing roles.');
+  console.log('OmniKès RBAC catalogue initialized from shared catalogue: ' + permissionCodes.length + ' tenant permissions defined; ' + count + ' present; standard roles provisioned without overwriting existing roles.');
 }
 
 main()
