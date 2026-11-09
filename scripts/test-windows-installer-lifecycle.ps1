@@ -238,7 +238,7 @@ try {
       throw "First store creation failed with HTTP $($storeResult.StatusCode): $($storeResult.Body)"
     }
     $storeResponse = $storeResult.Body | ConvertFrom-Json
-    Assert ($storeResponse.store.id) "First store API did not return a persisted store. Response: $($storeResult.Body)"
+   Assert (-not [string]::IsNullOrWhiteSpace([string]$storeResponse.store.id)) "First store API did not return a valid persisted store ID. Response: $($storeResult.Body)"
     Assert ($storeResponse.store.code -eq 'QA-FIRST-STORE') "First store response contains an unexpected store code. Response: $($storeResult.Body)"
     $storeResult.Response.Dispose()
 
