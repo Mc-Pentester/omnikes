@@ -176,8 +176,19 @@ try {
   Assert ($probe -eq 'must-survive-upgrade') 'In-place upgrade did not preserve the PostgreSQL database.'
   Write-Host 'IN-PLACE UPGRADE + DATABASE PRESERVATION: PASS'
 
-  # Uninstall must remove Program Files while intentionally preserving ProgramData data.
-  Stop-OmniKesServer
+  # Uninstall while OmniKes is still running. A separate Node process simulates
+  # Clarodaro: the OmniKes uninstaller must leave applications outside its own
+  # installation directory untouched, even when they also use Node.js.
+  $clarodaroRoot = Join-Path $env:RUNNER_TEMP 'Clarodaro-Uninstall-Isolation'
+  New-Item -ItemType Directory -Path $clarodaroRoot -Force | Out-Null
+  $clarodaroServer = Join-Path $clarodaroRoot 'server.js'
+  Set-Content -LiteralPath $clarodaroServer -Value 'setInterval(() => {}, 1000);' -Encoding UTF8
+  $externalNode = (Get-Command node.exe -ErrorAction Stop).Source
+  $clarodaroProcess = Start-Process -FilePath $externalNode -ArgumentList @("`"$clarodaroServer`"") -PassThru
+  Start-Sleep -Seconds 2
+  $clarodaroProcess.Refresh()
+  Assert (-not $clarodaroProcess.HasExited) 'Clarodaro isolation process did not start.'
+
   $uninstaller = Join-Path $installDir 'unins000.exe'
   Assert (Test-Path $uninstaller) 'Inno Setup uninstaller is missing.'
   $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
@@ -188,11 +199,18 @@ try {
   Assert (Test-Path $passwordFile) 'Uninstall unexpectedly removed the PostgreSQL credential.'
   $service = Get-Service -Name 'OmniKesPostgreSQL' -ErrorAction SilentlyContinue
   Assert (-not $service) 'PostgreSQL Windows service registration remains after uninstall.'
+  $clarodaroProcess.Refresh()
+  Assert (-not $clarodaroProcess.HasExited) 'OmniKes uninstaller terminated an unrelated Clarodaro-like Node process.'
+  Write-Host 'UNINSTALL WHILE OMNIKES RUNNING: PASS'
+  Write-Host 'CLARODARO PROCESS ISOLATION: PASS'
   Write-Host 'UNINSTALL PROGRAM FILES + PRESERVE PROGRAMDATA: PASS'
   Write-Host 'WINDOWS INSTALLER LIFECYCLE: PASS'
 } catch {
   $_ | Out-String | Add-Content -LiteralPath $logFile
   throw
 } finally {
+  if ($clarodaroProcess -and -not $clarodaroProcess.HasExited) {
+    Stop-Process -Id $clarodaroProcess.Id -Force -ErrorAction SilentlyContinue
+  }
   Remove-Item Env:\PGPASSWORD -ErrorAction SilentlyContinue
 }
