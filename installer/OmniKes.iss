@@ -122,6 +122,7 @@ var
   PowerShellExe: string;
   CleanupScript: string;
 begin
+  PurgeOmniKesData := CompareText(ExpandConstant('{param:purgedata|no}'), 'yes') = 0;
   PowerShellExe := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
   CleanupScript := ExpandConstant('{app}\installer\uninstall-runtime.ps1');
   if not Exec(PowerShellExe, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + CleanupScript + '" -InstallRoot "' + ExpandConstant('{app}') + '"', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
