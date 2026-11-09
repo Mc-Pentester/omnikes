@@ -133,11 +133,12 @@ export class RegistrationService {
       // catalog explicitly. Permissions themselves are global definitions;
       // the role carrying them is tenant-scoped.
       const permissions = await tx.permission.findMany({
-        select: { id: true },
+        where: { code: { in: [...TENANT_PERMISSION_CODES] } },
+        select: { id: true, code: true },
       });
 
-      if (permissions.length === 0) {
-        throw new Error('No permissions are configured; cannot create administrator role');
+      if (permissions.length !== TENANT_PERMISSION_CODES.length) {
+        throw new Error('Tenant RBAC catalogue is incomplete; cannot create administrator role');
       }
 
       await tx.rolePermission.createMany({

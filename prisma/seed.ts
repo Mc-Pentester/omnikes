@@ -548,17 +548,14 @@ async function main() {
     },
   });
 
+  const platformSubscriptionDefinition = rbacCatalog.platformPermissions[0];
   const platformSubscriptionManagePermission = await prisma.platformPermission.upsert({
-    where: { code: 'organization.subscription.manage' },
+    where: { code: platformSubscriptionDefinition.code },
     update: {
-      description: 'Activer, renouveler ou annuler l’abonnement OmniKès pour une organisation',
-      module: 'subscription',
+      description: platformSubscriptionDefinition.description,
+      module: platformSubscriptionDefinition.module,
     },
-    create: {
-      code: 'organization.subscription.manage',
-      description: 'Activer, renouveler ou annuler l’abonnement OmniKès pour une organisation',
-      module: 'subscription',
-    },
+    create: platformSubscriptionDefinition,
   });
 
   const organizationUpdatePermission = await prisma.permission.upsert({

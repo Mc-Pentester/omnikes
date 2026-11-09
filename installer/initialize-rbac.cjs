@@ -43,15 +43,13 @@ async function main() {
       });
     }
 
-    await tx.platformPermission.upsert({
-      where: { code: 'organization.subscription.manage' },
-      update: {},
-      create: {
-        code: 'organization.subscription.manage',
-        description: 'Activer, renouveler ou annuler l’abonnement OmniKès pour une organisation',
-        module: 'subscription',
-      },
-    });
+    for (const permission of rbacCatalog.platformPermissions) {
+      await tx.platformPermission.upsert({
+        where: { code: permission.code },
+        update: {},
+        create: permission,
+      });
+    }
   });
 
   const count = await prisma.permission.count();
