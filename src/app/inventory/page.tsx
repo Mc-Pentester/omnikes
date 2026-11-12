@@ -20,6 +20,7 @@ interface Inventory {
   variant: {
     id: string;
     sku: string;
+    barcode?: string | null;
     price: number;
     product: {
       id: string;
@@ -262,7 +263,8 @@ export default function InventoryPage() {
     const q = search.trim().toLowerCase();
     const matchesSearch = !q ||
       item.variant.product.name.toLowerCase().includes(q) ||
-      item.variant.sku.toLowerCase().includes(q);
+      item.variant.sku.toLowerCase().includes(q) ||
+      (item.variant.barcode || '').toLowerCase().includes(q);
     const matchesStore = !storeFilter || item.storeId === storeFilter;
     const available = Math.max(0, item.quantity - item.reservedQuantity);
     const matchesStock =
@@ -577,7 +579,7 @@ export default function InventoryPage() {
               >
                 <option value="">Sélectionner une référence de destination</option>
                 {inventory
-                  .filter((item) => item.id !== selectedInventory.id)
+                  .filter((item) => item.id && item.id !== selectedInventory.id && item.variantId === selectedInventory.variantId)
                   .map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.store.name} — {item.variant.product.name} ({item.variant.sku})
