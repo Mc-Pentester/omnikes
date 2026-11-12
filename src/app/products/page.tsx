@@ -57,6 +57,7 @@ export default function ProductsPage() {
   const [isSidebarCompact, setIsSidebarCompact] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [returnToOnboarding, setReturnToOnboarding] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -86,6 +87,7 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
+    setReturnToOnboarding(new URLSearchParams(window.location.search).get('returnTo') === 'onboarding');
     const timer = window.setTimeout(() => {
       if (user) void fetchProducts();
     }, 0);
@@ -263,6 +265,9 @@ export default function ProductsPage() {
 
       setShowModal(false);
       await fetchProducts();
+      if (modalMode === 'create' && returnToOnboarding) {
+        router.push('/onboarding?step=products');
+      }
     } catch (err) {
       console.error('Error saving product:', err);
       setFormError('Erreur lors de l\'enregistrement du produit.');
@@ -320,7 +325,10 @@ export default function ProductsPage() {
                 <p className="mt-1 text-sm text-muted">Votre catalogue, vos prix et vos références au même endroit.</p>
               </div>
             </div>
-            <Button onClick={handleCreate}>+ Nouveau produit</Button>
+            <div className="flex items-center gap-2">
+              {returnToOnboarding && <Button variant="outline" onClick={() => router.push('/onboarding?step=products')}>Retour à l&apos;assistant</Button>}
+              <Button onClick={handleCreate}>+ Nouveau produit</Button>
+            </div>
           </div>
         </header>
 
