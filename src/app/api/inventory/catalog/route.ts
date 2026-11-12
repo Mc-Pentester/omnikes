@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
           variant: {
             id: variant.id,
             sku: variant.sku,
+            barcode: variant.barcode,
             price: variant.price,
             product: variant.product,
           },
