@@ -25,7 +25,7 @@ type Step = 0 | 1 | 2 | 3;
 const steps = [
   { title: 'Votre activité', description: 'Préparez votre espace OmniKès.' },
   { title: 'Votre magasin', description: 'Configurez votre premier point de vente.' },
-  { title: 'Vos produits', description: 'Ajoutez les articles que vous vendez.' },
+  { title: 'Vos produits', description: 'Ajoutez vos articles maintenant ou plus tard.' },
   { title: 'Votre première vente', description: 'Passez naturellement du réglage à l’action.' },
 ] as const;
 
@@ -85,6 +85,9 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (user) queueMicrotask(() => void fetchProgress());
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('step') === 'products') {
+      setStep(2);
+    }
   }, [user, fetchProgress]);
 
   useEffect(() => {
@@ -271,11 +274,11 @@ export default function OnboardingPage() {
                   <div className="space-y-6">
                     <div className={'rounded-[var(--radius-lg)] border p-5 ' + (products.length > 0 ? 'border-success/20 bg-success-soft' : 'border-border bg-surface')}>
                       <p className="text-sm font-semibold text-foreground">{products.length > 0 ? products.length + ' produit(s) déjà disponible(s)' : 'Votre catalogue est encore vide'}</p>
-                      <p className="mt-1 text-sm text-muted">{products.length > 0 ? 'Vous pouvez utiliser votre catalogue existant pour passer à la première vente.' : 'Ajoutez au moins un produit réel avant de passer à la caisse.'}</p>
+                      <p className="mt-1 text-sm text-muted">{products.length > 0 ? 'Vous pouvez utiliser votre catalogue existant pour passer à la première vente.' : 'Vous pouvez créer vos produits maintenant. Vous pourrez aussi compléter votre catalogue plus tard, depuis l’espace de travail.'}</p>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                      <Button onClick={() => router.push('/products')}>Gérer les produits <ArrowIcon /></Button>
-                      <Button variant="outline" onClick={() => setStep(3)} disabled={products.length === 0}>Continuer</Button>
+                      <Button onClick={() => router.push('/products?returnTo=onboarding')}>Gérer les produits <ArrowIcon /></Button>
+                      <Button variant="outline" onClick={() => setStep(3)}>Continuer</Button>
                     </div>
                   </div>
                 )}
@@ -285,7 +288,7 @@ export default function OnboardingPage() {
                     <div className="rounded-[var(--radius-lg)] border border-primary/20 bg-primary-soft p-6">
                       <p className="text-sm font-semibold text-primary">Tout est prêt.</p>
                       <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">Passez votre première vente réelle.</p>
-                      <p className="mt-2 text-sm leading-6 text-muted">Votre magasin et votre catalogue sont en place. Ouvrez le POS pour rechercher un produit, constituer le panier et encaisser.</p>
+                      <p className="mt-2 text-sm leading-6 text-muted">Votre magasin est prêt. Si votre catalogue est vide, vous pourrez ajouter des produits depuis la gestion des produits avant votre première vente.</p>
                     </div>
                     <div className="flex flex-wrap gap-3">
                       <Button onClick={() => router.push('/')}>Ouvrir le POS <ArrowIcon /></Button>
@@ -300,7 +303,7 @@ export default function OnboardingPage() {
                 {step < 3 && (
                   <Button
                     onClick={() => setStep((current) => Math.min(3, current + 1) as Step)}
-                    disabled={(step === 1 && stores.length === 0) || (step === 2 && products.length === 0)}
+                    disabled={step === 1 && stores.length === 0}
                   >
                     Continuer <ArrowIcon />
                   </Button>
