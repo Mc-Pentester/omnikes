@@ -12,7 +12,7 @@ import { useAuth } from '@omnikes/contexts/AuthContext';
 import { Sidebar } from '@omnikes/components/layout/Sidebar';
 
 interface Inventory {
-  id: string;
+  id: string | null;
   storeId: string;
   variantId: string;
   quantity: number;
@@ -89,7 +89,7 @@ export default function InventoryPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/inventory?skip=0&take=100');
+      const response = await fetch('/api/inventory/catalog');
       
       if (!response.ok) {
         throw new Error('Failed to fetch inventory');
@@ -121,6 +121,7 @@ export default function InventoryPage() {
   }, [user]);
 
   const handleOpenWorkflow = (inventoryItem: Inventory, nextWorkflow: InventoryWorkflow) => {
+    if (!inventoryItem.id && nextWorkflow !== 'receive') return;
     setSelectedInventory(inventoryItem);
     setWorkflow(nextWorkflow);
     setFormData({
@@ -166,13 +167,16 @@ export default function InventoryPage() {
 
     try {
       const endpoint = workflow === 'receive'
-        ? `/api/inventory/${selectedInventory?.id}/receive`
+        ? selectedInventory?.id
+          ? `/api/inventory/${selectedInventory.id}/receive`
+          : '/api/inventory/receive'
         : workflow === 'adjust'
           ? `/api/inventory/${selectedInventory?.id}/adjust`
           : `/api/inventory/${selectedInventory?.id}/transfer`;
 
       const body = workflow === 'receive'
         ? {
+            ...(selectedInventory?.id ? {} : { storeId: selectedInventory?.storeId, variantId: selectedInventory?.variantId }),
             quantity,
             referenceId: formData.referenceId || undefined,
             notes: formData.notes || undefined,
@@ -280,6 +284,7 @@ export default function InventoryPage() {
     setHistoryError(null);
     setHistoryLoading(true);
     try {
+      if (!item.id) { setHistoryLoading(false); return; }
       const response = await fetch(`/api/inventory/${item.id}/movements?skip=0&take=50`);
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || 'Impossible de charger l’historique');
@@ -318,8 +323,8 @@ export default function InventoryPage() {
         <main className="flex-1 overflow-y-auto p-6">
           {inventory.length === 0 ? (
             <EmptyState
-              title="Votre stock sera prêt en quelques étapes"
-              description="Créez d&apos;abord un magasin et un produit. OmniKès créera ensuite le suivi de stock lorsque vous commencerez à approvisionner vos références."
+              title="Aucune référence à suivre pour le moment"
+              description="Créez un magasin et ajoutez des produits. Les références apparaîtront ici pour que vous puissiez enregistrer leurs réceptions."
               actionLabel="Gérer les produits"
               onAction={() => router.push('/products')}
               secondaryActionLabel="Gérer les magasins"
@@ -409,7 +414,7 @@ export default function InventoryPage() {
                       {filteredInventory.map((item) => {
                         const available = Math.max(0, item.quantity - item.reservedQuantity);
                         return (
-                          <tr key={item.id} className="hover:bg-surface-muted">
+                          <tr key={item.id || `${item.storeId}:${item.variantId}`} className="hover:bg-surface-muted">
                             <td className="px-6 py-4">
                               <div className="font-medium text-foreground">{item.variant.product.name}</div>
                               <div className="text-xs text-muted">{item.variant.sku}</div>
@@ -420,10 +425,10 @@ export default function InventoryPage() {
                             <td className="px-6 py-4 text-right"><span className="font-semibold text-foreground">{available}</span><span className="ml-2 text-xs text-muted">{available === 0 ? 'Indisponible' : 'disponible'}</span></td>
                             <td className="px-6 py-4">
                               <div className="flex justify-end gap-2">
-                                <Button variant="outline" size="sm" onClick={() => openHistory(item)}>Historique</Button>
+                                {item.id && <Button variant="outline" size="sm" onClick={() => openHistory(item)}>Historique</Button>}
                                 <Button variant="outline" size="sm" onClick={() => handleOpenWorkflow(item, 'receive')}>Recevoir</Button>
-                                <Button variant="outline" size="sm" onClick={() => handleOpenWorkflow(item, 'transfer')}>Transférer</Button>
-                                <Button variant="outline" size="sm" onClick={() => handleOpenWorkflow(item, 'adjust')}>Ajuster</Button>
+                                {item.id && <Button variant="outline" size="sm" onClick={() => handleOpenWorkflow(item, 'transfer')}>Transférer</Button>}
+                                {item.id && <Button variant="outline" size="sm" onClick={() => handleOpenWorkflow(item, 'adjust')}>Ajuster</Button>}
                               </div>
                             </td>
                           </tr>
