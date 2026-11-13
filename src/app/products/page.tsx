@@ -394,7 +394,17 @@ export default function ProductsPage() {
                           </Badge>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
+                            {product.variants.map((variant) => (
+                              <Button
+                                key={variant.id}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => router.push(`/inventory?sku=${encodeURIComponent(variant.sku)}`)}
+                              >
+                                Ajouter inventaire
+                              </Button>
+                            ))}
                             <Button
                               variant="outline"
                               size="sm"
