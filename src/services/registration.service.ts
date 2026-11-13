@@ -82,7 +82,6 @@ export class RegistrationService {
     // registrations race. Retry a few times so the losing request observes the
     // organization created by the winner and becomes a normal join request.
     const maxSerializationRetries = 3;
-    let result: Awaited<ReturnType<typeof runRegistrationTransaction>>;
     const runRegistrationTransaction = () => prisma.$transaction(async (tx) => {
       const existingOrganization = await tx.organization.findFirst({ orderBy: { createdAt: 'asc' } });
       if (existingOrganization) {
@@ -118,7 +117,8 @@ export class RegistrationService {
       });
       await tx.userRole.create({ data: { userId: user.id, roleId: adminRoleId } });
       return { organization, user, pendingApproval: false };
-}, { isolationLevel: 'Serializable' });
+    }, { isolationLevel: 'Serializable' });
+    let result: Awaited<ReturnType<typeof runRegistrationTransaction>>;
 
     for (let attempt = 0; ; attempt += 1) {
       try {
