@@ -28,12 +28,13 @@ describe('Windows installer RBAC bootstrap', () => {
     expect(registration).toContain('roleId: adminRoleId');
     expect(standardRoles).toContain('rbacCatalog.standardRoles');
     expect(standardRoles).toContain('never overwrite their permissions or description');
-    expect(lifecycle).toContain("-Path '/api/admin/roles'");
+    expect(lifecycle).toContain('$baseUrl/api/admin/roles');
     expect(lifecycle).toContain('FIRST ORGANIZATION STANDARD RBAC ROLES: PASS');
     expect(rbacCatalog.standardRoles.map((role) => role.name)).toEqual(expect.arrayContaining([
       'ADMIN', 'MANAGER', 'SUPERVISOR', 'CASHIER', 'SALES_ASSOCIATE',
       'INVENTORY_MANAGER', 'WAREHOUSE_CLERK', 'PURCHASING_MANAGER',
       'ACCOUNTANT', 'SALES_MANAGER', 'CUSTOMER_SERVICE',
+      'STORE_MANAGER', 'SELLER', 'AUDITOR',
     ]));
   });
 

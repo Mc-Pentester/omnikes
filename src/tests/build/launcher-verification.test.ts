@@ -142,7 +142,7 @@ describe('Windows Launcher Verification', () => {
     const registration = readFileSync(path.join(root, 'src', 'services', 'registration.service.ts'), 'utf8');
     const initializer = readFileSync(path.join(installerPath, 'initialize-rbac.cjs'), 'utf8');
     const packaging = readFileSync(path.join(root, 'scripts', 'package-windows.ps1'), 'utf8');
-    expect(catalog.standardRoles).toHaveLength(11);
+    expect(catalog.standardRoles).toHaveLength(14);
     expect(catalog.permissionCodes.length).toBeGreaterThan(0);
     expect(roleService).toContain("../../../config/rbac-catalog.json");
     expect(registration).toContain('provisionStandardOrganizationRoles');

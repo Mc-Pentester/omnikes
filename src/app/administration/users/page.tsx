@@ -64,6 +64,10 @@ export default function AdministrationUsersPage() {
       setUsers(data.users);
       setRoles(data.roles);
       setStores(data.stores);
+      if (roles.length === 0 && !selectedId) {
+        const cashierRole = data.roles.find((role: Role) => role.name === 'CASHIER');
+        if (cashierRole) setForm((current) => current.roleIds.length ? current : { ...current, roleIds: [cashierRole.id] });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
@@ -95,12 +99,13 @@ export default function AdministrationUsersPage() {
   };
 
   const newUser = () => {
-      setSelectedId(null);
+    setSelectedId(null);
+    const cashierRole = roles.find((role) => role.name === 'CASHIER');
     setForm({
       name: '',
       email: '',
       password: '',
-      roleIds: [],
+      roleIds: cashierRole ? [cashierRole.id] : [],
       isActive: true,
     });
     setMessage('');
