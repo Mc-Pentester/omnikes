@@ -71,8 +71,17 @@ export const adminUserCreateSchema = z.object({
   email: z.string().email('Invalid email address'),
   name: z.string().min(1, 'Name is required').max(255),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  roleId: z.string().min(1, 'Role is required'),
+  // roleId is retained temporarily for older clients; new clients use roleIds.
+  roleId: z.string().min(1).optional(),
+  roleIds: z.array(z.string().min(1)).min(1, 'At least one role is required').optional(),
   storeId: z.string().cuid().optional(),
+}).superRefine((data, ctx) => {
+  if (!data.roleIds?.length && !data.roleId) {
+    ctx.addIssue({ code: 'custom', path: ['roleIds'], message: 'At least one role is required' });
+  }
+  if (data.roleIds && new Set(data.roleIds).size !== data.roleIds.length) {
+    ctx.addIssue({ code: 'custom', path: ['roleIds'], message: 'Duplicate role assignments are not allowed' });
+  }
 });
 
 export const adminUserUpdateSchema = z.object({
@@ -80,8 +89,13 @@ export const adminUserUpdateSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255).optional(),
   password: z.string().min(8, 'Password must be at least 8 characters').optional(),
   isActive: z.boolean().optional(),
-  roleId: z.string().min(1, 'Role is required').optional(),
+  roleId: z.string().min(1).optional(),
+  roleIds: z.array(z.string().min(1)).min(1, 'At least one role is required').optional(),
   storeId: z.string().cuid().optional(),
+}).superRefine((data, ctx) => {
+  if (data.roleIds && new Set(data.roleIds).size !== data.roleIds.length) {
+    ctx.addIssue({ code: 'custom', path: ['roleIds'], message: 'Duplicate role assignments are not allowed' });
+  }
 });
 
 // Role validation

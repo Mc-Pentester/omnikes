@@ -11,35 +11,40 @@ import {
 } from '@omnikes/lib/validation';
 
 export class AdminUserService {
-  private async assertRoleAssignable(actorUserId: string, organizationId: string, roleId: string) {
-    const [actorRoles, targetRole] = await Promise.all([
+  private async assertRolesAssignable(actorUserId: string, organizationId: string, roleIds: string[]) {
+    const uniqueRoleIds = [...new Set(roleIds)];
+    if (!uniqueRoleIds.length) throw new Error('At least one role is required');
+    if (uniqueRoleIds.length !== roleIds.length) throw new Error('Duplicate role assignments are not allowed');
+
+    const [actorRoles, targetRoles] = await Promise.all([
       roleRepository.getUserRoles(actorUserId),
-      prisma.role.findFirst({
-        where: { id: roleId, organizationId },
+      prisma.role.findMany({
+        where: { id: { in: uniqueRoleIds }, organizationId },
         include: { rolePermissions: { select: { permission: { select: { code: true } } } } },
       }),
     ]);
 
-    if (!targetRole) throw new Error('Role not found');
+    if (targetRoles.length !== uniqueRoleIds.length) throw new Error('One or more roles were not found');
 
     const actorPermissions = new Set(actorRoles.flatMap((role) => role.permissions));
-    const targetPermissions = targetRole.rolePermissions.map((rp) => rp.permission.code);
-    if (targetPermissions.some((permission) => !actorPermissions.has(permission))) {
-      throw new Error('Actor cannot delegate one or more permissions');
+    for (const targetRole of targetRoles) {
+      const targetPermissions = targetRole.rolePermissions.map((rp) => rp.permission.code);
+      if (targetPermissions.some((permission) => !actorPermissions.has(permission))) {
+        throw new Error('Actor cannot delegate one or more permissions');
+      }
+      if (targetRole.isGlobal) {
+        if (!actorRoles.some((role) => role.isGlobal)) {
+          throw new Error('Global role assignment requires global administration');
+        }
+      } else {
+        const authorizedStoreIds = await roleRepository.getAuthorizedStoreIds(actorUserId);
+        if (authorizedStoreIds !== null && (!targetRole.storeId || !authorizedStoreIds.includes(targetRole.storeId))) {
+          throw new Error('Role is outside the actor store scope');
+        }
+      }
     }
 
-    if (targetRole.isGlobal) {
-      if (!actorRoles.some((role) => role.isGlobal)) {
-        throw new Error('Global role assignment requires global administration');
-      }
-    } else {
-      const authorizedStoreIds = await roleRepository.getAuthorizedStoreIds(actorUserId);
-      if (authorizedStoreIds !== null && (!targetRole.storeId || !authorizedStoreIds.includes(targetRole.storeId))) {
-        throw new Error('Role is outside the actor store scope');
-      }
-    }
-
-    return targetRole;
+    return targetRoles;
   }
 
   async list(
@@ -115,9 +120,8 @@ export class AdminUserService {
 
   async create(organizationId: string, input: AdminUserCreateInput, actorUserId: string) {
     const data = adminUserCreateSchema.parse(input);
-    const role = await this.assertRoleAssignable(actorUserId, organizationId, data.roleId);
-    if (role.isGlobal && data.storeId) throw new Error('Global role cannot be assigned to a specific store');
-    if (!role.isGlobal && data.storeId && role.storeId !== data.storeId) throw new Error('Role is not scoped to the selected store');
+    const roleIds = data.roleIds ?? (data.roleId ? [data.roleId] : []);
+    const roles = await this.assertRolesAssignable(actorUserId, organizationId, roleIds);
 
     const existing = await prisma.user.findUnique({ where: { email: data.email } });
     if (existing) throw new Error('A user with this email already exists');
@@ -136,7 +140,10 @@ export class AdminUserService {
         select: { id: true, email: true, name: true, isActive: true, createdAt: true },
       });
 
-      await tx.userRole.create({ data: { userId: created.id, roleId: role.id } });
+      await tx.userRole.createMany({
+        data: roles.map((role) => ({ userId: created.id, roleId: role.id })),
+        skipDuplicates: true,
+      });
 
       await tx.auditLog.create({
         data: {
@@ -150,9 +157,9 @@ export class AdminUserService {
             email: created.email,
             name: created.name,
             isActive: created.isActive,
-            roleId: role.id,
-            roleName: role.name,
-            storeId: data.storeId ?? null,
+            roleIds: roles.map((role) => role.id),
+            roleNames: roles.map((role) => role.name),
+            storeIds: roles.filter((role) => !role.isGlobal).map((role) => role.storeId),
           },
         },
       });
@@ -173,9 +180,6 @@ export class AdminUserService {
     const target = await userRepository.findByIdWithOrganization(userId, organizationId);
     if (!target) throw new Error('User not found');
 
-    // A store-scoped administrator may mutate only users whose complete role
-    // scope is contained in the administrator's own store scope. This check
-    // applies to every field, not only roleId/storeId changes.
     const actorStoreIds = await roleRepository.getAuthorizedStoreIds(actorUserId);
     if (actorStoreIds !== null) {
       const targetRoles = target.userRoles.map(({ role }) => role);
@@ -193,18 +197,10 @@ export class AdminUserService {
       if (existing && existing.id !== userId) throw new Error('A user with this email already exists');
     }
 
-    if (data.roleId) {
-      const selectedRole = await this.assertRoleAssignable(actorUserId, organizationId, data.roleId);
-      if (selectedRole.isGlobal && data.storeId) throw new Error('Global role cannot be assigned to a specific store');
-      if (!selectedRole.isGlobal && data.storeId && selectedRole.storeId !== data.storeId) {
-        throw new Error('Role is not scoped to the selected store');
-      }
-    } else if (data.storeId) {
-      const currentRole = target.userRoles[0]?.role;
-      if (!currentRole) throw new Error('User has no role');
-      const resolvedCurrentRole = await this.assertRoleAssignable(actorUserId, organizationId, currentRole.id);
-      if (resolvedCurrentRole.isGlobal || resolvedCurrentRole.storeId !== data.storeId) throw new Error('Role is not scoped to the selected store');
-    }
+    const requestedRoleIds = data.roleIds ?? (data.roleId ? [data.roleId] : undefined);
+    const selectedRoles = requestedRoleIds
+      ? await this.assertRolesAssignable(actorUserId, organizationId, requestedRoleIds)
+      : undefined;
 
     const updateData: Prisma.UserUpdateInput = {};
     if (data.email !== undefined) updateData.email = data.email;
@@ -219,9 +215,12 @@ export class AdminUserService {
         select: { id: true, email: true, name: true, isActive: true, updatedAt: true },
       });
 
-      if (data.roleId) {
+      if (selectedRoles) {
         await tx.userRole.deleteMany({ where: { userId } });
-        await tx.userRole.create({ data: { userId, roleId: data.roleId } });
+        await tx.userRole.createMany({
+          data: selectedRoles.map((role) => ({ userId, roleId: role.id })),
+          skipDuplicates: true,
+        });
       }
 
       if (data.password !== undefined || data.isActive === false) {
@@ -239,12 +238,18 @@ export class AdminUserService {
           module: 'users',
           entityId: userId,
           entityType: 'User',
+          oldValues: requestedRoleIds
+            ? { roleIds: target.userRoles.map(({ role }) => role.id) }
+            : undefined,
           newValues: {
             ...(data.email !== undefined ? { email: data.email } : {}),
             ...(data.name !== undefined ? { name: data.name } : {}),
             ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
-            ...(data.roleId !== undefined ? { roleId: data.roleId } : {}),
-            ...(data.storeId !== undefined ? { storeId: data.storeId } : {}),
+            ...(selectedRoles ? {
+              roleIds: selectedRoles.map((role) => role.id),
+              roleNames: selectedRoles.map((role) => role.name),
+              storeIds: selectedRoles.filter((role) => !role.isGlobal).map((role) => role.storeId),
+            } : {}),
             ...(data.password !== undefined ? { passwordChanged: true } : {}),
           },
         },
@@ -255,6 +260,7 @@ export class AdminUserService {
 
     return updated;
   }
+
 }
 
 export const adminUserService = new AdminUserService();

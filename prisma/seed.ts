@@ -2,6 +2,8 @@ import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import bcrypt from 'bcryptjs';
+import rbacCatalog from '../src/lib/rbac/standard-tenant-rbac.json';
+import { provisionStandardTenantRoles } from '../src/lib/rbac/standard-tenant-roles';
 
 const connectionString = process.env.DATABASE_URL;
 const adapter = connectionString ? new PrismaPg({ connectionString }) : undefined;
@@ -68,6 +70,22 @@ async function main() {
 
   console.log('✅ Organizations created:', { orgA: orgA.id, orgB: orgB.id });
 
+  // Use the same permission catalogue as registration and the Windows installer.
+  const moduleFromPermissionCode = (code: string) => {
+    const prefix = code.split('.')[0];
+    if (prefix === 'sale' || prefix === 'payment') return 'sales';
+    if (prefix === 'report') return 'reports';
+    return prefix;
+  };
+  await prisma.permission.createMany({
+    data: rbacCatalog.tenantPermissions.map((code) => ({ code, description: 'Permission ' + code, module: moduleFromPermissionCode(code) })),
+    skipDuplicates: true,
+  });
+  await prisma.$transaction(async (tx) => {
+    await provisionStandardTenantRoles(tx, orgA.id);
+    await provisionStandardTenantRoles(tx, orgB.id);
+  });
+
   // ============================================================
   // USERS
   // ============================================================
@@ -118,7 +136,7 @@ async function main() {
     where: { id: 'admin-role-a' },
     update: {
       organizationId: orgA.id,
-      name: 'ADMIN',
+      name: rbacCatalog.adminRole.name,
       description: 'Administrator role for test organization A',
       isGlobal: true,
     },
@@ -135,7 +153,7 @@ async function main() {
     where: { id: 'cashier-role-a' },
     update: {
       organizationId: orgA.id,
-      name: 'CASHIER',
+      name: rbacCatalog.cashierRole.name,
       description: 'Cashier role for test organization A',
       isGlobal: true,
     },
@@ -152,7 +170,7 @@ async function main() {
     where: { id: 'admin-role-b' },
     update: {
       organizationId: orgB.id,
-      name: 'ADMIN',
+      name: rbacCatalog.adminRole.name,
       description: 'Administrator role for test organization B',
       isGlobal: true,
     },
@@ -530,17 +548,14 @@ async function main() {
     },
   });
 
+  const platformSubscriptionDefinition = rbacCatalog.platformPermissions[0];
   const platformSubscriptionManagePermission = await prisma.platformPermission.upsert({
-    where: { code: 'organization.subscription.manage' },
+    where: { code: platformSubscriptionDefinition.code },
     update: {
-      description: 'Activer, renouveler ou annuler l’abonnement OmniKès pour une organisation',
-      module: 'subscription',
+      description: platformSubscriptionDefinition.description,
+      module: platformSubscriptionDefinition.module,
     },
-    create: {
-      code: 'organization.subscription.manage',
-      description: 'Activer, renouveler ou annuler l’abonnement OmniKès pour une organisation',
-      module: 'subscription',
-    },
+    create: platformSubscriptionDefinition,
   });
 
   const organizationUpdatePermission = await prisma.permission.upsert({
@@ -741,7 +756,6 @@ async function main() {
   const salesPermissions = [
     saleCreatePermission,
     saleReadPermission,
-    saleUpdatePermission,
     saleCompletePermission,
     saleCreditPermission,
     saleCancelPermission,
