@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { registrationService, RateLimitError } from '@omnikes/services/registration.service';
+import { registrationService, RateLimitError, RegistrationConcurrencyError } from '@omnikes/services/registration.service';
 import { getClientIP } from '@omnikes/lib/rate-limiter';
 import { registrationSchema } from '@omnikes/lib/validation';
-import { RegistrationConcurrencyError } from '@omnikes/services/registration.service';
 import { z } from 'zod';
 
 export async function POST(request: NextRequest) {
