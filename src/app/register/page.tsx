@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
@@ -20,6 +20,19 @@ export default function RegisterPage() {
   const [timezone, setTimezone] = useState('America/Port-au-Prince');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [registrationAvailable, setRegistrationAvailable] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/auth/registration-status', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Impossible de vérifier la disponibilité de l’inscription.');
+        return response.json() as Promise<{ available: boolean }>;
+      })
+      .then((data) => { if (active) setRegistrationAvailable(data.available); })
+      .catch(() => { if (active) setRegistrationAvailable(false); });
+    return () => { active = false; };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +91,16 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <Card className="w-full max-w-md p-8">
+        {registrationAvailable === false ? (
+          <div className="text-center space-y-4">
+            <Logo size={80} />
+            <h1 className="text-2xl font-bold text-foreground">Inscription indisponible</h1>
+            <p className="text-sm text-muted">Une organisation a déjà été créée sur cette installation OmniKès. La création d’une deuxième organisation est désactivée. Connectez-vous avec un compte existant ou contactez l’administrateur pour obtenir un accès.</p>
+            <Button className="w-full" onClick={() => router.push('/login')}>Retour à la connexion</Button>
+          </div>
+        ) : registrationAvailable === null ? (
+          <div className="py-12 text-center text-sm text-muted">Vérification de la disponibilité de l’inscription...</div>
+        ) : (
         <div className="flex flex-col items-center mb-8">
           <Logo size={80} />
           <h1 className="text-2xl font-bold text-foreground mt-4">OmniKès</h1>
@@ -206,6 +229,7 @@ export default function RegisterPage() {
             </a>
           </p>
         </div>
+        )}
       </Card>
     </div>
   );
