@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { registrationService, RateLimitError } from '@omnikes/services/registration.service';
 import { getClientIP } from '@omnikes/lib/rate-limiter';
 import { registrationSchema } from '@omnikes/lib/validation';
+import { RegistrationConcurrencyError } from '@omnikes/services/registration.service';
 import { z } from 'zod';
 
 export async function POST(request: NextRequest) {
@@ -37,6 +38,12 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid input', details: error.issues }, { status: 400 });
+    if (error instanceof RegistrationConcurrencyError) {
+      return NextResponse.json({ error: error.message }, {
+        status: 503,
+        headers: { 'Retry-After': '2', 'Cache-Control': 'no-store' },
+      });
+    }
     if (error instanceof RateLimitError) {
       const response = NextResponse.json({ error: error.message }, { status: 429 });
       if (error.resetTime) {
