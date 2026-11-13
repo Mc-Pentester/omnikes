@@ -15,8 +15,8 @@ $request = $null
 $passwordFile = Join-Path $programDataRoot '.omnikes-pg-password'
 $logFile = Join-Path $env:RUNNER_TEMP 'omnikes-installer-lifecycle.log'
 
-function Assert([bool]$Condition, [string]$Message) {
-  if (-not $Condition) { throw $Message }
+function Assert([object]$Condition, [string]$Message) {
+  if (-not [bool]$Condition) { throw $Message }
 }
 
 function Install-OmniKes {
