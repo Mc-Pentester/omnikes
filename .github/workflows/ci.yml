@@ -113,7 +113,7 @@ jobs:
         run: npx prisma migrate deploy
 
       - name: Seed PostgreSQL test database
-        run: npx ts-node prisma/seed.ts
+        run: npm run seed
 
       - name: Run real PostgreSQL runtime proof
         run: npx vitest run --config vitest.integration.config.ts --no-file-parallelism src/tests/integration/sale-credit.postgres.test.ts src/tests/integration/sale-credit.api.postgres.test.ts src/tests/integration/cash-management.postgres.test.ts src/tests/integration/pos-cash-e2e.postgres.test.ts src/tests/integration/local-backup-restore.postgres.test.ts
