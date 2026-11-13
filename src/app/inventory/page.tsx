@@ -112,6 +112,11 @@ export default function InventoryPage() {
   });
 
   useEffect(() => {
+    const requestedSku = new URLSearchParams(window.location.search).get('sku');
+    if (requestedSku) setSearch(requestedSku);
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
 
     const timeoutId = window.setTimeout(() => {
