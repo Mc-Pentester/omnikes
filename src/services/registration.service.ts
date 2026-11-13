@@ -31,6 +31,13 @@ export interface RegisterResult {
   expiresAt: Date;
 }
 
+export class OrganizationAlreadyExistsError extends Error {
+  constructor() {
+    super('Une organisation existe déjà sur cette installation. Contactez l’administrateur pour obtenir un compte.');
+    this.name = 'OrganizationAlreadyExistsError';
+  }
+}
+
 export class RateLimitError extends Error {
   constructor(message: string, public resetTime?: number) {
     super(message);
@@ -90,6 +97,14 @@ export class RegistrationService {
 
     // Transaction: create Organization, User, Role, UserRole
     const result = await prisma.$transaction(async (tx) => {
+      // This installation supports a single organization. Check inside a
+      // serializable transaction so concurrent registration attempts cannot
+      // create two organizations at the same time.
+      const existingOrganization = await tx.organization.findFirst({ select: { id: true } });
+      if (existingOrganization) {
+        throw new OrganizationAlreadyExistsError();
+      }
+
       // Create Organization
       const organization = await tx.organization.create({
         data: {
@@ -127,7 +142,7 @@ export class RegistrationService {
       });
 
       return { organization, user };
-    });
+    }, { isolationLevel: 'Serializable' });
 
     // Create session after successful transaction
     const token = this.generateToken();
