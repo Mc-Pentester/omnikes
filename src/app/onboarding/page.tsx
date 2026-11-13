@@ -88,9 +88,12 @@ export default function OnboardingPage() {
   }, [user, fetchProgress]);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('step') === 'products') {
-      setStep(2);
-    }
+    const timer = window.setTimeout(() => {
+      if (new URLSearchParams(window.location.search).get('step') === 'products') {
+        setStep(2);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
