@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { registrationService, RateLimitError } from '@omnikes/services/registration.service';
+import { registrationService, RateLimitError, OrganizationAlreadyExistsError } from '@omnikes/services/registration.service';
 import { getClientIP } from '@omnikes/lib/rate-limiter';
 import { registrationSchema } from '@omnikes/lib/validation';
 import { z } from 'zod';
@@ -59,6 +59,10 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid input', details: error.issues },
         { status: 400 }
       );
+    }
+
+    if (error instanceof OrganizationAlreadyExistsError) {
+      return NextResponse.json({ error: error.message, code: 'ORGANIZATION_ALREADY_EXISTS' }, { status: 409 });
     }
 
     if (error instanceof RateLimitError) {
