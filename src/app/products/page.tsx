@@ -58,6 +58,9 @@ export default function ProductsPage() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [returnToOnboarding, setReturnToOnboarding] = useState(false);
+  const [initialStock, setInitialStock] = useState('0');
+  const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
+  const [initialStockStoreId, setInitialStockStoreId] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -101,8 +104,20 @@ export default function ProductsPage() {
   });
   const activeCount = products.filter((product) => product.isActive).length;
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     setModalMode('create');
+    setInitialStock('0');
+    setInitialStockStoreId('');
+    try {
+      const response = await fetch('/api/stores?isActive=true');
+      const data = await response.json();
+      const availableStores = data.stores || [];
+      setStores(availableStores);
+      if (availableStores.length > 0) setInitialStockStoreId(availableStores[0].id);
+    } catch (err) {
+      console.error('Error fetching stores for initial stock:', err);
+      setStores([]);
+    }
     setFormData({
       name: '',
       description: '',
@@ -205,6 +220,18 @@ export default function ProductsPage() {
       return;
     }
 
+    const requestedInitialStock = Number(initialStock);
+    if (!Number.isInteger(requestedInitialStock) || requestedInitialStock < 0) {
+      setFormError('Le stock initial doit être un nombre entier positif ou zéro.');
+      setIsSubmitting(false);
+      return;
+    }
+    if (requestedInitialStock > 0 && !initialStockStoreId) {
+      setFormError('Sélectionnez le magasin auquel attribuer le stock initial.');
+      setIsSubmitting(false);
+      return;
+    }
+
     if (!formData.price || isNaN(parseFloat(formData.price))) {
       setFormError('Le prix doit être un nombre valide.');
       setIsSubmitting(false);
@@ -260,6 +287,34 @@ export default function ProductsPage() {
         setFormError('Erreur lors de l\'enregistrement du produit.');
         setIsSubmitting(false);
         return;
+      }
+
+      if (modalMode === 'create' && requestedInitialStock > 0) {
+        const createdProduct = await response.json();
+        const createdVariant = createdProduct.variants?.[0];
+        if (!createdVariant?.id) {
+          setFormError('Produit créé, mais impossible d’identifier sa référence pour enregistrer le stock initial.');
+          await fetchProducts();
+          setIsSubmitting(false);
+          return;
+        }
+        const receiptResponse = await fetch('/api/inventory/receive', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            storeId: initialStockStoreId,
+            variantId: createdVariant.id,
+            quantity: requestedInitialStock,
+            notes: 'Stock initial à la création du produit',
+          }),
+        });
+        if (!receiptResponse.ok) {
+          const receiptError = await receiptResponse.json().catch(() => ({}));
+          setShowModal(false);
+          await fetchProducts();
+          alert(`Le produit a été créé, mais le stock initial n’a pas pu être enregistré : ${receiptError.error || 'erreur inconnue'}. Vous pouvez le réceptionner depuis Gestion des stocks.`);
+          return;
+        }
       }
 
       setShowModal(false);
@@ -554,6 +609,26 @@ export default function ProductsPage() {
                   placeholder="100.00"
                   required
                 />
+              </div>
+              <div className="rounded-lg border border-border bg-surface-muted p-3 space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Stock initial (facultatif)</p>
+                  <p className="text-xs text-muted">Vous pouvez créer le produit sans stock et le réceptionner plus tard.</p>
+                </div>
+                <div>
+                  <label htmlFor="initial-stock" className="block text-sm font-medium text-foreground mb-1">Quantité initiale</label>
+                  <Input id="initial-stock" type="number" min="0" step="1" value={initialStock} onChange={(e) => setInitialStock(e.target.value)} placeholder="0" />
+                </div>
+                {Number(initialStock) > 0 && (
+                  <div>
+                    <label htmlFor="initial-stock-store" className="block text-sm font-medium text-foreground mb-1">Magasin de réception *</label>
+                    <select id="initial-stock-store" value={initialStockStoreId} onChange={(e) => setInitialStockStoreId(e.target.value)} className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground" required>
+                      <option value="">Sélectionner un magasin</option>
+                      {stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
+                    </select>
+                    {stores.length === 0 && <p className="mt-1 text-xs text-danger">Aucun magasin actif disponible. Créez d’abord un magasin ou laissez le stock initial à zéro.</p>}
+                  </div>
+                )}
               </div>
             </>
           )}
