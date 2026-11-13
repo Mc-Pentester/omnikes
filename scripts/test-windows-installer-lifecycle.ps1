@@ -68,7 +68,7 @@ try {
   $healthReady = $false
   for ($attempt = 0; $attempt -lt 90; $attempt++) {
     try {
-      $health = Invoke-WebRequest -Uri '$baseUrl/api/health' -UseBasicParsing -TimeoutSec 2
+      $health = Invoke-WebRequest -Uri "$baseUrl/api/health" -UseBasicParsing -TimeoutSec 2
       if ($health.StatusCode -eq 200) { $healthReady = $true; break }
     } catch {}
     Start-Sleep -Seconds 1
@@ -138,8 +138,8 @@ try {
   Add-Type -AssemblyName System.Net.Http
   $httpClient = New-Object System.Net.Http.HttpClient
   try {
-    $request = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Post, '$baseUrl/api/auth/register')
-    $request.Headers.TryAddWithoutValidation('Origin', '$baseUrl') | Out-Null
+    $request = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Post, "$baseUrl/api/auth/register")
+    $request.Headers.TryAddWithoutValidation('Origin', $baseUrl) | Out-Null
     $request.Content = New-Object System.Net.Http.StringContent($registration, [System.Text.Encoding]::UTF8, 'application/json')
     $registerHttpResponse = $httpClient.SendAsync($request).GetAwaiter().GetResult()
     $registerContent = $registerHttpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult()
@@ -159,7 +159,7 @@ try {
   }
   $authHeaders = @{
     Cookie = "auth_token=$($tokenMatch.Groups[1].Value)"
-    Origin = '$baseUrl'
+    Origin = $baseUrl
   }
 
   $roleResponse = Invoke-RestMethod -Uri "$baseUrl/api/admin/roles" -Method Get -Headers $authHeaders
@@ -178,7 +178,7 @@ try {
     phone = ''
     # email intentionally omitted: it is optional.
   } | ConvertTo-Json
-  $storeResponse = Invoke-RestMethod -Uri '$baseUrl/api/stores' -Method Post -ContentType 'application/json' -Body $storePayload -Headers $authHeaders
+  $storeResponse = Invoke-RestMethod -Uri "$baseUrl/api/stores" -Method Post -ContentType 'application/json' -Body $storePayload -Headers $authHeaders
   Assert ($storeResponse.store.id) 'First store API did not return a persisted store.'
   Assert ($storeResponse.store.code -eq 'QA-FIRST-STORE') 'First store response contains an unexpected store code.'
   Write-Host 'FIRST ADMIN + FIRST STORE API E2E: PASS'
@@ -282,7 +282,7 @@ try {
   $healthReady = $false
   for ($attempt = 0; $attempt -lt 90; $attempt++) {
     try {
-      $health = Invoke-WebRequest -Uri '$baseUrl/api/health' -UseBasicParsing -TimeoutSec 2
+      $health = Invoke-WebRequest -Uri "$baseUrl/api/health" -UseBasicParsing -TimeoutSec 2
       if ($health.StatusCode -eq 200) { $healthReady = $true; break }
     } catch {}
     Start-Sleep -Seconds 1
@@ -326,8 +326,12 @@ try {
       Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine |
       Format-List
 
-    Write-Host '--- Port 3000 listeners ---'
-    netstat.exe -ano -p tcp | Select-String ':3000'
+    Write-Host '--- Application port listeners ---'
+    if (Test-Path $appPortFile) {
+      $diagnosticAppPort = (Get-Content -LiteralPath $appPortFile -Raw).Trim()
+      Write-Host "Configured application port: $diagnosticAppPort"
+      netstat.exe -ano -p tcp | Select-String ":$diagnosticAppPort"
+    }
     Write-Host '=== End OmniKes launcher diagnostics ==='
   }
 
@@ -348,8 +352,8 @@ try {
   Add-Type -AssemblyName System.Net.Http
   $httpClient = New-Object System.Net.Http.HttpClient
   try {
-    $request = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Post, '$baseUrl/api/auth/register')
-    $request.Headers.TryAddWithoutValidation('Origin', '$baseUrl') | Out-Null
+    $request = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Post, "$baseUrl/api/auth/register")
+    $request.Headers.TryAddWithoutValidation('Origin', $baseUrl) | Out-Null
     $request.Content = New-Object System.Net.Http.StringContent($registration, [System.Text.Encoding]::UTF8, 'application/json')
     $registerHttpResponse = $httpClient.SendAsync($request).GetAwaiter().GetResult()
     $registerContent = $registerHttpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult()
@@ -369,7 +373,7 @@ try {
   }
   $authHeaders = @{
     Cookie = "auth_token=$($tokenMatch.Groups[1].Value)"
-    Origin = '$baseUrl'
+    Origin = $baseUrl
   }
 
   $storePayload = @{
@@ -381,7 +385,7 @@ try {
     phone = ''
     # email intentionally omitted: it is optional.
   } | ConvertTo-Json
-  $storeResponse = Invoke-RestMethod -Uri '$baseUrl/api/stores' -Method Post -ContentType 'application/json' -Body $storePayload -Headers $authHeaders
+  $storeResponse = Invoke-RestMethod -Uri "$baseUrl/api/stores" -Method Post -ContentType 'application/json' -Body $storePayload -Headers $authHeaders
   Assert ($storeResponse.store.id) 'First store API did not return a persisted store.'
   Assert ($storeResponse.store.code -eq 'QA-FIRST-STORE') 'First store response contains an unexpected store code.'
   Write-Host 'FIRST ADMIN + FIRST STORE API E2E: PASS'
