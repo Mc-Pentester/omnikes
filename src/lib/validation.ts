@@ -530,7 +530,7 @@ export const salesReportPaymentMethodSchema = salesReportSummarySchema;
 
 // Registration validation
 export const registrationSchema = z.object({
-  organizationName: z.string().trim().min(1, 'Organization name is required').max(255, 'Organization name must be less than 255 characters'),
+  organizationName: z.string().trim().max(255, 'Organization name must be less than 255 characters').optional(),
   name: z.string().trim().min(1, 'Name is required').max(255, 'Name must be less than 255 characters'),
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
