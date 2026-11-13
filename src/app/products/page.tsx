@@ -87,8 +87,8 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-    setReturnToOnboarding(new URLSearchParams(window.location.search).get('returnTo') === 'onboarding');
     const timer = window.setTimeout(() => {
+      setReturnToOnboarding(new URLSearchParams(window.location.search).get('returnTo') === 'onboarding');
       if (user) void fetchProducts();
     }, 0);
     return () => window.clearTimeout(timer);
