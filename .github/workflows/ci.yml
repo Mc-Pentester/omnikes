@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, feature/windows-webview2-desktop ]
   pull_request:
     branches: [ main, develop ]
 
@@ -31,6 +31,7 @@ jobs:
       SEED_PASSWORD_A: ci-seed-password-admin-a-2026
       SEED_PASSWORD_CASHIER_A: ci-seed-password-cashier-a-2026
       SEED_PASSWORD_B: ci-seed-password-admin-b-2026
+      OMNIKES_ALLOW_TEST_SEED: 'true'
 
     steps:
       - name: Checkout code
@@ -113,7 +114,7 @@ jobs:
         run: npx prisma migrate deploy
 
       - name: Seed PostgreSQL test database
-        run: npx ts-node prisma/seed.ts
+        run: npm run seed
 
       - name: Run real PostgreSQL runtime proof
         run: npx vitest run --config vitest.integration.config.ts --no-file-parallelism src/tests/integration/sale-credit.postgres.test.ts src/tests/integration/sale-credit.api.postgres.test.ts src/tests/integration/cash-management.postgres.test.ts src/tests/integration/pos-cash-e2e.postgres.test.ts src/tests/integration/local-backup-restore.postgres.test.ts
@@ -226,7 +227,8 @@ jobs:
             SELECT count(*) INTO admin_role_count
               FROM roles
               WHERE name = 'ADMIN'
-                AND "isGlobal" = false;
+                AND "isGlobal" = true
+              AND "organizationId" = (SELECT id FROM organizations LIMIT 1);
             SELECT count(*) INTO permission_count FROM permissions;
             SELECT count(*) INTO user_role_count
               FROM user_roles ur

@@ -52,6 +52,7 @@ if (Test-Path "public") { Copy-Item "public" (Join-Path $app "public") -Recurse 
 if (Test-Path "prisma") { Copy-Item "prisma" (Join-Path $app "prisma") -Recurse -Force }
 Copy-Item "package.json" (Join-Path $app "package.json") -Force
 Copy-Item "package-lock.json" (Join-Path $app "package-lock.json") -Force
+Copy-Item "prisma.config.ts" (Join-Path $app "prisma.config.ts") -Force
 
 
 # Remove repository-only documentation and audit artifacts copied by Next standalone tracing.
@@ -162,9 +163,34 @@ Copy-Item "installer\OmniKesLauncher.cmd" $installer -Force
 Copy-Item "installer\install-runtime.cmd" $installer -Force
 Copy-Item "installer\install-runtime.cjs" $installer -Force
 Copy-Item "installer\initialize-rbac.cjs" $installer -Force
+Copy-Item "config\rbac-catalog.json" (Join-Path $installer "rbac-catalog.json") -Force
 Copy-Item "installer\prepare-user-env.cjs" $installer -Force
 
-# Build a native, windowless Windows launcher. The .NET Framework compiler is present
+# Bundle the WebView2 WinForms SDK and Evergreen Standalone Runtime for offline PCs.
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$webView2Version = "1.0.2903.40"
+$webView2Package = Join-Path $env:TEMP "Microsoft.Web.WebView2.$webView2Version.zip"
+$webView2Extract = Join-Path $env:TEMP "OmniKes-WebView2-$webView2Version"
+Invoke-WebRequest -Uri "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/$webView2Version" -OutFile $webView2Package -UseBasicParsing
+if (Test-Path $webView2Extract) { Remove-Item $webView2Extract -Recurse -Force }
+Expand-Archive -LiteralPath $webView2Package -DestinationPath $webView2Extract -Force
+$webView2Lib = Join-Path $webView2Extract "lib\net462"
+$webView2WinForms = Join-Path $webView2Lib "Microsoft.Web.WebView2.WinForms.dll"
+$webView2Core = Join-Path $webView2Lib "Microsoft.Web.WebView2.Core.dll"
+$webView2Loader = Join-Path $webView2Extract "runtimes\win-x64\native\WebView2Loader.dll"
+foreach ($required in @($webView2WinForms, $webView2Core, $webView2Loader)) {
+  if (-not (Test-Path $required)) { throw "WebView2 SDK file missing: $required" }
+}
+Copy-Item $webView2WinForms,$webView2Core,$webView2Loader $installer -Force
+
+$webView2Runtime = Join-Path $installer "MicrosoftEdgeWebView2RuntimeInstallerX64.exe"
+Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124701" -OutFile $webView2Runtime -UseBasicParsing
+if (-not (Test-Path $webView2Runtime) -or (Get-Item $webView2Runtime).Length -lt 50000000) {
+  throw "The offline Evergreen WebView2 Runtime installer download is missing or unexpectedly small."
+}
+Write-Host "Bundled WebView2 SDK $webView2Version and Evergreen x64 runtime."
+
+# Build a native, windowed Windows launcher. The .NET Framework compiler is present
 # on Windows build agents and on supported Windows installations.
 $cscCandidates = @(
   (Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"),
@@ -174,7 +200,7 @@ $csc = $cscCandidates | Select-Object -First 1
 if (-not $csc) { throw "C# compiler (csc.exe) was not found on the Windows build agent." }
 $launcherSource = Join-Path $root "installer\OmniKesLauncher.cs"
 $launcherExe = Join-Path $installer "omnikes.exe"
-& $csc /nologo /target:winexe /optimize+ /out:$launcherExe /reference:System.dll /reference:System.Windows.Forms.dll $launcherSource
+& $csc /nologo /target:winexe /optimize+ /out:$launcherExe /reference:System.dll /reference:System.Core.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:"$webView2WinForms" /reference:"$webView2Core" $launcherSource
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path $launcherExe)) {
   throw "Native omnikes.exe launcher compilation failed."
 }

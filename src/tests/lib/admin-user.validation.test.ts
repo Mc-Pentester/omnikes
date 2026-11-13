@@ -31,6 +31,36 @@ describe('Administration user validation', () => {
     }).success).toBe(false);
   });
 
+  it('accepts multiple role identifiers, including existing non-CUID ids', () => {
+    expect(adminUserCreateSchema.safeParse({
+      name: 'Jean Test',
+      email: 'jean@example.com',
+      password: 'SecurePass123!',
+      roleIds: ['admin-role-a', 'cashier-role-b'],
+    }).success).toBe(true);
+  });
+
+  it('rejects an empty or duplicate role assignment list', () => {
+    expect(adminUserCreateSchema.safeParse({
+      name: 'Jean Test',
+      email: 'jean@example.com',
+      password: 'SecurePass123!',
+      roleIds: [],
+    }).success).toBe(false);
+    expect(adminUserCreateSchema.safeParse({
+      name: 'Jean Test',
+      email: 'jean@example.com',
+      password: 'SecurePass123!',
+      roleIds: ['cashier-role-b', 'cashier-role-b'],
+    }).success).toBe(false);
+  });
+
+  it('accepts multiple roles in a partial user update', () => {
+    expect(adminUserUpdateSchema.safeParse({
+      roleIds: ['cashier-role-b', 'accountant-role-c'],
+    }).success).toBe(true);
+  });
+
   it('requires a strong enough initial password length', () => {
     expect(adminUserCreateSchema.safeParse({
       name: 'Jean Test',

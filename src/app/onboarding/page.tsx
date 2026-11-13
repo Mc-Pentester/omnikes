@@ -124,7 +124,8 @@ export default function OnboardingPage() {
           city: '',
           country: '',
           phone: '',
-          email: '',
+          // An empty string fails the API's optional email validation.
+          // Omit the field entirely when the user has not supplied an address.
         }),
       });
 
@@ -139,7 +140,9 @@ export default function OnboardingPage() {
       }
 
       if (!response.ok) {
-        setStoreError('Impossible de créer le magasin pour le moment.');
+        const errorData = await response.json().catch(() => null);
+        const detail = typeof errorData?.details === 'string' ? errorData.details : null;
+        setStoreError(detail || errorData?.error || 'Impossible de créer le magasin pour le moment.');
         return;
       }
 

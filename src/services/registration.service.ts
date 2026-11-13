@@ -6,38 +6,17 @@ import { organizationRepository } from '@omnikes/repositories/organization.repos
 import { generateUniqueSlug } from '@omnikes/lib/slug';
 import { checkRateLimit, getAccountRateLimitIdentifier, getIpRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
 import { randomBytes } from 'crypto';
-
-// Keep first-launch registration independent from optional installer seed execution.
-// This catalogue is idempotently repaired inside the same transaction as account creation.
-const FIRST_LAUNCH_PERMISSION_CODES = [
-  'store.create','store.read','store.update','store.activate','store.deactivate','store.delete',
-  'proforma.create','proforma.read','proforma.update','proforma.accept','proforma.cancel','proforma.convert',
-  'customer.create','customer.read','customer.update','customer.delete',
-  'sale.create','sale.read','sale.update','sale.complete','sale.credit','sale.cancel','sale.return',
-  'payment.create','payment.read','payment.refund',
-  'cash.read','cash.open','cash.close','cash.movement',
-  'inventory.read','inventory.adjust',
-  'product.manage','product.read','report.read',
-  'organization.read','organization.update',
-  'backup.create','backup.restore','hardware.bridge.read','tax.manage',
-  'user.read','user.create','user.update',
-  'role.read','role.create','role.update','audit.read',
-  'supplier.read','supplier.manage','purchase.read','purchase.manage','purchase.receive',
-  'supplier.payment.manage','supplier.payment.read',
-] as const;
-
-function permissionModule(code: string): string {
-  const prefix = code.split('.')[0];
-  if (prefix === 'sale' || prefix === 'payment') return 'sales';
-  if (prefix === 'report') return 'reports';
-  return prefix;
-}
+import { provisionStandardOrganizationRoles } from '@omnikes/lib/rbac/standard-organization-roles';
 
 export interface RegisterInput {
   organizationName: string;
   name: string;
   email: string;
   password: string;
+  country: string;
+  currency: string;
+  locale: string;
+  timezone: string;
 }
 
 export interface RegisterResult {
@@ -71,7 +50,7 @@ export class RegistrationService {
    * Rate limited by IP to prevent mass registration
    */
   async register(data: RegisterInput, ipAddress?: string, userAgent?: string): Promise<RegisterResult> {
-    const { organizationName, name, email, password } = data;
+    const { organizationName, name, email, password, country, currency, locale, timezone } = data;
 
     // Normalize email before applying the registration quota. When no trusted
     // proxy IP is available, the quota remains per email instead of becoming
@@ -116,54 +95,17 @@ export class RegistrationService {
         data: {
           name: organizationName,
           slug,
-          country: 'HT', // Default to Haiti
-          currency: 'HTG', // Default to Haitian Gourde
-          locale: 'fr-HT',
-          timezone: 'America/Port-au-Prince',
+          country,
+          currency,
+          locale,
+          timezone,
         },
       });
 
-      // Repair the permission catalogue at first launch. The offline installer
-      // normally initializes it, but registration must remain reliable if that
-      // optional bootstrap step was skipped or targeted another database.
-      await tx.permission.createMany({
-        data: FIRST_LAUNCH_PERMISSION_CODES.map((code) => ({
-          code,
-          description: 'Permission ' + code,
-          module: permissionModule(code),
-        })),
-        skipDuplicates: true,
-      });
-
-      // Create an organization-scoped ADMIN role for the new tenant.
-      // "isGlobal" means all stores inside this organization, never cross-tenant.
-      const adminRole = await tx.role.create({
-        data: {
-          name: 'ADMIN',
-          description: 'Administrator role',
-          organizationId: organization.id,
-          isGlobal: true,
-        },
-      });
-
-      // A newly registered administrator must receive the existing permission
-      // catalog explicitly. Permissions themselves are global definitions;
-      // the role carrying them is tenant-scoped.
-      const permissions = await tx.permission.findMany({
-        select: { id: true },
-      });
-
-      if (permissions.length === 0) {
-        throw new Error('No permissions are configured; cannot create administrator role');
-      }
-
-      await tx.rolePermission.createMany({
-        data: permissions.map((permission) => ({
-          roleId: adminRole.id,
-          permissionId: permission.id,
-        })),
-        skipDuplicates: true,
-      });
+      // Provision the complete tenant role catalogue atomically with registration.
+      // The first administrator receives ADMIN; operational roles remain available
+      // for assignment without granting additional accounts administrator rights.
+      const { adminRoleId } = await provisionStandardOrganizationRoles(tx, organization.id);
 
       // Create User
       const user = await tx.user.create({
@@ -180,7 +122,7 @@ export class RegistrationService {
       await tx.userRole.create({
         data: {
           userId: user.id,
-          roleId: adminRole.id,
+          roleId: adminRoleId,
         },
       });
 

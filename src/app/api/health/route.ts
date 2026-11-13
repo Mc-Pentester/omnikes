@@ -10,6 +10,7 @@ export async function GET() {
     return NextResponse.json(
       {
         status: 'ok',
+        application: 'OmniKes',
         timestamp,
         version: process.env.npm_package_version ?? 'unknown',
         services: {
@@ -29,6 +30,7 @@ export async function GET() {
     return NextResponse.json(
       {
         status: 'degraded',
+        application: 'OmniKes',
         timestamp,
         version: process.env.npm_package_version ?? 'unknown',
         services: {

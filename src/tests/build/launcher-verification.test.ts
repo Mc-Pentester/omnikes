@@ -11,18 +11,31 @@ describe('Windows Launcher Verification', () => {
   const launcherPath = path.join(installerPath, 'OmniKesLauncher.cmd');
   const runtimeInstallerPath = path.join(installerPath, 'install-runtime.cjs');
   const issPath = path.join(installerPath, 'OmniKes.iss');
+  const uninstall = readFileSync(path.join(installerPath, 'uninstall-runtime.ps1'), 'utf8');
 
   it('should provide the native omnikes.exe launcher source', () => {
     const source = readFileSync(path.join(installerPath, 'OmniKesLauncher.cs'), 'utf8');
     expect(source).toContain('ProcessWindowStyle.Hidden');
-    expect(source).toContain('http://127.0.0.1:3000/api/health');
+    expect(source).toContain('ReadApplicationUrl');
+    expect(source).toContain('application');
+    expect(source).toContain('app-port.txt');
+    expect(source).not.toContain('3000');
     expect(source).toContain('MessageBox.Show');
+    expect(source).toContain('using Microsoft.Web.WebView2.WinForms;');
+    expect(source).toContain('new WebView2()');
+    expect(source).toContain('CoreWebView2Environment.CreateAsync');
+    expect(source).toContain('browser.CoreWebView2.Navigate(appUrl)');
+    expect(source).toContain('AreDevToolsEnabled = false');
+    expect(source).toContain('WebView2');
     expect(source).toContain('Path.GetFullPath(Path.Combine(launcherDirectory, ".."))');
     expect(source).toContain('Path.GetFullPath(Path.Combine(launcherDirectory, "OmniKesLauncher.cmd"))');
     expect(source).not.toContain('Path.Combine(launcherDirectory, "installer"');
     const packaging = readFileSync(path.join(root, 'scripts', 'package-windows.ps1'), 'utf8');
     expect(packaging).toContain('target:winexe');
     expect(packaging).toContain('omnikes.exe');
+    expect(packaging).toContain('Microsoft.Web.WebView2');
+    expect(packaging).toContain('MicrosoftEdgeWebView2RuntimeInstallerX64.exe');
+    expect(packaging).toContain('WebView2Loader.dll');
   });
 
   it('should have OmniKesLauncher.cmd as the hidden internal startup helper', () => {
@@ -30,7 +43,11 @@ describe('Windows Launcher Verification', () => {
   });
 
   it('should configure OMNIKES_HOME correctly', () => {
-    expect(readFileSync(launcherPath, 'utf8')).toContain('OMNIKES_HOME=%~dp0..');
+    const helper = readFileSync(launcherPath, 'utf8');
+    expect(helper).toContain('OMNIKES_HOME=%~dp0..');
+    expect(helper).toContain('native WebView2 window');
+    expect(helper).toContain('set "DATABASE_URL="');
+    expect(helper).not.toContain('start "" "http://127.0.0.1:3000"');
   });
 
   it('should create user-writable directories and initialize logging first', () => {
@@ -41,7 +58,10 @@ describe('Windows Launcher Verification', () => {
   });
 
   it('should detect an existing application instance', () => {
-    expect(readFileSync(launcherPath, 'utf8')).toContain(':3000');
+    const helper = readFileSync(launcherPath, 'utf8');
+    expect(helper).toContain(':%APP_PORT%');
+    expect(helper).toContain("$j.application -eq 'OmniKes'");
+    expect(helper).toContain('APP_PORT_FILE=%ProgramData%\\OmniKes\\app-port.txt');
   });
 
   it('should verify the packaged PostgreSQL readiness executable', () => {
@@ -51,12 +71,24 @@ describe('Windows Launcher Verification', () => {
     expect(content).toContain('sc.exe start OmniKesPostgreSQL');
     expect(content).toContain(':postgres_wait');
     expect(content).toContain('PG_PORT_FILE=%ProgramData%\\OmniKes\\postgresql-port.txt');
+    expect(content).toContain('APP_PORT_FILE=%ProgramData%\\OmniKes\\app-port.txt');
     expect(content).toContain('-p %PG_PORT%');
     expect(content).not.toContain('-p 5432');
   });
 
+  it('should use the persisted application port in the Windows lifecycle test', () => {
+    const lifecycle = readFileSync(path.join(root, 'scripts', 'test-windows-installer-lifecycle.ps1'), 'utf8');
+    const health = readFileSync(path.join(root, 'src', 'app', 'api', 'health', 'route.ts'), 'utf8');
+    expect(lifecycle).toContain("app-port.txt");
+    expect(lifecycle).toContain('$script:baseUrl = "http://127.0.0.1:$appPort"');
+    expect(lifecycle).not.toContain('127.0.0.1:3000');
+    expect(health).toContain("application: 'OmniKes'");
+  });
+
   it('should wait for application health', () => {
-    expect(readFileSync(launcherPath, 'utf8')).toContain('/api/health');
+    const helper = readFileSync(launcherPath, 'utf8');
+    expect(helper).toContain('%APP_HEALTH_URL%');
+    expect(helper).toContain('/api/health');
   });
 
   it('should resolve the installer parent directory before invoking the runtime installer', () => {
@@ -79,6 +111,14 @@ describe('Windows Launcher Verification', () => {
     expect(runtime).toContain('programDataArg');
     expect(runtime).toContain('const minPort = 5433');
     expect(runtime).toContain('const maxPort = 5532');
+    expect(runtime).toContain('const minAppPort = 3001');
+    expect(runtime).toContain('const maxAppPort = 3099');
+    expect(runtime).toContain('function chooseAppPort()');
+    expect(runtime).toContain('app-port.txt');
+    expect(runtime).toContain('function securePasswordFile()');
+    expect(runtime).toContain('icacls.exe');
+    expect(runtime).toContain("'/inheritance:r'");
+    expect(runtime).toContain("'/grant:r'");
     expect(runtime).toContain("execFileSync('netstat.exe'");
     expect(runtime).toContain('function choosePort()');
     expect(runtime).toContain("String(port) + '\\n'");
@@ -90,6 +130,44 @@ describe('Windows Launcher Verification', () => {
   it('should require the PostgreSQL readiness binary during packaging', () => {
     const content = readFileSync(path.join(root, 'scripts', 'prepare-embedded-postgres.ts'), 'utf8');
     expect(content).toContain("'pg_isready.exe'");
+  });
+
+
+  it('should use one shared tenant RBAC catalog in registration and offline Windows bootstrap', () => {
+    const catalog = JSON.parse(readFileSync(path.join(root, 'config', 'rbac-catalog.json'), 'utf8')) as {
+      permissionCodes: string[];
+      standardRoles: Array<{ name: string; permissionCodes: string[] | null }>;
+    };
+    const roleService = readFileSync(path.join(root, 'src', 'lib', 'rbac', 'standard-organization-roles.ts'), 'utf8');
+    const registration = readFileSync(path.join(root, 'src', 'services', 'registration.service.ts'), 'utf8');
+    const initializer = readFileSync(path.join(installerPath, 'initialize-rbac.cjs'), 'utf8');
+    const packaging = readFileSync(path.join(root, 'scripts', 'package-windows.ps1'), 'utf8');
+    expect(catalog.standardRoles).toHaveLength(14);
+    expect(catalog.permissionCodes.length).toBeGreaterThan(0);
+    expect(roleService).toContain("../../../config/rbac-catalog.json");
+    expect(registration).toContain('provisionStandardOrganizationRoles');
+    expect(initializer).toContain("rbac-catalog.json");
+    expect(packaging).toContain('config\\rbac-catalog.json');
+    expect(new Set(catalog.permissionCodes).size).toBe(catalog.permissionCodes.length);
+  });
+
+
+  it('should make organization country, currency, locale and timezone editable with Haiti defaults', () => {
+    const registrationPage = readFileSync(path.join(root, 'src', 'app', 'register', 'page.tsx'), 'utf8');
+    const validation = readFileSync(path.join(root, 'src', 'lib', 'validation.ts'), 'utf8');
+    const service = readFileSync(path.join(root, 'src', 'services', 'registration.service.ts'), 'utf8');
+    expect(registrationPage).toContain("useState('HT')");
+    expect(registrationPage).toContain("useState('HTG')");
+    expect(registrationPage).toContain("useState('fr-HT')");
+    expect(registrationPage).toContain("useState('America/Port-au-Prince')");
+    expect(validation).toContain("country: z.string().trim().length(2).default('HT')");
+    expect(validation).toContain("currency: z.string().trim().length(3).default('HTG')");
+    expect(validation).toContain("locale: z.string().trim().min(2).max(20).default('fr-HT')");
+    expect(validation).toContain("timezone: z.string().trim().min(1).max(100).default('America/Port-au-Prince')");
+    expect(service).toContain('country,');
+    expect(service).toContain('currency,');
+    expect(service).toContain('locale,');
+    expect(service).toContain('timezone,');
   });
 
   it('should retain the first-launch environment preparation script', () => {
@@ -106,6 +184,10 @@ describe('Windows Launcher Verification', () => {
     expect(content).toContain('if ResultCode <> 0 then');
     expect(content).toContain('--program-data-dir');
     expect(content).toContain('postgresql-port.txt');
+    expect(content).toContain('app-port.txt');
+    expect(content).toContain('MicrosoftEdgeWebView2RuntimeInstallerX64.exe');
+    expect(content).toContain("'/silent /install'");
+    expect(content).toContain('WebView2');
     expect(content).toContain('ewWaitUntilTerminated');
     expect(content).toContain('RaiseException');
     expect(content).toContain('omnikes.exe');
@@ -119,7 +201,22 @@ describe('Windows Launcher Verification', () => {
     expect(installer).toContain('AppId={{A2F77B5A-7D0E-4B15-9B8A-0A9B6E6A5C11}}');
     expect(installer).toContain('Excludes: ".env, .env.*"');
     expect(installer).toContain('{commonappdata}\\OmniKes\\postgresql-data');
-    expect(installer).not.toContain('[UninstallDelete]');
+    expect(installer).toContain('function InitializeUninstall(): Boolean;');
+    expect(installer).toContain('uninstall-runtime.ps1');
+    expect(installer).toContain('ResultCode <> 0');
+    expect(installer).toContain('[UninstallDelete]');
+    expect(installer).toContain('Type: filesandordirs; Name: "{app}\\app"');
+    expect(installer).toContain('Type: filesandordirs; Name: "{app}\\runtime"');
+    expect(installer).toContain('Type: filesandordirs; Name: "{app}\\installer"');
+    expect(installer).toContain("ProgramData is preserved by default and deleted only after the user's explicit double confirmation.");
+    expect(installer).toContain('UninstallSilent()');
+    expect(installer).toContain('MB_YESNO or MB_DEFBUTTON2');
+    expect(installer).toContain('CONFIRMATION DÉFINITIVE');
+    expect(installer).toContain("CleanupArguments := CleanupArguments + ' -DeleteData'");
+    expect(uninstall).toContain('[switch]$DeleteData');
+    expect(uninstall).toContain('Remove-Item -LiteralPath $dataRoot -Recurse -Force');
+    expect(uninstall).toContain('User chose to keep ProgramData');
+    expect(uninstall).toContain('User explicitly selected deletion');
     expect(runtime).toContain("const programDataArg = process.argv.indexOf('--program-data-dir')");
     expect(runtime).toContain("const omniKesDataDir = path.join(programDataDir, 'OmniKes')");
     expect(runtime).toContain("const data = path.join(omniKesDataDir, 'postgresql-data')");
@@ -133,7 +230,45 @@ describe('Windows Launcher Verification', () => {
     expect(runtime).toContain("if (exists(path.join(data, 'PG_VERSION')))");
     expect(runtime).toContain("if (!exists(envPath))");
     expect(runtime).toContain("if (!state)");
-    expect(runtime).toContain("run(process.execPath, [prismaCli, 'migrate', 'deploy'])");
+    expect(uninstall).toContain("Get-Service -Name 'OmniKesPostgreSQL'");
+    expect(uninstall).toContain('& "$env:SystemRoot\\System32\\sc.exe" delete OmniKesPostgreSQL | Out-Null');
+    expect(uninstall).toContain("WaitForStatus");
+    expect(uninstall).toContain('ProgramData was left untouched');
+    expect(uninstall).toContain('Remove-Item -LiteralPath $dataRoot -Recurse -Force -ErrorAction Stop');
+    expect(uninstall).toContain("$dataRoot -ine (Join-Path $programDataRoot 'OmniKes')");
+    expect(uninstall).toContain("$InstallRoot 'app\\server.js'");
+    expect(runtime).toContain("run(process.execPath, [prismaCli, 'migrate', 'deploy', '--schema', schema], { ...process.env, DATABASE_URL: url }, app)");
   });
 
+
+  it('should allow first-store creation without optional email and preserve actionable API errors', () => {
+    const onboarding = readFileSync(path.join(root, 'src', 'app', 'onboarding', 'page.tsx'), 'utf8');
+    const storeApi = readFileSync(path.join(root, 'src', 'app', 'api', 'stores', 'route.ts'), 'utf8');
+    const validation = readFileSync(path.join(root, 'src', 'lib', 'validation.ts'), 'utf8');
+    expect(onboarding).toContain("method: 'POST'");
+    expect(onboarding).toContain('name,');
+    expect(onboarding).toContain('code,');
+    expect(onboarding).not.toContain("email: ''");
+    expect(onboarding).toContain('errorData?.error');
+    expect(storeApi).toContain("requirePermission(request, 'store.create')");
+    expect(storeApi).toContain('storeSchema.parse');
+    expect(validation).toContain('email: z.string().email().optional()');
+  });
+
+  it('should guide the first administrator to create the first store instead of showing a dead end', () => {
+    const page = readFileSync(path.join(root, 'src', 'app', 'page.tsx'), 'utf8');
+    expect(page).toContain('Votre premier magasin reste à configurer');
+    expect(page).toContain("router.push('/onboarding')");
+    expect(page).toContain('Configurer mon premier magasin');
+  });
+
+  it('should persist PostgreSQL runtime failure details for installer diagnostics', () => {
+    const runtime = readFileSync(runtimeInstallerPath, 'utf8');
+    const installer = readFileSync(issPath, 'utf8');
+    expect(runtime).toContain("path.join(omniKesDataDir, 'logs', 'runtime-install.log')");
+    expect(runtime).toContain('function writeLog(message)');
+    expect(runtime).toContain('COMMAND FAILED:');
+    expect(runtime).toContain('RBAC permission catalogue initialization completed.');
+    expect(installer).toContain('runtime-install.log');
+  });
 });
