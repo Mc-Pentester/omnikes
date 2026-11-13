@@ -161,7 +161,7 @@ try {
     $httpClient.Dispose()
   }
   $authHeaders = @{
-    Cookie = "auth_token=$($tokenMatch.Groups[1].Value)"
+    Authorization = "Bearer $($tokenMatch.Groups[1].Value)"
     Origin = $baseUrl
   }
 
