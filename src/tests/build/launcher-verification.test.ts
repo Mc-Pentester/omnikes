@@ -80,7 +80,7 @@ describe('Windows Launcher Verification', () => {
     const lifecycle = readFileSync(path.join(root, 'scripts', 'test-windows-installer-lifecycle.ps1'), 'utf8');
     const health = readFileSync(path.join(root, 'src', 'app', 'api', 'health', 'route.ts'), 'utf8');
     expect(lifecycle).toContain("app-port.txt");
-    expect(lifecycle).toContain("$baseUrl = \"http://127.0.0.1:$appPort\"");
+    expect(lifecycle).toContain('$script:baseUrl = "http://127.0.0.1:$appPort"');
     expect(lifecycle).not.toContain('127.0.0.1:3000');
     expect(health).toContain("application: 'OmniKes'");
   });
