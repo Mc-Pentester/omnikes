@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed": "npx ts-node --compiler-options '{"module":"CommonJS","moduleResolution":"node"}' prisma/seed.ts",
+    "seed": "npx ts-node --project tsconfig.seed.json prisma/seed.ts"module":"CommonJS","moduleResolution":"node"}' prisma/seed.ts",
     "hardware:bridge": "node tools/hardware-bridge/server.mjs",
     "seed:demo": "npx ts-node prisma/seed.demo.ts",
     "build:preflight": "node -e \"require('dotenv').config(); if (!process.env.DATABASE_URL) { console.error('DATABASE_URL is required for a production build.'); process.exit(1); }\"",
