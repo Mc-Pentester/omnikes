@@ -1562,7 +1562,7 @@ async function main() {
 
   await prisma.inventory.upsert({
     where: { storeId_variantId: { storeId: storeB.id, variantId: variantMilkB.id } },
-    update: { quantity: 100 },
+    update: {},
     create: {
       storeId: storeB.id,
       variantId: variantMilkB.id,
