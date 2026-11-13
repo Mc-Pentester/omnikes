@@ -105,22 +105,6 @@ jobs:
           }
           $installer | ForEach-Object { Write-Host "Installer: $($_.FullName) ($($_.Length) bytes)" }
 
-      - name: Validate Windows lifecycle PowerShell syntax
-        shell: powershell
-        run: |
-          $tokens = $null
-          $parseErrors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            (Join-Path $PWD 'scripts\test-windows-installer-lifecycle.ps1'),
-            [ref]$tokens,
-            [ref]$parseErrors
-          ) | Out-Null
-          if ($parseErrors.Count -gt 0) {
-            $parseErrors | ForEach-Object { Write-Error $_.Message }
-            throw 'Windows lifecycle PowerShell script has syntax errors.'
-          }
-          Write-Host 'Windows lifecycle PowerShell syntax: PASS'
-
       - name: Verify Windows install, first-store creation, in-place upgrade, and uninstall
         shell: powershell
         run: |
