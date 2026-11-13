@@ -101,6 +101,21 @@ begin
   end;
 end;
 
+function HasExplicitPurgeSwitch(): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+  begin
+    if CompareText(ParamStr(I), '/PURGEDATA=yes') = 0 then
+    begin
+      Result := True;
+      exit;
+    end;
+  end;
+end;
+
 function InitializeUninstall(): Boolean;
 var
   ResultCode: Integer;
@@ -109,8 +124,10 @@ var
   DeleteData: Boolean;
   CleanupArguments: string;
 begin
-  DeleteData := False;
-  if not UninstallSilent() then
+  { Data deletion is opt-in only. In silent mode, require the exact switch.
+    In interactive mode, retain the existing two-step confirmation. }
+  DeleteData := HasExplicitPurgeSwitch();
+  if (not DeleteData) and (not UninstallSilent()) then
   begin
     if MsgBox('Voulez-vous également supprimer toutes les données OmniKès (comptes, magasins, ventes, inventaire, paramètres, sauvegardes et journaux) ?' + #13#10 + #13#10 + 'Choisissez Non pour conserver vos données et pouvoir les retrouver lors d’une réinstallation.', mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
     begin
