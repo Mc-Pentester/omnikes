@@ -87,6 +87,9 @@ export default function InventoryPage() {
   }, [authLoading, user, router]);
 
   const fetchInventory = async () => {
+    const requestedSku = new URLSearchParams(window.location.search).get('sku');
+    if (requestedSku) setSearch(requestedSku);
+
     try {
       setLoading(true);
       setError(null);
@@ -110,11 +113,6 @@ export default function InventoryPage() {
   const loadInventoryOnAuth = useEffectEvent(() => {
     if (user) void fetchInventory();
   });
-
-  useEffect(() => {
-    const requestedSku = new URLSearchParams(window.location.search).get('sku');
-    if (requestedSku) setSearch(requestedSku);
-  }, []);
 
   useEffect(() => {
     if (!user) return;
