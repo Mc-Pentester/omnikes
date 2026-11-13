@@ -87,11 +87,10 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    queueMicrotask(() => {
       setReturnToOnboarding(new URLSearchParams(window.location.search).get('returnTo') === 'onboarding');
       if (user) void fetchProducts();
-    }, 0);
-    return () => window.clearTimeout(timer);
+    });
   }, [user]);
 
   const categories = Array.from(new Set(products.map((product) => product.category).filter(Boolean))) as string[];
