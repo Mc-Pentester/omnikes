@@ -31,6 +31,7 @@ jobs:
       SEED_PASSWORD_A: ci-seed-password-admin-a-2026
       SEED_PASSWORD_CASHIER_A: ci-seed-password-cashier-a-2026
       SEED_PASSWORD_B: ci-seed-password-admin-b-2026
+      OMNIKES_ALLOW_TEST_SEED: 'true'
 
     steps:
       - name: Checkout code

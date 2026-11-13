@@ -2,10 +2,11 @@ import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import bcrypt from 'bcryptjs';
-import rbacCatalog from '../src/lib/rbac/standard-tenant-rbac.json';
-import { provisionStandardTenantRoles } from '../src/lib/rbac/standard-tenant-roles';
+import { ADMIN_ROLE, CASHIER_ROLE, PLATFORM_PERMISSIONS, TENANT_PERMISSION_CODES, provisionStandardTenantRoles } from '../src/lib/rbac/standard-tenant-roles';
+import { assertSafeTestSeedTarget } from '../src/lib/seed-safety';
 
 const connectionString = process.env.DATABASE_URL;
+assertSafeTestSeedTarget(connectionString, process.env.OMNIKES_ALLOW_TEST_SEED, process.env.NODE_ENV);
 const adapter = connectionString ? new PrismaPg({ connectionString }) : undefined;
 
 const prisma = new PrismaClient({
@@ -78,7 +79,7 @@ async function main() {
     return prefix;
   };
   await prisma.permission.createMany({
-    data: rbacCatalog.tenantPermissions.map((code) => ({ code, description: 'Permission ' + code, module: moduleFromPermissionCode(code) })),
+    data: TENANT_PERMISSION_CODES.map((code) => ({ code, description: 'Permission ' + code, module: moduleFromPermissionCode(code) })),
     skipDuplicates: true,
   });
   await prisma.$transaction(async (tx) => {
@@ -136,7 +137,7 @@ async function main() {
     where: { id: 'admin-role-a' },
     update: {
       organizationId: orgA.id,
-      name: rbacCatalog.adminRole.name,
+      name: ADMIN_ROLE.name,
       description: 'Administrator role for test organization A',
       isGlobal: true,
     },
@@ -153,7 +154,7 @@ async function main() {
     where: { id: 'cashier-role-a' },
     update: {
       organizationId: orgA.id,
-      name: rbacCatalog.cashierRole.name,
+      name: CASHIER_ROLE.name,
       description: 'Cashier role for test organization A',
       isGlobal: true,
     },
@@ -170,7 +171,7 @@ async function main() {
     where: { id: 'admin-role-b' },
     update: {
       organizationId: orgB.id,
-      name: rbacCatalog.adminRole.name,
+      name: ADMIN_ROLE.name,
       description: 'Administrator role for test organization B',
       isGlobal: true,
     },
@@ -548,7 +549,7 @@ async function main() {
     },
   });
 
-  const platformSubscriptionDefinition = rbacCatalog.platformPermissions[0];
+  const platformSubscriptionDefinition = PLATFORM_PERMISSIONS[0];
   const platformSubscriptionManagePermission = await prisma.platformPermission.upsert({
     where: { code: platformSubscriptionDefinition.code },
     update: {
@@ -1025,24 +1026,7 @@ async function main() {
   }
 
   // Assign limited permissions to CASHIER role
-  const cashierPermissions = [
-    saleCreatePermission,
-    saleReadPermission,
-    saleUpdatePermission,
-    saleCompletePermission,
-    saleReturnPermission,
-    paymentCreatePermission,
-    paymentReadPermission,
-    paymentRefundPermission,
-    inventoryReadPermission,
-    productReadPermission,
-    reportReadPermission,
-    storeReadPermission,
-    cashReadPermission,
-    cashOpenPermission,
-    cashClosePermission,
-    cashMovementPermission,
-  ];
+  const cashierPermissions = await prisma.permission.findMany({ where: { code: { in: [...CASHIER_ROLE.permissions] } } });
 
   for (const permission of cashierPermissions) {
     await prisma.rolePermission.upsert({
@@ -1484,7 +1468,7 @@ async function main() {
 
   await prisma.inventory.upsert({
     where: { storeId_variantId: { storeId: storeA.id, variantId: variantRiceA.id } },
-    update: { quantity: 100 },
+    update: {},
     create: {
       storeId: storeA.id,
       variantId: variantRiceA.id,
@@ -1495,7 +1479,7 @@ async function main() {
 
   await prisma.inventory.upsert({
     where: { storeId_variantId: { storeId: storeA.id, variantId: variantOilA.id } },
-    update: { quantity: 80 },
+    update: {},
     create: {
       storeId: storeA.id,
       variantId: variantOilA.id,
@@ -1506,7 +1490,7 @@ async function main() {
 
   await prisma.inventory.upsert({
     where: { storeId_variantId: { storeId: storeA.id, variantId: variantSugarA.id } },
-    update: { quantity: 120 },
+    update: {},
     create: {
       storeId: storeA.id,
       variantId: variantSugarA.id,
@@ -1517,7 +1501,7 @@ async function main() {
 
   await prisma.inventory.upsert({
     where: { storeId_variantId: { storeId: storeA.id, variantId: variantWaterA.id } },
-    update: { quantity: 200 },
+    update: {},
     create: {
       storeId: storeA.id,
       variantId: variantWaterA.id,
@@ -1528,7 +1512,7 @@ async function main() {
 
   await prisma.inventory.upsert({
     where: { storeId_variantId: { storeId: storeA.id, variantId: variantSoapA.id } },
-    update: { quantity: 75 },
+    update: {},
     create: {
       storeId: storeA.id,
       variantId: variantSoapA.id,
@@ -1545,7 +1529,7 @@ async function main() {
 
   await prisma.inventory.upsert({
     where: { storeId_variantId: { storeId: storeB.id, variantId: variantRiceB.id } },
-    update: { quantity: 50 },
+    update: {},
     create: {
       storeId: storeB.id,
       variantId: variantRiceB.id,
@@ -1556,7 +1540,7 @@ async function main() {
 
   await prisma.inventory.upsert({
     where: { storeId_variantId: { storeId: storeB.id, variantId: variantOilB.id } },
-    update: { quantity: 60 },
+    update: {},
     create: {
       storeId: storeB.id,
       variantId: variantOilB.id,
@@ -1567,7 +1551,7 @@ async function main() {
 
   await prisma.inventory.upsert({
     where: { storeId_variantId: { storeId: storeB.id, variantId: variantCoffeeB.id } },
-    update: { quantity: 90 },
+    update: {},
     create: {
       storeId: storeB.id,
       variantId: variantCoffeeB.id,

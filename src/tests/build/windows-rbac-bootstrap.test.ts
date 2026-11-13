@@ -49,7 +49,8 @@ describe('Windows installer RBAC bootstrap', () => {
     expect(initializer).toContain('rbac-catalog.json');
     expect(initializer).toContain('tx.permission.upsert');
     expect(initializer).toContain('tx.platformPermission.upsert');
-    expect(initializer).toContain("'organization.subscription.manage'");
+    expect(initializer).toContain('rbacCatalog.platformPermissions');
+    expect(initializer).not.toContain("where: { code: 'organization.subscription.manage' }");
     expect(initializer).toContain('await prisma.permission.count()');
     expect(initializer).toContain('where: { organizationId: organization.id, name: definition.name, isGlobal: true, storeId: null }');
     expect(initializer).toContain('tx.role.create');

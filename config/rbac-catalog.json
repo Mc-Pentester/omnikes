@@ -350,5 +350,12 @@
         "supplier.payment.read"
       ]
     }
+  ],
+  "platformPermissions": [
+    {
+      "code": "organization.subscription.manage",
+      "description": "Activer, renouveler ou annuler l’abonnement OmniKès pour une organisation",
+      "module": "subscription"
+    }
   ]
 }
