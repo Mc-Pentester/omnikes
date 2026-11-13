@@ -7,8 +7,11 @@ import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
 import { Input } from '@omnikes/components/ui/input';
 
+type RegistrationMode = 'initial' | 'join';
+
 export default function RegisterPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<RegistrationMode | null>(null);
   const [organizationName, setOrganizationName] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -19,219 +22,118 @@ export default function RegisterPage() {
   const [locale, setLocale] = useState('fr-HT');
   const [timezone, setTimezone] = useState('America/Port-au-Prince');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const [registrationAvailable, setRegistrationAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
     let active = true;
     fetch('/api/auth/registration-status', { cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) throw new Error('Impossible de vérifier la disponibilité de l’inscription.');
-        return response.json() as Promise<{ available: boolean }>;
+        return response.json() as Promise<{ mode: RegistrationMode }>;
       })
-      .then((data) => { if (active) setRegistrationAvailable(data.available); })
-      .catch(() => { if (active) setRegistrationAvailable(false); });
+      .then((data) => { if (active) setMode(data.mode); })
+      .catch((err: unknown) => {
+        if (active) setError(err instanceof Error ? err.message : 'Service d’inscription indisponible.');
+      });
     return () => { active = false; };
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError('');
-
+    setSuccess('');
     if (password !== confirmPassword) {
-      setError('Les mots de passe ne correspondent pas');
+      setError('Les mots de passe ne correspondent pas.');
       return;
     }
-
     setLoading(true);
-
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          organizationName,
-          name,
-          email,
-          password,
-          confirmPassword,
-          country,
-          currency,
-          locale,
-          timezone,
+          ...(mode === 'initial' ? { organizationName, country, currency, locale, timezone } : {}),
+          name, email, password, confirmPassword,
         }),
       });
-
-      const raw = await response.text();
-      let data: { error?: string } = {};
-
-      try {
-        data = raw ? JSON.parse(raw) : {};
-      } catch {
-        data = {};
+      const data = await response.json();
+      if (response.status === 202 && data.pendingApproval) {
+        setSuccess(data.message || 'Votre demande a été envoyée à l’administrateur.');
+        return;
       }
-
-      if (!response.ok) {
-        throw new Error(
-          data.error || `Inscription échouée (HTTP ${response.status})`
-        );
-      }
-
+      if (!response.ok) throw new Error(data.error || `Inscription échouée (HTTP ${response.status})`);
       router.push('/');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Inscription échouée';
-      setError(message);
+      setError(err instanceof Error ? err.message : 'Inscription échouée.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8">
       <Card className="w-full max-w-md p-8">
-        {registrationAvailable === false ? (
-          <div className="text-center space-y-4">
-            <Logo size={80} />
-            <h1 className="text-2xl font-bold text-foreground">Inscription indisponible</h1>
-            <p className="text-sm text-muted">Une organisation a déjà été créée sur cette installation OmniKès. La création d’une deuxième organisation est désactivée. Connectez-vous avec un compte existant ou contactez l’administrateur pour obtenir un accès.</p>
-            <Button className="w-full" onClick={() => router.push('/login')}>Retour à la connexion</Button>
-          </div>
-        ) : registrationAvailable === null ? (
-          <div className="py-12 text-center text-sm text-muted">Vérification de la disponibilité de l’inscription...</div>
-        ) : (
-        <>
         <div className="flex flex-col items-center mb-8">
           <Logo size={80} />
           <h1 className="text-2xl font-bold text-foreground mt-4">OmniKès</h1>
           <p className="text-sm text-muted">Créer votre compte</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="organizationName" className="block text-sm font-medium text-foreground mb-2">
-              Nom de l&apos;organisation
-            </label>
-            <Input
-              id="organizationName"
-              type="text"
-              value={organizationName}
-              onChange={(e) => setOrganizationName(e.target.value)}
-              placeholder="Ma Boutique"
-              required
-              disabled={loading}
-            />
+        {mode === null ? (
+          <div className="py-8 text-center text-sm text-muted">
+            {error || 'Vérification de la configuration de l’installation…'}
           </div>
-
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-foreground mb-2">
-              Votre nom
-            </label>
-            <Input
-              id="name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Jean Dupont"
-              required
-              disabled={loading}
-            />
+        ) : success ? (
+          <div className="space-y-4 text-center">
+            <h2 className="text-lg font-semibold">Demande envoyée</h2>
+            <p className="text-sm text-muted">{success}</p>
+            <Button className="w-full" onClick={() => router.push('/login')}>Retour à la connexion</Button>
           </div>
-
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
-              Email
-            </label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="votre@email.com"
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <details className="rounded-lg border border-border p-3">
-            <summary className="cursor-pointer text-sm font-medium">Paramètres régionaux de l’organisation</summary>
-            <p className="mt-2 text-xs text-muted">Les valeurs haïtiennes sont proposées par défaut. Vous pouvez les modifier selon votre pays et votre activité.</p>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="country" className="block text-xs font-medium text-foreground mb-1">Pays (ISO)</label>
-                <Input id="country" value={country} onChange={(e) => setCountry(e.target.value.toUpperCase())} maxLength={2} required disabled={loading} />
+        ) : (
+          <>
+            {mode === 'initial' ? (
+              <div className="mb-5 rounded-lg border border-border p-3 text-sm text-muted">
+                Première configuration : cette inscription créera l’organisation et le compte administrateur initial.
               </div>
-              <div>
-                <label htmlFor="currency" className="block text-xs font-medium text-foreground mb-1">Devise (ISO)</label>
-                <Input id="currency" value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={3} required disabled={loading} />
+            ) : (
+              <div className="mb-5 rounded-lg border border-border p-3 text-sm text-muted">
+                Une organisation existe déjà sur cette installation. Vous pouvez demander un compte dans cette organisation, mais vous ne pouvez pas en créer une autre. L’administrateur devra attribuer vos rôles et activer votre compte.
               </div>
-              <div>
-                <label htmlFor="locale" className="block text-xs font-medium text-foreground mb-1">Langue / région</label>
-                <Input id="locale" value={locale} onChange={(e) => setLocale(e.target.value)} maxLength={20} required disabled={loading} />
-              </div>
-              <div>
-                <label htmlFor="timezone" className="block text-xs font-medium text-foreground mb-1">Fuseau horaire</label>
-                <Input id="timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} maxLength={100} required disabled={loading} />
-              </div>
-            </div>
-          </details>
+            )}
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
-              Mot de passe
-            </label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              disabled={loading}
-              minLength={8}
-            />
-          </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {mode === 'initial' && (
+                <>
+                  <div>
+                    <label htmlFor="organizationName" className="mb-2 block text-sm font-medium text-foreground">Nom de l’organisation</label>
+                    <Input id="organizationName" value={organizationName} onChange={(e) => setOrganizationName(e.target.value)} placeholder="Ma Boutique" required disabled={loading} />
+                  </div>
+                  <details className="rounded-lg border border-border p-3">
+                    <summary className="cursor-pointer text-sm font-medium">Paramètres régionaux de l’organisation</summary>
+                    <p className="mt-2 text-xs text-muted">Les valeurs haïtiennes sont proposées par défaut.</p>
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <div><label htmlFor="country" className="mb-1 block text-xs font-medium">Pays (ISO)</label><Input id="country" value={country} onChange={(e) => setCountry(e.target.value.toUpperCase())} maxLength={2} required disabled={loading} /></div>
+                      <div><label htmlFor="currency" className="mb-1 block text-xs font-medium">Devise (ISO)</label><Input id="currency" value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={3} required disabled={loading} /></div>
+                      <div><label htmlFor="locale" className="mb-1 block text-xs font-medium">Langue / région</label><Input id="locale" value={locale} onChange={(e) => setLocale(e.target.value)} maxLength={20} required disabled={loading} /></div>
+                      <div><label htmlFor="timezone" className="mb-1 block text-xs font-medium">Fuseau horaire</label><Input id="timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} maxLength={100} required disabled={loading} /></div>
+                    </div>
+                  </details>
+                </>
+              )}
 
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground mb-2">
-              Confirmer le mot de passe
-            </label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              disabled={loading}
-              minLength={8}
-            />
-          </div>
+              <div><label htmlFor="name" className="mb-2 block text-sm font-medium text-foreground">Votre nom</label><Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jean Dupont" required disabled={loading} /></div>
+              <div><label htmlFor="email" className="mb-2 block text-sm font-medium text-foreground">Email</label><Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="votre@email.com" required disabled={loading} /></div>
+              <div><label htmlFor="password" className="mb-2 block text-sm font-medium text-foreground">Mot de passe</label><Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" minLength={8} required disabled={loading} /></div>
+              <div><label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-foreground">Confirmer le mot de passe</label><Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" minLength={8} required disabled={loading} /></div>
 
-          {error && (
-            <div className="text-danger text-sm">{error}</div>
-          )}
-
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={loading}
-          >
-            {loading ? 'Création...' : 'Créer un compte'}
-          </Button>
-        </form>
-
-        <div className="mt-6 text-center text-sm text-muted">
-          <p>
-            Vous avez déjà un compte?{' '}
-            <a href="/login" className="text-primary hover:text-primary-hover">
-              Se connecter
-            </a>
-          </p>
-        </div>
-        </>
+              {error && <div className="text-sm text-danger">{error}</div>}
+              <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Création…' : 'Créer un compte'}</Button>
+            </form>
+          </>
         )}
+
+        {!success && <div className="mt-6 text-center text-sm text-muted">Vous avez déjà un compte ? <a href="/login" className="text-primary hover:text-primary-hover">Se connecter</a></div>}
       </Card>
     </div>
   );
