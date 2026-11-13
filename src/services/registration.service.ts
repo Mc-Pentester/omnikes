@@ -38,6 +38,19 @@ export class RateLimitError extends Error {
   }
 }
 
+/** Raised when PostgreSQL keeps rejecting a concurrent first-registration transaction. */
+export class RegistrationConcurrencyError extends Error {
+  constructor() {
+    super('Une autre inscription initiale est en cours. Veuillez réessayer dans quelques instants.');
+    this.name = 'RegistrationConcurrencyError';
+  }
+}
+
+function isSerializationConflict(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error &&
+    (error as { code?: unknown }).code === 'P2034';
+}
+
 export class RegistrationService {
   constructor() {
     startRateLimitCleanup();
@@ -65,7 +78,12 @@ export class RegistrationService {
     }
 
     const hashedPassword = await authService.hashPassword(password);
-    const result = await prisma.$transaction(async (tx) => {
+    // Serializable transactions can fail with Prisma P2034 when two first
+    // registrations race. Retry a few times so the losing request observes the
+    // organization created by the winner and becomes a normal join request.
+    const maxSerializationRetries = 3;
+    let result: Awaited<ReturnType<typeof runRegistrationTransaction>>;
+    const runRegistrationTransaction = () => prisma.$transaction(async (tx) => {
       const existingOrganization = await tx.organization.findFirst({ orderBy: { createdAt: 'asc' } });
       if (existingOrganization) {
         const user = await tx.user.create({
@@ -100,7 +118,19 @@ export class RegistrationService {
       });
       await tx.userRole.create({ data: { userId: user.id, roleId: adminRoleId } });
       return { organization, user, pendingApproval: false };
-    }, { isolationLevel: 'Serializable' });
+}, { isolationLevel: 'Serializable' });
+
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        result = await runRegistrationTransaction();
+        break;
+      } catch (error) {
+        if (!isSerializationConflict(error)) throw error;
+        if (attempt >= maxSerializationRetries) throw new RegistrationConcurrencyError();
+        // Small bounded backoff avoids immediately colliding with the same writer.
+        await new Promise((resolve) => setTimeout(resolve, 25 * (attempt + 1)));
+      }
+    }
 
     if (result.pendingApproval) {
       return {
