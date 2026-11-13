@@ -101,6 +101,7 @@ export default function RegisterPage() {
         ) : registrationAvailable === null ? (
           <div className="py-12 text-center text-sm text-muted">Vérification de la disponibilité de l’inscription...</div>
         ) : (
+        <>
         <div className="flex flex-col items-center mb-8">
           <Logo size={80} />
           <h1 className="text-2xl font-bold text-foreground mt-4">OmniKès</h1>
@@ -229,6 +230,7 @@ export default function RegisterPage() {
             </a>
           </p>
         </div>
+        </>
         )}
       </Card>
     </div>
