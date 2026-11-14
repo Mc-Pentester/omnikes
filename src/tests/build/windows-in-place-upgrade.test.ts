@@ -27,7 +27,7 @@ describe('Windows in-place upgrade safety', () => {
 
   it('keeps the database preservation assertion in the real second-install lifecycle test', () => {
     expect(lifecycle).toContain('Install-OmniKes');
-    expect(lifecycle).toContain('IN-PLACE UPGRADE + DATABASE PRESERVATION: PASS');
+    expect(lifecycle).toContain('IN-PLACE UPGRADE + DATABASE AND APPLICATION HEALTH: PASS');
     expect(lifecycle).toContain('must-survive-upgrade');
   });
 });

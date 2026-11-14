@@ -221,7 +221,7 @@ try {
   $storeAfterUpgrade = Invoke-Psql $storePersistedSql
   Assert ([int]$storeAfterUpgrade -eq 1) 'In-place upgrade did not preserve the first organization and store.'
   # Verify the upgraded package can start the application, not just preserve its database.
-  $launcher = Join-Path $installDir 'installer\\OmniKesLauncher.cmd'
+  $launcher = Join-Path $installDir 'installer\OmniKesLauncher.cmd'
   $quotedLauncher = '"' + $launcher + '"'
   Start-Process -FilePath $env:ComSpec -ArgumentList @('/d', '/c', $quotedLauncher) -WindowStyle Hidden
   $upgradeHealthReady = $false
@@ -234,6 +234,7 @@ try {
   }
   Assert $upgradeHealthReady 'OmniKes did not become healthy after the in-place upgrade.'
   Write-Host 'IN-PLACE UPGRADE + DATABASE AND APPLICATION HEALTH: PASS'
+  Stop-OmniKesServer
 
   # Keep a separate Node process running to simulate Clarodaro. The OmniKes
   # uninstaller must leave applications outside its own installation directory
