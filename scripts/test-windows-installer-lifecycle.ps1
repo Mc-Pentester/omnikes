@@ -159,12 +159,18 @@ try {
     if ($request) { $request.Dispose() }
     $httpClient.Dispose()
   }
-  $authHeaders = @{
-    Cookie = "auth_token=$($tokenMatch.Groups[1].Value)"
-    Origin = $baseUrl
-  }
+  # Use the bearer-token path supported by getSessionToken. This avoids
+  # Windows PowerShell 5.1's inconsistent handling of manually supplied Cookie
+  # headers while still exercising the production session validation.
+  $authToken = $tokenMatch.Groups[1].Value
+  $apiClient = New-Object System.Net.Http.HttpClient
+  $apiClient.DefaultRequestHeaders.Authorization = New-Object System.Net.Http.Headers.AuthenticationHeaderValue('Bearer', $authToken)
+  $apiClient.DefaultRequestHeaders.TryAddWithoutValidation('Origin', $baseUrl) | Out-Null
 
-  $roleResponse = Invoke-RestMethod -Uri "$baseUrl/api/admin/roles" -Method Get -Headers $authHeaders
+  $roleHttpResponse = $apiClient.GetAsync("$baseUrl/api/admin/roles").GetAwaiter().GetResult()
+  $roleContent = $roleHttpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+  Assert ([int]$roleHttpResponse.StatusCode -eq 200) "Admin roles API returned HTTP $([int]$roleHttpResponse.StatusCode): $roleContent"
+  $roleResponse = $roleContent | ConvertFrom-Json
   $expectedRoleNames = @('ADMIN', 'MANAGER', 'SUPERVISOR', 'CASHIER', 'SALES_ASSOCIATE', 'INVENTORY_MANAGER', 'WAREHOUSE_CLERK', 'PURCHASING_MANAGER', 'ACCOUNTANT', 'SALES_MANAGER', 'CUSTOMER_SERVICE', 'STORE_MANAGER', 'SELLER', 'AUDITOR')
   $actualRoleNames = @($roleResponse.roles | ForEach-Object { $_.name })
   foreach ($roleName in $expectedRoleNames) { Assert ($actualRoleNames -contains $roleName) "Standard role '$roleName' is missing after first registration." }
@@ -180,7 +186,17 @@ try {
     phone = ''
     # email intentionally omitted: it is optional.
   } | ConvertTo-Json
-  $storeResponse = Invoke-RestMethod -Uri "$baseUrl/api/stores" -Method Post -ContentType 'application/json' -Body $storePayload -Headers $authHeaders
+  $storeRequest = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Post, "$baseUrl/api/stores")
+  $storeRequest.Content = New-Object System.Net.Http.StringContent($storePayload, [System.Text.Encoding]::UTF8, 'application/json')
+  try {
+    $storeHttpResponse = $apiClient.SendAsync($storeRequest).GetAwaiter().GetResult()
+    $storeContent = $storeHttpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+    Assert ([int]$storeHttpResponse.StatusCode -eq 200 -or [int]$storeHttpResponse.StatusCode -eq 201) "First store API returned HTTP $([int]$storeHttpResponse.StatusCode): $storeContent"
+    $storeResponse = $storeContent | ConvertFrom-Json
+  } finally {
+    $storeRequest.Dispose()
+    $apiClient.Dispose()
+  }
   Assert ($storeResponse.store.id) 'First store API did not return a persisted store.'
   Assert ($storeResponse.store.code -eq 'QA-FIRST-STORE') 'First store response contains an unexpected store code.'
   Write-Host 'FIRST ADMIN + FIRST STORE API E2E: PASS'
