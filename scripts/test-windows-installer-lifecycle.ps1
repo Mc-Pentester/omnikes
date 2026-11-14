@@ -13,8 +13,10 @@ $script:baseUrl = $null
 $passwordFile = Join-Path $programDataRoot '.omnikes-pg-password'
 $logFile = Join-Path $env:RUNNER_TEMP 'omnikes-installer-lifecycle.log'
 
-function Assert([bool]$Condition, [string]$Message) {
-  if (-not $Condition) { throw $Message }
+function Assert([object]$Condition, [string]$Message) {
+  # Accept native booleans as well as values such as IDs without letting
+  # PowerShell's parameter binder fail before the assertion can report context.
+  if ($null -eq $Condition -or -not [bool]$Condition) { throw $Message }
 }
 
 function Install-OmniKes {
@@ -197,9 +199,15 @@ try {
     $storeRequest.Dispose()
     $apiClient.Dispose()
   }
-  Assert ($storeResponse.store.id) 'First store API did not return a persisted store.'
+  Assert ($null -ne $storeResponse.store) "First store API response did not contain a store object: $storeContent"
+  $storeId = [string]$storeResponse.store.id
+  $organizationId = [string]$registerResponse.user.organizationId
+  Assert (-not [string]::IsNullOrWhiteSpace($storeId)) 'First store API did not return a persisted store ID.'
   Assert ($storeResponse.store.code -eq 'QA-FIRST-STORE') 'First store response contains an unexpected store code.'
-  Write-Host 'FIRST ADMIN + FIRST STORE API E2E: PASS'
+  # Confirm the API result is durable in PostgreSQL and belongs to the new organization.
+  $storePersisted = Invoke-Psql "SELECT COUNT(*) FROM stores WHERE id = '$($storeId.Replace("'", "''"))' AND code = 'QA-FIRST-STORE' AND \"organizationId\" = '$($organizationId.Replace("'", "''"))';"
+  Assert ([int]$storePersisted -eq 1) 'First store API returned a store that was not persisted for the newly created organization.'
+  Write-Host 'FIRST ADMIN + FIRST STORE API + DATABASE PERSISTENCE: PASS'
 
   # Put a durable marker in the local database, then reinstall over the same directory.
   [void](Invoke-Psql "CREATE TABLE IF NOT EXISTS installer_upgrade_probe (probe_key text PRIMARY KEY, probe_value text NOT NULL); INSERT INTO installer_upgrade_probe VALUES ('preservation', 'must-survive-upgrade') ON CONFLICT (probe_key) DO UPDATE SET probe_value = EXCLUDED.probe_value;")
@@ -207,7 +215,22 @@ try {
   Install-OmniKes
   $probe = Invoke-Psql "SELECT probe_value FROM installer_upgrade_probe WHERE probe_key = 'preservation';"
   Assert ($probe -eq 'must-survive-upgrade') 'In-place upgrade did not preserve the PostgreSQL database.'
-  Write-Host 'IN-PLACE UPGRADE + DATABASE PRESERVATION: PASS'
+  $storeAfterUpgrade = Invoke-Psql "SELECT COUNT(*) FROM stores WHERE id = '$($storeId.Replace("'", "''"))' AND code = 'QA-FIRST-STORE' AND \"organizationId\" = '$($organizationId.Replace("'", "''"))';"
+  Assert ([int]$storeAfterUpgrade -eq 1) 'In-place upgrade did not preserve the first organization and store.'
+  # Verify the upgraded package can start the application, not just preserve its database.
+  $launcher = Join-Path $installDir 'installer\\OmniKesLauncher.cmd'
+  $quotedLauncher = '"' + $launcher + '"'
+  Start-Process -FilePath $env:ComSpec -ArgumentList @('/d', '/c', $quotedLauncher) -WindowStyle Hidden
+  $upgradeHealthReady = $false
+  for ($attempt = 0; $attempt -lt 90; $attempt++) {
+    try {
+      $upgradeHealth = Invoke-WebRequest -Uri "$baseUrl/api/health" -UseBasicParsing -TimeoutSec 2
+      if ($upgradeHealth.StatusCode -eq 200) { $upgradeHealthReady = $true; break }
+    } catch {}
+    Start-Sleep -Seconds 1
+  }
+  Assert $upgradeHealthReady 'OmniKes did not become healthy after the in-place upgrade.'
+  Write-Host 'IN-PLACE UPGRADE + DATABASE AND APPLICATION HEALTH: PASS'
 
   # Keep a separate Node process running to simulate Clarodaro. The OmniKes
   # uninstaller must leave applications outside its own installation directory
