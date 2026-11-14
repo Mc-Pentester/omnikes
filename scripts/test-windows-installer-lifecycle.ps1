@@ -205,7 +205,10 @@ try {
   Assert (-not [string]::IsNullOrWhiteSpace($storeId)) 'First store API did not return a persisted store ID.'
   Assert ($storeResponse.store.code -eq 'QA-FIRST-STORE') 'First store response contains an unexpected store code.'
   # Confirm the API result is durable in PostgreSQL and belongs to the new organization.
-  $storePersisted = Invoke-Psql "SELECT COUNT(*) FROM stores WHERE id = '$($storeId.Replace("'", "''"))' AND code = 'QA-FIRST-STORE' AND \"organizationId\" = '$($organizationId.Replace("'", "''"))';"
+  $escapedStoreId = $storeId.Replace("'", "''")
+  $escapedOrganizationId = $organizationId.Replace("'", "''")
+  $storePersistedSql = 'SELECT COUNT(*) FROM stores WHERE id = ''' + $escapedStoreId + ''' AND code = ''QA-FIRST-STORE'' AND "organizationId" = ''' + $escapedOrganizationId + ''';'
+  $storePersisted = Invoke-Psql $storePersistedSql
   Assert ([int]$storePersisted -eq 1) 'First store API returned a store that was not persisted for the newly created organization.'
   Write-Host 'FIRST ADMIN + FIRST STORE API + DATABASE PERSISTENCE: PASS'
 
@@ -215,7 +218,7 @@ try {
   Install-OmniKes
   $probe = Invoke-Psql "SELECT probe_value FROM installer_upgrade_probe WHERE probe_key = 'preservation';"
   Assert ($probe -eq 'must-survive-upgrade') 'In-place upgrade did not preserve the PostgreSQL database.'
-  $storeAfterUpgrade = Invoke-Psql "SELECT COUNT(*) FROM stores WHERE id = '$($storeId.Replace("'", "''"))' AND code = 'QA-FIRST-STORE' AND \"organizationId\" = '$($organizationId.Replace("'", "''"))';"
+  $storeAfterUpgrade = Invoke-Psql $storePersistedSql
   Assert ([int]$storeAfterUpgrade -eq 1) 'In-place upgrade did not preserve the first organization and store.'
   # Verify the upgraded package can start the application, not just preserve its database.
   $launcher = Join-Path $installDir 'installer\\OmniKesLauncher.cmd'
