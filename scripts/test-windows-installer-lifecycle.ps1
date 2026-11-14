@@ -13,8 +13,10 @@ $script:baseUrl = $null
 $passwordFile = Join-Path $programDataRoot '.omnikes-pg-password'
 $logFile = Join-Path $env:RUNNER_TEMP 'omnikes-installer-lifecycle.log'
 
-function Assert([bool]$Condition, [string]$Message) {
-  if (-not $Condition) { throw $Message }
+function Assert([object]$Condition, [string]$Message) {
+  # Accept native booleans as well as values such as IDs without letting
+  # PowerShell's parameter binder fail before the assertion can report context.
+  if ($null -eq $Condition -or -not [bool]$Condition) { throw $Message }
 }
 
 function Install-OmniKes {
@@ -147,7 +149,7 @@ try {
     $registerContent = $registerHttpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult()
     Assert ([int]$registerHttpResponse.StatusCode -eq 200 -or [int]$registerHttpResponse.StatusCode -eq 201) "First administrator registration returned HTTP $([int]$registerHttpResponse.StatusCode): $registerContent"
     $registerResponse = $registerContent | ConvertFrom-Json
-    Assert ($registerResponse.user.organizationId) 'First administrator registration did not return an organization.'
+    Assert (-not [string]::IsNullOrWhiteSpace([string]$registerResponse.user.organizationId)) 'First administrator registration did not return an organization.'
     # The production cookie is Secure; pass its token explicitly because the CI smoke test uses local HTTP.
     $cookieHeader = ''
     if ($registerHttpResponse.Headers.Contains('Set-Cookie')) {
@@ -159,12 +161,18 @@ try {
     if ($request) { $request.Dispose() }
     $httpClient.Dispose()
   }
-  $authHeaders = @{
-    Cookie = "auth_token=$($tokenMatch.Groups[1].Value)"
-    Origin = $baseUrl
-  }
+  # Use the bearer-token path supported by getSessionToken. This avoids
+  # Windows PowerShell 5.1's inconsistent handling of manually supplied Cookie
+  # headers while still exercising the production session validation.
+  $authToken = $tokenMatch.Groups[1].Value
+  $apiClient = New-Object System.Net.Http.HttpClient
+  $apiClient.DefaultRequestHeaders.Authorization = New-Object System.Net.Http.Headers.AuthenticationHeaderValue('Bearer', $authToken)
+  $apiClient.DefaultRequestHeaders.TryAddWithoutValidation('Origin', $baseUrl) | Out-Null
 
-  $roleResponse = Invoke-RestMethod -Uri "$baseUrl/api/admin/roles" -Method Get -Headers $authHeaders
+  $roleHttpResponse = $apiClient.GetAsync("$baseUrl/api/admin/roles").GetAwaiter().GetResult()
+  $roleContent = $roleHttpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+  Assert ([int]$roleHttpResponse.StatusCode -eq 200) "Admin roles API returned HTTP $([int]$roleHttpResponse.StatusCode): $roleContent"
+  $roleResponse = $roleContent | ConvertFrom-Json
   $expectedRoleNames = @('ADMIN', 'MANAGER', 'SUPERVISOR', 'CASHIER', 'SALES_ASSOCIATE', 'INVENTORY_MANAGER', 'WAREHOUSE_CLERK', 'PURCHASING_MANAGER', 'ACCOUNTANT', 'SALES_MANAGER', 'CUSTOMER_SERVICE', 'STORE_MANAGER', 'SELLER', 'AUDITOR')
   $actualRoleNames = @($roleResponse.roles | ForEach-Object { $_.name })
   foreach ($roleName in $expectedRoleNames) { Assert ($actualRoleNames -contains $roleName) "Standard role '$roleName' is missing after first registration." }
@@ -180,10 +188,29 @@ try {
     phone = ''
     # email intentionally omitted: it is optional.
   } | ConvertTo-Json
-  $storeResponse = Invoke-RestMethod -Uri "$baseUrl/api/stores" -Method Post -ContentType 'application/json' -Body $storePayload -Headers $authHeaders
-  Assert ($storeResponse.store.id) 'First store API did not return a persisted store.'
+  $storeRequest = New-Object System.Net.Http.HttpRequestMessage([System.Net.Http.HttpMethod]::Post, "$baseUrl/api/stores")
+  $storeRequest.Content = New-Object System.Net.Http.StringContent($storePayload, [System.Text.Encoding]::UTF8, 'application/json')
+  try {
+    $storeHttpResponse = $apiClient.SendAsync($storeRequest).GetAwaiter().GetResult()
+    $storeContent = $storeHttpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+    Assert ([int]$storeHttpResponse.StatusCode -eq 200 -or [int]$storeHttpResponse.StatusCode -eq 201) "First store API returned HTTP $([int]$storeHttpResponse.StatusCode): $storeContent"
+    $storeResponse = $storeContent | ConvertFrom-Json
+  } finally {
+    $storeRequest.Dispose()
+    $apiClient.Dispose()
+  }
+  Assert ($null -ne $storeResponse.store) "First store API response did not contain a store object: $storeContent"
+  $storeId = [string]$storeResponse.store.id
+  $organizationId = [string]$registerResponse.user.organizationId
+  Assert (-not [string]::IsNullOrWhiteSpace($storeId)) 'First store API did not return a persisted store ID.'
   Assert ($storeResponse.store.code -eq 'QA-FIRST-STORE') 'First store response contains an unexpected store code.'
-  Write-Host 'FIRST ADMIN + FIRST STORE API E2E: PASS'
+  # Confirm the API result is durable in PostgreSQL and belongs to the new organization.
+  $escapedStoreId = $storeId.Replace("'", "''")
+  $escapedOrganizationId = $organizationId.Replace("'", "''")
+  $storePersistedSql = 'SELECT COUNT(*) FROM stores WHERE id = ''' + $escapedStoreId + ''' AND code = ''QA-FIRST-STORE'' AND "organizationId" = ''' + $escapedOrganizationId + ''';'
+  $storePersisted = Invoke-Psql $storePersistedSql
+  Assert ([int]$storePersisted -eq 1) 'First store API returned a store that was not persisted for the newly created organization.'
+  Write-Host 'FIRST ADMIN + FIRST STORE API + DATABASE PERSISTENCE: PASS'
 
   # Put a durable marker in the local database, then reinstall over the same directory.
   [void](Invoke-Psql "CREATE TABLE IF NOT EXISTS installer_upgrade_probe (probe_key text PRIMARY KEY, probe_value text NOT NULL); INSERT INTO installer_upgrade_probe VALUES ('preservation', 'must-survive-upgrade') ON CONFLICT (probe_key) DO UPDATE SET probe_value = EXCLUDED.probe_value;")
@@ -191,7 +218,23 @@ try {
   Install-OmniKes
   $probe = Invoke-Psql "SELECT probe_value FROM installer_upgrade_probe WHERE probe_key = 'preservation';"
   Assert ($probe -eq 'must-survive-upgrade') 'In-place upgrade did not preserve the PostgreSQL database.'
-  Write-Host 'IN-PLACE UPGRADE + DATABASE PRESERVATION: PASS'
+  $storeAfterUpgrade = Invoke-Psql $storePersistedSql
+  Assert ([int]$storeAfterUpgrade -eq 1) 'In-place upgrade did not preserve the first organization and store.'
+  # Verify the upgraded package can start the application, not just preserve its database.
+  $launcher = Join-Path $installDir 'installer\OmniKesLauncher.cmd'
+  $quotedLauncher = '"' + $launcher + '"'
+  Start-Process -FilePath $env:ComSpec -ArgumentList @('/d', '/c', $quotedLauncher) -WindowStyle Hidden
+  $upgradeHealthReady = $false
+  for ($attempt = 0; $attempt -lt 90; $attempt++) {
+    try {
+      $upgradeHealth = Invoke-WebRequest -Uri "$baseUrl/api/health" -UseBasicParsing -TimeoutSec 2
+      if ($upgradeHealth.StatusCode -eq 200) { $upgradeHealthReady = $true; break }
+    } catch {}
+    Start-Sleep -Seconds 1
+  }
+  Assert $upgradeHealthReady 'OmniKes did not become healthy after the in-place upgrade.'
+  Write-Host 'IN-PLACE UPGRADE + DATABASE AND APPLICATION HEALTH: PASS'
+  Stop-OmniKesServer
 
   # Keep a separate Node process running to simulate Clarodaro. The OmniKes
   # uninstaller must leave applications outside its own installation directory
