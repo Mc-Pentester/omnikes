@@ -147,7 +147,7 @@ try {
     $registerContent = $registerHttpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult()
     Assert ([int]$registerHttpResponse.StatusCode -eq 200 -or [int]$registerHttpResponse.StatusCode -eq 201) "First administrator registration returned HTTP $([int]$registerHttpResponse.StatusCode): $registerContent"
     $registerResponse = $registerContent | ConvertFrom-Json
-    Assert ($registerResponse.user.organizationId) 'First administrator registration did not return an organization.'
+    Assert (-not [string]::IsNullOrWhiteSpace([string]$registerResponse.user.organizationId)) 'First administrator registration did not return an organization.'
     # The production cookie is Secure; pass its token explicitly because the CI smoke test uses local HTTP.
     $cookieHeader = ''
     if ($registerHttpResponse.Headers.Contains('Set-Cookie')) {
