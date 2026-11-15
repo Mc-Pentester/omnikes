@@ -121,7 +121,6 @@ if ($script:CleanupFailed) {
     Write-Log '=== PROCESS SNAPSHOT AT CLEANUP FAILURE ==='
     Get-CimInstance Win32_Process -ErrorAction Stop |
       Where-Object { $_.Name -match '^(node|postgres|omnikes)\.exe
-  Write-Log 'Cleanup could not safely stop all OmniKes processes/services; cancelling uninstall to avoid deleting files in use.'
   exit 1
 }
 
@@ -141,11 +140,12 @@ if ($DeleteData) {
       throw 'ProgramData\OmniKes still exists after deletion.'
     }
   } catch {
-    Write-Log "ProgramData deletion failed: $($_.Exception.Message)"
+    Write-Log "ProgramData deletion failed: $($_.Exception.ToString())"
     exit 1
   }
 } else {
   Write-Log 'User chose to keep ProgramData database, credentials, backups, settings, and logs.'
+  Write-Log 'UNINSTALL CLEANUP SCRIPT: PASS'
 }
  } |
       ForEach-Object { Write-Log ("PROCESS PID={0} PPID={1} NAME={2} PATH={3} COMMAND={4}" -f $_.ProcessId, $_.ParentProcessId, $_.Name, $_.ExecutablePath, $_.CommandLine) }
@@ -173,11 +173,9 @@ if ($DeleteData) {
       throw 'ProgramData\OmniKes still exists after deletion.'
     }
   } catch {
-    Write-Log "ProgramData deletion failed: $($_.Exception.Message)"
+    Write-Log "ProgramData deletion failed: $($_.Exception.ToString())"
     exit 1
   }
 } else {
   Write-Log 'User chose to keep ProgramData database, credentials, backups, settings, and logs.'
 }
-
-Write-Log 'UNINSTALL CLEANUP SCRIPT: PASS'

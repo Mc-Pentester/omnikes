@@ -33,6 +33,8 @@ function Save-UninstallDiagnostics([string]$Reason) {
   try {
     Get-CimInstance Win32_Process -ErrorAction Stop |
       Where-Object { $_.Name -match '^(node|postgres|omnikes)\.exe
+
+function Assert([object]$Condition, [string]$Message) {
   # Accept native booleans as well as values such as IDs without letting
   # PowerShell's parameter binder fail before the assertion can report context.
   if ($null -eq $Condition -or -not [bool]$Condition) { throw $Message }
@@ -351,6 +353,7 @@ try {
     else { Write-Host "File size $($_.Length) bytes; retained as workflow artifact." }
   }
 }
+
 
 function Assert([object]$Condition, [string]$Message) {
   # Accept native booleans as well as values such as IDs without letting
