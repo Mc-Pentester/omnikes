@@ -25,7 +25,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.20.0'
+          node-version: '22.22.2'
           cache: npm
 
       - name: Install project dependencies
@@ -46,6 +46,10 @@ jobs:
       - name: Verify launcher configuration
         shell: powershell
         run: npm test -- src/tests/build/launcher-verification.test.ts
+
+      - name: Verify Windows in-place upgrade safety
+        shell: powershell
+        run: npm test -- src/tests/build/windows-in-place-upgrade.test.ts
 
       - name: Inspect and reject repository documentation in package
         shell: powershell
