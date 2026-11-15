@@ -41,7 +41,9 @@ function Stop-OmniKesServer {
     Where-Object {
       $_.ExecutablePath -and
       [System.IO.Path]::GetFullPath($_.ExecutablePath) -ieq $nodePath -and
-      $_.CommandLine -and $_.CommandLine.Contains($serverPath)
+      $_.CommandLine -and
+      ($normalizedCommandLine = $_.CommandLine -replace '(?i)\\installer\\\.\.\\app\\server\.js', '\app\server.js') -and
+      $normalizedCommandLine.IndexOf($serverPath, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
     } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
   Start-Sleep -Seconds 2

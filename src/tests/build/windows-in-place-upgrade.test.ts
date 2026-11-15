@@ -6,6 +6,7 @@ const root = process.cwd();
 const installer = readFileSync(path.join(root, 'installer', 'OmniKes.iss'), 'utf8');
 const prepare = readFileSync(path.join(root, 'installer', 'prepare-upgrade.ps1'), 'utf8');
 const lifecycle = readFileSync(path.join(root, 'scripts', 'test-windows-installer-lifecycle.ps1'), 'utf8');
+const uninstallRuntime = readFileSync(path.join(root, 'installer', 'uninstall-runtime.ps1'), 'utf8');
 const workflow = readFileSync(path.join(root, '.github', 'workflows', 'windows-installer.yml'), 'utf8');
 
 describe('Windows in-place upgrade safety', () => {
@@ -24,6 +25,14 @@ describe('Windows in-place upgrade safety', () => {
     expect(prepare).not.toContain('pg_ctl');
     expect(prepare).not.toContain('Remove-Item');
     expect(prepare).not.toContain('sc.exe delete');
+  });
+
+  it('normalizes the launcher-relative server path before matching only the bundled OmniKes Node process', () => {
+    for (const script of [lifecycle, uninstallRuntime]) {
+      expect(script).toContain(String.raw`-replace '(?i)\\installer\\\.\.\\app\\server\.js'`);
+      expect(script).toContain("IndexOf($serverPath, [System.StringComparison]::OrdinalIgnoreCase) -ge 0");
+      expect(script).not.toContain('CommandLine.Contains($serverPath)');
+    }
   });
 
   it('passes PostgreSQL SQL through a UTF-8 file to preserve quoted identifiers on Windows', () => {
