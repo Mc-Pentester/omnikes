@@ -261,10 +261,7 @@ try {
 
   $uninstaller = Join-Path $installDir 'unins000.exe'
   Assert (Test-Path $uninstaller) 'Inno Setup uninstaller is missing.'
-  $innoUninstallLog = Join-Path $env:RUNNER_TEMP 'omnikes-uninstall-normal-inno.log'
-  Remove-Item -LiteralPath $innoUninstallLog -Force -ErrorAction SilentlyContinue
-  $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$innoUninstallLog") -Wait -PassThru
-  Write-Host "Normal uninstaller exit code: $($uninstallProcess.ExitCode)"
+  $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
   Assert ($uninstallProcess.ExitCode -eq 0) "OmniKes uninstaller failed with exit code $($uninstallProcess.ExitCode)."
   Start-Sleep -Seconds 2
   Assert (-not (Test-Path $installDir)) "Program Files installation directory remains after uninstall: $installDir"
@@ -281,10 +278,7 @@ try {
   # Reinstall using the retained data, then explicitly request a full data purge.
   Install-OmniKes
   $purgeUninstaller = Join-Path $installDir 'unins000.exe'
-  $purgeInnoLog = Join-Path $env:RUNNER_TEMP 'omnikes-uninstall-purge-inno.log'
-  Remove-Item -LiteralPath $purgeInnoLog -Force -ErrorAction SilentlyContinue
-  $purgeProcess = Start-Process -FilePath $purgeUninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/PURGEDATA=yes', "/LOG=$purgeInnoLog") -Wait -PassThru
-  Write-Host "Explicit-purge uninstaller exit code: $($purgeProcess.ExitCode)"
+  $purgeProcess = Start-Process -FilePath $purgeUninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/PURGEDATA=yes') -Wait -PassThru
   Assert ($purgeProcess.ExitCode -eq 0) "OmniKes full-data uninstaller failed with exit code $($purgeProcess.ExitCode)."
   Assert (-not (Test-Path $installDir)) "Program Files installation directory remains after full-data uninstall: $installDir"
   Assert (-not (Test-Path $programDataRoot)) "OmniKes ProgramData remains after explicit full-data uninstall: $programDataRoot"

@@ -6,6 +6,7 @@ const root = process.cwd();
 const installer = readFileSync(path.join(root, 'installer', 'OmniKes.iss'), 'utf8');
 const prepare = readFileSync(path.join(root, 'installer', 'prepare-upgrade.ps1'), 'utf8');
 const lifecycle = readFileSync(path.join(root, 'scripts', 'test-windows-installer-lifecycle.ps1'), 'utf8');
+const workflow = readFileSync(path.join(root, '.github', 'workflows', 'windows-installer.yml'), 'utf8');
 
 describe('Windows in-place upgrade safety', () => {
   it('runs a pre-install shutdown hook before Inno Setup replaces runtime files', () => {
@@ -30,6 +31,14 @@ describe('Windows in-place upgrade safety', () => {
     expect(lifecycle).toContain('-f $sqlFile');
     expect(lifecycle).not.toContain('-Atqc $Sql');
     expect(lifecycle).toContain("column_name = 'organizationId'");
+  });
+
+  it('captures and uploads uninstall diagnostics even when the lifecycle step fails', () => {
+    expect(lifecycle).toContain('omnikes-uninstall-normal-inno.log');
+    expect(lifecycle).toContain('omnikes-uninstall-purge-inno.log');
+    expect(workflow).toContain('Collect Windows uninstall diagnostics');
+    expect(workflow).toContain('if: always()');
+    expect(workflow).toContain('OmniKes-Windows-Uninstall-Diagnostics');
   });
 
   it('keeps the database preservation assertion in the real second-install lifecycle test', () => {
