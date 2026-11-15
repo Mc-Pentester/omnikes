@@ -149,8 +149,19 @@ jobs:
             Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine |
             Format-List | Out-String -Width 4096 |
             Set-Content -LiteralPath (Join-Path $diagnosticDir "processes-after-uninstall.txt")
-          sc.exe queryex OmniKesPostgreSQL 2>&1 |
-            Out-String | Set-Content -LiteralPath (Join-Path $diagnosticDir "postgres-service-after-uninstall.txt")
+          # sc.exe returns 1060 when the service has been removed. That is
+          # the expected post-uninstall state, not a diagnostics failure.
+          $serviceOutput = & "$env:WINDIR\System32\sc.exe" queryex OmniKesPostgreSQL 2>&1
+          $serviceExitCode = $LASTEXITCODE
+          $serviceDiagnostic = @($serviceOutput | ForEach-Object { "$_" })
+          if ($serviceExitCode -eq 1060) {
+            $serviceDiagnostic += "Expected result: OmniKesPostgreSQL is not installed (sc.exe exit 1060)."
+          } elseif ($serviceExitCode -ne 0) {
+            $serviceDiagnostic += "WARNING: sc.exe queryex returned unexpected exit code $serviceExitCode."
+            Write-Warning "Could not query OmniKesPostgreSQL after uninstall (sc.exe exit $serviceExitCode)."
+          }
+          $serviceDiagnostic |
+            Set-Content -LiteralPath (Join-Path $diagnosticDir "postgres-service-after-uninstall.txt")
           Write-Host "Diagnostics directory: $diagnosticDir"
 
       - name: Upload Windows installer lifecycle diagnostics
