@@ -255,7 +255,10 @@ export default function ProductsPage() {
                 sku: formData.sku,
                 price: parseFloat(formData.price),
               }
-            ]
+            ],
+            ...(requestedInitialStock > 0
+              ? { initialStock: { storeId: initialStockStoreId, quantity: requestedInitialStock } }
+              : {}),
           }
         : {
             name: formData.name,
@@ -287,34 +290,6 @@ export default function ProductsPage() {
         setFormError('Erreur lors de l\'enregistrement du produit.');
         setIsSubmitting(false);
         return;
-      }
-
-      if (modalMode === 'create' && requestedInitialStock > 0) {
-        const createdProduct = await response.json();
-        const createdVariant = createdProduct.variants?.[0];
-        if (!createdVariant?.id) {
-          setFormError('Produit créé, mais impossible d’identifier sa référence pour enregistrer le stock initial.');
-          await fetchProducts();
-          setIsSubmitting(false);
-          return;
-        }
-        const receiptResponse = await fetch('/api/inventory/receive', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            storeId: initialStockStoreId,
-            variantId: createdVariant.id,
-            quantity: requestedInitialStock,
-            notes: 'Stock initial à la création du produit',
-          }),
-        });
-        if (!receiptResponse.ok) {
-          const receiptError = await receiptResponse.json().catch(() => ({}));
-          setShowModal(false);
-          await fetchProducts();
-          alert(`Le produit a été créé, mais le stock initial n’a pas pu être enregistré : ${receiptError.error || 'erreur inconnue'}. Vous pouvez le réceptionner depuis Gestion des stocks.`);
-          return;
-        }
       }
 
       setShowModal(false);
