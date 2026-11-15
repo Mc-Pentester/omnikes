@@ -25,9 +25,17 @@ describe('Windows in-place upgrade safety', () => {
     expect(prepare).not.toContain('sc.exe delete');
   });
 
+  it('passes PostgreSQL SQL through a UTF-8 file to preserve quoted identifiers on Windows', () => {
+    expect(lifecycle).toContain('[System.Text.UTF8Encoding]::new($false)');
+    expect(lifecycle).toContain('-f $sqlFile');
+    expect(lifecycle).not.toContain('-Atqc $Sql');
+    expect(lifecycle).toContain("column_name = 'organizationId'");
+  });
+
   it('keeps the database preservation assertion in the real second-install lifecycle test', () => {
     expect(lifecycle).toContain('Install-OmniKes');
     expect(lifecycle).toContain('IN-PLACE UPGRADE + DATABASE AND APPLICATION HEALTH: PASS');
     expect(lifecycle).toContain('must-survive-upgrade');
+    expect(lifecycle).toContain('EXPLICIT FULL DATA PURGE: PASS');
   });
 });
