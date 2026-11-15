@@ -118,6 +118,50 @@ jobs:
           }
           & "$PWD\scripts\test-windows-installer-lifecycle.ps1" -SetupExe $installer.FullName
 
+      - name: Collect Windows uninstall diagnostics
+        if: always()
+        shell: powershell
+        run: |
+          $diagnosticDir = Join-Path $env:RUNNER_TEMP "omnikes-uninstall-diagnostics"
+          New-Item -ItemType Directory -Path $diagnosticDir -Force | Out-Null
+          $sources = @(
+            (Join-Path $env:RUNNER_TEMP "omnikes-installer-lifecycle.log"),
+            (Join-Path $env:RUNNER_TEMP "omnikes-uninstall-normal-inno.log"),
+            (Join-Path $env:RUNNER_TEMP "omnikes-uninstall-purge-inno.log"),
+            (Join-Path $env:ProgramData "OmniKes\logs\uninstall-runtime.log")
+          )
+          foreach ($source in $sources) {
+            if (Test-Path -LiteralPath $source) {
+              Copy-Item -LiteralPath $source -Destination $diagnosticDir -Force
+              Write-Host "=== $source ==="
+              Get-Content -LiteralPath $source -Tail 300
+            } else { Write-Host "DIAGNOSTIC FILE NOT FOUND: $source" }
+          }
+          $installDir = Join-Path $env:RUNNER_TEMP "OmniKes-Lifecycle-Test"
+          if (Test-Path -LiteralPath $installDir) {
+            Get-ChildItem -LiteralPath $installDir -Force -Recurse -ErrorAction SilentlyContinue |
+              Select-Object -First 1000 FullName, Length, Attributes |
+              Format-Table -AutoSize | Out-String -Width 4096 |
+              Set-Content -LiteralPath (Join-Path $diagnosticDir "remaining-install-files.txt")
+          } else { "Install directory absent." | Set-Content -LiteralPath (Join-Path $diagnosticDir "remaining-install-files.txt") }
+          Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -in @("node.exe", "postgres.exe", "omnikes.exe") } |
+            Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine |
+            Format-List | Out-String -Width 4096 |
+            Set-Content -LiteralPath (Join-Path $diagnosticDir "processes-after-uninstall.txt")
+          sc.exe queryex OmniKesPostgreSQL 2>&1 |
+            Out-String | Set-Content -LiteralPath (Join-Path $diagnosticDir "postgres-service-after-uninstall.txt")
+          Write-Host "Diagnostics directory: $diagnosticDir"
+
+      - name: Upload Windows installer lifecycle diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmniKes-Windows-Uninstall-Diagnostics
+          path: ${{ runner.temp }}/omnikes-uninstall-diagnostics/**
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
