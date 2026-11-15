@@ -118,6 +118,19 @@ jobs:
           }
           & "$PWD\scripts\test-windows-installer-lifecycle.ps1" -SetupExe $installer.FullName
 
+      - name: Upload Windows installer lifecycle diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmniKes-Windows-Uninstall-Diagnostics
+          path: |
+            ${{ runner.temp }}/omnikes-uninstall-diagnostics/**
+            ${{ runner.temp }}/omnikes-installer-lifecycle.log
+            ${{ runner.temp }}/omnikes-uninstall-normal-inno.log
+            ${{ runner.temp }}/omnikes-uninstall-purge-inno.log
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:

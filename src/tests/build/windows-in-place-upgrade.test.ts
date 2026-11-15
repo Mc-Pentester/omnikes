@@ -32,6 +32,15 @@ describe('Windows in-place upgrade safety', () => {
     expect(lifecycle).toContain("column_name = 'organizationId'");
   });
 
+  it('captures uninstall logs, remaining files, processes, and service state on lifecycle failures', () => {
+    expect(lifecycle).toContain('omnikes-uninstall-normal-inno.log');
+    expect(lifecycle).toContain('omnikes-uninstall-purge-inno.log');
+    expect(lifecycle).toContain('processes-after-uninstall.txt');
+    expect(lifecycle).toContain('remaining-install-files.txt');
+    expect(lifecycle).toContain('Save-UninstallDiagnostics');
+    expect(installer).toContain('uninstall-runtime.log');
+  });
+
   it('keeps the database preservation assertion in the real second-install lifecycle test', () => {
     expect(lifecycle).toContain('Install-OmniKes');
     expect(lifecycle).toContain('IN-PLACE UPGRADE + DATABASE AND APPLICATION HEALTH: PASS');
