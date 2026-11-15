@@ -5,10 +5,10 @@ import { Readable } from 'node:stream';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 
-const VERSION = '22.20.0';
+const VERSION = '22.22.2';
 const ARCHIVE = `node-v${VERSION}-win-x64.zip`;
 const URL = `https://nodejs.org/dist/v${VERSION}/${ARCHIVE}`;
-const EXPECTED_SHA256 = 'BB819D6EB8F5BFDA294BBC83A7E4EC6539DA67C4233D54B0D655B9248B15E29D';
+const EXPECTED_SHA256 = '7C93E9D92BF68C07182B471AA187E35EE6CD08EF0F24AB060DFFF605FCC1C57C';
 
 const root = path.resolve(process.env.OMNIKES_NODE_PACKAGE_DIR || 'vendor/node');
 const download = path.join(root, ARCHIVE);
