@@ -162,7 +162,15 @@ jobs:
           }
           $serviceDiagnostic |
             Set-Content -LiteralPath (Join-Path $diagnosticDir "postgres-service-after-uninstall.txt")
+
+          # GitHub Actions appends "exit $LASTEXITCODE" to built-in PowerShell
+          # steps. sc.exe uses 1060 to report the expected absent-service state
+          # after uninstall, so clear its native exit code after recording it.
+          # Unexpected sc.exe errors are retained in the diagnostic file and
+          # warned above; diagnostic collection itself must still complete.
+          $global:LASTEXITCODE = 0
           Write-Host "Diagnostics directory: $diagnosticDir"
+          Write-Host "Windows uninstall diagnostics collection: PASS"
 
       - name: Upload Windows installer lifecycle diagnostics
         if: always()
