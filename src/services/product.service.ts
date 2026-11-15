@@ -3,6 +3,8 @@ import { productSchema, productUpdateSchema, ProductInput, ProductUpdateInput, P
 import { prisma } from '@omnikes/lib/prisma';
 import { Prisma } from '@prisma/client';
 
+type ProductVariantCreateInput = Omit<ProductVariantInput, 'productId'>;
+
 export class ProductService {
   /**
    * Create the product, its store inventory rows and optional initial stock
@@ -10,7 +12,7 @@ export class ProductService {
    */
   async create(
     organizationId: string,
-    data: ProductInput & { variants?: ProductVariantInput[] },
+    data: ProductInput & { variants?: ProductVariantCreateInput[] },
     initialStock?: { storeId: string; quantity: number },
   ) {
     const validatedData = productSchema.parse({ ...data, organizationId });
@@ -31,7 +33,7 @@ export class ProductService {
       organization: { connect: { id: organizationId } },
       ...(variants.length > 0 ? {
         variants: {
-          create: variants.map((variant: ProductVariantInput) => ({
+          create: variants.map((variant: ProductVariantCreateInput) => ({
             sku: variant.sku,
             price: variant.price,
             cost: variant.cost || 0,
