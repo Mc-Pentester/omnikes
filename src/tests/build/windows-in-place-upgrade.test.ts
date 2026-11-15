@@ -32,13 +32,12 @@ describe('Windows in-place upgrade safety', () => {
     expect(lifecycle).toContain("column_name = 'organizationId'");
   });
 
-  it('captures uninstall logs, remaining files, processes, and service state on lifecycle failures', () => {
+  it('captures both Inno Setup uninstall logs and cleanup state when normal uninstall fails', () => {
     expect(lifecycle).toContain('omnikes-uninstall-normal-inno.log');
     expect(lifecycle).toContain('omnikes-uninstall-purge-inno.log');
-    expect(lifecycle).toContain('processes-after-uninstall.txt');
-    expect(lifecycle).toContain('remaining-install-files.txt');
-    expect(lifecycle).toContain('Save-UninstallDiagnostics');
-    expect(installer).toContain('uninstall-runtime.log');
+    expect(lifecycle).toContain('Remaining installation files');
+    expect(lifecycle).toContain('Relevant processes');
+    expect(lifecycle).toContain('sc.exe queryex OmniKesPostgreSQL');
   });
 
   it('keeps the database preservation assertion in the real second-install lifecycle test', () => {

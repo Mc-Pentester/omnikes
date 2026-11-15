@@ -124,10 +124,10 @@ jobs:
         with:
           name: OmniKes-Windows-Uninstall-Diagnostics
           path: |
-            ${{ runner.temp }}/omnikes-uninstall-diagnostics/**
             ${{ runner.temp }}/omnikes-installer-lifecycle.log
             ${{ runner.temp }}/omnikes-uninstall-normal-inno.log
             ${{ runner.temp }}/omnikes-uninstall-purge-inno.log
+            ${{ env.ProgramData }}/OmniKes/logs/uninstall-runtime.log
           if-no-files-found: warn
           retention-days: 14
 
