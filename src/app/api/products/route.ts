@@ -7,7 +7,7 @@ import { validatePagination } from '@omnikes/lib/pagination';
 
 const productCreateRequestSchema = productSchema.extend({
   variants: z.array(productVariantSchema.omit({ productId: true }).extend({
-    cost: productVariantSchema.shape.cost.optional(),
+    cost: productVariantSchema.shape.cost.default(0),
   })).optional(),
   initialStock: z.object({
     storeId: z.string().cuid(),
