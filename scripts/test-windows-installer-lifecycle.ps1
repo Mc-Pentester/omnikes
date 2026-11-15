@@ -265,19 +265,9 @@ try {
   Remove-Item -LiteralPath $innoUninstallLog -Force -ErrorAction SilentlyContinue
   $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$innoUninstallLog") -Wait -PassThru
   Write-Host "Normal uninstaller exit code: $($uninstallProcess.ExitCode)"
-  Assert ($uninstallProcess.ExitCode -eq 0) "OmniKes uninstaller failed with exit code $($uninstallProcess.ExitCode). Inno log: $innoUninstallLog"
+  Assert ($uninstallProcess.ExitCode -eq 0) "OmniKes uninstaller failed with exit code $($uninstallProcess.ExitCode)."
   Start-Sleep -Seconds 2
-  if (Test-Path $installDir) {
-    Write-Host '=== NORMAL UNINSTALL DIAGNOSTICS ==='
-    $cleanupLog = Join-Path $programDataRoot 'logs\uninstall-runtime.log'
-    if (Test-Path $cleanupLog) { Get-Content -LiteralPath $cleanupLog -Tail 250 } else { Write-Host "Missing cleanup log: $cleanupLog" }
-    if (Test-Path $innoUninstallLog) { Get-Content -LiteralPath $innoUninstallLog -Tail 250 }
-    Write-Host '--- Remaining installation files ---'
-    Get-ChildItem -LiteralPath $installDir -Force -Recurse -ErrorAction SilentlyContinue |
-      Select-Object -First 1000 FullName, Length, Attributes | Format-Table -AutoSize
-    Write-Host '--- Relevant processes ---'
-    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-      Where-Object { $_.Name -match '^(node|postgres|omnikes)\.exe
+  Assert (-not (Test-Path $installDir)) "Program Files installation directory remains after uninstall: $installDir"
   Assert (Test-Path (Join-Path $databaseDir 'PG_VERSION')) 'Uninstall unexpectedly removed PostgreSQL user data.'
   Assert (Test-Path $passwordFile) 'Uninstall unexpectedly removed the PostgreSQL credential.'
   $service = Get-Service -Name 'OmniKesPostgreSQL' -ErrorAction SilentlyContinue
@@ -295,41 +285,6 @@ try {
   Remove-Item -LiteralPath $purgeInnoLog -Force -ErrorAction SilentlyContinue
   $purgeProcess = Start-Process -FilePath $purgeUninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/PURGEDATA=yes', "/LOG=$purgeInnoLog") -Wait -PassThru
   Write-Host "Explicit-purge uninstaller exit code: $($purgeProcess.ExitCode)"
-  Assert ($purgeProcess.ExitCode -eq 0) "OmniKes full-data uninstaller failed with exit code $($purgeProcess.ExitCode). Inno log: $purgeInnoLog"
-  Assert (-not (Test-Path $installDir)) "Program Files installation directory remains after full-data uninstall: $installDir"
-  Assert (-not (Test-Path $programDataRoot)) "OmniKes ProgramData remains after explicit full-data uninstall: $programDataRoot"
-  $clarodaroProcess.Refresh()
-  Assert (-not $clarodaroProcess.HasExited) 'Full-data OmniKes uninstall terminated an unrelated Clarodaro-like Node process.'
-  Write-Host 'EXPLICIT FULL DATA PURGE: PASS'
-  Write-Host 'WINDOWS INSTALLER LIFECYCLE: PASS'
-} catch {
-  $_ | Out-String | Add-Content -LiteralPath $logFile
-  throw
-} finally {
-  if ($clarodaroProcess -and -not $clarodaroProcess.HasExited) {
-    Stop-Process -Id $clarodaroProcess.Id -Force -ErrorAction SilentlyContinue
-  }
-  Remove-Item Env:\PGPASSWORD -ErrorAction SilentlyContinue
-} } |
-      Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine | Format-List
-    Write-Host '--- PostgreSQL service ---'
-    sc.exe queryex OmniKesPostgreSQL 2>&1
-  }
-  Assert (-not (Test-Path $installDir)) "Program Files installation directory remains after uninstall: $installDir"
-  Assert (Test-Path (Join-Path $databaseDir 'PG_VERSION')) 'Uninstall unexpectedly removed PostgreSQL user data.'
-  Assert (Test-Path $passwordFile) 'Uninstall unexpectedly removed the PostgreSQL credential.'
-  $service = Get-Service -Name 'OmniKesPostgreSQL' -ErrorAction SilentlyContinue
-  Assert (-not $service) 'PostgreSQL Windows service registration remains after uninstall.'
-  $clarodaroProcess.Refresh()
-  Assert (-not $clarodaroProcess.HasExited) 'OmniKes uninstaller terminated an unrelated Clarodaro-like Node process.'
-  Write-Host 'UNINSTALL WITH CLARODARO-LIKE PROCESS RUNNING: PASS'
-  Write-Host 'CLARODARO PROCESS ISOLATION: PASS'
-  Write-Host 'UNINSTALL PROGRAM FILES + PRESERVE PROGRAMDATA: PASS'
-
-  # Reinstall using the retained data, then explicitly request a full data purge.
-  Install-OmniKes
-  $purgeUninstaller = Join-Path $installDir 'unins000.exe'
-  $purgeProcess = Start-Process -FilePath $purgeUninstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/PURGEDATA=yes') -Wait -PassThru
   Assert ($purgeProcess.ExitCode -eq 0) "OmniKes full-data uninstaller failed with exit code $($purgeProcess.ExitCode)."
   Assert (-not (Test-Path $installDir)) "Program Files installation directory remains after full-data uninstall: $installDir"
   Assert (-not (Test-Path $programDataRoot)) "OmniKes ProgramData remains after explicit full-data uninstall: $programDataRoot"
