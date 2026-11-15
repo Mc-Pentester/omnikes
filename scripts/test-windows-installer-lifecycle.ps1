@@ -51,12 +51,19 @@ function Invoke-Psql([string]$Sql) {
   $port = (Get-Content -LiteralPath $portFile -Raw).Trim()
   $password = (Get-Content -LiteralPath $passwordFile -Raw).Trim()
   $psql = Join-Path $installDir 'runtime\postgresql\bin\psql.exe'
+  $sqlFile = Join-Path $env:RUNNER_TEMP ("omnikes-psql-" + [guid]::NewGuid().ToString('N') + '.sql')
   $env:PGPASSWORD = $password
   try {
-    $output = & $psql -h 127.0.0.1 -p $port -U omnikes -d omnikes -v ON_ERROR_STOP=1 -Atqc $Sql 2>&1
-    Assert ($LASTEXITCODE -eq 0) "PostgreSQL probe failed: $output"
+    # Do not pass SQL through a native -c argument: Windows PowerShell 5.1
+    # can strip embedded identifier quotes before psql receives the command.
+    # A UTF-8 file preserves quoted PostgreSQL identifiers exactly.
+    [System.IO.File]::WriteAllText($sqlFile, $Sql, [System.Text.UTF8Encoding]::new($false))
+    $output = & $psql -X -qAt -h 127.0.0.1 -p $port -U omnikes -d omnikes -v ON_ERROR_STOP=1 -f $sqlFile 2>&1
+    $exitCode = $LASTEXITCODE
+    Assert ($exitCode -eq 0) "PostgreSQL probe failed (exit $exitCode): $output"
     return ($output | Out-String).Trim()
   } finally {
+    Remove-Item -LiteralPath $sqlFile -Force -ErrorAction SilentlyContinue
     Remove-Item Env:\PGPASSWORD -ErrorAction SilentlyContinue
   }
 }
@@ -207,6 +214,9 @@ try {
   # Confirm the API result is durable in PostgreSQL and belongs to the new organization.
   $escapedStoreId = $storeId.Replace("'", "''")
   $escapedOrganizationId = $organizationId.Replace("'", "''")
+  # Diagnose schema drift before checking the quoted camelCase identifier.
+  $organizationColumn = Invoke-Psql "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'stores' AND column_name = 'organizationId';"
+  Assert ([int]$organizationColumn -eq 1) 'The stores.organizationId column is missing from the installed database schema.'
   $storePersistedSql = 'SELECT COUNT(*) FROM stores WHERE id = ''' + $escapedStoreId + ''' AND code = ''QA-FIRST-STORE'' AND "organizationId" = ''' + $escapedOrganizationId + ''';'
   $storePersisted = Invoke-Psql $storePersistedSql
   Assert ([int]$storePersisted -eq 1) 'First store API returned a store that was not persisted for the newly created organization.'
