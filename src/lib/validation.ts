@@ -156,7 +156,10 @@ export const productSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-export const productUpdateSchema = productSchema.partial().omit({ organizationId: true }).extend({ barcode: z.string().trim().max(50).optional().or(z.literal('')) });
+export const productUpdateSchema = productSchema.partial().omit({ organizationId: true }).extend({
+  barcode: z.string().trim().max(50).optional().or(z.literal('')),
+  variantId: z.string().cuid().optional(),
+});
 
 // ProductVariant validation
 export const PRODUCT_SALE_UNITS = ['UNIT', 'G', 'KG', 'LB', 'OZ'] as const;

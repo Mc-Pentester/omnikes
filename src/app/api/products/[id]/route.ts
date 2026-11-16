@@ -98,7 +98,7 @@ export async function PATCH(
       );
     }
 
-    if (error instanceof Error && error.message === 'A product variant is required to assign a barcode') return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error instanceof Error && error.message === 'Selected product variant not found') return NextResponse.json({ error: error.message }, { status: 400 });
     if (error instanceof Error && error.message.includes('validation')) {
       return NextResponse.json(
         { error: error.message },

@@ -99,6 +99,11 @@ export class ProductService {
     });
   }
 
+  async getByBarcode(organizationId: string, barcode: string) {
+    if (!barcode.trim()) return null;
+    return productRepository.findByBarcode(organizationId, barcode);
+  }
+
   async getById(id: string, organizationId: string) {
     const product = await productRepository.findById(id, organizationId);
     if (!product) throw new Error('Product not found or access denied');
@@ -115,12 +120,12 @@ export class ProductService {
     const exists = await productRepository.belongsToOrganization(id, organizationId);
     if (!exists) throw new Error('Product not found or access denied');
     const validatedData = productUpdateSchema.parse(data);
-    const { barcode, ...productData } = validatedData;
+    const { barcode, variantId, ...productData } = validatedData;
     return prisma.$transaction(async (tx) => {
       await tx.product.updateMany({ where: { id, organizationId }, data: productData as Prisma.ProductUpdateManyMutationInput });
       if (barcode !== undefined) {
-        const variant = await tx.productVariant.findFirst({ where: { productId: id }, orderBy: { createdAt: 'asc' }, select: { id: true } });
-        if (!variant) throw new Error('A product variant is required to assign a barcode');
+        const variant = await tx.productVariant.findFirst({ where: { id: variantId, productId: id }, select: { id: true } });
+        if (!variant) throw new Error('Selected product variant not found');
         await tx.productVariant.update({ where: { id: variant.id }, data: { barcode: barcode.trim() || null } });
       }
       return tx.product.findFirst({ where: { id, organizationId }, include: { variants: true } });

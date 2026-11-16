@@ -24,6 +24,11 @@ export async function GET(request: NextRequest) {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'product.read');
     const { searchParams } = new URL(request.url);
+    const barcode = searchParams.get('barcode');
+    if (barcode !== null) {
+      const product = await productService.getByBarcode(organizationId, barcode);
+      return product ? NextResponse.json({ product }) : NextResponse.json({ error: 'Barcode not found' }, { status: 404 });
+    }
     const search = searchParams.get('search') || undefined;
     const category = searchParams.get('category') || undefined;
     const isActive = searchParams.get('isActive') === 'true' ? true :

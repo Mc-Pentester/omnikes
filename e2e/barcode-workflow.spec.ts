@@ -39,5 +39,13 @@ test.describe('Barcode workflow', () => {
     await search.fill(barcode);
     await search.press('Enter');
     await expect(page.getByText(productName)).toHaveCount(2);
+
+    page.once('dialog', async (dialog) => {
+      expect(dialog.message()).toContain('Code-barres inconnu');
+      await dialog.accept();
+    });
+    await search.fill(`UNKNOWN-${suffix}`);
+    await search.press('Enter');
+    await expect(page.getByText(productName)).toHaveCount(2);
   });
 });

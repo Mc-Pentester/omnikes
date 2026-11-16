@@ -47,6 +47,7 @@ export default function ProductsPage() {
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState('');
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     description: '',
@@ -136,6 +137,7 @@ export default function ProductsPage() {
   const handleEdit = (product: Product) => {
     setModalMode('edit');
     setSelectedProduct(product);
+    setSelectedVariantId(product.variants[0]?.id || '');
     setFormData({
       name: product.name,
       description: product.description || '',
@@ -270,6 +272,7 @@ export default function ProductsPage() {
             name: formData.name,
             description: formData.description,
             category: formData.category,
+            variantId: selectedVariantId,
             barcode: formData.barcode.trim(),
           };
 
@@ -618,6 +621,18 @@ export default function ProductsPage() {
                 )}
               </div>
             </>
+          )}
+          {modalMode === 'edit' && selectedProduct && selectedProduct.variants.length > 1 && (
+            <div>
+              <label htmlFor="barcode-variant" className="block text-sm font-medium text-foreground mb-1">Variante à modifier</label>
+              <select id="barcode-variant" value={selectedVariantId} onChange={(e) => {
+                const variant = selectedProduct.variants.find((item) => item.id === e.target.value);
+                setSelectedVariantId(e.target.value);
+                setFormData((current) => ({ ...current, barcode: variant?.barcode || '' }));
+              }} className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground">
+                {selectedProduct.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.sku}</option>)}
+              </select>
+            </div>
           )}
           {modalMode === 'edit' && (
             <div>

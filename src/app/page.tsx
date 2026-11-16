@@ -135,6 +135,27 @@ export default function HomePage() {
 
   const storesValidated = stores.length > 0 && !!currentStoreId && stores.some((store) => store.id === currentStoreId);
 
+  useEffect(() => {
+    if (!user) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const query = searchTerm.trim();
+        const endpoint = query
+          ? `/api/products?search=${encodeURIComponent(query)}&take=100&skip=0`
+          : '/api/products?take=50&skip=0';
+        const response = await fetch(endpoint, { signal: controller.signal });
+        if (response.ok) {
+          const data = await response.json();
+          setProducts(data.products || []);
+        }
+      } catch (err) {
+        if (!(err instanceof DOMException && err.name === 'AbortError')) console.error('POS product search failed:', err);
+      }
+    }, 180);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [searchTerm, user]);
+
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.variants.some(v => v.sku.toLowerCase().includes(searchTerm.toLowerCase()) || (v.barcode || '').toLowerCase().includes(searchTerm.toLowerCase()))
@@ -324,25 +345,37 @@ export default function HomePage() {
         if (showPaymentModal) setShowPaymentModal(false);
       }
       if (e.key === 'Enter' && document.activeElement?.id === 'product-search') {
-        const normalizedTerm = searchTerm.trim().toLowerCase();
-        const exactBarcodeMatch = normalizedTerm ? products.flatMap((product) => product.variants.map((variant) => ({ product, variant }))).find(({ variant }) => (variant.barcode || '').trim().toLowerCase() === normalizedTerm) : undefined;
-        const firstProduct = filteredProducts[0];
-        const selected = exactBarcodeMatch || (firstProduct?.variants[0] ? { product: firstProduct, variant: firstProduct.variants[0] } : undefined);
-        if (selected) {
-          e.preventDefault();
-          addToCart(selected.variant.id, selected.product.id, selected.product.name, selected.variant.name, selected.variant.sku, selected.variant.price, selected.variant.saleUnit);
-          setSearchTerm('');
-          setTimeout(() => {
-            const searchInput = document.getElementById('product-search') as HTMLInputElement;
-            searchInput?.focus();
-          }, 100);
-        }
+        const scannedBarcode = searchTerm.trim();
+        if (!scannedBarcode) return;
+        e.preventDefault();
+        void (async () => {
+          try {
+            const response = await fetch(`/api/products?barcode=${encodeURIComponent(scannedBarcode)}`, { cache: 'no-store' });
+            if (!response.ok) {
+              window.alert(response.status === 404 ? 'Code-barres inconnu. Aucun produit ajouté.' : 'Impossible de vérifier ce code-barres.');
+              return;
+            }
+            const data = await response.json();
+            const product = data.product as Product | undefined;
+            const variant = product?.variants?.[0];
+            if (!product || !variant) {
+              window.alert('Aucune variante active ne correspond à ce code-barres.');
+              return;
+            }
+            await addToCart(variant.id, product.id, product.name, variant.name, variant.sku, variant.price, variant.saleUnit);
+            setSearchTerm('');
+            window.setTimeout(() => document.getElementById('product-search')?.focus(), 100);
+          } catch (err) {
+            console.error('Barcode lookup failed:', err);
+            window.alert('Impossible de vérifier ce code-barres.');
+          }
+        })();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePayment, filteredProducts, showPaymentModal, addToCart]);
+  }, [handlePayment, searchTerm, showPaymentModal, addToCart]);
 
   if (authLoading || storeLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted">Chargement...</p></div>;
