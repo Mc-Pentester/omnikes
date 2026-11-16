@@ -74,6 +74,10 @@ test.describe('POS business flow', () => {
 
     await page.getByLabel('Montant reçu').fill(total.toFixed(2));
 
+    const receiptResponsePromise = page.waitForResponse((response) =>
+      response.url().includes(`/api/sales/${sale.id}`) &&
+      response.request().method() === 'GET',
+    );
     await page.getByRole('dialog').getByRole('button', { name: 'Confirmer' }).click();
 
     const [checkoutRequest, checkoutResponse] = await Promise.all([
@@ -140,10 +144,6 @@ test.describe('POS business flow', () => {
       });
     }
 
-    const receiptResponsePromise = page.waitForResponse((response) =>
-      response.url().includes(`/api/sales/${sale.id}`) &&
-      response.request().method() === 'GET',
-    );
     await expect(page.getByText('Vente complétée')).toBeVisible();
     const receiptResponse = await receiptResponsePromise;
     expect(receiptResponse.status()).toBe(200);
