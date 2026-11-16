@@ -456,7 +456,7 @@ model ProductVariant {
   id         String  @id @default(cuid())
   productId  String
   sku        String  @unique
-  barcode    String?
+  barcode    String?  @unique
   price      Decimal @db.Decimal(10, 2)
   cost       Decimal @db.Decimal(10, 2)
   /// UNIT keeps the existing semantics. Weight-based variants use G/KG/LB/OZ.
@@ -478,7 +478,6 @@ model ProductVariant {
 
   @@index([productId])
   @@index([sku])
-  @@index([barcode])
   @@map("product_variants")
 }
 
