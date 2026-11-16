@@ -26,6 +26,7 @@ export async function PATCH(
 
     const { customerId } = saleCustomerAssignSchema.parse(body);
     const sale = await saleService.update(id, organizationId, { customerId });
+    if (!sale) return NextResponse.json({ error: 'Sale not found or access denied' }, { status: 404 });
     return NextResponse.json({ id: sale.id, customerId: sale.customerId });
   } catch (error) {
     if (error instanceof ZodError) {
