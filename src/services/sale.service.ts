@@ -280,7 +280,6 @@ export class SaleService {
   async syncItems(saleId: string, organizationId: string, input: unknown) {
     const schema = z.object({
       applyTax: z.boolean(),
-      discount: z.number().finite().nonnegative().max(1000000000).default(0),
       items: z.array(z.object({
         variantId: z.string().cuid(),
         quantity: z.number().int().positive(),
@@ -296,22 +295,16 @@ export class SaleService {
       const variant = await productVariantRepository.findByIdWithOrganizationCheck(item.variantId, organizationId);
       if (!variant) throw new Error('Product variant not found or access denied');
       const unitPrice = roundMoney(getStoredUnitPrice(Number(variant.price), variant.saleUnit ?? 'UNIT'));
-      return { variantId: item.variantId, quantity: item.quantity, unitPrice, grossTotal: roundMoney(unitPrice * item.quantity) };
+      return { variantId: item.variantId, quantity: item.quantity, unitPrice, totalPrice: roundMoney(unitPrice * item.quantity) };
     }));
-
-    const grossSubtotal = roundMoney(pricedItems.reduce((sum, item) => sum + item.grossTotal, 0));
-    if (data.discount > grossSubtotal) throw new Error('Discount cannot exceed sale subtotal');
-    const discount = roundMoney(data.discount);
 
     return prisma.$transaction(async (tx) => {
       await this.lockPendingSale(tx, saleId, organizationId);
       await tx.sale.update({ where: { id: saleId }, data: { applyTax: data.applyTax } });
       await tx.saleItem.deleteMany({ where: { saleId } });
-      for (let index = 0; index < pricedItems.length; index += 1) {
-        const item = pricedItems[index];
-        const lineDiscount = index === 0 ? discount : 0;
+      for (const item of pricedItems) {
         await tx.saleItem.create({
-          data: { saleId, variantId: item.variantId, quantity: item.quantity, unitPrice: item.unitPrice, discount: lineDiscount, totalPrice: roundMoney(item.grossTotal - lineDiscount) },
+          data: { saleId, variantId: item.variantId, quantity: item.quantity, unitPrice: item.unitPrice, discount: 0, totalPrice: item.totalPrice },
         });
       }
       await this.recalculateTotalsInTransaction(tx, saleId, organizationId);

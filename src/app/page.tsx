@@ -495,6 +495,8 @@ export default function HomePage() {
     if (cart.length === 0 || !currentSaleId) return;
     setIsProcessing(true);
     try {
+      // Validate the cashier-entered discount before sending the cart.
+      if (discountValue > subtotal) throw new Error('La remise ne peut pas dépasser le sous-total.');
       // Sync cart to ensure server totals are up to date
       const totals = await syncCartToSale();
 

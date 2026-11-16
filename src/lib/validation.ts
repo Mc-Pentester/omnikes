@@ -293,7 +293,7 @@ export const paymentSchema = z.object({
   reference: z.string().max(200).optional(),
   status: z.literal('COMPLETED').default('COMPLETED'),
 }).superRefine((data, ctx) => {
-  if (data.method === 'CASH' && (data.cashReceived === undefined || data.cashReceived < data.amount)) ctx.addIssue({ code: 'custom', path: ['cashReceived'], message: 'Cash received must cover the payment amount' });
+  if (data.method === 'CASH' && data.cashReceived !== undefined && data.cashReceived < data.amount) ctx.addIssue({ code: 'custom', path: ['cashReceived'], message: 'Cash received must cover the payment amount' });
   if (data.method !== 'CASH' && data.cashReceived !== undefined) ctx.addIssue({ code: 'custom', path: ['cashReceived'], message: 'Cash received is only valid for cash payments' });
 });
 

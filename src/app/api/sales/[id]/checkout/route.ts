@@ -60,6 +60,9 @@ export async function POST(
     const body = await request.json();
     const parsedPaymentData = paymentSchema.parse(body);
     paymentData = parsedPaymentData;
+    if (parsedPaymentData.method === 'CASH' && parsedPaymentData.cashReceived === undefined) {
+      return NextResponse.json({ error: 'Cash received amount is required for cash checkout' }, { status: 400 });
+    }
 
     if (!saleId || !organizationId || !safeIdempotencyKey) {
       throw new Error('Checkout context is invalid');
