@@ -91,7 +91,7 @@ const mutationTx = {
   $queryRaw: vi.fn(),
   sale: { findFirst: vi.fn(), update: vi.fn() },
   saleItem: {
-    create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), delete: vi.fn(),
+    create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), delete: vi.fn(), deleteMany: vi.fn(),
   },
 };
 
