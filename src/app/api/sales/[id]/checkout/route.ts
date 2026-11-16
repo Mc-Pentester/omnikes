@@ -417,12 +417,17 @@ export async function POST(
         },
       });
 
-      if (
-        committedIdempotency &&
-        committedIdempotency.saleId === saleId &&
-        committedIdempotency.userId === authenticatedUserId &&
-        committedIdempotency.status === 'COMPLETED'
-      ) {
+      if (committedIdempotency) {
+        if (committedIdempotency.saleId !== saleId) {
+          return NextResponse.json({ error: 'Idempotency-Key already used for a different sale' }, { status: 409 });
+        }
+        if (committedIdempotency.userId !== authenticatedUserId) {
+          return NextResponse.json({ error: 'Idempotency-Key already used by a different user' }, { status: 409 });
+        }
+        if (committedIdempotency.status !== 'COMPLETED') {
+          return NextResponse.json({ error: 'Checkout operation already in progress' }, { status: 409 });
+        }
+
         const cachedResponse = JSON.parse(committedIdempotency.responseBody || '{}') as {
           payment?: {
             method?: string;
@@ -432,20 +437,22 @@ export async function POST(
           };
         };
         const cachedPayment = cachedResponse.payment;
-
-        if (
+        const paymentMatches = Boolean(
           cachedPayment &&
           cachedPayment.method === paymentData.method &&
           Number(cachedPayment.amount) === Number(paymentData.amount) &&
           (paymentData.method !== 'CASH' || Number(cachedPayment.cashReceived) === Number(paymentData.cashReceived)) &&
           (paymentData.reference === undefined ||
             (cachedPayment.reference ?? null) === (paymentData.reference ?? null))
-        ) {
-          return NextResponse.json(
-            cachedResponse,
-            { status: committedIdempotency.responseStatus || 200 }
-          );
+        );
+
+        if (!paymentMatches) {
+          return NextResponse.json({ error: 'Idempotency-Key already used with different payment data' }, { status: 409 });
         }
+        return NextResponse.json(
+          cachedResponse,
+          { status: committedIdempotency.responseStatus || 200 }
+        );
       }
     }
     if (error instanceof ZodError) {
