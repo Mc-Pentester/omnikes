@@ -59,6 +59,56 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
   });
 
   describe('SECTION I — IDEMPOTENCY TESTS', () => {
+    describe('TEST I0 — Cash tender validation', () => {
+      it('requires the actual cash received amount for an authorized CASH checkout', async () => {
+        mockedRequireCurrentOrganizationId.mockResolvedValue(mockOrganizationId);
+        mockedGetAuthenticatedUser.mockResolvedValue({ id: mockUserId });
+        mockedRequirePermission.mockResolvedValue(undefined);
+
+        const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': idempotencyKey },
+          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+        });
+
+        const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
+        expect(response.status).toBe(400);
+        expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('TEST I0-B — Concurrent idempotency tender mismatch', () => {
+      it('returns 409 when a concurrent request reuses the key with a different cash tender', async () => {
+        mockedRequireCurrentOrganizationId.mockResolvedValue(mockOrganizationId);
+        mockedGetAuthenticatedUser.mockResolvedValue({ id: mockUserId });
+        mockedRequirePermission.mockResolvedValue(undefined);
+        mockedPrisma.checkoutIdempotency.findUnique
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({
+            id: 'idemp-race',
+            saleId: saleA,
+            userId: mockUserId,
+            status: 'COMPLETED',
+            responseStatus: 201,
+            responseBody: JSON.stringify({
+              payment: { method: 'CASH', amount: 100, cashReceived: 100, reference: null },
+              sale: { id: saleA, status: 'COMPLETED' },
+            }),
+          });
+        mockedPrisma.$transaction.mockRejectedValue({ code: 'P2002' });
+
+        const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': idempotencyKey },
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 120 }),
+        });
+
+        const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
+        expect(response.status).toBe(409);
+      });
+    });
+
+
     describe('TEST I1 — First checkout', () => {
       it('should create payment, deduct stock, finalize sale, and create idempotency record', async () => {
         mockedRequireCurrentOrganizationId.mockResolvedValue(mockOrganizationId);
