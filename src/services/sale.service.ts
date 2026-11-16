@@ -328,7 +328,7 @@ export class SaleService {
    */
   async recalculateTotals(saleId: string, organizationId: string) {
     const items = await saleRepository.listItems(saleId, organizationId);
-    const subtotal = roundMoney(items.reduce((sum: number, item: SaleItem) => sum + Number(item.totalPrice), 0));
+    const subtotal = roundMoney(items.reduce((sum: number, item: SaleItem) => sum + Number(item.totalPrice) + Number(item.discount), 0));
     const discount = roundMoney(items.reduce((sum: number, item: SaleItem) => sum + Number(item.discount), 0));
 
     const sale = await prisma.sale.findFirst({
@@ -340,8 +340,9 @@ export class SaleService {
     const effectiveRate = (sale?.applyTax !== false && configuredRate !== null && configuredRate !== undefined)
       ? Number(configuredRate)
       : 0;
-    const tax = roundMoney(subtotal * effectiveRate);
-    const total = roundMoney(subtotal + tax);
+    const taxableSubtotal = roundMoney(subtotal - discount);
+    const tax = roundMoney(taxableSubtotal * effectiveRate);
+    const total = roundMoney(taxableSubtotal + tax);
 
     await saleRepository.updateWithTaxRate(saleId, organizationId, {
       subtotal, discount, tax, taxRate: effectiveRate, total,
@@ -358,7 +359,7 @@ export class SaleService {
       where: { saleId, sale: { organizationId } },
       select: { totalPrice: true, discount: true },
     });
-    const subtotal = roundMoney(items.reduce((sum, item) => sum + Number(item.totalPrice), 0));
+    const subtotal = roundMoney(items.reduce((sum, item) => sum + Number(item.totalPrice) + Number(item.discount), 0));
     const discount = roundMoney(items.reduce((sum, item) => sum + Number(item.discount), 0));
 
     const sale = await tx.sale.findFirst({

@@ -241,7 +241,7 @@ export const saleSchema = z.object({
   organizationId: z.string().cuid(),
   storeId: z.string().cuid(),
   orderNumber: z.string().min(1, 'Order number is required'),
-  customerId: z.string().cuid().optional(),
+  customerId: z.string().cuid().nullable().optional(),
   channel: z.string().default('POS'),
   status: z.string().default('PENDING'),
   subtotal: z.number().finite().nonnegative('Subtotal must be non-negative').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Subtotal must have at most 2 decimal places'),
