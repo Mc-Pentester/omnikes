@@ -34,6 +34,7 @@ export async function POST(
     if (error instanceof Error && error.message === 'Not authorized to access this store') return NextResponse.json({ error: error.message }, { status: 403 });
     if (error instanceof Error && error.message === 'Inventory not found or access denied') return NextResponse.json({ error: error.message }, { status: 404 });
     if (error instanceof Error && (error.message === 'Adjusted quantity cannot be below reserved quantity' || error.message === 'No inventory adjustment is required')) return NextResponse.json({ error: error.message }, { status: 409 });
+    if (error instanceof Error && error.message === 'Receipt reference already exists with a different quantity') return NextResponse.json({ error: error.message }, { status: 409 });
     console.error('Inventory receive error:', error);
     return NextResponse.json({ error: 'Failed to receive inventory' }, { status: 500 });
   }
