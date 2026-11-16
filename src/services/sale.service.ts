@@ -305,16 +305,20 @@ export class SaleService {
     const grossCents = pricedItems.map((item) => Math.round(item.grossTotal * 100));
     const totalGrossCents = grossCents.reduce((sum, value) => sum + value, 0);
     const discountCents = Math.round(discount * 100);
+    const totalGrossCentsBigInt = BigInt(totalGrossCents);
+    const discountCentsBigInt = BigInt(discountCents);
     const proportionalShares = grossCents.map((value) => {
-      const exactShare = totalGrossCents > 0 ? discountCents * (value / totalGrossCents) : 0;
-      const wholeCents = Math.floor(exactShare);
-      return { wholeCents, remainder: exactShare - wholeCents };
+      const numerator = discountCentsBigInt * BigInt(value);
+      return {
+        wholeCents: totalGrossCents > 0 ? Number(numerator / totalGrossCentsBigInt) : 0,
+        remainder: totalGrossCents > 0 ? numerator % totalGrossCentsBigInt : BigInt(0),
+      };
     });
     const lineDiscountCents = proportionalShares.map((share) => share.wholeCents);
     let remainingDiscountCents = discountCents - lineDiscountCents.reduce((sum, value) => sum + value, 0);
     const remainderOrder = proportionalShares
       .map((share, index) => ({ index, remainder: share.remainder }))
-      .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+      .sort((a, b) => a.remainder === b.remainder ? a.index - b.index : a.remainder > b.remainder ? -1 : 1);
     for (const entry of remainderOrder) {
       if (remainingDiscountCents <= 0) break;
       if (lineDiscountCents[entry.index] < grossCents[entry.index]) {
