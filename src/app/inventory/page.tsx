@@ -131,7 +131,7 @@ export default function InventoryPage() {
     setFormData({
       quantity: nextWorkflow === 'adjust' ? String(inventoryItem.quantity) : '',
       reason: '',
-      referenceId: '',
+      referenceId: nextWorkflow === 'receive' ? `RECEIPT-${crypto.randomUUID()}` : '',
       notes: '',
       targetInventoryId: '',
     });
