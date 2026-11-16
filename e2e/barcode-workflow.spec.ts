@@ -14,7 +14,7 @@ test.describe('Barcode workflow', () => {
 
     await page.goto('/login');
     await page.getByLabel(/email/i).fill(email!);
-    await page.getByLabel(/password/i).fill(password!);
+    await page.getByLabel(/mot de passe|password/i).fill(password!);
     await page.getByRole('button', { name: /sign in|se connecter|connexion/i }).click();
     await page.waitForURL(/\/$|\/dashboard/);
 
