@@ -38,7 +38,7 @@ export class ProductService {
             price: variant.price,
             cost: variant.cost || 0,
             saleUnit: variant.saleUnit,
-            barcode: variant.barcode || null,
+            barcode: variant.barcode?.trim() || null,
             attributes: variant.attributes || {},
             isActive: true,
           })),
@@ -115,8 +115,16 @@ export class ProductService {
     const exists = await productRepository.belongsToOrganization(id, organizationId);
     if (!exists) throw new Error('Product not found or access denied');
     const validatedData = productUpdateSchema.parse(data);
-    await productRepository.update(id, organizationId, validatedData as Prisma.ProductUpdateInput);
-    return productRepository.findById(id, organizationId);
+    const { barcode, ...productData } = validatedData;
+    return prisma.$transaction(async (tx) => {
+      await tx.product.updateMany({ where: { id, organizationId }, data: productData as Prisma.ProductUpdateManyMutationInput });
+      if (barcode !== undefined) {
+        const variant = await tx.productVariant.findFirst({ where: { productId: id }, orderBy: { createdAt: 'asc' }, select: { id: true } });
+        if (!variant) throw new Error('A product variant is required to assign a barcode');
+        await tx.productVariant.update({ where: { id: variant.id }, data: { barcode: barcode.trim() || null } });
+      }
+      return tx.product.findFirst({ where: { id, organizationId }, include: { variants: true } });
+    });
   }
 
   async deactivate(id: string, organizationId: string) {
