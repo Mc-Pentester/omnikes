@@ -140,7 +140,17 @@ test.describe('POS business flow', () => {
       });
     }
 
+    const receiptResponsePromise = page.waitForResponse((response) =>
+      response.url().includes(`/api/sales/${sale.id}`) &&
+      response.request().method() === 'GET',
+    );
     await expect(page.getByText('Vente complétée')).toBeVisible();
+    const receiptResponse = await receiptResponsePromise;
+    expect(receiptResponse.status()).toBe(200);
+    await expect(page.getByRole('button', { name: 'Imprimer le ticket' })).toBeVisible();
+    await expect(page.getByText('TICKET DE CAISSE')).toBeVisible();
+    await expect(page.locator('a[target="_blank"]')).toHaveCount(0);
+    expect(page.context().pages()).toHaveLength(1);
 
     // Click "Nouvelle vente" to return to POS with sidebar
     await page.getByRole('button', { name: 'Nouvelle vente' }).click();

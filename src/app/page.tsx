@@ -10,6 +10,7 @@ import { useCurrentStore } from '@omnikes/contexts/StoreContext';
 import { Sidebar } from '@omnikes/components/layout/Sidebar';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { ScaleReaderPanel } from '@omnikes/components/hardware/ScaleReaderPanel';
+import { PosReceipt } from '@omnikes/components/sales/PosReceipt';
 
 const SALE_UNIT_TO_GRAMS: Record<'UNIT' | 'G' | 'KG' | 'LB' | 'OZ', number> = { UNIT: 1, G: 1, KG: 1000, LB: 453.59237, OZ: 28.349523125 };
 
@@ -586,33 +587,13 @@ export default function HomePage() {
 
   if (completedSaleId) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="w-full max-w-lg rounded-xl bg-surface p-8 shadow-sm border border-border text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success-soft text-3xl">✓</div>
-          <h1 className="text-2xl font-bold text-foreground">Vente complétée</h1>
-          <p className="mt-2 text-muted">La vente a été enregistrée avec succès.</p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <a
-              href={'/sales/' + encodeURIComponent(completedSaleId) + '/receipt'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-12 items-center justify-center rounded-lg bg-primary px-6 text-base font-bold text-white hover:bg-primary-hover"
-            >
-              Imprimer le ticket
-            </a>
-            <Button
-              onClick={() => {
-                setCompletedSaleId(null);
-                setTimeout(() => document.getElementById('product-search')?.focus(), 100);
-              }}
-              variant="outline"
-              className="h-12 px-6 text-base font-medium"
-            >
-              Nouvelle vente
-            </Button>
-          </div>
-        </div>
-      </div>
+      <PosReceipt
+        saleId={completedSaleId}
+        onNewSale={() => {
+          setCompletedSaleId(null);
+          setTimeout(() => document.getElementById('product-search')?.focus(), 100);
+        }}
+      />
     );
   }
 
