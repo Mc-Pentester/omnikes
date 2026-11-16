@@ -38,6 +38,7 @@ interface Product {
   variants: {
     id: string;
     sku: string;
+    barcode?: string | null;
     name: string;
     price: number;
     saleUnit: 'UNIT' | 'G' | 'KG' | 'LB' | 'OZ';
@@ -136,7 +137,7 @@ export default function HomePage() {
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.variants.some(v => v.sku.toLowerCase().includes(searchTerm.toLowerCase()))
+    product.variants.some(v => v.sku.toLowerCase().includes(searchTerm.toLowerCase()) || (v.barcode || '').toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const addToCart = useCallback(async (variantId: string, productId: string, productName: string, variantName: string, sku: string, price: number, saleUnit: CartItem['saleUnit'] = 'UNIT') => {
@@ -323,17 +324,13 @@ export default function HomePage() {
         if (showPaymentModal) setShowPaymentModal(false);
       }
       if (e.key === 'Enter' && document.activeElement?.id === 'product-search') {
+        const normalizedTerm = searchTerm.trim().toLowerCase();
+        const exactBarcodeMatch = normalizedTerm ? products.flatMap((product) => product.variants.map((variant) => ({ product, variant }))).find(({ variant }) => (variant.barcode || '').trim().toLowerCase() === normalizedTerm) : undefined;
         const firstProduct = filteredProducts[0];
-        if (firstProduct && firstProduct.variants[0]) {
+        const selected = exactBarcodeMatch || (firstProduct?.variants[0] ? { product: firstProduct, variant: firstProduct.variants[0] } : undefined);
+        if (selected) {
           e.preventDefault();
-          addToCart(
-            firstProduct.variants[0].id,
-            firstProduct.id,
-            firstProduct.name,
-            firstProduct.variants[0].name,
-            firstProduct.variants[0].sku,
-            firstProduct.variants[0].price
-          );
+          addToCart(selected.variant.id, selected.product.id, selected.product.name, selected.variant.name, selected.variant.sku, selected.variant.price, selected.variant.saleUnit);
           setSearchTerm('');
           setTimeout(() => {
             const searchInput = document.getElementById('product-search') as HTMLInputElement;
@@ -663,7 +660,7 @@ export default function HomePage() {
           <div className="mb-4 md:mb-6">
             <Input
               type="text"
-              placeholder="Rechercher par nom ou SKU... (F1)"
+              placeholder="Rechercher par nom, SKU ou code-barres… Scanner puis Entrée (F1)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full text-base md:text-lg h-14 shadow-[var(--shadow-sm)]"
@@ -703,7 +700,7 @@ export default function HomePage() {
                     <div>
                       <h3 className="font-semibold text-[var(--foreground)] text-sm md:text-base">{product.name}</h3>
                       <p className="text-sm text-[var(--muted)]">{variant.name}</p>
-                      <p className="text-xs text-[var(--muted)] mt-1">SKU: {variant.sku}</p>
+                      <p className="text-xs text-[var(--muted)] mt-1">SKU: {variant.sku}</p>{variant.barcode && <p className="text-xs text-[var(--muted)]">Code-barres: {variant.barcode}</p>}
                     </div>
                     <p className="text-lg font-bold text-[var(--primary)] mt-3">{parseFloat(String(variant.price)).toFixed(2)} HTG</p>
                   </Card>
