@@ -574,8 +574,10 @@ export default function HomePage() {
       setCompletedSaleId(completedId);
       setShowPaymentModal(false);
       setAmountReceived('');
+      setPaymentMethod('CASH');
       setDiscountAmount('0');
       setSelectedCustomer('');
+      setCustomerSearch('');
       setServerTotals(null);
       localStorage.removeItem('omnikes_pending_cart');
       setTimeout(() => {
@@ -603,8 +605,10 @@ export default function HomePage() {
     setServerTotals(null);
     setDiscountAmount('0');
     setSelectedCustomer('');
+    setCustomerSearch('');
     setAmountReceived('');
     setPaymentMethod('CASH');
+    localStorage.removeItem('omnikes_pending_cart');
   };
 
   if (loading) {
