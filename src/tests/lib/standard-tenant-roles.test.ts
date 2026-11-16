@@ -21,6 +21,7 @@ describe('standard tenant RBAC roles', () => {
     const auditor = STANDARD_TENANT_ROLES.find((role) => role.name === 'AUDITOR')!;
     expect(CASHIER_ROLE.permissions).toContain('customer.read');
     expect(CASHIER_ROLE.permissions).toContain('sale.customer.assign');
+    expect(CASHIER_ROLE.permissions).toContain('sale.pos.sync');
     expect(CASHIER_ROLE.permissions).not.toContain('sale.update');
     expect(manager.permissions).not.toContain('backup.restore');
     expect(seller.permissions).not.toContain('user.create');
