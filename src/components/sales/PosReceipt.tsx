@@ -66,34 +66,54 @@ export function PosReceipt({ saleId, onNewSale }: PosReceiptProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchSale = useCallback(async (): Promise<ReceiptSale> => {
+    const response = await fetch('/api/sales/' + encodeURIComponent(saleId), {
+      method: 'GET',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
+    if (response.status === 401) {
+      throw new Error('Votre session OmniKès a expiré. Reconnectez-vous pour consulter ce ticket.');
+    }
+    if (response.status === 403) {
+      throw new Error('Votre compte ne dispose pas du droit de consulter cette vente.');
+    }
+    if (!response.ok) {
+      throw new Error('Impossible de charger le ticket de cette vente.');
+    }
+    return await response.json() as ReceiptSale;
+  }, [saleId]);
+
   const loadSale = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const response = await fetch('/api/sales/' + encodeURIComponent(saleId), {
-        method: 'GET',
-        credentials: 'same-origin',
-        cache: 'no-store',
-        headers: { Accept: 'application/json' },
-      });
-      if (response.status === 401) {
-        throw new Error('Votre session OmniKès a expiré. Reconnectez-vous pour consulter ce ticket.');
-      }
-      if (response.status === 403) {
-        throw new Error('Votre compte ne dispose pas du droit de consulter cette vente.');
-      }
-      if (!response.ok) {
-        throw new Error('Impossible de charger le ticket de cette vente.');
-      }
-      setSale(await response.json() as ReceiptSale);
+      setSale(await fetchSale());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement du ticket.');
     } finally {
       setLoading(false);
     }
-  }, [saleId]);
+  }, [fetchSale]);
 
   useEffect(() => {
-    void loadSale();
-  }, [loadSale]);
+    let active = true;
+    fetchSale()
+      .then((data) => {
+        if (active) setSale(data);
+      })
+      .catch((err: unknown) => {
+        if (active) setError(err instanceof Error ? err.message : 'Erreur lors du chargement du ticket.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [fetchSale]);
 
   const printReceipt = () => {
     if (!sale) return;
@@ -154,7 +174,7 @@ export function PosReceipt({ saleId, onNewSale }: PosReceiptProps) {
       {error && (
         <div className="pos-receipt-actions mx-auto max-w-3xl rounded-lg border border-danger/30 bg-danger-soft p-4" role="alert">
           <p className="text-danger">{error}</p>
-          <button type="button" onClick={() => { setLoading(true); setError(null); void loadSale(); }} className="mt-3 rounded border border-border px-3 py-2 font-medium">
+          <button type="button" onClick={() => void loadSale()} className="mt-3 rounded border border-border px-3 py-2 font-medium">
             Réessayer
           </button>
         </div>

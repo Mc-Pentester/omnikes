@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { Sidebar } from '@omnikes/components/layout/Sidebar';
 import { Button } from '@omnikes/components/ui/button';
@@ -28,7 +28,7 @@ export default function CustomersPage() {
   const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '', address: '', city: '' });
   const [isSidebarCompact, setIsSidebarCompact] = useState(false);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       setError(null);
       const query = search.trim() ? `?search=${encodeURIComponent(search.trim())}` : '';
@@ -39,14 +39,14 @@ export default function CustomersPage() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Impossible de charger les clients.');
     }
-  };
+  }, [search]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void fetchCustomers();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [search]);
+  }, [fetchCustomers]);
 
   const closeCreateModal = () => {
     if (isCreating) return;
