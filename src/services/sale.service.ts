@@ -280,7 +280,7 @@ export class SaleService {
   async syncItems(saleId: string, organizationId: string, input: unknown) {
     const schema = z.object({
       applyTax: z.boolean(),
-      discount: z.number().finite().nonnegative().max(1000000000).default(0),
+      discount: z.number().finite().nonnegative().max(1000000000).refine((value) => Math.round(value * 100) === value * 100, 'Discount must have at most 2 decimal places').default(0),
       items: z.array(z.object({
         variantId: z.string().cuid(),
         quantity: z.number().int().positive(),

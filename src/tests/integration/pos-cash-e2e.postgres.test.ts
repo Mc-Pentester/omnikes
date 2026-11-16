@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { prisma } from '@omnikes/lib/prisma';
 import { cashService } from '@omnikes/services/cash.service';
+import { saleService } from '@omnikes/services/sale.service';
 import { POST as checkout } from '@omnikes/app/api/sales/[id]/checkout/route';
 
 const authState = vi.hoisted(() => ({ organizationId: '', userId: '' }));
@@ -22,6 +23,7 @@ describe('POS CASH end-to-end PostgreSQL runtime proof', () => {
     product: `c${suffix}pose2eprod000000`,
     variant: `c${suffix}pose2evar0000000`,
     inventory: `c${suffix}pose2einv0000000`,
+    customer: `c${suffix}pose2ecust000000`,
   };
   let saleId = '';
   let openingQuantity = 0;
@@ -36,6 +38,7 @@ describe('POS CASH end-to-end PostgreSQL runtime proof', () => {
     await prisma.user.create({
       data: { id: ids.user, organizationId: ids.org, email: `pos-cash-e2e-${suffix}@example.test`, password: 'runtime-test-password' },
     });
+    await prisma.customer.create({ data: { id: ids.customer, organizationId: ids.org, name: 'POS E2E Customer' } });
     await prisma.product.create({
       data: { id: ids.product, organizationId: ids.org, name: 'POS CASH E2E Product' },
     });
@@ -71,6 +74,7 @@ describe('POS CASH end-to-end PostgreSQL runtime proof', () => {
     await prisma.cashSession.deleteMany({ where: { organizationId: ids.org } });
     await prisma.inventory.deleteMany({ where: { id: ids.inventory } });
     await prisma.productVariant.deleteMany({ where: { id: ids.variant } });
+    await prisma.customer.deleteMany({ where: { id: ids.customer } });
     await prisma.product.deleteMany({ where: { id: ids.product } });
     await prisma.user.deleteMany({ where: { id: ids.user } });
     await prisma.store.deleteMany({ where: { id: ids.store } });
@@ -109,11 +113,23 @@ describe('POS CASH end-to-end PostgreSQL runtime proof', () => {
     });
     saleId = sale.id;
 
+    await saleService.update(sale.id, ids.org, { customerId: ids.customer });
+    await saleService.update(sale.id, ids.org, { customerId: null });
+    await saleService.update(sale.id, ids.org, { customerId: ids.customer });
+    const discountedSale = await saleService.syncItems(sale.id, ids.org, {
+      applyTax: false,
+      discount: 100,
+      items: [{ variantId: ids.variant, quantity: 1 }],
+    });
+    expect(Number(discountedSale?.subtotal)).toBe(1000);
+    expect(Number(discountedSale?.discount)).toBe(100);
+    expect(Number(discountedSale?.total)).toBe(900);
+
     const key = `pos-cash-e2e-${sale.id}`;
     const makeRequest = () => new NextRequest(`http://localhost/api/sales/${sale.id}/checkout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
-      body: JSON.stringify({ method: 'CASH', amount: 1000 }),
+      body: JSON.stringify({ method: 'CASH', amount: 900, cashReceived: 1000 }),
     });
 
     const response1 = await checkout(makeRequest(), { params: Promise.resolve({ id: sale.id }) });
@@ -135,19 +151,22 @@ describe('POS CASH end-to-end PostgreSQL runtime proof', () => {
     const idempotency = await prisma.checkoutIdempotency.findMany({ where: { saleId: sale.id } });
 
     expect(finalSale.status).toBe('COMPLETED');
+    expect(finalSale.customerId).toBe(ids.customer);
+    expect(Number(finalSale.payments[0].cashReceived)).toBe(1000);
+    expect(Number(finalSale.payments[0].changeGiven)).toBe(100);
     expect(payments).toBe(1);
     expect(stockMovements).toBe(1);
     expect(finalInventory.quantity).toBe(openingQuantity - 1);
     expect(cashMovements).toHaveLength(1);
-    expect(Number(cashMovements[0].amount)).toBe(1000);
+    expect(Number(cashMovements[0].amount)).toBe(900);
     expect(idempotency).toHaveLength(1);
     expect(idempotency[0].status).toBe('COMPLETED');
 
     const summary = await cashService.summary(ids.org, cashSession.id);
-    expect(summary.cashSales).toBe(1000);
-    expect(summary.expectedAmount).toBe(6000);
+    expect(summary.cashSales).toBe(900);
+    expect(summary.expectedAmount).toBe(5900);
 
-    const closed = await cashService.close(ids.org, cashSession.id, ids.user, { countedAmount: 6000 });
+    const closed = await cashService.close(ids.org, cashSession.id, ids.user, { countedAmount: 5900 });
     expect(closed.status).toBe('CLOSED');
     expect(Number(closed.difference)).toBe(0);
   });
