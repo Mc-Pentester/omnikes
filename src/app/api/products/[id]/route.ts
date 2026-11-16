@@ -38,6 +38,7 @@ export async function GET(
       );
     }
 
+    if (error instanceof Error && 'code' in error && error.code === 'P2002') return NextResponse.json({ error: 'SKU or barcode already exists' }, { status: 409 });
     if (error instanceof Error && error.message === 'Product not found or access denied') {
       return NextResponse.json(
         { error: 'Product not found or access denied' },
@@ -94,6 +95,7 @@ export async function PATCH(
       );
     }
 
+    if (error instanceof Error && error.message === 'A product variant is required to assign a barcode') return NextResponse.json({ error: error.message }, { status: 400 });
     if (error instanceof Error && error.message.includes('validation')) {
       return NextResponse.json(
         { error: error.message },
