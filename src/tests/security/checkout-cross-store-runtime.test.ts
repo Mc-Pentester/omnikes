@@ -104,7 +104,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
         headers: {
           'Idempotency-Key': idempotencyKey,
         },
-        body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
+        body: JSON.stringify({ method: 'CASH', amount: 100 }),
       });
 
       const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleB }) });
