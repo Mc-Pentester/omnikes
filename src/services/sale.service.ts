@@ -302,6 +302,27 @@ export class SaleService {
     const grossSubtotal = roundMoney(pricedItems.reduce((sum, item) => sum + item.grossTotal, 0));
     if (data.discount > grossSubtotal) throw new Error('Discount cannot exceed sale subtotal');
     const discount = roundMoney(data.discount);
+    const grossCents = pricedItems.map((item) => Math.round(item.grossTotal * 100));
+    const totalGrossCents = grossCents.reduce((sum, value) => sum + value, 0);
+    const discountCents = Math.round(discount * 100);
+    const lineDiscountCents = totalGrossCents > 0
+      ? grossCents.map((value) => Math.floor(discountCents * value / totalGrossCents))
+      : grossCents.map(() => 0);
+    let remainingDiscountCents = discountCents - lineDiscountCents.reduce((sum, value) => sum + value, 0);
+    const remainderOrder = grossCents
+      .map((value, index) => ({
+        index,
+        remainder: totalGrossCents > 0 ? (discountCents * value) % totalGrossCents : 0,
+      }))
+      .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+    for (const entry of remainderOrder) {
+      if (remainingDiscountCents <= 0) break;
+      if (lineDiscountCents[entry.index] < grossCents[entry.index]) {
+        lineDiscountCents[entry.index] += 1;
+        remainingDiscountCents -= 1;
+      }
+    }
+    if (remainingDiscountCents !== 0) throw new Error('Discount allocation failed');
 
     return prisma.$transaction(async (tx) => {
       await this.lockPendingSale(tx, saleId, organizationId);
@@ -309,9 +330,17 @@ export class SaleService {
       await tx.saleItem.deleteMany({ where: { saleId } });
       for (let index = 0; index < pricedItems.length; index += 1) {
         const item = pricedItems[index];
-        const lineDiscount = index === 0 ? discount : 0;
+        const lineDiscount = lineDiscountCents[index] / 100;
+        const lineNetCents = grossCents[index] - lineDiscountCents[index];
         await tx.saleItem.create({
-          data: { saleId, variantId: item.variantId, quantity: item.quantity, unitPrice: item.unitPrice, discount: lineDiscount, totalPrice: roundMoney(item.grossTotal - lineDiscount) },
+          data: {
+            saleId,
+            variantId: item.variantId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discount: lineDiscount,
+            totalPrice: lineNetCents / 100,
+          },
         });
       }
       await this.recalculateTotalsInTransaction(tx, saleId, organizationId);

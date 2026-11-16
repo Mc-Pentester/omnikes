@@ -68,6 +68,7 @@ export default function HomePage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerSearch, setCustomerSearch] = useState('');
   const [discountAmount, setDiscountAmount] = useState('0');
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -243,20 +244,27 @@ export default function HomePage() {
   useEffect(() => {
     if (!user) return;
     const controller = new AbortController();
-    void fetch('/api/customers?take=100&skip=0', { signal: controller.signal, cache: 'no-store' })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Chargement des clients refusé (${response.status})`);
-        const data = await response.json();
-        setCustomers(Array.isArray(data.customers) ? data.customers : []);
-      })
-      .catch((err) => {
-        if (!(err instanceof DOMException && err.name === 'AbortError')) {
-          console.error('POS customer list failed:', err);
-          setCustomers([]);
-        }
-      });
-    return () => controller.abort();
-  }, [user]);
+    const timer = window.setTimeout(() => {
+      const query = new URLSearchParams({ take: '100', skip: '0' });
+      if (customerSearch.trim()) query.set('search', customerSearch.trim());
+      void fetch(`/api/customers?${query.toString()}`, { signal: controller.signal, cache: 'no-store' })
+        .then(async (response) => {
+          if (!response.ok) throw new Error(`Chargement des clients refusé (${response.status})`);
+          const data = await response.json();
+          setCustomers(Array.isArray(data.customers) ? data.customers : []);
+        })
+        .catch((err) => {
+          if (!(err instanceof DOMException && err.name === 'AbortError')) {
+            console.error('POS customer list failed:', err);
+            setCustomers([]);
+          }
+        });
+    }, 200);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [user, customerSearch]);
 
   const fetchStores = useCallback(async () => {
     if (!user) return;
@@ -593,6 +601,10 @@ export default function HomePage() {
     setCart([]);
     setCurrentSaleId(null);
     setServerTotals(null);
+    setDiscountAmount('0');
+    setSelectedCustomer('');
+    setAmountReceived('');
+    setPaymentMethod('CASH');
   };
 
   if (loading) {
@@ -660,11 +672,19 @@ export default function HomePage() {
               ))}
             </select>
             
+            <input
+              type="search"
+              value={customerSearch}
+              onChange={(e) => setCustomerSearch(e.target.value)}
+              placeholder="Rechercher un client"
+              aria-label="Rechercher un client"
+              className="h-10 w-44 px-3 border border-[var(--border)] bg-[var(--surface)] rounded-[var(--radius-md)] text-sm text-[var(--foreground)]"
+            />
             <select value={selectedCustomer} onChange={(e) => {
               const customerId = e.target.value;
               if (!currentSaleId) { setSelectedCustomer(customerId); return; }
               void (async () => {
-                const response = await fetch(`/api/sales/${currentSaleId}`, {
+                const response = await fetch(`/api/sales/${currentSaleId}/customer`, {
                   method: 'PATCH', headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ customerId: customerId || null }),
                 });

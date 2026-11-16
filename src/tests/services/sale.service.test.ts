@@ -138,10 +138,10 @@ describe('SaleService - Tax Calculation', () => {
 
       await saleService.recalculateTotals(mockSaleId, mockOrganizationId);
 
-      const expectedSubtotal = 150;
+      const expectedSubtotal = 160; // gross line value before the separate discount
       const expectedDiscount = 10;
-      const expectedTax = expectedSubtotal * mockTaxRate;
-      const expectedTotal = expectedSubtotal + expectedTax;
+      const expectedTax = (expectedSubtotal - expectedDiscount) * mockTaxRate;
+      const expectedTotal = expectedSubtotal - expectedDiscount + expectedTax;
 
       expect(saleRepository.updateWithTaxRate).toHaveBeenCalledWith(
         mockSaleId,
@@ -346,10 +346,10 @@ describe('SaleService - Tax Calculation', () => {
 
       await saleService.recalculateTotals(mockSaleId, mockOrganizationId);
 
-      const expectedSubtotal = 150;
+      const expectedSubtotal = 165; // gross line value before the separate discount
       const expectedDiscount = 15;
-      const expectedTax = expectedSubtotal * mockTaxRate;
-      const expectedTotal = expectedSubtotal + expectedTax;
+      const expectedTax = (expectedSubtotal - expectedDiscount) * mockTaxRate;
+      const expectedTotal = expectedSubtotal - expectedDiscount + expectedTax;
 
       expect(saleRepository.updateWithTaxRate).toHaveBeenCalledWith(
         mockSaleId,
@@ -397,6 +397,37 @@ describe('SaleService - Tax Calculation', () => {
       );
     });
   });
+
+  describe('syncItems discount allocation', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      configureMutationTransaction();
+    });
+
+    it('distributes a cart discount proportionally without creating negative sale lines', async () => {
+      (productVariantRepository.findByIdWithOrganizationCheck as any).mockImplementation(async (variantId: string) => ({
+        id: variantId,
+        price: variantId === 'cvariant123' ? 100 : 900,
+        saleUnit: 'UNIT',
+      }));
+
+      await saleService.syncItems('sale-123', 'corg1234567', {
+        applyTax: false,
+        discount: 500,
+        items: [
+          { variantId: 'cvariant123', quantity: 1 },
+          { variantId: 'cvariant456', quantity: 1 },
+        ],
+      });
+
+      const lines = mutationTx.saleItem.create.mock.calls.map((call: any[]) => call[0].data);
+      expect(lines).toHaveLength(2);
+      expect(lines.every((line: any) => Number(line.totalPrice) >= 0)).toBe(true);
+      expect(lines.reduce((sum: number, line: any) => sum + Number(line.discount), 0)).toBe(500);
+      expect(lines.map((line: any) => Number(line.totalPrice))).toEqual([50, 450]);
+    });
+  });
+
   describe('weighted product pricing', () => {
     beforeEach(() => configureMutationTransaction());
     it('uses server price per kilogram and quantity stored in grams', async () => {

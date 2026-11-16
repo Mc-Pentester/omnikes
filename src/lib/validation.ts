@@ -254,6 +254,10 @@ export const saleSchema = z.object({
 
 export const saleUpdateSchema = saleSchema.partial().omit({ organizationId: true, orderNumber: true });
 
+export const saleCustomerAssignSchema = z.object({
+  customerId: z.string().cuid().nullable(),
+}).strict();
+
 // SaleItem validation
 export const saleItemSchema = z.object({
   saleId: z.string().cuid().optional(),

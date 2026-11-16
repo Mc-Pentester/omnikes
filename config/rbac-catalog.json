@@ -54,7 +54,8 @@
     "purchase.manage",
     "purchase.receive",
     "supplier.payment.manage",
-    "supplier.payment.read"
+    "supplier.payment.read",
+    "sale.customer.assign"
   ],
   "standardRoles": [
     {
@@ -152,7 +153,9 @@
         "cash.read",
         "cash.open",
         "cash.close",
-        "cash.movement"
+        "cash.movement",
+        "customer.read",
+        "sale.customer.assign"
       ]
     },
     {
@@ -170,7 +173,8 @@
         "proforma.read",
         "proforma.update",
         "proforma.accept",
-        "store.read"
+        "store.read",
+        "sale.customer.assign"
       ]
     },
     {

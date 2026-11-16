@@ -56,23 +56,6 @@ export async function POST(
     }
     safeIdempotencyKey = validatedIdempotencyKey.data;
 
-    // Parse payment data
-    const body = await request.json();
-    const parsedPaymentData = paymentSchema.parse(body);
-    paymentData = parsedPaymentData;
-    if (parsedPaymentData.method === 'CASH' && parsedPaymentData.cashReceived === undefined) {
-      return NextResponse.json({ error: 'Cash received amount is required for cash checkout' }, { status: 400 });
-    }
-
-    if (!saleId || !organizationId || !safeIdempotencyKey) {
-      throw new Error('Checkout context is invalid');
-    }
-    const checkoutSaleId = saleId;
-    const checkoutOrganizationId = organizationId;
-    const checkoutUserId = user.id;
-    const checkoutIdempotencyKey = safeIdempotencyKey;
-    const checkoutPaymentData = parsedPaymentData;
-
     // Fetch sale to verify store access before transaction
     const saleForAccessCheck = await prisma.sale.findFirst({
       where: { id: saleId, organizationId },
@@ -105,6 +88,24 @@ export async function POST(
         );
       }
     }
+
+    // Validate payment data only after tenant and store authorization.
+    // Unauthorized callers must receive the correct 403/404 without probing payload validation.
+    const body = await request.json();
+    const parsedPaymentData = paymentSchema.parse(body);
+    paymentData = parsedPaymentData;
+    if (parsedPaymentData.method === 'CASH' && parsedPaymentData.cashReceived === undefined) {
+      return NextResponse.json({ error: 'Cash received amount is required for cash checkout' }, { status: 400 });
+    }
+
+    if (!saleId || !organizationId || !safeIdempotencyKey) {
+      throw new Error('Checkout context is invalid');
+    }
+    const checkoutSaleId = saleId;
+    const checkoutOrganizationId = organizationId;
+    const checkoutUserId = user.id;
+    const checkoutIdempotencyKey = safeIdempotencyKey;
+    const checkoutPaymentData = parsedPaymentData;
 
     // Check for existing idempotency record
     const existingIdempotency = await prisma.checkoutIdempotency.findUnique({
@@ -333,7 +334,9 @@ export async function POST(
           amount: checkoutPaymentData.amount,
           reference: checkoutPaymentData.reference || `PAY-${Date.now()}`,
           cashReceived: checkoutPaymentData.method === 'CASH' ? checkoutPaymentData.cashReceived : null,
-          changeGiven: checkoutPaymentData.method === 'CASH' ? Number((checkoutPaymentData.cashReceived! - checkoutPaymentData.amount).toFixed(2)) : null,
+          changeGiven: checkoutPaymentData.method === 'CASH'
+            ? (toCents(checkoutPaymentData.cashReceived!) - toCents(checkoutPaymentData.amount)) / 100
+            : null,
           status: 'COMPLETED',
         },
       });
@@ -425,6 +428,7 @@ export async function POST(
             method?: string;
             amount?: number | string;
             reference?: string | null;
+            cashReceived?: number | string | null;
           };
         };
         const cachedPayment = cachedResponse.payment;
@@ -433,6 +437,7 @@ export async function POST(
           cachedPayment &&
           cachedPayment.method === paymentData.method &&
           Number(cachedPayment.amount) === Number(paymentData.amount) &&
+          (paymentData.method !== 'CASH' || Number(cachedPayment.cashReceived) === Number(paymentData.cashReceived)) &&
           (paymentData.reference === undefined ||
             (cachedPayment.reference ?? null) === (paymentData.reference ?? null))
         ) {

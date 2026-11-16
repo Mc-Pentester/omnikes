@@ -18,9 +18,13 @@ describe('standard tenant RBAC roles', () => {
     const seller = STANDARD_TENANT_ROLES.find((role) => role.name === 'SELLER')!;
     const accountant = STANDARD_TENANT_ROLES.find((role) => role.name === 'ACCOUNTANT')!;
     const auditor = STANDARD_TENANT_ROLES.find((role) => role.name === 'AUDITOR')!;
+    expect(CASHIER_ROLE.permissions).toContain('customer.read');
+    expect(CASHIER_ROLE.permissions).toContain('sale.customer.assign');
+    expect(CASHIER_ROLE.permissions).not.toContain('sale.update');
     expect(manager.permissions).not.toContain('backup.restore');
     expect(seller.permissions).not.toContain('user.create');
     expect(seller.permissions).not.toContain('role.create');
+    expect(seller.permissions).toContain('sale.customer.assign');
     expect(accountant.permissions).not.toContain('sale.update');
     expect(auditor.permissions.every((code) => code.endsWith('.read') || code === 'audit.read')).toBe(true);
   });
