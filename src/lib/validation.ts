@@ -285,19 +285,33 @@ export const cashMovementSchema = z.object({
   note: z.string().trim().max(500).optional(),
 });
 
-export const paymentSchema = z.object({
+const paymentBaseSchema = z.object({
   saleId: z.string().cuid().optional(),
   method: z.enum(['CASH', 'CARD', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CHECK'], { message: 'Invalid payment method' }),
   amount: z.number().finite().positive('Amount must be positive').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Amount must have at most 2 decimal places'),
   cashReceived: z.number().finite().nonnegative().max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Cash received must have at most 2 decimal places').optional(),
   reference: z.string().max(200).optional(),
   status: z.literal('COMPLETED').default('COMPLETED'),
-}).superRefine((data, ctx) => {
-  if (data.method === 'CASH' && data.cashReceived !== undefined && data.cashReceived < data.amount) ctx.addIssue({ code: 'custom', path: ['cashReceived'], message: 'Cash received must cover the payment amount' });
-  if (data.method !== 'CASH' && data.cashReceived !== undefined) ctx.addIssue({ code: 'custom', path: ['cashReceived'], message: 'Cash received is only valid for cash payments' });
 });
 
-export const paymentUpdateSchema = paymentSchema.partial().omit({ saleId: true });
+const validateCashTender = (
+  data: { method?: 'CASH' | 'CARD' | 'MOBILE_MONEY' | 'BANK_TRANSFER' | 'CHECK'; amount?: number; cashReceived?: number },
+  ctx: z.RefinementCtx,
+) => {
+  if (data.method === 'CASH' && data.cashReceived !== undefined && data.amount !== undefined && data.cashReceived < data.amount) {
+    ctx.addIssue({ code: 'custom', path: ['cashReceived'], message: 'Cash received must cover the payment amount' });
+  }
+  if (data.method !== undefined && data.method !== 'CASH' && data.cashReceived !== undefined) {
+    ctx.addIssue({ code: 'custom', path: ['cashReceived'], message: 'Cash received is only valid for cash payments' });
+  }
+};
+
+export const paymentSchema = paymentBaseSchema.superRefine(validateCashTender);
+
+// Build the update shape from the unrefined object schema (Zod 4 does not
+// allow .partial() on a schema that already has object-level refinements).
+// Reapply the cross-field rules to the fields that are present in an update.
+export const paymentUpdateSchema = paymentBaseSchema.partial().omit({ saleId: true }).superRefine(validateCashTender);
 
 // Explicit customer credit authorization
 export const saleCreditSchema = z.object({
