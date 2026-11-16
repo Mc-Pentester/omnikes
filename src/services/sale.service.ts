@@ -305,16 +305,20 @@ export class SaleService {
     const grossCents = pricedItems.map((item) => Math.round(item.grossTotal * 100));
     const totalGrossCents = grossCents.reduce((sum, value) => sum + value, 0);
     const discountCents = Math.round(discount * 100);
+    const totalGrossCentsBigInt = BigInt(totalGrossCents);
+    const discountCentsBigInt = BigInt(discountCents);
     const lineDiscountCents = totalGrossCents > 0
-      ? grossCents.map((value) => Math.floor(discountCents * value / totalGrossCents))
+      ? grossCents.map((value) => Number((discountCentsBigInt * BigInt(value)) / totalGrossCentsBigInt))
       : grossCents.map(() => 0);
     let remainingDiscountCents = discountCents - lineDiscountCents.reduce((sum, value) => sum + value, 0);
     const remainderOrder = grossCents
       .map((value, index) => ({
         index,
-        remainder: totalGrossCents > 0 ? (discountCents * value) % totalGrossCents : 0,
+        remainder: totalGrossCents > 0
+          ? (discountCentsBigInt * BigInt(value)) % totalGrossCentsBigInt
+          : 0n,
       }))
-      .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+      .sort((a, b) => a.remainder === b.remainder ? a.index - b.index : a.remainder > b.remainder ? -1 : 1);
     for (const entry of remainderOrder) {
       if (remainingDiscountCents <= 0) break;
       if (lineDiscountCents[entry.index] < grossCents[entry.index]) {
