@@ -35,9 +35,9 @@ test.describe('Barcode workflow', () => {
     await expect(productRow.getByText(barcode)).toBeVisible();
 
     await page.goto('/');
-    const search = page.getByRole('textbox', { name: /product-search/i });
+    const search = page.locator('#product-search');
     await search.fill(barcode);
     await search.press('Enter');
-    await expect(page.getByText(productName)).toBeVisible();
+    await expect(page.getByText(productName)).toHaveCount(2);
   });
 });
