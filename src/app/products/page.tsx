@@ -619,6 +619,13 @@ export default function ProductsPage() {
               </div>
             </>
           )}
+          {modalMode === 'edit' && (
+            <div>
+              <label htmlFor="barcode" className="block text-sm font-medium text-foreground mb-1">Code-barres (facultatif)</label>
+              <Input id="barcode" value={formData.barcode} onChange={(e) => setFormData({ ...formData, barcode: e.target.value })} placeholder="Scanner ou saisir le code-barres" autoComplete="off" />
+              <p className="mt-1 text-xs text-muted">Ajoutez ou modifiez le code-barres sans changer le SKU.</p>
+            </div>
+          )}
         </form>
       </Modal>
     </div>
