@@ -4,6 +4,7 @@ import { storeService } from '@omnikes/services/store.service';
 import { saleSchema, saleUpdateSchema, saleItemSchema, paymentSchema, saleCreditSchema, SaleInput, SaleUpdateInput, SaleItemInput, PaymentInput, SaleCreditInput } from '@omnikes/lib/validation';
 import { prisma } from '@omnikes/lib/prisma';
 import { Prisma, SaleItem, Payment } from '@prisma/client';
+import { z } from 'zod';
 import { roundMoney } from '@omnikes/lib/money';
 import { recordInventoryMovement, updateInventoryQuantity } from '@omnikes/services/inventory.service';
 
@@ -269,6 +270,48 @@ export class SaleService {
       await this.lockPendingSale(tx, item.saleId, organizationId);
       await tx.saleItem.delete({ where: { id: itemId } });
       await this.recalculateTotalsInTransaction(tx, item.saleId, organizationId);
+    });
+  }
+
+  /**
+   * Replace a pending POS cart atomically; failures preserve the previous cart.
+   * All line prices are reloaded from the organization-scoped product catalog.
+   */
+  async syncItems(saleId: string, organizationId: string, input: unknown) {
+    const schema = z.object({
+      applyTax: z.boolean(),
+      items: z.array(z.object({
+        variantId: z.string().cuid(),
+        quantity: z.number().int().positive(),
+      }).strict()).max(500),
+    }).strict().superRefine((data, ctx) => {
+      const ids = data.items.map((item) => item.variantId);
+      if (new Set(ids).size !== ids.length) {
+        ctx.addIssue({ code: 'custom', path: ['items'], message: 'Duplicate product variants are not allowed' });
+      }
+    });
+    const data = schema.parse(input);
+    const pricedItems = await Promise.all(data.items.map(async (item) => {
+      const variant = await productVariantRepository.findByIdWithOrganizationCheck(item.variantId, organizationId);
+      if (!variant) throw new Error('Product variant not found or access denied');
+      const unitPrice = roundMoney(getStoredUnitPrice(Number(variant.price), variant.saleUnit ?? 'UNIT'));
+      return { variantId: item.variantId, quantity: item.quantity, unitPrice, totalPrice: roundMoney(unitPrice * item.quantity) };
+    }));
+
+    return prisma.$transaction(async (tx) => {
+      await this.lockPendingSale(tx, saleId, organizationId);
+      await tx.sale.update({ where: { id: saleId }, data: { applyTax: data.applyTax } });
+      await tx.saleItem.deleteMany({ where: { saleId } });
+      for (const item of pricedItems) {
+        await tx.saleItem.create({
+          data: { saleId, variantId: item.variantId, quantity: item.quantity, unitPrice: item.unitPrice, discount: 0, totalPrice: item.totalPrice },
+        });
+      }
+      await this.recalculateTotalsInTransaction(tx, saleId, organizationId);
+      return tx.sale.findFirst({
+        where: { id: saleId, organizationId },
+        include: { items: { include: { variant: { include: { product: true } } } } },
+      });
     });
   }
 
