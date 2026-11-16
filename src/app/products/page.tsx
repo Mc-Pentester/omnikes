@@ -24,6 +24,7 @@ interface Product {
 interface ProductVariant {
   id: string;
   sku: string;
+  barcode?: string | null;
   price: number;
   stock: number;
 }
@@ -33,6 +34,7 @@ interface ProductFormData {
   description: string;
   category: string;
   sku: string;
+  barcode: string;
   price: string;
 }
 
@@ -50,6 +52,7 @@ export default function ProductsPage() {
     description: '',
     category: '',
     sku: '',
+    barcode: '',
     price: '',
   });
   const [formError, setFormError] = useState<string | null>(null);
@@ -123,6 +126,7 @@ export default function ProductsPage() {
       description: '',
       category: '',
       sku: '',
+      barcode: '',
       price: '',
     });
     setFormError(null);
@@ -137,6 +141,7 @@ export default function ProductsPage() {
       description: product.description || '',
       category: product.category || '',
       sku: product.variants[0]?.sku || '',
+      barcode: product.variants[0]?.barcode || '',
       price: product.variants[0]?.price?.toString() || '',
     });
     setFormError(null);
@@ -253,6 +258,7 @@ export default function ProductsPage() {
             variants: [
               {
                 sku: formData.sku,
+                barcode: formData.barcode.trim() || undefined,
                 price: parseFloat(formData.price),
               }
             ],
@@ -264,6 +270,7 @@ export default function ProductsPage() {
             name: formData.name,
             description: formData.description,
             category: formData.category,
+            barcode: formData.barcode.trim(),
           };
 
       const response = await fetch(url, {
@@ -275,7 +282,7 @@ export default function ProductsPage() {
       });
 
       if (response.status === 409) {
-        setFormError('Ce SKU existe déjà.');
+        setFormError('Ce SKU ou code-barres existe déjà.');
         setIsSubmitting(false);
         return;
       }
@@ -395,7 +402,7 @@ export default function ProductsPage() {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Nom</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Catégorie</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">SKU</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">SKU / Code-barres</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Prix</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider">Stock</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Statut</th>
@@ -407,7 +414,7 @@ export default function ProductsPage() {
                       <tr key={product.id} className="hover:bg-surface-muted">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">{product.name}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{product.category || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{product.variants[0]?.sku || '-'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{product.variants[0]?.sku || '-'}<span className="block text-xs">{product.variants[0]?.barcode || 'Sans code-barres'}</span></td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                           {product.variants[0]?.price != null ? `${parseFloat(String(product.variants[0].price)).toFixed(2)} HTG` : '-'}
                         </td>
@@ -571,6 +578,11 @@ export default function ProductsPage() {
                 />
               </div>
 
+              <div>
+                <label htmlFor="barcode" className="block text-sm font-medium text-foreground mb-1">Code-barres (facultatif)</label>
+                <Input id="barcode" value={formData.barcode} onChange={(e) => setFormData({ ...formData, barcode: e.target.value })} placeholder="Scanner ou saisir le code-barres" autoComplete="off" />
+                <p className="mt-1 text-xs text-muted">Le produit peut être enregistré sans code-barres. Vous pourrez l’ajouter plus tard.</p>
+              </div>
               <div>
                 <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">
                   Prix (HTG) *
