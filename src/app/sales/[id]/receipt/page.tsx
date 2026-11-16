@@ -224,7 +224,7 @@ export default function ReceiptPrintPage() {
                 <div>{money(item.unitPrice)} HTG/u</div>
               </td>
               <td className="text-right">{item.quantity}</td>
-              <td className="text-right font-semibold">{money(item.totalPrice)}</td>
+              <td className="text-right font-semibold">{money(Number(item.unitPrice) * Number(item.quantity))}</td>
             </tr>
           ))}
         </tbody>
@@ -257,6 +257,18 @@ export default function ReceiptPrintPage() {
             <span>Montant payé</span>
             <span>{money(payment.amount)} HTG</span>
           </div>
+          {payment.method === 'CASH' && payment.cashReceived != null && (
+            <div className="flex justify-between">
+              <span>Montant reçu</span>
+              <span>{money(payment.cashReceived)} HTG</span>
+            </div>
+          )}
+          {payment.method === 'CASH' && payment.changeGiven != null && (
+            <div className="flex justify-between font-semibold">
+              <span>Monnaie rendue</span>
+              <span>{money(payment.changeGiven)} HTG</span>
+            </div>
+          )}
           {payment.reference && <div className="break-all">Réf. : {payment.reference}</div>}
         </section>
       )}
