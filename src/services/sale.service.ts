@@ -372,8 +372,9 @@ export class SaleService {
     const effectiveRate = (sale.applyTax !== false && configuredRate !== null && configuredRate !== undefined)
       ? Number(configuredRate)
       : 0;
-    const tax = roundMoney(subtotal * effectiveRate);
-    const total = roundMoney(subtotal + tax);
+    const taxableSubtotal = roundMoney(subtotal - discount);
+    const tax = roundMoney(taxableSubtotal * effectiveRate);
+    const total = roundMoney(taxableSubtotal + tax);
 
     await tx.sale.update({
       where: { id: saleId },
