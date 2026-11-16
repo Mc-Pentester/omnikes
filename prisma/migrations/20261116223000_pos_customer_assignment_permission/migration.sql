@@ -1,4 +1,4 @@
--- Additive RBAC update for POS customer assignment. Existing role grants are preserved.
+-- Additive RBAC update for POS customer assignment and draft-cart synchronization.
 INSERT INTO "permissions" ("id", "code", "description", "module", "createdAt")
 VALUES (
   'perm-sale-customer-assign-v1',
@@ -8,6 +8,29 @@ VALUES (
   CURRENT_TIMESTAMP
 )
 ON CONFLICT ("code") DO NOTHING;
+
+INSERT INTO "permissions" ("id", "code", "description", "module", "createdAt")
+VALUES (
+  'perm-sale-pos-sync-v1',
+  'sale.pos.sync',
+  'Synchroniser le panier d’une vente POS en brouillon',
+  'sales',
+  CURRENT_TIMESTAMP
+)
+ON CONFLICT ("code") DO NOTHING;
+
+INSERT INTO "role_permissions" ("id", "roleId", "permissionId", "createdAt")
+SELECT
+  'rp-sale-pos-sync-' || md5(r."id"),
+  r."id",
+  p."id",
+  CURRENT_TIMESTAMP
+FROM "roles" r
+JOIN "permissions" p ON p."code" = 'sale.pos.sync'
+WHERE r."name" IN ('CASHIER', 'SALES_ASSOCIATE')
+  AND r."isGlobal" = TRUE
+  AND r."storeId" IS NULL
+ON CONFLICT ("roleId", "permissionId") DO NOTHING;
 
 -- Ensure the lookup permission exists on older installations before granting it.
 INSERT INTO "permissions" ("id", "code", "description", "module", "createdAt")
