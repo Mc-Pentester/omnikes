@@ -68,6 +68,7 @@ export function Modal({
             {title}
           </h2>
           <button
+            type="button"
             onClick={onClose}
             className="text-muted hover:text-foreground focus:outline-none"
             aria-label="Fermer"

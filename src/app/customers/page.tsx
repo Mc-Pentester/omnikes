@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Logo } from '@omnikes/components/branding/Logo';
+import { Sidebar } from '@omnikes/components/layout/Sidebar';
 import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
 import { EmptyState } from '@omnikes/components/ui/empty-state';
@@ -24,8 +26,9 @@ export default function CustomersPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '', address: '', city: '' });
+  const [isSidebarCompact, setIsSidebarCompact] = useState(false);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       setError(null);
       const query = search.trim() ? `?search=${encodeURIComponent(search.trim())}` : '';
@@ -36,14 +39,20 @@ export default function CustomersPage() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Impossible de charger les clients.');
     }
-  };
+  }, [search]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void fetchCustomers();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [search]);
+  }, [fetchCustomers]);
+
+  const closeCreateModal = () => {
+    if (isCreating) return;
+    setShowCreateModal(false);
+    setCreateError(null);
+  };
 
   const openCreateModal = () => {
     setCreateError(null);
@@ -95,12 +104,20 @@ export default function CustomersPage() {
   const summaryLabel = search.trim() ? 'Résultat de la recherche' : 'Clients enregistrés';
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="border-b border-border px-6 py-5">
+    <div className="min-h-screen bg-background flex">
+      <Sidebar
+        compact={isSidebarCompact}
+        onToggleCompact={() => setIsSidebarCompact((current) => !current)}
+      />
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      <header className="bg-surface border-b border-border px-6 py-4">
         <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Clients</h1>
-            <p className="text-sm text-muted">Gérez vos clients et leur historique.</p>
+          <div className="flex items-center gap-4">
+            <Logo size={40} />
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Clients</h1>
+              <p className="text-sm text-muted">Gérez vos clients et leur historique.</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => void fetchCustomers()}>Actualiser</Button>
@@ -153,8 +170,9 @@ export default function CustomersPage() {
           </div>
         )}
       </main>
+      </div>
 
-      <Modal isOpen={showCreateModal} onClose={() => !isCreating && setShowCreateModal(false)} title="Créer un client" closeOnOverlayClick={!isCreating} closeOnEscape={!isCreating}>
+      <Modal isOpen={showCreateModal} onClose={closeCreateModal} title="Créer un client" closeOnOverlayClick={!isCreating} closeOnEscape={!isCreating}>
         <form onSubmit={handleCreateCustomer} className="space-y-4">
           <div>
             <label htmlFor="customer-name" className="mb-1 block text-sm font-medium text-foreground">Nom complet *</label>
@@ -178,7 +196,7 @@ export default function CustomersPage() {
           </div>
           {createError ? <p role="alert" className="text-sm text-danger">{createError}</p> : null}
           <div className="flex justify-end gap-2 border-t border-border pt-4">
-            <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)} disabled={isCreating}>Annuler</Button>
+            <Button type="button" variant="outline" onClick={closeCreateModal} disabled={isCreating}>Annuler</Button>
             <Button type="submit" disabled={isCreating}>{isCreating ? 'Création…' : 'Enregistrer le client'}</Button>
           </div>
         </form>
