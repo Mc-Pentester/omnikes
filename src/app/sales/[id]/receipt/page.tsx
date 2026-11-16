@@ -19,6 +19,8 @@ interface Payment {
   id: string;
   method: string;
   amount: number;
+  cashReceived?: number | null;
+  changeGiven?: number | null;
   status: string;
   reference?: string | null;
   createdAt: string;
