@@ -44,6 +44,16 @@ describe('Inventory receipt idempotency - PostgreSQL runtime', () => {
     expect(movements).toEqual([{ quantity: 3 }]);
   });
 
+  it('rejects receipts without a stable idempotency reference', async () => {
+    await expect(inventoryService.receiveInventory(inventoryId, organizationId, {
+      quantity: 1,
+    })).rejects.toThrow();
+    const inventory = await prisma.inventory.findUniqueOrThrow({
+      where: { id: inventoryId }, select: { quantity: true },
+    });
+    expect(inventory.quantity).toBe(baselineQuantity);
+  });
+
   it('rejects reuse of a receipt reference with a different quantity', async () => {
     await expect(inventoryService.receiveInventory(inventoryId, organizationId, {
       quantity: 4, referenceId,
