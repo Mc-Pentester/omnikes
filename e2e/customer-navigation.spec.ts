@@ -16,7 +16,7 @@ test.describe('Customer creation navigation', () => {
     await page.goto('/customers');
     await expect(page.getByRole('heading', { name: 'Clients' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Créer un client' }).click();
+    await page.getByRole('button', { name: 'Créer un client' }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await expect(page.getByLabel('Nom complet *')).toBeVisible();
 
