@@ -52,9 +52,63 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedPrisma.sale.findFirst.mockResolvedValue({
+      storeId: storeA,
+      organizationId: mockOrganizationId,
+    });
   });
 
   describe('SECTION I — IDEMPOTENCY TESTS', () => {
+    describe('TEST I0 — Cash tender validation', () => {
+      it('requires the actual cash received amount for an authorized CASH checkout', async () => {
+        mockedRequireCurrentOrganizationId.mockResolvedValue(mockOrganizationId);
+        mockedGetAuthenticatedUser.mockResolvedValue({ id: mockUserId });
+        mockedRequirePermission.mockResolvedValue(undefined);
+
+        const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': idempotencyKey },
+          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+        });
+
+        const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
+        expect(response.status).toBe(400);
+        expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('TEST I0-B — Concurrent idempotency tender mismatch', () => {
+      it('returns 409 when a concurrent request reuses the key with a different cash tender', async () => {
+        mockedRequireCurrentOrganizationId.mockResolvedValue(mockOrganizationId);
+        mockedGetAuthenticatedUser.mockResolvedValue({ id: mockUserId });
+        mockedRequirePermission.mockResolvedValue(undefined);
+        mockedPrisma.checkoutIdempotency.findUnique
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({
+            id: 'idemp-race',
+            saleId: saleA,
+            userId: mockUserId,
+            status: 'COMPLETED',
+            responseStatus: 201,
+            responseBody: JSON.stringify({
+              payment: { method: 'CASH', amount: 100, cashReceived: 100, reference: null },
+              sale: { id: saleA, status: 'COMPLETED' },
+            }),
+          });
+        mockedPrisma.$transaction.mockRejectedValue({ code: 'P2002' });
+
+        const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': idempotencyKey },
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 120 }),
+        });
+
+        const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
+        expect(response.status).toBe(409);
+      });
+    });
+
+
     describe('TEST I1 — First checkout', () => {
       it('should create payment, deduct stock, finalize sale, and create idempotency record', async () => {
         mockedRequireCurrentOrganizationId.mockResolvedValue(mockOrganizationId);
@@ -70,14 +124,14 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
         const mockCompletedSale = {
           id: saleA,
           status: 'COMPLETED',
-          payments: [{ id: 'payment-1', method: 'CASH', amount: 100 }],
+          payments: [{ id: 'payment-1', method: 'CASH', amount: 100, cashReceived: 100 }],
         };
         mockedPrisma.$transaction.mockResolvedValue(mockCompletedSale);
 
         const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
           method: 'POST',
           headers: { 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
         });
 
         const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
@@ -103,7 +157,7 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
         mockedRequireStoreAccess.mockResolvedValue(undefined);
 
         const cachedResponse = {
-          payment: { method: 'CASH', amount: 100, reference: null },
+          payment: { method: 'CASH', amount: 100, cashReceived: 100, reference: null },
           sale: { id: saleA, status: 'COMPLETED' },
         };
 
@@ -121,7 +175,7 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
         const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
           method: 'POST',
           headers: { 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
         });
 
         const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
@@ -150,7 +204,7 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
         const request = new NextRequest(`http://localhost/api/sales/${saleB}/checkout`, {
           method: 'POST',
           headers: { 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
         });
 
         const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleB }) });
@@ -167,7 +221,7 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
         mockedRequirePermission.mockResolvedValue(undefined);
 
         const cachedResponse = {
-          payment: { method: 'CASH', amount: 100, reference: null },
+          payment: { method: 'CASH', amount: 100, cashReceived: 100, reference: null },
           sale: { id: saleA, status: 'COMPLETED' },
         };
 
@@ -214,7 +268,7 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
         const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
           method: 'POST',
           headers: { 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
         });
 
         const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
@@ -249,14 +303,14 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
         const mockCompletedSale = {
           id: saleA,
           status: 'COMPLETED',
-          payments: [{ id: 'payment-1', method: 'CASH', amount: 100 }],
+          payments: [{ id: 'payment-1', method: 'CASH', amount: 100, cashReceived: 100 }],
         };
         mockedPrisma.$transaction.mockResolvedValue(mockCompletedSale);
 
         const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
           method: 'POST',
           headers: { 'Idempotency-Key': failureKey },
-          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
         });
 
         const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
@@ -295,14 +349,14 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
         const mockCompletedSale = {
           id: saleA,
           status: 'COMPLETED',
-          payments: [{ id: 'payment-1', method: 'CASH', amount: 100 }],
+          payments: [{ id: 'payment-1', method: 'CASH', amount: 100, cashReceived: 100 }],
         };
         mockedPrisma.$transaction.mockResolvedValue(mockCompletedSale);
 
         const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
           method: 'POST',
           headers: { 'Idempotency-Key': failureKey },
-          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
         });
 
         const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
@@ -333,7 +387,7 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
         const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
           method: 'POST',
           headers: { 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
         });
 
         const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
@@ -362,7 +416,7 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
         const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
           method: 'POST',
           headers: { 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
         });
 
         const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
@@ -391,7 +445,7 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
         const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
           method: 'POST',
           headers: { 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
         });
 
         const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
@@ -417,14 +471,14 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
           id: saleA,
           status: 'COMPLETED',
           items: [{ quantity: 5, variant: { sku: 'SKU-001' } }],
-          payments: [{ id: 'payment-1', method: 'CASH', amount: 100 }],
+          payments: [{ id: 'payment-1', method: 'CASH', amount: 100, cashReceived: 100 }],
         };
         mockedPrisma.$transaction.mockResolvedValue(mockCompletedSale);
 
         const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
           method: 'POST',
           headers: { 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
         });
 
         const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
@@ -453,7 +507,7 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
         const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
           method: 'POST',
           headers: { 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
         });
 
         const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
@@ -494,7 +548,7 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
           status: 'COMPLETED',
           responseStatus: 201,
           responseBody: JSON.stringify({
-            payment: { method: 'CASH', amount: 100, reference: null },
+            payment: { method: 'CASH', amount: 100, cashReceived: 100, reference: null },
             sale: { id: saleA, status: 'COMPLETED' },
           }),
         });
@@ -502,7 +556,7 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
         const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
           method: 'POST',
           headers: { 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
         });
 
         const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
@@ -531,20 +585,20 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
           .mockResolvedValueOnce({
             id: saleA,
             status: 'COMPLETED',
-            payments: [{ id: 'payment-1', method: 'CASH', amount: 100 }],
+            payments: [{ id: 'payment-1', method: 'CASH', amount: 100, cashReceived: 100 }],
           })
           .mockRejectedValueOnce(new Error('Sale is already completed'));
 
         const request1 = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
           method: 'POST',
           headers: { 'Idempotency-Key': 'key-A' },
-          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
         });
 
         const request2 = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
           method: 'POST',
           headers: { 'Idempotency-Key': 'key-B' },
-          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
         });
 
         const response1 = await POSTCheckout(request1, { params: Promise.resolve({ id: saleA }) });
@@ -571,14 +625,14 @@ describe('P0-22 — Forensic Audit: Checkout Idempotency & Atomicity', () => {
         const mockCompletedSale = {
           id: saleA,
           status: 'COMPLETED',
-          payments: [{ id: 'payment-1', method: 'CASH', amount: 100 }],
+          payments: [{ id: 'payment-1', method: 'CASH', amount: 100, cashReceived: 100 }],
         };
         mockedPrisma.$transaction.mockResolvedValue(mockCompletedSale);
 
         const request = new NextRequest(`http://localhost/api/sales/${saleA}/checkout`, {
           method: 'POST',
           headers: { 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify({ method: 'CASH', amount: 100 }),
+          body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
         });
 
         const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });

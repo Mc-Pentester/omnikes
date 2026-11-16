@@ -42,6 +42,7 @@ export class SaleService {
         where: {
           id: validatedData.customerId,
           organizationId,
+          isActive: true,
         },
         select: { id: true },
       });
@@ -155,7 +156,7 @@ export class SaleService {
     }
     if (validatedData.customerId !== undefined && validatedData.customerId !== null) {
       const customer = await prisma.customer.findFirst({
-        where: { id: validatedData.customerId, organizationId },
+        where: { id: validatedData.customerId, organizationId, isActive: true },
         select: { id: true },
       });
       if (!customer) throw new Error('Invalid customer');
@@ -280,6 +281,7 @@ export class SaleService {
   async syncItems(saleId: string, organizationId: string, input: unknown) {
     const schema = z.object({
       applyTax: z.boolean(),
+      discount: z.number().finite().nonnegative().max(1000000000).refine((value) => Math.round(value * 100) === value * 100, 'Discount must have at most 2 decimal places').default(0),
       items: z.array(z.object({
         variantId: z.string().cuid(),
         quantity: z.number().int().positive(),
@@ -295,16 +297,55 @@ export class SaleService {
       const variant = await productVariantRepository.findByIdWithOrganizationCheck(item.variantId, organizationId);
       if (!variant) throw new Error('Product variant not found or access denied');
       const unitPrice = roundMoney(getStoredUnitPrice(Number(variant.price), variant.saleUnit ?? 'UNIT'));
-      return { variantId: item.variantId, quantity: item.quantity, unitPrice, totalPrice: roundMoney(unitPrice * item.quantity) };
+      return { variantId: item.variantId, quantity: item.quantity, unitPrice, grossTotal: roundMoney(unitPrice * item.quantity) };
     }));
+
+    const grossSubtotal = roundMoney(pricedItems.reduce((sum, item) => sum + item.grossTotal, 0));
+    if (data.discount > grossSubtotal) throw new Error('Discount cannot exceed sale subtotal');
+    const discount = roundMoney(data.discount);
+    const grossCents = pricedItems.map((item) => Math.round(item.grossTotal * 100));
+    const totalGrossCents = grossCents.reduce((sum, value) => sum + value, 0);
+    const discountCents = Math.round(discount * 100);
+    const totalGrossCentsBigInt = BigInt(totalGrossCents);
+    const discountCentsBigInt = BigInt(discountCents);
+    const proportionalShares = grossCents.map((value) => {
+      const numerator = discountCentsBigInt * BigInt(value);
+      return {
+        wholeCents: totalGrossCents > 0 ? Number(numerator / totalGrossCentsBigInt) : 0,
+        remainder: totalGrossCents > 0 ? numerator % totalGrossCentsBigInt : BigInt(0),
+      };
+    });
+    const lineDiscountCents = proportionalShares.map((share) => share.wholeCents);
+    let remainingDiscountCents = discountCents - lineDiscountCents.reduce((sum, value) => sum + value, 0);
+    const remainderOrder = proportionalShares
+      .map((share, index) => ({ index, remainder: share.remainder }))
+      .sort((a, b) => a.remainder === b.remainder ? a.index - b.index : a.remainder > b.remainder ? -1 : 1);
+    for (const entry of remainderOrder) {
+      if (remainingDiscountCents <= 0) break;
+      if (lineDiscountCents[entry.index] < grossCents[entry.index]) {
+        lineDiscountCents[entry.index] += 1;
+        remainingDiscountCents -= 1;
+      }
+    }
+    if (remainingDiscountCents !== 0) throw new Error('Discount allocation failed');
 
     return prisma.$transaction(async (tx) => {
       await this.lockPendingSale(tx, saleId, organizationId);
       await tx.sale.update({ where: { id: saleId }, data: { applyTax: data.applyTax } });
       await tx.saleItem.deleteMany({ where: { saleId } });
-      for (const item of pricedItems) {
+      for (let index = 0; index < pricedItems.length; index += 1) {
+        const item = pricedItems[index];
+        const lineDiscount = lineDiscountCents[index] / 100;
+        const lineNetCents = grossCents[index] - lineDiscountCents[index];
         await tx.saleItem.create({
-          data: { saleId, variantId: item.variantId, quantity: item.quantity, unitPrice: item.unitPrice, discount: 0, totalPrice: item.totalPrice },
+          data: {
+            saleId,
+            variantId: item.variantId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discount: lineDiscount,
+            totalPrice: lineNetCents / 100,
+          },
         });
       }
       await this.recalculateTotalsInTransaction(tx, saleId, organizationId);
@@ -321,7 +362,7 @@ export class SaleService {
    */
   async recalculateTotals(saleId: string, organizationId: string) {
     const items = await saleRepository.listItems(saleId, organizationId);
-    const subtotal = roundMoney(items.reduce((sum: number, item: SaleItem) => sum + Number(item.totalPrice), 0));
+    const subtotal = roundMoney(items.reduce((sum: number, item: SaleItem) => sum + Number(item.totalPrice) + Number(item.discount), 0));
     const discount = roundMoney(items.reduce((sum: number, item: SaleItem) => sum + Number(item.discount), 0));
 
     const sale = await prisma.sale.findFirst({
@@ -333,8 +374,9 @@ export class SaleService {
     const effectiveRate = (sale?.applyTax !== false && configuredRate !== null && configuredRate !== undefined)
       ? Number(configuredRate)
       : 0;
-    const tax = roundMoney(subtotal * effectiveRate);
-    const total = roundMoney(subtotal + tax);
+    const taxableSubtotal = roundMoney(subtotal - discount);
+    const tax = roundMoney(taxableSubtotal * effectiveRate);
+    const total = roundMoney(taxableSubtotal + tax);
 
     await saleRepository.updateWithTaxRate(saleId, organizationId, {
       subtotal, discount, tax, taxRate: effectiveRate, total,
@@ -351,7 +393,7 @@ export class SaleService {
       where: { saleId, sale: { organizationId } },
       select: { totalPrice: true, discount: true },
     });
-    const subtotal = roundMoney(items.reduce((sum, item) => sum + Number(item.totalPrice), 0));
+    const subtotal = roundMoney(items.reduce((sum, item) => sum + Number(item.totalPrice) + Number(item.discount), 0));
     const discount = roundMoney(items.reduce((sum, item) => sum + Number(item.discount), 0));
 
     const sale = await tx.sale.findFirst({
@@ -364,8 +406,9 @@ export class SaleService {
     const effectiveRate = (sale.applyTax !== false && configuredRate !== null && configuredRate !== undefined)
       ? Number(configuredRate)
       : 0;
-    const tax = roundMoney(subtotal * effectiveRate);
-    const total = roundMoney(subtotal + tax);
+    const taxableSubtotal = roundMoney(subtotal - discount);
+    const tax = roundMoney(taxableSubtotal * effectiveRate);
+    const total = roundMoney(taxableSubtotal + tax);
 
     await tx.sale.update({
       where: { id: saleId },

@@ -76,7 +76,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
         headers: {
           'Idempotency-Key': idempotencyKey,
         },
-        body: JSON.stringify({ method: 'CASH', amount: 100 }),
+        body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
       });
 
       const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleA }) });
@@ -132,7 +132,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
         headers: {
           'Idempotency-Key': idempotencyKey,
         },
-        body: JSON.stringify({ method: 'CASH', amount: 100 }),
+        body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
       });
 
       const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleB }) });
@@ -158,7 +158,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
         headers: {
           'Idempotency-Key': idempotencyKey,
         },
-        body: JSON.stringify({ method: 'CASH', amount: 100 }),
+        body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
       });
 
       const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleB }) });
@@ -186,7 +186,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
         headers: {
           'Idempotency-Key': idempotencyKey,
         },
-        body: JSON.stringify({ method: 'CASH', amount: 100 }),
+        body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
       });
 
       const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleB }) });
@@ -214,7 +214,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
         headers: {
           'Idempotency-Key': idempotencyKey,
         },
-        body: JSON.stringify({ method: 'CASH', amount: 100 }),
+        body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
       });
 
       const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleB }) });
@@ -243,7 +243,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
         headers: {
           'Idempotency-Key': idempotencyKey,
         },
-        body: JSON.stringify({ method: 'CASH', amount: 100 }),
+        body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
       });
 
       // First request
@@ -256,7 +256,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
         headers: {
           'Idempotency-Key': idempotencyKey,
         },
-        body: JSON.stringify({ method: 'CASH', amount: 100 }),
+        body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
       });
 
       // Second request with same idempotency key
@@ -282,7 +282,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
         userId: mockUserId,
         status: 'COMPLETED',
         responseBody: JSON.stringify({
-          payment: { method: 'CASH', amount: 100, reference: 'PAY-CACHED' },
+          payment: { method: 'CASH', amount: 100, cashReceived: 100, reference: 'PAY-CACHED' },
           sale: { id: saleB, status: 'COMPLETED' },
         }),
         responseStatus: 201,
@@ -291,7 +291,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
       const request = new NextRequest(`http://localhost/api/sales/${saleB}/checkout`, {
         method: 'POST',
         headers: { 'Idempotency-Key': idempotencyKey },
-        body: JSON.stringify({ method: 'CASH', amount: 100 }),
+        body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
       });
 
       const response = await POSTCheckout(request, { params: Promise.resolve({ id: saleB }) });
@@ -319,7 +319,7 @@ describe('P0-21-B.1 Checkout Cross-Store Runtime Tests', () => {
         headers: {
           'Idempotency-Key': idempotencyKey,
         },
-        body: JSON.stringify({ method: 'CASH', amount: 100 }),
+        body: JSON.stringify({ method: 'CASH', amount: 100, cashReceived: 100 }),
       });
 
       await POSTCheckout(request, { params: Promise.resolve({ id: saleB }) });

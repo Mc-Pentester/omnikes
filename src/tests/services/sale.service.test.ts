@@ -91,7 +91,7 @@ const mutationTx = {
   $queryRaw: vi.fn(),
   sale: { findFirst: vi.fn(), update: vi.fn() },
   saleItem: {
-    create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), delete: vi.fn(),
+    create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), delete: vi.fn(), deleteMany: vi.fn(),
   },
 };
 
@@ -138,10 +138,10 @@ describe('SaleService - Tax Calculation', () => {
 
       await saleService.recalculateTotals(mockSaleId, mockOrganizationId);
 
-      const expectedSubtotal = 150;
+      const expectedSubtotal = 160; // gross line value before the separate discount
       const expectedDiscount = 10;
-      const expectedTax = expectedSubtotal * mockTaxRate;
-      const expectedTotal = expectedSubtotal + expectedTax;
+      const expectedTax = (expectedSubtotal - expectedDiscount) * mockTaxRate;
+      const expectedTotal = expectedSubtotal - expectedDiscount + expectedTax;
 
       expect(saleRepository.updateWithTaxRate).toHaveBeenCalledWith(
         mockSaleId,
@@ -346,10 +346,10 @@ describe('SaleService - Tax Calculation', () => {
 
       await saleService.recalculateTotals(mockSaleId, mockOrganizationId);
 
-      const expectedSubtotal = 150;
+      const expectedSubtotal = 165; // gross line value before the separate discount
       const expectedDiscount = 15;
-      const expectedTax = expectedSubtotal * mockTaxRate;
-      const expectedTotal = expectedSubtotal + expectedTax;
+      const expectedTax = (expectedSubtotal - expectedDiscount) * mockTaxRate;
+      const expectedTotal = expectedSubtotal - expectedDiscount + expectedTax;
 
       expect(saleRepository.updateWithTaxRate).toHaveBeenCalledWith(
         mockSaleId,
@@ -397,6 +397,73 @@ describe('SaleService - Tax Calculation', () => {
       );
     });
   });
+
+  describe('syncItems discount allocation', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      configureMutationTransaction();
+    });
+
+
+    it('allocates a one-cent discount deterministically across fractional-cent shares', async () => {
+      (productVariantRepository.findByIdWithOrganizationCheck as any).mockImplementation(async (variantId: string) => ({
+        id: variantId, price: variantId === 'cvariant123' ? 0.10 : 0.20, saleUnit: 'UNIT',
+      }));
+      await saleService.syncItems('sale-123', 'corg1234567', {
+        applyTax: false, discount: 0.01,
+        items: [{ variantId: 'cvariant123', quantity: 1 }, { variantId: 'cvariant456', quantity: 1 }],
+      });
+      const lines = mutationTx.saleItem.create.mock.calls.map((call: any[]) => call[0].data);
+      expect(lines.map((line: any) => Number(line.discount))).toEqual([0, 0.01]);
+      expect(lines.map((line: any) => Number(line.totalPrice))).toEqual([0.10, 0.19]);
+    });
+
+    it('allows a discount equal to the gross subtotal and keeps all sale lines at zero', async () => {
+      (productVariantRepository.findByIdWithOrganizationCheck as any).mockResolvedValue({
+        id: 'cvariant123', price: 25, saleUnit: 'UNIT',
+      });
+      await saleService.syncItems('sale-123', 'corg1234567', {
+        applyTax: false, discount: 25, items: [{ variantId: 'cvariant123', quantity: 1 }],
+      });
+      const line = mutationTx.saleItem.create.mock.calls[0][0].data;
+      expect(Number(line.discount)).toBe(25);
+      expect(Number(line.totalPrice)).toBe(0);
+    });
+
+    it('rejects a cart discount greater than the gross subtotal without replacing the cart', async () => {
+      (productVariantRepository.findByIdWithOrganizationCheck as any).mockResolvedValue({
+        id: 'cvariant123', price: 25, saleUnit: 'UNIT',
+      });
+      await expect(saleService.syncItems('sale-123', 'corg1234567', {
+        applyTax: false, discount: 25.01, items: [{ variantId: 'cvariant123', quantity: 1 }],
+      })).rejects.toThrow('Discount cannot exceed sale subtotal');
+      expect(mutationTx.saleItem.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('distributes a cart discount proportionally without creating negative sale lines', async () => {
+      (productVariantRepository.findByIdWithOrganizationCheck as any).mockImplementation(async (variantId: string) => ({
+        id: variantId,
+        price: variantId === 'cvariant123' ? 100 : 900,
+        saleUnit: 'UNIT',
+      }));
+
+      await saleService.syncItems('sale-123', 'corg1234567', {
+        applyTax: false,
+        discount: 500,
+        items: [
+          { variantId: 'cvariant123', quantity: 1 },
+          { variantId: 'cvariant456', quantity: 1 },
+        ],
+      });
+
+      const lines = mutationTx.saleItem.create.mock.calls.map((call: any[]) => call[0].data);
+      expect(lines).toHaveLength(2);
+      expect(lines.every((line: any) => Number(line.totalPrice) >= 0)).toBe(true);
+      expect(lines.reduce((sum: number, line: any) => sum + Number(line.discount), 0)).toBe(500);
+      expect(lines.map((line: any) => Number(line.totalPrice))).toEqual([50, 450]);
+    });
+  });
+
   describe('weighted product pricing', () => {
     beforeEach(() => configureMutationTransaction());
     it('uses server price per kilogram and quantity stored in grams', async () => {
@@ -495,9 +562,22 @@ describe('P1-C - Customer tenant isolation in sales', () => {
       where: {
         id: 'ccustomer99999999999999999',
         organizationId: 'corg1234567',
+        isActive: true,
       },
       select: { id: true },
     });
+    expect(saleRepository.create).not.toHaveBeenCalled();
+  });
+
+
+  it('rejects sale creation when the customer is inactive', async () => {
+    (prisma.customer.findFirst as any).mockResolvedValue(null);
+    await expect(saleService.create('corg1234567', {
+      organizationId: 'corg1234567', storeId: 'cstore1234567',
+      orderNumber: 'ORD-INACTIVE', status: 'PENDING',
+      customerId: 'ccustomer99999999999999999',
+      subtotal: 0, tax: 0, total: 0, discount: 0, applyTax: true,
+    })).rejects.toThrow('Invalid customer');
     expect(saleRepository.create).not.toHaveBeenCalled();
   });
 
@@ -540,6 +620,15 @@ describe('P1-C - Customer tenant isolation in sales', () => {
     expect(saleRepository.update).not.toHaveBeenCalled();
   });
 
+
+  it('rejects assigning an inactive customer to a pending sale', async () => {
+    (prisma.customer.findFirst as any).mockResolvedValue(null);
+    await expect(saleService.update('sale-p1c', 'corg1234567', {
+      customerId: 'ccustomer99999999999999999',
+    })).rejects.toThrow('Invalid customer');
+    expect(mutationTx.sale.update).not.toHaveBeenCalled();
+  });
+
   it('scopes customer validation to the authenticated organization on sale update', async () => {
     (prisma.customer.findFirst as any).mockResolvedValue({ id: 'ccustomer99999999999999999' });
     (prisma.saleItem.findFirst as any).mockResolvedValue({ saleId: 'sale-p1c' });
@@ -555,6 +644,7 @@ describe('P1-C - Customer tenant isolation in sales', () => {
       where: {
         id: 'ccustomer99999999999999999',
         organizationId: 'corg1234567',
+        isActive: true,
       },
       select: { id: true },
     });

@@ -10,7 +10,7 @@ export async function POST(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
-    await requirePermission(request, 'sale.update');
+    await requirePermission(request, 'sale.pos.sync');
     const existingSale = await saleService.getById(id, organizationId);
     await requireStoreAccess(request, existingSale.storeId);
 
@@ -28,6 +28,7 @@ export async function POST(
     if (error instanceof Error && error.message.startsWith('Permission required')) return NextResponse.json({ error: 'Permission required' }, { status: 403 });
     if (error instanceof Error && error.message === 'Not authorized to access this store') return NextResponse.json({ error: error.message }, { status: 403 });
     if (error instanceof Error && error.message === 'Sale not found or access denied') return NextResponse.json({ error: error.message }, { status: 404 });
+    if (error instanceof Error && error.message.includes('Discount cannot exceed')) return NextResponse.json({ error: error.message }, { status: 422 });
     if (error instanceof Error && (error.message.includes('only be modified') || error.message.includes('Duplicate product variants'))) return NextResponse.json({ error: error.message }, { status: 409 });
     if (error instanceof Error && error.message === 'Product variant not found or access denied') return NextResponse.json({ error: error.message }, { status: 404 });
     console.error('Error synchronizing POS cart:', error);

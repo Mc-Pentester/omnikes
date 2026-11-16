@@ -44,10 +44,11 @@ export class CustomerRepository {
     };
 
     if (options.search) {
-      where.name = {
-        contains: options.search,
-        mode: 'insensitive',
-      };
+      where.OR = [
+        { name: { contains: options.search, mode: 'insensitive' } },
+        { email: { contains: options.search, mode: 'insensitive' } },
+        { phone: { contains: options.search, mode: 'insensitive' } },
+      ];
     }
 
     const [customers, total] = await Promise.all([

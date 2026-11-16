@@ -924,6 +924,8 @@ model Payment {
   saleId         String
   method         String // CASH, CARD, MOBILE_MONEY, BANK_TRANSFER, CHECK, CREDIT
   amount         Decimal @db.Decimal(12, 2)
+  cashReceived   Decimal? @db.Decimal(12, 2)
+  changeGiven    Decimal? @db.Decimal(12, 2)
   refundedAmount Decimal @default(0) @db.Decimal(12, 2)
   reference      String? // Transaction ID, receipt number, etc.
   status         String  @default("COMPLETED") // PENDING, COMPLETED, FAILED, REFUNDED, CANCELLED
