@@ -67,8 +67,6 @@ export function PosReceipt({ saleId, onNewSale }: PosReceiptProps) {
   const [loading, setLoading] = useState(true);
 
   const loadSale = useCallback(async () => {
-    setLoading(true);
-    setError(null);
     try {
       const response = await fetch('/api/sales/' + encodeURIComponent(saleId), {
         method: 'GET',
@@ -156,7 +154,7 @@ export function PosReceipt({ saleId, onNewSale }: PosReceiptProps) {
       {error && (
         <div className="pos-receipt-actions mx-auto max-w-3xl rounded-lg border border-danger/30 bg-danger-soft p-4" role="alert">
           <p className="text-danger">{error}</p>
-          <button type="button" onClick={() => void loadSale()} className="mt-3 rounded border border-border px-3 py-2 font-medium">
+          <button type="button" onClick={() => { setLoading(true); setError(null); void loadSale(); }} className="mt-3 rounded border border-border px-3 py-2 font-medium">
             Réessayer
           </button>
         </div>
