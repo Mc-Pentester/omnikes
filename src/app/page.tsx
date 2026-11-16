@@ -167,6 +167,7 @@ export default function HomePage() {
       return;
     }
 
+    setServerTotals(null);
     const numericPrice = parseFloat(String(price));
     const gramsPerSaleUnit = SALE_UNIT_TO_GRAMS;
     const isWeighted = saleUnit !== 'UNIT';
@@ -421,10 +422,12 @@ export default function HomePage() {
   }
 
   const removeFromCart = (variantId: string) => {
+    setServerTotals(null);
     setCart(cart.filter(item => item.variantId !== variantId));
   };
 
   const updateQuantity = (variantId: string, quantity: number) => {
+    setServerTotals(null);
     if (quantity <= 0) {
       removeFromCart(variantId);
       return;
@@ -442,83 +445,27 @@ export default function HomePage() {
   const change = paymentMethod === 'CASH' ? (parseFloat(amountReceived) || 0) - displayTotal : 0;
 
   const syncCartToSale = async () => {
-    if (!currentSaleId) return;
-    try {
-      // Update applyTax if changed
-      await fetch(`/api/sales/${currentSaleId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applyTax }),
-      });
-      
-      const itemsResponse = await fetch(`/api/sales/${currentSaleId}/items`);
-      if (itemsResponse.ok) {
-        const existingItems = await itemsResponse.json();
-        for (const item of existingItems) {
-          const deleteResponse = await fetch(`/api/sales/${currentSaleId}/items/${item.id}`, { method: 'DELETE' });
-          if (!deleteResponse.ok) {
-            const errorText = await deleteResponse.text();
-            console.error('Failed to delete sale item:', deleteResponse.status, errorText);
-            throw new Error(`Failed to delete item: ${deleteResponse.status} - ${errorText}`);
-          }
-        }
-      } else {
-        const errorText = await itemsResponse.text();
-        console.error('Failed to get existing sale items:', itemsResponse.status, errorText);
-        throw new Error(`Failed to get existing items: ${itemsResponse.status} - ${errorText}`);
-      }
-      
-      for (let i = 0; i < cart.length; i++) {
-        const item = cart[i];
-        const payload = {
-          variantId: item.variantId,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discount: 0,
-        };
-        
-        const itemResponse = await fetch(`/api/sales/${currentSaleId}/items`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        
-        if (!itemResponse.ok) {
-          const errorText = await itemResponse.text();
-          console.error(`Failed to add sale item ${i + 1}/${cart.length}:`, itemResponse.status, errorText);
-          throw new Error(`Failed to add item ${i + 1}/${cart.length}: ${itemResponse.status} - ${errorText}`);
-        }
-      }
-      
-      const saleResponse = await fetch(`/api/sales/${currentSaleId}`);
-      
-      if (saleResponse.ok) {
-        const sale = await saleResponse.json();
-        const totals = {
-          subtotal: Number(sale.subtotal),
-          tax: Number(sale.tax),
-          total: Number(sale.total),
-        };
-        setServerTotals(totals);
-        return totals; // Return totals for immediate use
-      } else {
-        const errorText = await saleResponse.text();
-        console.error('Failed to get sale totals:', saleResponse.status, errorText);
-        throw new Error(`Failed to get sale totals: ${saleResponse.status} - ${errorText}`);
-      }
-    } catch (err) {
-      console.error('Error syncing cart:', err);
-      throw err; // Re-throw to allow completeSale to catch and display the error
+    if (!currentSaleId) throw new Error('Aucune vente active à synchroniser.');
+    const response = await fetch(`/api/sales/${currentSaleId}/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        applyTax,
+        items: cart.map((item) => ({ variantId: item.variantId, quantity: item.quantity })),
+      }),
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Impossible de synchroniser le panier: ${response.status} - ${errorText}`);
     }
+    const sale = await response.json();
+    const totals = { subtotal: Number(sale.subtotal), tax: Number(sale.tax), total: Number(sale.total) };
+    setServerTotals(totals);
+    return totals;
   };
 
   const completeSale = async () => {
     if (cart.length === 0 || !currentSaleId) return;
-    const receivedAmount = parseFloat(amountReceived) || 0;
-    if (paymentMethod === 'CASH' && receivedAmount < displayTotal) {
-      alert(`Montant insuffisant. Minimum requis: ${parseFloat(String(displayTotal)).toFixed(2)} HTG`);
-      return;
-    }
     setIsProcessing(true);
     try {
       // Sync cart to ensure server totals are up to date
@@ -527,6 +474,11 @@ export default function HomePage() {
       // Validate server totals
       if (!totals || totals.total <= 0) {
         throw new Error('Le total serveur de la vente est invalide. Veuillez réessayer.');
+      }
+      const receivedAmount = parseFloat(amountReceived) || 0;
+      if (paymentMethod === 'CASH' && receivedAmount < totals.total) {
+        alert(`Montant insuffisant. Minimum requis: ${totals.total.toFixed(2)} HTG`);
+        return;
       }
 
       // Generate idempotency key for this checkout attempt
@@ -829,7 +781,7 @@ export default function HomePage() {
                   <input
                     type="checkbox"
                     checked={applyTax}
-                    onChange={(e) => setApplyTax(e.target.checked)}
+                    onChange={(e) => { setServerTotals(null); setApplyTax(e.target.checked); }}
                     className="w-4 h-4 text-primary rounded"
                   />
                   <span className="text-muted">Appliquer la taxe</span>

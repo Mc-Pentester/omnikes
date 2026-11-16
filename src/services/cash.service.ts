@@ -107,12 +107,13 @@ export class CashService {
   async close(organizationId: string, sessionId: string, closedBy: string, input: unknown) {
     const data = cashSessionCloseSchema.parse(input);
     return this.withTransactionRetry(async (tx) => {
-      const rows = await tx.$queryRaw<Array<{ id: string; storeId: string; openingAmount: number }>>`
-        SELECT id, "storeId", "openingAmount" FROM cash_sessions
+      const rows = await tx.$queryRaw<Array<{ id: string; storeId: string; openingAmount: number; status: string }>>`
+        SELECT id, "storeId", "openingAmount", status FROM cash_sessions
         WHERE id = ${sessionId} AND "organizationId" = ${organizationId}
         FOR UPDATE
       `;
       if (!rows.length) throw new Error('Cash session not found');
+      if (rows[0].status !== 'OPEN') throw new Error('Cash session is already closed');
       const aggregates = await tx.cashMovement.groupBy({ by: ['type'], where: { organizationId, cashSessionId: sessionId }, _sum: { amount: true } });
       let expected = Number(rows[0].openingAmount);
       for (const a of aggregates) {

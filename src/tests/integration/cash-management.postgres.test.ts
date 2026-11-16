@@ -48,5 +48,8 @@ describe('cash management PostgreSQL runtime proof', () => {
     expect(closed.status).toBe('CLOSED');
     expect(Number(closed.expectedAmount)).toBe(7250);
     expect(Number(closed.difference)).toBe(-50);
+    await expect(
+      cashService.close(ids.org, opened.id, ids.user, { countedAmount: 7250 }),
+    ).rejects.toThrow('Cash session is already closed');
   });
 });
