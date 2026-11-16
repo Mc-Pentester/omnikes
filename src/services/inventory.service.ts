@@ -333,6 +333,26 @@ export class InventoryService {
       const current = await this.getLockedInventory(tx, inventoryId, organizationId);
       if (!current) throw new Error('Inventory not found or access denied');
 
+      // The inventory row lock serializes receipts for this item. Reusing the
+      // same reference returns the existing result without adding the delivery twice.
+      if (data.referenceId) {
+        const existingReceipt = await tx.inventoryMovement.findFirst({
+          where: {
+            inventoryId,
+            type: 'PURCHASE',
+            referenceType: 'INVENTORY_RECEIPT',
+            referenceId: data.referenceId,
+          },
+          select: { quantity: true },
+        });
+        if (existingReceipt) {
+          if (existingReceipt.quantity !== data.quantity) {
+            throw new Error('Receipt reference already exists with a different quantity');
+          }
+          return this.findInventoryInTransaction(tx, inventoryId, organizationId);
+        }
+      }
+
       await tx.inventory.update({
         where: { id: inventoryId },
         data: { quantity: current.quantity + data.quantity },

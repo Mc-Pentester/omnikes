@@ -79,7 +79,7 @@ describe('initial inventory receipt API', () => {
       new Error('Not authorized to access this store'),
     );
 
-    const response = await POST(requestWith({ storeId, variantId, quantity: 8 }));
+    const response = await POST(requestWith({ storeId, variantId, quantity: 8, referenceId: 'TEST-RECEIPT-001' }));
 
     expect(response.status).toBe(403);
     expect(inventoryRepository.findOrCreate).not.toHaveBeenCalled();
@@ -91,7 +91,7 @@ describe('initial inventory receipt API', () => {
       new Error('Store or product variant not found or access denied'),
     );
 
-    const response = await POST(requestWith({ storeId, variantId, quantity: 8 }));
+    const response = await POST(requestWith({ storeId, variantId, quantity: 8, referenceId: 'TEST-RECEIPT-001' }));
 
     expect(response.status).toBe(404);
     expect(inventoryService.receiveInventory).not.toHaveBeenCalled();

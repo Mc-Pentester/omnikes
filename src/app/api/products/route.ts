@@ -1,116 +1,75 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { productService } from '@omnikes/services/product.service';
-import { productSchema } from '@omnikes/lib/validation';
+import { productSchema, productVariantSchema } from '@omnikes/lib/validation';
 import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
 import { validatePagination } from '@omnikes/lib/pagination';
 
-/**
- * GET /api/products
- * List products for an organization
- */
+const productCreateRequestSchema = productSchema.extend({
+  variants: z.array(productVariantSchema.omit({ productId: true }).extend({
+    cost: productVariantSchema.shape.cost.default(0),
+  })).optional(),
+  initialStock: z.object({
+    storeId: z.string().cuid(),
+    quantity: z.number().int().min(0).max(1000000000),
+  }).optional(),
+}).superRefine((data, ctx) => {
+  if (data.initialStock && data.initialStock.quantity > 0 && (!data.variants || data.variants.length === 0)) {
+    ctx.addIssue({ code: 'custom', path: ['variants'], message: 'At least one variant is required for initial stock' });
+  }
+});
+
 export async function GET(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'product.read');
-
     const { searchParams } = new URL(request.url);
-
     const search = searchParams.get('search') || undefined;
     const category = searchParams.get('category') || undefined;
     const isActive = searchParams.get('isActive') === 'true' ? true :
                      searchParams.get('isActive') === 'false' ? false : undefined;
-
-    const { skip, take } = validatePagination(
-      searchParams.get('skip'),
-      searchParams.get('take')
-    );
-
-    const result = await productService.list(organizationId, {
-      search,
-      category,
-      isActive,
-      skip,
-      take,
-    });
-
+    const { skip, take } = validatePagination(searchParams.get('skip'), searchParams.get('take'));
+    const result = await productService.list(organizationId, { search, category, isActive, skip, take });
     return NextResponse.json(result);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid request data' }, { status: 400 });
-    }
+    if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid request data' }, { status: 400 });
     if (error instanceof Error) {
       if (error.message === 'Authentication required' || error.message === 'Invalid or expired session') {
-        return NextResponse.json(
-          { error: 'Authentication required' },
-          { status: 401 }
-        );
+        return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
       }
-
-      if (error.message === 'Permission required: product.read' || error.message.startsWith('Permission required')) {
-        return NextResponse.json(
-          { error: 'Permission required' },
-          { status: 403 }
-        );
-      }
-
+      if (error.message.startsWith('Permission required')) return NextResponse.json({ error: 'Permission required' }, { status: 403 });
       if (error.message.includes('Invalid skip') || error.message.includes('Invalid take')) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: error.message }, { status: 400 });
       }
     }
-
     console.error('Error listing products:', error);
-    return NextResponse.json(
-      { error: 'Failed to list products' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to list products' }, { status: 500 });
   }
 }
 
-/**
- * POST /api/products
- * Create a new product
- */
 export async function POST(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'product.manage');
-
     const body = await request.json();
-    const validatedData = productSchema.parse({ ...body, organizationId });
-
-    const result = await productService.create(organizationId, validatedData);
-
+    const validatedData = productCreateRequestSchema.parse({ ...body, organizationId });
+    const { initialStock, ...productData } = validatedData;
+    const result = await productService.create(organizationId, productData, initialStock);
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid request data', details: error.issues }, { status: 400 });
+    }
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
-
-    if (error instanceof Error && (error.message === 'Permission required: product.manage' || error.message.startsWith('Permission required'))) {
-      return NextResponse.json(
-        { error: 'Permission required' },
-        { status: 403 }
-      );
+    if (error instanceof Error && error.message.startsWith('Permission required')) {
+      return NextResponse.json({ error: 'Permission required' }, { status: 403 });
     }
-
-    if (error instanceof Error && error.message.includes('validation')) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      );
+    if (error instanceof Error && error.message.startsWith('Initial stock')) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
-
     console.error('Error creating product:', error);
-    return NextResponse.json(
-      { error: 'Failed to create product' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
   }
 }

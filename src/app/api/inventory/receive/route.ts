@@ -8,7 +8,7 @@ const receiptRequestSchema = z.object({
   storeId: z.string().min(1),
   variantId: z.string().min(1),
   quantity: z.number().int().positive(),
-  referenceId: z.string().optional(),
+  referenceId: z.string().trim().min(1).max(100),
   notes: z.string().optional(),
 });
 
@@ -45,6 +45,9 @@ export async function POST(request: NextRequest) {
       }
       if (error.message === 'Store or product variant not found or access denied') {
         return NextResponse.json({ error: 'Store or product variant not found or access denied' }, { status: 404 });
+      }
+      if (error.message === 'Receipt reference already exists with a different quantity') {
+        return NextResponse.json({ error: error.message }, { status: 409 });
       }
     }
     console.error('Inventory initial receipt error:', error);

@@ -1,164 +1,148 @@
 import { productRepository } from '@omnikes/repositories/product.repository';
 import { productSchema, productUpdateSchema, ProductInput, ProductUpdateInput, ProductVariantInput } from '@omnikes/lib/validation';
+import { prisma } from '@omnikes/lib/prisma';
 import { Prisma } from '@prisma/client';
+
+type ProductVariantCreateInput = Omit<ProductVariantInput, 'productId'>;
 
 export class ProductService {
   /**
-   * Create a new product with validation
+   * Create the product, its store inventory rows and optional initial stock
+   * in one transaction. A failed initial receipt cannot leave a partial product.
    */
-  async create(organizationId: string, data: ProductInput) {
-    // Validate input
-    const validatedData = productSchema.parse({
-      ...data,
-      organizationId,
-    });
+  async create(
+    organizationId: string,
+    data: ProductInput & { variants?: ProductVariantCreateInput[] },
+    initialStock?: { storeId: string; quantity: number },
+  ) {
+    const validatedData = productSchema.parse({ ...data, organizationId });
+    const variants = data.variants ?? [];
 
-    const variants = (data as ProductInput & { variants?: ProductVariantInput[] }).variants;
-    
+    if (initialStock && (!Number.isInteger(initialStock.quantity) || initialStock.quantity < 0)) {
+      throw new Error('Initial stock quantity must be a non-negative integer');
+    }
+    if (initialStock && initialStock.quantity > 0 && (!initialStock.storeId || variants.length === 0)) {
+      throw new Error('An active store and at least one product variant are required for initial stock');
+    }
+
     const productData: Prisma.ProductCreateInput = {
       name: validatedData.name,
       description: validatedData.description,
       category: validatedData.category,
       isActive: validatedData.isActive,
-      organization: {
-        connect: { id: organizationId },
-      },
+      organization: { connect: { id: organizationId } },
+      ...(variants.length > 0 ? {
+        variants: {
+          create: variants.map((variant: ProductVariantCreateInput) => ({
+            sku: variant.sku,
+            price: variant.price,
+            cost: variant.cost || 0,
+            saleUnit: variant.saleUnit,
+            barcode: variant.barcode || null,
+            attributes: variant.attributes || {},
+            isActive: true,
+          })),
+        },
+      } : {}),
     };
 
-    // Add variants if provided
-    if (variants && Array.isArray(variants) && variants.length > 0) {
-      productData.variants = {
-        create: variants.map((v: ProductVariantInput) => ({
-          sku: v.sku,
-          price: v.price,
-          cost: v.cost || 0,
-          barcode: v.barcode || null,
-          attributes: v.attributes || {},
-          isActive: true,
-        })),
-      };
-    }
+    return prisma.$transaction(async (tx) => {
+      const product = await tx.product.create({ data: productData, include: { variants: true } });
 
-    const product = await productRepository.create(productData);
+      if (product.variants.length > 0) {
+        const stores = await tx.store.findMany({
+          where: { organizationId, isActive: true },
+          select: { id: true },
+        });
 
-    // Create inventory entries for all active stores
-    if (product.variants && product.variants.length > 0) {
-      const { inventoryRepository } = await import('@omnikes/repositories/inventory.repository');
-      const { storeRepository } = await import('@omnikes/repositories/store.repository');
-      
-      const storesResult = await storeRepository.listByOrganization(organizationId, { isActive: true });
-      const activeStores = storesResult.stores;
-      
-      for (const store of activeStores) {
-        for (const variant of product.variants) {
-          await inventoryRepository.findOrCreate(store.id, variant.id, organizationId);
+        if (initialStock && initialStock.quantity > 0 &&
+            !stores.some((store) => store.id === initialStock.storeId)) {
+          throw new Error('Initial stock store not found, inactive, or access denied');
+        }
+
+        await tx.inventory.createMany({
+          data: stores.flatMap((store) =>
+            product.variants.map((variant, index) => ({
+              storeId: store.id,
+              variantId: variant.id,
+              quantity: initialStock && initialStock.quantity > 0 &&
+                store.id === initialStock.storeId && index === 0
+                ? initialStock.quantity : 0,
+              reservedQuantity: 0,
+            })),
+          ),
+        });
+
+        if (initialStock && initialStock.quantity > 0) {
+          const inventory = await tx.inventory.findUniqueOrThrow({
+            where: {
+              storeId_variantId: {
+                storeId: initialStock.storeId,
+                variantId: product.variants[0].id,
+              },
+            },
+          });
+          await tx.inventoryMovement.create({
+            data: {
+              inventoryId: inventory.id,
+              type: 'PURCHASE',
+              quantity: initialStock.quantity,
+              referenceId: product.id,
+              referenceType: 'INVENTORY_INITIAL',
+              notes: 'Stock initial à la création du produit',
+            },
+          });
         }
       }
-    }
 
-    return product;
+      return product;
+    });
   }
 
-  /**
-   * Get a product by ID with organization check
-   */
   async getById(id: string, organizationId: string) {
     const product = await productRepository.findById(id, organizationId);
-    
-    if (!product) {
-      throw new Error('Product not found or access denied');
-    }
-
+    if (!product) throw new Error('Product not found or access denied');
     return product;
   }
 
-  /**
-   * List products for an organization
-   */
   async list(organizationId: string, options: {
-    search?: string;
-    category?: string;
-    isActive?: boolean;
-    skip?: number;
-    take?: number;
+    search?: string; category?: string; isActive?: boolean; skip?: number; take?: number;
   } = {}) {
     return productRepository.listByOrganization(organizationId, options);
   }
 
-  /**
-   * Update a product with validation
-   */
   async update(id: string, organizationId: string, data: ProductUpdateInput) {
-    // Check if product exists and belongs to organization
     const exists = await productRepository.belongsToOrganization(id, organizationId);
-    
-    if (!exists) {
-      throw new Error('Product not found or access denied');
-    }
-
-    // Validate input
+    if (!exists) throw new Error('Product not found or access denied');
     const validatedData = productUpdateSchema.parse(data);
-
     await productRepository.update(id, organizationId, validatedData as Prisma.ProductUpdateInput);
-    
     return productRepository.findById(id, organizationId);
   }
 
-  /**
-   * Deactivate a product (soft delete)
-   */
   async deactivate(id: string, organizationId: string) {
     const exists = await productRepository.belongsToOrganization(id, organizationId);
-    
-    if (!exists) {
-      throw new Error('Product not found or access denied');
-    }
-
+    if (!exists) throw new Error('Product not found or access denied');
     await productRepository.deactivate(id, organizationId);
-    
     return productRepository.findById(id, organizationId);
   }
 
-  /**
-   * Activate a product
-   */
   async activate(id: string, organizationId: string) {
     const exists = await productRepository.belongsToOrganization(id, organizationId);
-    
-    if (!exists) {
-      throw new Error('Product not found or access denied');
-    }
-
+    if (!exists) throw new Error('Product not found or access denied');
     await productRepository.activate(id, organizationId);
-    
     return productRepository.findById(id, organizationId);
   }
 
-  /**
-   * Search products by name
-   */
   async search(organizationId: string, query: string) {
-    return productRepository.listByOrganization(organizationId, {
-      search: query,
-    });
+    return productRepository.listByOrganization(organizationId, { search: query });
   }
 
-  /**
-   * Get products by category
-   */
   async getByCategory(organizationId: string, category: string) {
-    return productRepository.listByOrganization(organizationId, {
-      category,
-    });
+    return productRepository.listByOrganization(organizationId, { category });
   }
 
-  /**
-   * Get active products only
-   */
   async getActive(organizationId: string) {
-    return productRepository.listByOrganization(organizationId, {
-      isActive: true,
-    });
+    return productRepository.listByOrganization(organizationId, { isActive: true });
   }
 }
 
