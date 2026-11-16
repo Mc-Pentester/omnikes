@@ -9,6 +9,17 @@ VALUES (
 )
 ON CONFLICT ("code") DO NOTHING;
 
+-- Ensure the lookup permission exists on older installations before granting it.
+INSERT INTO "permissions" ("id", "code", "description", "module", "createdAt")
+VALUES (
+  'perm-customer-read-pos-v1',
+  'customer.read',
+  'Lire les clients',
+  'customer',
+  CURRENT_TIMESTAMP
+)
+ON CONFLICT ("code") DO NOTHING;
+
 -- CASHIER can look up customers and assign one to its own pending sale.
 INSERT INTO "role_permissions" ("id", "roleId", "permissionId", "createdAt")
 SELECT
