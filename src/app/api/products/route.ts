@@ -24,6 +24,11 @@ export async function GET(request: NextRequest) {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'product.read');
     const { searchParams } = new URL(request.url);
+    const barcode = searchParams.get('barcode');
+    if (barcode !== null) {
+      const product = await productService.getByBarcode(organizationId, barcode);
+      return product ? NextResponse.json({ product }) : NextResponse.json({ error: 'Barcode not found' }, { status: 404 });
+    }
     const search = searchParams.get('search') || undefined;
     const category = searchParams.get('category') || undefined;
     const isActive = searchParams.get('isActive') === 'true' ? true :
@@ -69,6 +74,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && error.message.startsWith('Initial stock')) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+    if (error instanceof Error && 'code' in error && error.code === 'P2002') return NextResponse.json({ error: 'SKU or barcode already exists' }, { status: 409 });
     console.error('Error creating product:', error);
     return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
   }

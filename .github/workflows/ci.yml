@@ -122,6 +122,15 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Install Chromium for barcode end-to-end test
+        run: npx playwright install --with-deps chromium
+
+      - name: Run barcode workflow end-to-end test
+        env:
+          E2E_EMAIL: admin.a@omnikes.test
+          E2E_PASSWORD: ${{ env.SEED_PASSWORD_A }}
+        run: npx playwright test e2e/barcode-workflow.spec.ts --project=chromium
+
       - name: Lint
         shell: bash
         run: |

@@ -30,10 +30,11 @@ export class ProductRepository {
     };
 
     if (search) {
-      where.name = {
-        contains: search,
-        mode: 'insensitive',
-      };
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { variants: { some: { sku: { contains: search, mode: 'insensitive' } } } },
+        { variants: { some: { barcode: { contains: search, mode: 'insensitive' } } } },
+      ];
     }
 
     if (category) {
@@ -65,6 +66,15 @@ export class ProductRepository {
       skip,
       take,
     };
+  }
+
+  /** Exact barcode lookup, scoped to the authenticated organization. */
+  async findByBarcode(organizationId: string, barcode: string) {
+    const normalized = barcode.trim();
+    return prisma.product.findFirst({
+      where: { organizationId, isActive: true, variants: { some: { barcode: { equals: normalized }, isActive: true } } },
+      include: { variants: { where: { barcode: { equals: normalized }, isActive: true } } },
+    });
   }
 
   /**
