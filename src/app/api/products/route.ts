@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && error.message.startsWith('Initial stock')) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+    if (error instanceof Error && 'code' in error && error.code === 'P2002') return NextResponse.json({ error: 'SKU or barcode already exists' }, { status: 409 });
     console.error('Error creating product:', error);
     return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
   }
