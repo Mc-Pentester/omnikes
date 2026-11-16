@@ -10,7 +10,7 @@ export async function POST(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
-    await requirePermission(request, 'sale.update');
+    await requirePermission(request, 'sale.pos.sync');
     const existingSale = await saleService.getById(id, organizationId);
     await requireStoreAccess(request, existingSale.storeId);
 
