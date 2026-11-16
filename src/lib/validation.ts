@@ -287,12 +287,14 @@ export const cashMovementSchema = z.object({
 
 export const paymentSchema = z.object({
   saleId: z.string().cuid().optional(),
-  method: z.enum(['CASH', 'CARD', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CHECK'], {
-    message: 'Invalid payment method',
-  }),
+  method: z.enum(['CASH', 'CARD', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CHECK'], { message: 'Invalid payment method' }),
   amount: z.number().finite().positive('Amount must be positive').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Amount must have at most 2 decimal places'),
+  cashReceived: z.number().finite().nonnegative().max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Cash received must have at most 2 decimal places').optional(),
   reference: z.string().max(200).optional(),
   status: z.literal('COMPLETED').default('COMPLETED'),
+}).superRefine((data, ctx) => {
+  if (data.method === 'CASH' && (data.cashReceived === undefined || data.cashReceived < data.amount)) ctx.addIssue({ code: 'custom', path: ['cashReceived'], message: 'Cash received must cover the payment amount' });
+  if (data.method !== 'CASH' && data.cashReceived !== undefined) ctx.addIssue({ code: 'custom', path: ['cashReceived'], message: 'Cash received is only valid for cash payments' });
 });
 
 export const paymentUpdateSchema = paymentSchema.partial().omit({ saleId: true });

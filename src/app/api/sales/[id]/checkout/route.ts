@@ -137,6 +137,7 @@ export async function POST(
             method?: string;
             amount?: number | string;
             reference?: string | null;
+            cashReceived?: number | string | null;
           };
         };
         const cachedPayment = cachedResponse.payment;
@@ -145,6 +146,7 @@ export async function POST(
           !cachedPayment ||
           cachedPayment.method !== paymentData.method ||
           Number(cachedPayment.amount) !== Number(paymentData.amount) ||
+          (paymentData.method === 'CASH' && Number(cachedPayment.cashReceived) !== Number(paymentData.cashReceived)) ||
           (parsedPaymentData.reference !== undefined &&
           (cachedPayment.reference ?? null) !== (parsedPaymentData.reference ?? null)
           )
@@ -327,6 +329,8 @@ export async function POST(
           method: checkoutPaymentData.method,
           amount: checkoutPaymentData.amount,
           reference: checkoutPaymentData.reference || `PAY-${Date.now()}`,
+          cashReceived: checkoutPaymentData.method === 'CASH' ? checkoutPaymentData.cashReceived : null,
+          changeGiven: checkoutPaymentData.method === 'CASH' ? Number((checkoutPaymentData.cashReceived! - checkoutPaymentData.amount).toFixed(2)) : null,
           status: 'COMPLETED',
         },
       });

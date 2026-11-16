@@ -45,6 +45,8 @@ interface Product {
   }[];
 }
 
+interface Customer { id: string; name: string; }
+
 interface Store {
   id: string;
   name: string;
@@ -65,6 +67,8 @@ export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [discountAmount, setDiscountAmount] = useState('0');
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentSaleId, setCurrentSaleId] = useState<string | null>(null);
@@ -101,10 +105,11 @@ export default function HomePage() {
         paymentMethod,
         amountReceived,
         selectedCustomer,
+        discountAmount,
       };
       localStorage.setItem('omnikes_pending_cart', JSON.stringify(cartState));
     }
-  }, [currentSaleId, cart, serverTotals, paymentMethod, amountReceived, selectedCustomer]);
+  }, [currentSaleId, cart, serverTotals, paymentMethod, amountReceived, selectedCustomer, discountAmount]);
 
   // Restore cart state when returning from cash page
   const restoreCartState = useCallback(() => {
@@ -118,6 +123,7 @@ export default function HomePage() {
         setPaymentMethod(cartState.paymentMethod);
         setAmountReceived(cartState.amountReceived);
         setSelectedCustomer(cartState.selectedCustomer);
+        setDiscountAmount(cartState.discountAmount ?? '0');
         localStorage.removeItem('omnikes_pending_cart');
       } catch (error) {
         console.error('Failed to restore cart state:', error);
@@ -233,6 +239,24 @@ export default function HomePage() {
       }
     }
   }, [storesValidated, pendingScaleReading, cart, currentSaleId, currentStoreId, generateOrderNumber, selectedCustomer, applyTax]);
+
+  useEffect(() => {
+    if (!user) return;
+    const controller = new AbortController();
+    void fetch('/api/customers?take=100&skip=0', { signal: controller.signal, cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Chargement des clients refusé (${response.status})`);
+        const data = await response.json();
+        setCustomers(Array.isArray(data.customers) ? data.customers : []);
+      })
+      .catch((err) => {
+        if (!(err instanceof DOMException && err.name === 'AbortError')) {
+          console.error('POS customer list failed:', err);
+          setCustomers([]);
+        }
+      });
+    return () => controller.abort();
+  }, [user]);
 
   const fetchStores = useCallback(async () => {
     if (!user) return;
@@ -440,8 +464,10 @@ export default function HomePage() {
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
-  const displayTax = serverTotals?.tax ?? (applyTax && taxRate !== null ? subtotal * taxRate : 0);
-  const displayTotal = serverTotals?.total ?? (applyTax ? subtotal + displayTax : subtotal);
+  const discountValue = Math.max(0, Number(discountAmount) || 0);
+  const discountedSubtotal = Math.max(0, subtotal - discountValue);
+  const displayTax = serverTotals?.tax ?? (applyTax && taxRate !== null ? discountedSubtotal * taxRate : 0);
+  const displayTotal = serverTotals?.total ?? (applyTax ? discountedSubtotal + displayTax : discountedSubtotal);
   const change = paymentMethod === 'CASH' ? (parseFloat(amountReceived) || 0) - displayTotal : 0;
 
   const syncCartToSale = async () => {
@@ -451,6 +477,7 @@ export default function HomePage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         applyTax,
+        discount: discountValue,
         items: cart.map((item) => ({ variantId: item.variantId, quantity: item.quantity })),
       }),
     });
@@ -494,6 +521,7 @@ export default function HomePage() {
           method: paymentMethod,
           amount: totals.total,
           reference: generatePaymentReference(),
+          ...(paymentMethod === 'CASH' ? { cashReceived: receivedAmount } : {}),
         }),
       });
 
@@ -536,6 +564,8 @@ export default function HomePage() {
       setCompletedSaleId(completedId);
       setShowPaymentModal(false);
       setAmountReceived('');
+      setDiscountAmount('0');
+      setSelectedCustomer('');
       setServerTotals(null);
       localStorage.removeItem('omnikes_pending_cart');
       setTimeout(() => {
@@ -628,14 +658,24 @@ export default function HomePage() {
               ))}
             </select>
             
-            <select
-              value={selectedCustomer}
-              onChange={(e) => setSelectedCustomer(e.target.value)}
-              className="h-10 px-3 border border-[var(--border)] bg-[var(--surface)] rounded-[var(--radius-md)] text-sm font-medium text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-soft)]"
-              disabled
-              aria-label="Sélectionner un client"
-            >
-              <option value="">Client anonyme (non disponible)</option>
+            <select value={selectedCustomer} onChange={(e) => {
+              const customerId = e.target.value;
+              if (!currentSaleId) { setSelectedCustomer(customerId); return; }
+              void (async () => {
+                const response = await fetch(`/api/sales/${currentSaleId}`, {
+                  method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ customerId: customerId || null }),
+                });
+                if (!response.ok) {
+                  const data = await response.json().catch(() => ({}));
+                  alert(data.error || 'Impossible d’associer ce client à la vente.');
+                  return;
+                }
+                setSelectedCustomer(customerId);
+              })();
+            }} className="h-10 px-3 border border-[var(--border)] bg-[var(--surface)] rounded-[var(--radius-md)] text-sm font-medium text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-soft)]" aria-label="Sélectionner un client">
+              <option value="">Client anonyme</option>
+              {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
             </select>
           </div>
         </header>
@@ -776,6 +816,11 @@ export default function HomePage() {
                 <span className="text-[var(--muted)]">Sous-total</span>
                 <span className="font-medium">{parseFloat(String(subtotal)).toFixed(2)} HTG</span>
               </div>
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <label htmlFor="pos-discount" className="text-muted">Remise (HTG)</label>
+                <Input id="pos-discount" type="number" min="0" max={subtotal} step="0.01" value={discountAmount} onChange={(e) => { setServerTotals(null); setDiscountAmount(e.target.value); }} className="h-9 w-32 text-right" />
+              </div>
+              {discountValue > 0 && <div className="flex justify-between text-sm"><span className="text-muted">Après remise</span><span>{discountedSubtotal.toFixed(2)} HTG</span></div>}
               <div className="flex items-center justify-between text-sm">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
