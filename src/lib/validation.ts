@@ -194,7 +194,8 @@ export const inventoryAdjustmentSchema = z.object({
 
 export const inventoryReceiptSchema = z.object({
   quantity: z.int().positive('Received quantity must be positive').max(1000000000, 'Quantity is too large'),
-  referenceId: z.string().trim().max(100).optional(),
+  // Every manual receipt must carry a stable request reference so retries cannot add stock twice.
+  referenceId: z.string().trim().min(1, 'Receipt reference is required').max(100),
   notes: z.string().trim().max(500).optional(),
 });
 
