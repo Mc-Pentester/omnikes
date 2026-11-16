@@ -42,6 +42,7 @@ export class SaleService {
         where: {
           id: validatedData.customerId,
           organizationId,
+          isActive: true,
         },
         select: { id: true },
       });
@@ -155,7 +156,7 @@ export class SaleService {
     }
     if (validatedData.customerId !== undefined && validatedData.customerId !== null) {
       const customer = await prisma.customer.findFirst({
-        where: { id: validatedData.customerId, organizationId },
+        where: { id: validatedData.customerId, organizationId, isActive: true },
         select: { id: true },
       });
       if (!customer) throw new Error('Invalid customer');
