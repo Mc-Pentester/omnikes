@@ -37,6 +37,8 @@ interface ReceiptSale {
     id: string;
     method: string;
     amount: number;
+    cashReceived?: number | null;
+    changeGiven?: number | null;
     status: string;
     reference?: string | null;
   }>;
@@ -241,6 +243,8 @@ export function PosReceipt({ saleId, onNewSale }: PosReceiptProps) {
             <section className="mt-3 border-t border-dashed border-gray-700 pt-2">
               <div className="flex justify-between"><span>Paiement</span><span>{paymentLabel(payment.method)}</span></div>
               <div className="flex justify-between"><span>Montant payé</span><span>{money(payment.amount)} HTG</span></div>
+              {payment.method === 'CASH' && payment.cashReceived != null && <div className="flex justify-between"><span>Montant reçu</span><span>{money(payment.cashReceived)} HTG</span></div>}
+              {payment.method === 'CASH' && payment.changeGiven != null && <div className="flex justify-between font-semibold"><span>Monnaie rendue</span><span>{money(payment.changeGiven)} HTG</span></div>}
               {payment.reference && <div className="break-all">Réf. : {payment.reference}</div>}
             </section>
           )}
