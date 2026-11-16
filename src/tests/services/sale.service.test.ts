@@ -644,6 +644,7 @@ describe('P1-C - Customer tenant isolation in sales', () => {
       where: {
         id: 'ccustomer99999999999999999',
         organizationId: 'corg1234567',
+        isActive: true,
       },
       select: { id: true },
     });
