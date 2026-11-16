@@ -25,7 +25,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.20.0'
+          node-version: '22.22.2'
           cache: npm
 
       - name: Install project dependencies
@@ -46,6 +46,10 @@ jobs:
       - name: Verify launcher configuration
         shell: powershell
         run: npm test -- src/tests/build/launcher-verification.test.ts
+
+      - name: Verify Windows in-place upgrade safety
+        shell: powershell
+        run: npm test -- src/tests/build/windows-in-place-upgrade.test.ts
 
       - name: Inspect and reject repository documentation in package
         shell: powershell
@@ -113,6 +117,69 @@ jobs:
             throw "The Windows lifecycle test cannot find the generated installer."
           }
           & "$PWD\scripts\test-windows-installer-lifecycle.ps1" -SetupExe $installer.FullName
+
+      - name: Collect Windows uninstall diagnostics
+        if: always()
+        shell: powershell
+        run: |
+          $diagnosticDir = Join-Path $env:RUNNER_TEMP "omnikes-uninstall-diagnostics"
+          New-Item -ItemType Directory -Path $diagnosticDir -Force | Out-Null
+          $sources = @(
+            (Join-Path $env:RUNNER_TEMP "omnikes-installer-lifecycle.log"),
+            (Join-Path $env:RUNNER_TEMP "omnikes-uninstall-normal-inno.log"),
+            (Join-Path $env:RUNNER_TEMP "omnikes-uninstall-purge-inno.log"),
+            (Join-Path $env:ProgramData "OmniKes\logs\uninstall-runtime.log")
+          )
+          foreach ($source in $sources) {
+            if (Test-Path -LiteralPath $source) {
+              Copy-Item -LiteralPath $source -Destination $diagnosticDir -Force
+              Write-Host "=== $source ==="
+              Get-Content -LiteralPath $source -Tail 300
+            } else { Write-Host "DIAGNOSTIC FILE NOT FOUND: $source" }
+          }
+          $installDir = Join-Path $env:RUNNER_TEMP "OmniKes-Lifecycle-Test"
+          if (Test-Path -LiteralPath $installDir) {
+            Get-ChildItem -LiteralPath $installDir -Force -Recurse -ErrorAction SilentlyContinue |
+              Select-Object -First 1000 FullName, Length, Attributes |
+              Format-Table -AutoSize | Out-String -Width 4096 |
+              Set-Content -LiteralPath (Join-Path $diagnosticDir "remaining-install-files.txt")
+          } else { "Install directory absent." | Set-Content -LiteralPath (Join-Path $diagnosticDir "remaining-install-files.txt") }
+          Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -in @("node.exe", "postgres.exe", "omnikes.exe") } |
+            Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine |
+            Format-List | Out-String -Width 4096 |
+            Set-Content -LiteralPath (Join-Path $diagnosticDir "processes-after-uninstall.txt")
+          # sc.exe returns 1060 when the service has been removed. That is
+          # the expected post-uninstall state, not a diagnostics failure.
+          $serviceOutput = & "$env:WINDIR\System32\sc.exe" queryex OmniKesPostgreSQL 2>&1
+          $serviceExitCode = $LASTEXITCODE
+          $serviceDiagnostic = @($serviceOutput | ForEach-Object { "$_" })
+          if ($serviceExitCode -eq 1060) {
+            $serviceDiagnostic += "Expected result: OmniKesPostgreSQL is not installed (sc.exe exit 1060)."
+          } elseif ($serviceExitCode -ne 0) {
+            $serviceDiagnostic += "WARNING: sc.exe queryex returned unexpected exit code $serviceExitCode."
+            Write-Warning "Could not query OmniKesPostgreSQL after uninstall (sc.exe exit $serviceExitCode)."
+          }
+          $serviceDiagnostic |
+            Set-Content -LiteralPath (Join-Path $diagnosticDir "postgres-service-after-uninstall.txt")
+
+          # GitHub Actions appends "exit $LASTEXITCODE" to built-in PowerShell
+          # steps. sc.exe uses 1060 to report the expected absent-service state
+          # after uninstall, so clear its native exit code after recording it.
+          # Unexpected sc.exe errors are retained in the diagnostic file and
+          # warned above; diagnostic collection itself must still complete.
+          $global:LASTEXITCODE = 0
+          Write-Host "Diagnostics directory: $diagnosticDir"
+          Write-Host "Windows uninstall diagnostics collection: PASS"
+
+      - name: Upload Windows installer lifecycle diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmniKes-Windows-Uninstall-Diagnostics
+          path: ${{ runner.temp }}/omnikes-uninstall-diagnostics/**
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4

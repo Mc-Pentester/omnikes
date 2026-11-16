@@ -6,6 +6,8 @@ const root = process.cwd();
 const installer = readFileSync(path.join(root, 'installer', 'OmniKes.iss'), 'utf8');
 const prepare = readFileSync(path.join(root, 'installer', 'prepare-upgrade.ps1'), 'utf8');
 const lifecycle = readFileSync(path.join(root, 'scripts', 'test-windows-installer-lifecycle.ps1'), 'utf8');
+const uninstallRuntime = readFileSync(path.join(root, 'installer', 'uninstall-runtime.ps1'), 'utf8');
+const workflow = readFileSync(path.join(root, '.github', 'workflows', 'windows-installer.yml'), 'utf8');
 
 describe('Windows in-place upgrade safety', () => {
   it('runs a pre-install shutdown hook before Inno Setup replaces runtime files', () => {
@@ -25,9 +27,33 @@ describe('Windows in-place upgrade safety', () => {
     expect(prepare).not.toContain('sc.exe delete');
   });
 
+  it('normalizes the launcher-relative server path before matching only the bundled OmniKes Node process', () => {
+    for (const script of [lifecycle, uninstallRuntime]) {
+      expect(script).toContain(String.raw`-replace '(?i)\\installer\\\.\.\\app\\server\.js'`);
+      expect(script).toContain("IndexOf($serverPath, [System.StringComparison]::OrdinalIgnoreCase) -ge 0");
+      expect(script).not.toContain('CommandLine.Contains($serverPath)');
+    }
+  });
+
+  it('passes PostgreSQL SQL through a UTF-8 file to preserve quoted identifiers on Windows', () => {
+    expect(lifecycle).toContain('[System.Text.UTF8Encoding]::new($false)');
+    expect(lifecycle).toContain('-f $sqlFile');
+    expect(lifecycle).not.toContain('-Atqc $Sql');
+    expect(lifecycle).toContain("column_name = 'organizationId'");
+  });
+
+  it('captures and uploads uninstall diagnostics even when the lifecycle step fails', () => {
+    expect(lifecycle).toContain('omnikes-uninstall-normal-inno.log');
+    expect(lifecycle).toContain('omnikes-uninstall-purge-inno.log');
+    expect(workflow).toContain('Collect Windows uninstall diagnostics');
+    expect(workflow).toContain('if: always()');
+    expect(workflow).toContain('OmniKes-Windows-Uninstall-Diagnostics');
+  });
+
   it('keeps the database preservation assertion in the real second-install lifecycle test', () => {
     expect(lifecycle).toContain('Install-OmniKes');
-    expect(lifecycle).toContain('IN-PLACE UPGRADE + DATABASE PRESERVATION: PASS');
+    expect(lifecycle).toContain('IN-PLACE UPGRADE + DATABASE AND APPLICATION HEALTH: PASS');
     expect(lifecycle).toContain('must-survive-upgrade');
+    expect(lifecycle).toContain('EXPLICIT FULL DATA PURGE: PASS');
   });
 });

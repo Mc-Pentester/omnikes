@@ -151,8 +151,11 @@ if (Test-Path $nextNodeModules) {
 }
 Write-Host "Generated Prisma Client verified in staged Windows application."
 
-$nodeRoot = Join-Path $root "vendor\node\runtime\node-v22.20.0-win-x64"
-if (-not (Test-Path (Join-Path $nodeRoot "node.exe"))) { throw "Prepared Node.js runtime not found." }
+$nodeVersion = "22.22.2"
+$nodeRoot = Join-Path $root "vendor\node\runtime\node-v$nodeVersion-win-x64"
+if (-not (Test-Path (Join-Path $nodeRoot "node.exe"))) { throw "Prepared Node.js $nodeVersion runtime not found at $nodeRoot." }
+$packagedNodeVersion = (& (Join-Path $nodeRoot "node.exe") --version).Trim()
+if ($LASTEXITCODE -ne 0 -or $packagedNodeVersion -ne "v$nodeVersion") { throw "Prepared Node.js runtime version mismatch: expected v$nodeVersion, got $packagedNodeVersion." }
 Copy-Item (Join-Path $nodeRoot "*") $node -Recurse -Force
 
 $pgRoot = Join-Path $root "vendor\postgresql\runtime\pgsql"

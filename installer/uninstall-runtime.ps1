@@ -49,7 +49,9 @@ try {
     Where-Object {
       $_.ExecutablePath -and
       [System.IO.Path]::GetFullPath($_.ExecutablePath) -ieq $nodePath -and
-      $_.CommandLine -and $_.CommandLine.Contains($serverPath)
+      $_.CommandLine -and
+      ($normalizedCommandLine = $_.CommandLine -replace '(?i)\\installer\\\.\.\\app\\server\.js', '\app\server.js') -and
+      $normalizedCommandLine.IndexOf($serverPath, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
     } |
     ForEach-Object {
       Write-Log "Stopping OmniKes server PID $($_.ProcessId)"
@@ -60,7 +62,9 @@ try {
     Where-Object {
       $_.ExecutablePath -and
       [System.IO.Path]::GetFullPath($_.ExecutablePath) -ieq $nodePath -and
-      $_.CommandLine -and $_.CommandLine.Contains($serverPath)
+      $_.CommandLine -and
+      ($normalizedCommandLine = $_.CommandLine -replace '(?i)\\installer\\\.\.\\app\\server\.js', '\app\server.js') -and
+      $normalizedCommandLine.IndexOf($serverPath, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
     }
   if ($remainingNode) {
     Write-Log 'OmniKes Node server process is still active; uninstall must be cancelled.'
