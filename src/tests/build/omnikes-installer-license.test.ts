@@ -25,7 +25,7 @@ describe('OmniKes installer license acceptance', () => {
   });
 
   it('records every acceptance locally with version, timestamp, Windows account and method', () => {
-    expect(installer).toContain("'{commonappdata}\\\\OmniKes\\\\legal\\\\license-acceptance.log'");
+    expect(installer).toContain(String.raw`AcceptanceLog := ExpandConstant('{commonappdata}\OmniKes\legal\license-acceptance.log');`);
     expect(installer).toContain('ContractVersion={#LicenseVersion}');
     expect(installer).toContain('AcceptedAtLocal=');
     expect(installer).toContain('WindowsUser=');
