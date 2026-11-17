@@ -1,7 +1,8 @@
 #define MyAppName "OmniKès"
 #define MyAppVersion "0.1.1"
-#define MyAppPublisher "OmniKès"
+#define MyAppPublisher "Kodyra Technologies"
 #define MyAppExeName "omnikes.exe"
+#define LicenseVersion "1.0"
 
 [Setup]
 AppId={{A2F77B5A-7D0E-4B15-9B8A-0A9B6E6A5C11}}
@@ -25,6 +26,8 @@ UninstallDisplayIcon={app}\installer\omnikes.exe
 DisableProgramGroupPage=yes
 CloseApplications=yes
 RestartApplications=no
+LicenseFile=..\docs\legal\OMNIKES-LICENSE.txt
+LicenseForceSelection=yes
 
 [Files]
 Source: "..\dist\windows\app\*"; DestDir: "{app}\app"; Excludes: ".env, .env.*"; Flags: recursesubdirs createallsubdirs ignoreversion
@@ -36,6 +39,7 @@ Source: "..\installer\prepare-upgrade.ps1"; DestDir: "{tmp}"; Flags: dontcopy
 
 [Dirs]
 Name: "{commonappdata}\OmniKes"
+Name: "{commonappdata}\OmniKes\legal"
 Name: "{commonappdata}\OmniKes\postgresql-data"
 
 [Icons]
@@ -46,6 +50,60 @@ Name: "{autodesktop}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; Working
 Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"; StatusMsg: "Démarrage d'OmniKès..."; Flags: nowait postinstall skipifsilent
 
 [Code]
+function HasExplicitLicenseAcceptanceSwitch(): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+  begin
+    if CompareText(ParamStr(I), '/ACCEPTLICENSE=yes') = 0 then
+    begin
+      Result := True;
+      exit;
+    end;
+  end;
+end;
+
+function InitializeSetup(): Boolean;
+begin
+  Result := True;
+  { Silent installs have no interactive license page. Require an explicit
+    acceptance switch so automation cannot silently bypass the agreement. }
+  if WizardSilent and (not HasExplicitLicenseAcceptanceSwitch()) then
+  begin
+    Log('Silent installation refused: /ACCEPTLICENSE=yes is required.');
+    Result := False;
+  end;
+end;
+
+procedure RecordLicenseAcceptance();
+var
+  AcceptanceLog: string;
+  AcceptanceMethod: string;
+  AcceptanceRecord: string;
+begin
+  AcceptanceLog := ExpandConstant('{commonappdata}\OmniKes\legal\license-acceptance.log');
+  if not ForceDirectories(ExtractFileDir(AcceptanceLog)) then
+    RaiseException('Impossible de créer le dossier de preuve d’acceptation du contrat dans ProgramData.');
+
+  if WizardSilent then
+    AcceptanceMethod := 'ExplicitSilentCommandLine'
+  else
+    AcceptanceMethod := 'InteractiveLicensePage';
+
+  AcceptanceRecord :=
+    'ContractVersion={#LicenseVersion}' + #13#10 +
+    'Editor=Kodyra Technologies' + #13#10 +
+    'AcceptedAtLocal=' + GetDateTimeString('yyyy-mm-dd hh:nn:ss', '-', ':') + #13#10 +
+    'WindowsUser=' + GetUserNameString() + #13#10 +
+    'AcceptanceMethod=' + AcceptanceMethod + #13#10 +
+    '----------------------------------------' + #13#10;
+
+  if not SaveStringToFile(AcceptanceLog, AcceptanceRecord, True) then
+    RaiseException('Impossible d’enregistrer la preuve d’acceptation du contrat OmniKès.');
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
@@ -79,6 +137,9 @@ var
   RuntimeInstaller: string;
   WebView2Installer: string;
 begin
+  if CurStep = ssInstall then
+    RecordLicenseAcceptance();
+
   if CurStep = ssPostInstall then
   begin
     RuntimeNode := ExpandConstant('{app}\runtime\node\node.exe');

@@ -21,7 +21,7 @@ function Assert([object]$Condition, [string]$Message) {
 
 function Install-OmniKes {
   Write-Host "Installing/upgrading OmniKes into $installDir"
-  $arguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$installDir")
+  $arguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/ACCEPTLICENSE=yes', "/DIR=$installDir")
   $process = Start-Process -FilePath $SetupExe -ArgumentList $arguments -Wait -PassThru
   Assert ($process.ExitCode -eq 0) "OmniKes installer failed with exit code $($process.ExitCode)."
   Assert (Test-Path (Join-Path $installDir 'installer\omnikes.exe')) 'omnikes.exe was not installed.'
@@ -29,6 +29,13 @@ function Install-OmniKes {
   Assert (Test-Path $portFile) 'PostgreSQL port file is missing.'
   Assert (Test-Path $appPortFile) 'Application port file is missing.'
   Assert (Test-Path $passwordFile) 'PostgreSQL password file is missing.'
+  $licenseLog = Join-Path $programDataRoot 'legal\license-acceptance.log'
+  Assert (Test-Path $licenseLog) 'The installer did not persist the license acceptance record.'
+  $licenseRecord = Get-Content -LiteralPath $licenseLog -Raw
+  Assert ($licenseRecord.Contains('ContractVersion=1.0')) 'The license acceptance record has no contract version.'
+  Assert ($licenseRecord.Contains('Editor=Kodyra Technologies')) 'The license acceptance record has the wrong editor.'
+  Assert ($licenseRecord.Contains('AcceptedAtLocal=')) 'The license acceptance record has no acceptance timestamp.'
+  Assert ($licenseRecord.Contains('AcceptanceMethod=ExplicitSilentCommandLine')) 'The silent installation did not record its explicit acceptance method.'
   $appPort = (Get-Content -LiteralPath $appPortFile -Raw).Trim()
   Assert ($appPort -match '^\d{4,5}$' -and [int]$appPort -ge 3001 -and [int]$appPort -le 3099) "Persisted application port is invalid: $appPort"
   $script:baseUrl = "http://127.0.0.1:$appPort"
@@ -72,6 +79,10 @@ function Invoke-Psql([string]$Sql) {
 
 try {
   Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue
+  $rejectedArguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$installDir")
+  $rejectedProcess = Start-Process -FilePath $SetupExe -ArgumentList $rejectedArguments -Wait -PassThru
+  Assert ($rejectedProcess.ExitCode -ne 0) 'Silent installation without explicit license acceptance was not rejected.'
+  Assert (-not (Test-Path $installDir)) 'Silent installation without acceptance created the installation directory.'
   Install-OmniKes
 
   # Launch the local server without opening a browser or requiring an interactive desktop.
@@ -228,6 +239,8 @@ try {
   [void](Invoke-Psql "CREATE TABLE IF NOT EXISTS installer_upgrade_probe (probe_key text PRIMARY KEY, probe_value text NOT NULL); INSERT INTO installer_upgrade_probe VALUES ('preservation', 'must-survive-upgrade') ON CONFLICT (probe_key) DO UPDATE SET probe_value = EXCLUDED.probe_value;")
   Stop-OmniKesServer
   Install-OmniKes
+  $acceptanceCount = ([regex]::Matches((Get-Content -LiteralPath $licenseLog -Raw), 'ContractVersion=1\.0')).Count
+  Assert ($acceptanceCount -eq 2) "Expected the in-place upgrade to append a second license acceptance record, found $acceptanceCount."
   $probe = Invoke-Psql "SELECT probe_value FROM installer_upgrade_probe WHERE probe_key = 'preservation';"
   Assert ($probe -eq 'must-survive-upgrade') 'In-place upgrade did not preserve the PostgreSQL database.'
   $storeAfterUpgrade = Invoke-Psql $storePersistedSql
