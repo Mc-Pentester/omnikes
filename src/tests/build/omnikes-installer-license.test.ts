@@ -8,22 +8,24 @@ const license = readFileSync(path.join(root, 'docs', 'legal', 'OMNIKES-LICENSE.t
 const lifecycle = readFileSync(path.join(root, 'scripts', 'test-windows-installer-lifecycle.ps1'), 'utf8');
 
 describe('OmniKes installer license acceptance', () => {
-  it('shows the complete Kodyra Technologies license and requires explicit interactive selection', () => {
+  it('displays the complete Kodyra Technologies license through the standard Inno Setup license page', () => {
     expect(installer).toContain('LicenseFile=..\\docs\\legal\\OMNIKES-LICENSE.txt');
-    expect(installer).toContain('LicenseForceSelection=yes');
+    // Inno Setup's built-in license page requires the user to accept before Next
+    // becomes available. Do not rely on the unsupported LicenseForceSelection directive.
+    expect(installer).not.toMatch(/^\s*LicenseForceSelection\s*=/im);
     expect(license).toContain('Éditeur : Kodyra Technologies');
     expect(license).toContain('Entrée en vigueur : date de l’installation');
     expect(license).toContain('ARTICLE 14 – ACCEPTATION ÉLECTRONIQUE');
   });
 
   it('requires an explicit acceptance switch for silent installs', () => {
-    expect(installer).toContain("if WizardSilent and (not HasExplicitLicenseAcceptanceSwitch()) then");
+    expect(installer).toContain('if WizardSilent and (not HasExplicitLicenseAcceptanceSwitch()) then');
     expect(installer).toContain("CompareText(ParamStr(I), '/ACCEPTLICENSE=yes') = 0");
     expect(lifecycle).toContain('Silent installation without explicit license acceptance was not rejected.');
   });
 
   it('records every acceptance locally with version, timestamp, Windows account and method', () => {
-    expect(installer).toContain("'{commonappdata}\\OmniKes\\legal\\license-acceptance.log'");
+    expect(installer).toContain(String.raw`AcceptanceLog := ExpandConstant('{commonappdata}\OmniKes\legal\license-acceptance.log');`);
     expect(installer).toContain('ContractVersion={#LicenseVersion}');
     expect(installer).toContain('AcceptedAtLocal=');
     expect(installer).toContain('WindowsUser=');
