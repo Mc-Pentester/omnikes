@@ -157,13 +157,14 @@ internal sealed class OmniKesSplash : Form
     private readonly Label status;
     private readonly Label percentLabel;
     private readonly ProgressBar progress;
-    private readonly Timer animationTimer;
+    private readonly System.Windows.Forms.Timer animationTimer;
+    private readonly Label spinner;
     private int pulse;
 
     public OmniKesSplash()
     {
         Text = "OmniKès";
-        Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+        Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -183,7 +184,7 @@ internal sealed class OmniKesSplash : Form
         mark.Location = new Point(54, 62);
         mark.Size = new Size(126, 126);
         mark.SizeMode = PictureBoxSizeMode.Zoom;
-        try { mark.Image = Icon.ExtractAssociatedIcon(Application.ExecutablePath).ToBitmap(); } catch { }
+        try { mark.Image = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath).ToBitmap(); } catch { }
         Controls.Add(mark);
 
         Label brand = new Label();
@@ -209,6 +210,15 @@ internal sealed class OmniKesSplash : Form
         Controls.Add(separator);
 
         Label wait = new Label();
+        spinner = new Label();
+        spinner.Text = "◴";
+        spinner.Font = new Font("Segoe UI Symbol", 24F, FontStyle.Regular);
+        spinner.ForeColor = Color.FromArgb(0, 105, 220);
+        spinner.TextAlign = ContentAlignment.MiddleCenter;
+        spinner.Location = new Point(355, 181);
+        spinner.Size = new Size(50, 40);
+        Controls.Add(spinner);
+
         wait.Text = "Veuillez patienter...";
         wait.Font = new Font("Segoe UI", 21F, FontStyle.Bold);
         wait.ForeColor = Color.FromArgb(8, 36, 91);
@@ -259,7 +269,7 @@ internal sealed class OmniKesSplash : Form
         bottom.BackColor = Color.FromArgb(242, 157, 25);
         Controls.Add(bottom);
 
-        animationTimer = new Timer();
+        animationTimer = new System.Windows.Forms.Timer();
         animationTimer.Interval = 450;
         animationTimer.Tick += delegate
         {
