@@ -118,6 +118,7 @@ internal sealed class OmniKesWindow : Form
         appUrl = applicationUrl;
         log = logPath;
         Text = "OmniKès";
+        Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         Width = 1440;
         Height = 920;
         MinimumSize = new System.Drawing.Size(900, 650);
