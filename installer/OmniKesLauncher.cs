@@ -70,7 +70,10 @@ internal sealed class OmniKesApplicationContext : ApplicationContext
             });
 
             string localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            splash.SetStatus("Chargement du moteur d’affichage...", 96);
             OmniKesWindow window = new OmniKesWindow(Path.Combine(localData, "OmniKes", "WebView2"), appUrl, log);
+            await window.PrepareAsync();
+            splash.SetStatus("OmniKès est prêt.", 100);
             window.FormClosed += delegate { ExitThread(); };
             MainForm = window;
             splash.Close();
@@ -318,33 +321,38 @@ internal sealed class OmniKesWindow : Form
         browser = new WebView2();
         browser.Dock = DockStyle.Fill;
         Controls.Add(browser);
-        Shown += InitializeBrowser;
+
     }
 
-    private async void InitializeBrowser(object sender, EventArgs e)
+    public async Task PrepareAsync()
     {
-        try
-        {
-            Directory.CreateDirectory(userDataFolder);
-            CoreWebView2Environment environment = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
-            await browser.EnsureCoreWebView2Async(environment);
+        Directory.CreateDirectory(userDataFolder);
+        CreateControl();
+        browser.CreateControl();
+        CoreWebView2Environment environment = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
+        await browser.EnsureCoreWebView2Async(environment);
 
-            browser.CoreWebView2.Settings.AreDevToolsEnabled = false;
-            browser.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
-            browser.CoreWebView2.Settings.IsStatusBarEnabled = false;
-            browser.CoreWebView2.NavigationStarting += HandleNavigation;
-            browser.CoreWebView2.NewWindowRequested += HandleNewWindow;
-            browser.CoreWebView2.Navigate(appUrl);
-        }
-        catch (Exception ex)
+        browser.CoreWebView2.Settings.AreDevToolsEnabled = false;
+        browser.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+        browser.CoreWebView2.Settings.IsStatusBarEnabled = false;
+        browser.CoreWebView2.NavigationStarting += HandleNavigation;
+        browser.CoreWebView2.NewWindowRequested += HandleNewWindow;
+
+        TaskCompletionSource<bool> navigation = new TaskCompletionSource<bool>();
+        EventHandler<CoreWebView2NavigationCompletedEventArgs> completed = null;
+        completed = delegate(object sender, CoreWebView2NavigationCompletedEventArgs args)
         {
-            try { File.AppendAllText(log, DateTime.Now.ToString("s") + " WEBVIEW2 ERROR " + ex + Environment.NewLine); } catch { }
-            MessageBox.Show(
-                "La fenêtre OmniKès n'a pas pu être initialisée. Vérifiez que le runtime Microsoft Edge WebView2 est installé." +
-                Environment.NewLine + ex.Message + Environment.NewLine + Environment.NewLine + "Journal : " + log,
-                "OmniKès", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            Close();
-        }
+            browser.CoreWebView2.NavigationCompleted -= completed;
+            navigation.TrySetResult(args.IsSuccess);
+        };
+        browser.CoreWebView2.NavigationCompleted += completed;
+        browser.CoreWebView2.Navigate(appUrl);
+
+        Task finished = await Task.WhenAny(navigation.Task, Task.Delay(30000));
+        if (finished != navigation.Task)
+            throw new TimeoutException("Le chargement de l’interface OmniKès a dépassé 30 secondes.");
+        if (!navigation.Task.Result)
+            throw new InvalidOperationException("Le navigateur intégré n’a pas pu charger l’interface OmniKès.");
     }
 
     private void HandleNavigation(object sender, CoreWebView2NavigationStartingEventArgs e)
