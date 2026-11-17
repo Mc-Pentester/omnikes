@@ -72,12 +72,17 @@ internal sealed class OmniKesApplicationContext : ApplicationContext
             string localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             splash.SetStatus("Chargement du moteur d’affichage...", 96);
             OmniKesWindow window = new OmniKesWindow(Path.Combine(localData, "OmniKes", "WebView2"), appUrl, log);
-            await window.PrepareAsync();
-            splash.SetStatus("OmniKès est prêt.", 100);
             window.FormClosed += delegate { ExitThread(); };
             MainForm = window;
-            splash.Close();
+            window.Opacity = 0;
+            window.ShowInTaskbar = false;
             window.Show();
+            await window.PrepareAsync();
+            splash.SetStatus("OmniKès est prêt.", 100);
+            window.ShowInTaskbar = true;
+            window.Opacity = 1;
+            splash.Close();
+            window.Activate();
         }
         catch (Exception ex)
         {
