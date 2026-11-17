@@ -1,14 +1,93 @@
 using System;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Net;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
 internal static class OmniKesLauncher
 {
+    [STAThread]
+    private static void Main()
+    {
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
+        Application.Run(new OmniKesApplicationContext());
+    }
+}
+
+internal sealed class OmniKesApplicationContext : ApplicationContext
+{
+    private readonly OmniKesSplash splash;
+    private string launcherDirectory;
+    private string installRoot;
+    private string script;
+    private string log;
+    private string appUrl;
+
+    public OmniKesApplicationContext()
+    {
+        launcherDirectory = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory);
+        installRoot = Path.GetFullPath(Path.Combine(launcherDirectory, ".."));
+        script = Path.GetFullPath(Path.Combine(launcherDirectory, "OmniKesLauncher.cmd"));
+        string localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        log = Path.Combine(localData, "OmniKes", "logs", "launcher-" + DateTime.Now.ToString("yyyyMMdd") + ".log");
+
+        splash = new OmniKesSplash();
+        splash.Shown += BeginStartup;
+        splash.Show();
+    }
+
+    private async void BeginStartup(object sender, EventArgs e)
+    {
+        try
+        {
+            await Task.Run(delegate
+            {
+                splash.SetStatus("Préparation du démarrage d’OmniKès...", 12);
+                if (!File.Exists(script))
+                    throw new FileNotFoundException("Le lanceur interne OmniKes est introuvable. Réinstallez l'application.", script);
+
+                Directory.CreateDirectory(Path.GetDirectoryName(log));
+                appUrl = ReadApplicationUrl();
+                string healthUrl = new Uri(new Uri(appUrl), "api/health").ToString();
+
+                splash.SetStatus("Démarrage des services locaux...", 28);
+                StartServerHelper(script, installRoot, log);
+
+                splash.SetStatus("Connexion à la base de données PostgreSQL...", 58);
+                if (!WaitForServer(healthUrl, log, 90, delegate(int percent)
+                {
+                    splash.SetStatus("Initialisation de l’application et vérification des services...", percent);
+                }))
+                    throw new InvalidOperationException("OmniKes n'a pas répondu après 90 secondes. Consultez le journal : " + log);
+
+                splash.SetStatus("Ouverture de l’interface OmniKès...", 96);
+            });
+
+            string localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            OmniKesWindow window = new OmniKesWindow(Path.Combine(localData, "OmniKes", "WebView2"), appUrl, log);
+            window.FormClosed += delegate { ExitThread(); };
+            MainForm = window;
+            splash.Close();
+            window.Show();
+        }
+        catch (Exception ex)
+        {
+            try { Directory.CreateDirectory(Path.GetDirectoryName(log)); File.AppendAllText(log, DateTime.Now.ToString("s") + " ERROR " + ex + Environment.NewLine); } catch { }
+            splash.Close();
+            MessageBox.Show(
+                "Impossible de démarrer OmniKès :" + Environment.NewLine + ex.Message +
+                Environment.NewLine + Environment.NewLine + "Journal : " + log,
+                "Démarrage d'OmniKès", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            ExitThread();
+        }
+    }
+
     private static string ReadApplicationUrl()
     {
         string programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
@@ -21,43 +100,6 @@ internal static class OmniKesLauncher
             throw new InvalidOperationException("Le port configuré pour OmniKès est invalide.");
 
         return "http://127.0.0.1:" + port + "/";
-    }
-
-    [STAThread]
-    private static void Main()
-    {
-        string launcherDirectory = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory);
-        string installRoot = Path.GetFullPath(Path.Combine(launcherDirectory, ".."));
-        string script = Path.GetFullPath(Path.Combine(launcherDirectory, "OmniKesLauncher.cmd"));
-        string localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string log = Path.Combine(localData, "OmniKes", "logs",
-            "launcher-" + DateTime.Now.ToString("yyyyMMdd") + ".log");
-
-        try
-        {
-            if (!File.Exists(script))
-                throw new FileNotFoundException("Le lanceur interne OmniKes est introuvable. Réinstallez l'application.", script);
-
-            Directory.CreateDirectory(Path.GetDirectoryName(log));
-            string appUrl = ReadApplicationUrl();
-            string healthUrl = new Uri(new Uri(appUrl), "api/health").ToString();
-            StartServerHelper(script, installRoot, log);
-
-            if (!WaitForServer(healthUrl, log, 90))
-                throw new InvalidOperationException("OmniKes n'a pas répondu après 90 secondes. Consultez le journal : " + log);
-
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new OmniKesWindow(Path.Combine(localData, "OmniKes", "WebView2"), appUrl, log));
-        }
-        catch (Exception ex)
-        {
-            try { File.AppendAllText(log, DateTime.Now.ToString("s") + " ERROR " + ex + Environment.NewLine); } catch { }
-            MessageBox.Show(
-                "Impossible de démarrer OmniKès :" + Environment.NewLine + ex.Message +
-                Environment.NewLine + Environment.NewLine + "Journal : " + log,
-                "Démarrage d'OmniKès", MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
     }
 
     private static void StartServerHelper(string script, string installRoot, string log)
@@ -78,9 +120,10 @@ internal static class OmniKesLauncher
             throw new InvalidOperationException("Le lanceur interne a échoué (code " + process.ExitCode + "). Consultez : " + log);
     }
 
-    private static bool WaitForServer(string healthUrl, string log, int seconds)
+    private static bool WaitForServer(string healthUrl, string log, int seconds, Action<int> progress)
     {
         DateTime deadline = DateTime.UtcNow.AddSeconds(seconds);
+        int percent = 62;
         while (DateTime.UtcNow < deadline)
         {
             try
@@ -89,19 +132,157 @@ internal static class OmniKesLauncher
                 request.Timeout = 1500;
                 request.Proxy = null;
                 using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+                using (StreamReader reader = new StreamReader(response.GetResponseStream()))
                 {
-                    using (StreamReader reader = new StreamReader(response.GetResponseStream()))
-                    {
-                        string body = reader.ReadToEnd();
-                        if ((int)response.StatusCode == 200 && body.IndexOf("\"application\":\"OmniKes\"", StringComparison.OrdinalIgnoreCase) >= 0)
-                            return true;
-                    }
+                    string body = reader.ReadToEnd();
+                    if ((int)response.StatusCode == 200 &&
+                        body.IndexOf("\"application\":\"OmniKes\"", StringComparison.OrdinalIgnoreCase) >= 0)
+                        return true;
                 }
             }
             catch { }
+            if (progress != null)
+            {
+                percent = Math.Min(92, percent + 1);
+                progress(percent);
+            }
             Thread.Sleep(1000);
         }
         return false;
+    }
+}
+
+internal sealed class OmniKesSplash : Form
+{
+    private readonly Label status;
+    private readonly Label percentLabel;
+    private readonly ProgressBar progress;
+    private readonly Timer animationTimer;
+    private int pulse;
+
+    public OmniKesSplash()
+    {
+        Text = "OmniKès";
+        Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+        StartPosition = FormStartPosition.CenterScreen;
+        FormBorderStyle = FormBorderStyle.FixedDialog;
+        MaximizeBox = false;
+        MinimizeBox = true;
+        ShowInTaskbar = true;
+        ClientSize = new Size(760, 430);
+        BackColor = Color.White;
+        Font = new Font("Segoe UI", 10F, FontStyle.Regular);
+
+        Panel top = new Panel();
+        top.Dock = DockStyle.Top;
+        top.Height = 8;
+        top.BackColor = Color.FromArgb(0, 91, 205);
+        Controls.Add(top);
+
+        PictureBox mark = new PictureBox();
+        mark.Location = new Point(54, 62);
+        mark.Size = new Size(126, 126);
+        mark.SizeMode = PictureBoxSizeMode.Zoom;
+        try { mark.Image = Icon.ExtractAssociatedIcon(Application.ExecutablePath).ToBitmap(); } catch { }
+        Controls.Add(mark);
+
+        Label brand = new Label();
+        brand.Text = "OmniKès";
+        brand.Font = new Font("Segoe UI", 42F, FontStyle.Bold);
+        brand.ForeColor = Color.FromArgb(8, 36, 91);
+        brand.Location = new Point(205, 76);
+        brand.Size = new Size(490, 64);
+        Controls.Add(brand);
+
+        Label subtitle = new Label();
+        subtitle.Text = "L O G I C I E L   P O S";
+        subtitle.Font = new Font("Segoe UI", 15F, FontStyle.Regular);
+        subtitle.ForeColor = Color.FromArgb(0, 105, 220);
+        subtitle.Location = new Point(211, 143);
+        subtitle.Size = new Size(440, 32);
+        Controls.Add(subtitle);
+
+        Panel separator = new Panel();
+        separator.BackColor = Color.FromArgb(0, 115, 220);
+        separator.Location = new Point(205, 184);
+        separator.Size = new Size(430, 2);
+        Controls.Add(separator);
+
+        Label wait = new Label();
+        wait.Text = "Veuillez patienter...";
+        wait.Font = new Font("Segoe UI", 21F, FontStyle.Bold);
+        wait.ForeColor = Color.FromArgb(8, 36, 91);
+        wait.TextAlign = ContentAlignment.MiddleCenter;
+        wait.Location = new Point(105, 220);
+        wait.Size = new Size(550, 42);
+        Controls.Add(wait);
+
+        status = new Label();
+        status.Text = "Préparation du démarrage d’OmniKès...";
+        status.Font = new Font("Segoe UI", 11F, FontStyle.Regular);
+        status.ForeColor = Color.FromArgb(55, 75, 110);
+        status.TextAlign = ContentAlignment.MiddleCenter;
+        status.Location = new Point(70, 269);
+        status.Size = new Size(620, 30);
+        Controls.Add(status);
+
+        progress = new ProgressBar();
+        progress.Location = new Point(72, 318);
+        progress.Size = new Size(616, 16);
+        progress.Minimum = 0;
+        progress.Maximum = 100;
+        progress.Style = ProgressBarStyle.Continuous;
+        progress.ForeColor = Color.FromArgb(0, 105, 220);
+        Controls.Add(progress);
+
+        percentLabel = new Label();
+        percentLabel.Text = "0 %";
+        percentLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        percentLabel.ForeColor = Color.FromArgb(8, 36, 91);
+        percentLabel.TextAlign = ContentAlignment.MiddleRight;
+        percentLabel.Location = new Point(620, 340);
+        percentLabel.Size = new Size(68, 22);
+        Controls.Add(percentLabel);
+
+        Label tagline = new Label();
+        tagline.Text = "Vendez.  Gérez.  Développez.";
+        tagline.Font = new Font("Segoe UI", 12F, FontStyle.Regular);
+        tagline.ForeColor = Color.FromArgb(8, 36, 91);
+        tagline.TextAlign = ContentAlignment.MiddleCenter;
+        tagline.Location = new Point(100, 377);
+        tagline.Size = new Size(560, 28);
+        Controls.Add(tagline);
+
+        Panel bottom = new Panel();
+        bottom.Dock = DockStyle.Bottom;
+        bottom.Height = 5;
+        bottom.BackColor = Color.FromArgb(242, 157, 25);
+        Controls.Add(bottom);
+
+        animationTimer = new Timer();
+        animationTimer.Interval = 450;
+        animationTimer.Tick += delegate
+        {
+            pulse = (pulse + 1) % 4;
+            string dots = new string('.', pulse);
+            if (!status.Text.EndsWith("...") && status.Text.IndexOf("...", StringComparison.Ordinal) < 0)
+                status.Text = status.Text.TrimEnd('.') + dots;
+        };
+        animationTimer.Start();
+        FormClosed += delegate { animationTimer.Stop(); };
+    }
+
+    public void SetStatus(string message, int value)
+    {
+        if (IsDisposed) return;
+        if (InvokeRequired)
+        {
+            try { BeginInvoke(new Action<string, int>(SetStatus), message, value); } catch { }
+            return;
+        }
+        status.Text = message;
+        progress.Value = Math.Max(progress.Minimum, Math.Min(progress.Maximum, value));
+        percentLabel.Text = value.ToString() + " %";
     }
 }
 
