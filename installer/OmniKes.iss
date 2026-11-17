@@ -27,7 +27,6 @@ DisableProgramGroupPage=yes
 CloseApplications=yes
 RestartApplications=no
 LicenseFile=..\docs\legal\OMNIKES-LICENSE.txt
-LicenseForceSelection=yes
 
 [Files]
 Source: "..\dist\windows\app\*"; DestDir: "{app}\app"; Excludes: ".env, .env.*"; Flags: recursesubdirs createallsubdirs ignoreversion
