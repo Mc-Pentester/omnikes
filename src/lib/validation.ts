@@ -158,7 +158,11 @@ export const productSchema = z.object({
 
 export const productUpdateSchema = productSchema.partial().omit({ organizationId: true }).extend({
   barcode: z.string().trim().max(50).optional().or(z.literal('')),
+  cost: z.number().finite().nonnegative('Cost must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Cost must have at most 2 decimal places').optional(),
   variantId: z.string().cuid().optional(),
+}).refine((data) => data.cost === undefined || Boolean(data.variantId), {
+  message: 'A variant is required when updating unit cost',
+  path: ['variantId'],
 });
 
 // ProductVariant validation
