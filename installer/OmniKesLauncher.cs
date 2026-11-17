@@ -282,9 +282,8 @@ internal sealed class OmniKesSplash : Form
         animationTimer.Tick += delegate
         {
             pulse = (pulse + 1) % 4;
-            string dots = new string('.', pulse);
-            if (!status.Text.EndsWith("...") && status.Text.IndexOf("...", StringComparison.Ordinal) < 0)
-                status.Text = status.Text.TrimEnd('.') + dots;
+            string[] frames = new string[] { "◴", "◷", "◶", "◵" };
+            spinner.Text = frames[pulse];
         };
         animationTimer.Start();
         FormClosed += delegate { animationTimer.Stop(); };
