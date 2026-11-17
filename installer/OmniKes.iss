@@ -21,6 +21,7 @@ DisableDirPage=auto
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UseSetupLdr=x64
+SetupIconFile=..\dist\windows\installer\omnikes.ico
 UninstallDisplayIcon={app}\installer\omnikes.exe
 DisableProgramGroupPage=yes
 CloseApplications=yes
@@ -39,8 +40,8 @@ Name: "{commonappdata}\OmniKes"
 Name: "{commonappdata}\OmniKes\postgresql-data"
 
 [Icons]
-Name: "{autoprograms}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"
-Name: "{autodesktop}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"
+Name: "{autoprograms}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"; IconFilename: "{app}\installer\omnikes.ico"
+Name: "{autodesktop}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"; IconFilename: "{app}\installer\omnikes.ico"
 
 [Run]
 Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"; StatusMsg: "Démarrage d'OmniKès..."; Flags: nowait postinstall skipifsilent

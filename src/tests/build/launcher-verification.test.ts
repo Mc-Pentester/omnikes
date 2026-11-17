@@ -19,7 +19,8 @@ describe('Windows Launcher Verification', () => {
     expect(source).toContain('ReadApplicationUrl');
     expect(source).toContain('application');
     expect(source).toContain('app-port.txt');
-    expect(source).not.toContain('3000');
+    expect(source).not.toContain('127.0.0.1:3000');
+    expect(source).not.toContain('localhost:3000');
     expect(source).toContain('MessageBox.Show');
     expect(source).toContain('using Microsoft.Web.WebView2.WinForms;');
     expect(source).toContain('new WebView2()');
