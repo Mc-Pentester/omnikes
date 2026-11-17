@@ -12,7 +12,7 @@ describe('OmniKes installer license acceptance', () => {
     expect(installer).toContain('LicenseFile=..\\docs\\legal\\OMNIKES-LICENSE.txt');
     // Inno Setup's built-in license page requires the user to accept before Next
     // becomes available. Do not rely on the unsupported LicenseForceSelection directive.
-    expect(installer).not.toMatch(/^\\s*LicenseForceSelection\\s*=/im);
+    expect(installer).not.toMatch(/^\s*LicenseForceSelection\s*=/im);
     expect(license).toContain('Éditeur : Kodyra Technologies');
     expect(license).toContain('Entrée en vigueur : date de l’installation');
     expect(license).toContain('ARTICLE 14 – ACCEPTATION ÉLECTRONIQUE');
