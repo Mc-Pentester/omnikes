@@ -657,18 +657,34 @@ export default function ProductsPage() {
             </div>
           )}
           {modalMode === 'edit' && (
-            <>
+            <div className="rounded-lg border border-border bg-surface-muted p-3 space-y-3">
+              <p className="text-sm font-semibold text-foreground">Prix du produit</p>
               <div>
                 <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">Prix de vente (HTG) *</label>
                 <Input id="price" type="number" min="0" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="100.00" required />
-                <p className="mt-1 text-xs text-muted">Ce prix sera utilisé lors des prochaines ventes.</p>
+                <p className="mt-1 text-xs text-muted">Prix appliqué aux prochaines ventes.</p>
               </div>
               <div>
                 <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">Coût d’acquisition unitaire (HTG) *</label>
                 <Input id="cost" type="number" min="0" step="0.01" value={formData.cost} onChange={(e) => setFormData({ ...formData, cost: e.target.value })} placeholder="0.00" required />
-                <p className="mt-1 text-xs text-muted">La valeur du stock sera recalculée à partir de ce coût et de la quantité disponible en stock.</p>
+                <p className="mt-1 text-xs text-muted">Utilisé pour calculer la valeur du stock, jamais le prix de vente.</p>
               </div>
-            </>
+            </div>
+          )}
+          {modalMode === 'edit' && selectedProduct && (
+            <div className="rounded-lg border border-border p-3 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Quantité en stock</p>
+                  <p className="text-sm text-muted">{selectedProduct.variants.find((variant) => variant.id === selectedVariantId)?.stock ?? 0} unité(s) actuellement enregistrée(s)</p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => {
+                  const variant = selectedProduct.variants.find((item) => item.id === selectedVariantId);
+                  if (variant) router.push(`/inventory?sku=${encodeURIComponent(variant.sku)}`);
+                }}>Gérer la quantité</Button>
+              </div>
+              <p className="text-xs text-muted">Les réceptions et ajustements se font dans la gestion des stocks afin de conserver l’historique des mouvements.</p>
+            </div>
           )}
           {modalMode === 'edit' && (
             <div>
