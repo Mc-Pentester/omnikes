@@ -27,6 +27,9 @@ describe('standard tenant RBAC roles', () => {
     expect(seller.permissions).not.toContain('user.create');
     expect(seller.permissions).not.toContain('role.create');
     expect(salesAssociate.permissions).toContain('sale.customer.assign');
+    for (const roleName of ['MANAGER', 'SALES_MANAGER', 'STORE_MANAGER', 'SELLER']) {
+      expect(STANDARD_TENANT_ROLES.find((role) => role.name === roleName)?.permissions).toContain('sale.pos.sync');
+    }
     expect(accountant.permissions).not.toContain('sale.update');
     expect(auditor.permissions.every((code) => code.endsWith('.read') || code === 'audit.read')).toBe(true);
   });
