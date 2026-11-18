@@ -51,7 +51,7 @@ describe('Windows installer RBAC bootstrap', () => {
     expect(initializer).toContain("where: { organizationId: organization.id, name: 'CASHIER' }");
     expect(initializer).toContain('tx.role.create');
     expect(initializer).toContain('tx.rolePermission.createMany');
-    expect(initializer).not.toMatch(/tx\\.(organization|user)\\.create\\s*\\(/);
+    expect(initializer).not.toMatch(/tx\.(organization|user)\.create\s*\(/);
     expect(initializer).not.toContain('deleteMany');
     expect(initializer).not.toContain('drop database');
 
