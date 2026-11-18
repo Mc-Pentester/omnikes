@@ -285,6 +285,7 @@ export default function ProductsPage() {
             category: formData.category,
             variantId: selectedVariantId,
             barcode: formData.barcode.trim(),
+            price: parseFloat(formData.price),
             cost: parseFloat(formData.cost),
           };
 
@@ -418,8 +419,8 @@ export default function ProductsPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Nom</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Catégorie</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">SKU / Code-barres</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Prix</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Coût unitaire</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Prix de vente</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Coût d’acquisition</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider">Stock</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Statut</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Actions</th>
@@ -604,7 +605,7 @@ export default function ProductsPage() {
               </div>
               <div>
                 <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">
-                  Prix (HTG) *
+                  Prix de vente (HTG) *
                 </label>
                 <Input
                   id="price"
@@ -617,7 +618,7 @@ export default function ProductsPage() {
                 />
               </div>
               <div>
-                <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">Coût unitaire (HTG) *</label>
+                <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">Coût d’acquisition unitaire (HTG) *</label>
                 <Input id="cost" type="number" min="0" step="0.01" value={formData.cost} onChange={(e) => setFormData({ ...formData, cost: e.target.value })} placeholder="0.00" required />
                 <p className="mt-1 text-xs text-muted">Ce coût sert au calcul de la valeur du stock (quantité × coût unitaire).</p>
               </div>
@@ -649,18 +650,25 @@ export default function ProductsPage() {
               <select id="barcode-variant" value={selectedVariantId} onChange={(e) => {
                 const variant = selectedProduct.variants.find((item) => item.id === e.target.value);
                 setSelectedVariantId(e.target.value);
-                setFormData((current) => ({ ...current, barcode: variant?.barcode || '', cost: variant?.cost?.toString() || '0' }));
+                setFormData((current) => ({ ...current, barcode: variant?.barcode || '', price: variant?.price?.toString() || '', cost: variant?.cost?.toString() || '0' }));
               }} className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground">
                 {selectedProduct.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.sku}</option>)}
               </select>
             </div>
           )}
           {modalMode === 'edit' && (
-            <div>
-              <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">Coût unitaire (HTG) *</label>
-              <Input id="cost" type="number" min="0" step="0.01" value={formData.cost} onChange={(e) => setFormData({ ...formData, cost: e.target.value })} placeholder="0.00" required />
-              <p className="mt-1 text-xs text-muted">La valeur du stock sera recalculée à partir de ce coût et de la quantité disponible en stock.</p>
-            </div>
+            <>
+              <div>
+                <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">Prix de vente (HTG) *</label>
+                <Input id="price" type="number" min="0" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="100.00" required />
+                <p className="mt-1 text-xs text-muted">Ce prix sera utilisé lors des prochaines ventes.</p>
+              </div>
+              <div>
+                <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">Coût d’acquisition unitaire (HTG) *</label>
+                <Input id="cost" type="number" min="0" step="0.01" value={formData.cost} onChange={(e) => setFormData({ ...formData, cost: e.target.value })} placeholder="0.00" required />
+                <p className="mt-1 text-xs text-muted">La valeur du stock sera recalculée à partir de ce coût et de la quantité disponible en stock.</p>
+              </div>
+            </>
           )}
           {modalMode === 'edit' && (
             <div>
