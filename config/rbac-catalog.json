@@ -69,6 +69,7 @@
       "description": "Gestion quotidienne des magasins et supervision des opérations",
       "permissionCodes": [
         "store.read",
+        "sale.pos.sync",
         "store.update",
         "product.manage",
         "product.read",
@@ -260,7 +261,8 @@
         "report.read",
         "product.read",
         "inventory.read",
-        "store.read"
+        "store.read",
+        "sale.pos.sync"
       ]
     },
     {
@@ -283,6 +285,7 @@
       "description": "Gestion opérationnelle des magasins et de leurs équipes",
       "permissionCodes": [
         "store.read",
+        "sale.pos.sync",
         "product.manage",
         "product.read",
         "inventory.read",
@@ -320,6 +323,7 @@
       "description": "Vente, devis, proformas et consultation des clients et produits",
       "permissionCodes": [
         "store.read",
+        "sale.pos.sync",
         "product.read",
         "customer.create",
         "customer.read",
