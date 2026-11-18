@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed": "npx ts-node prisma/seed.ts",
+    "seed": "npx ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' prisma/seed.ts",
     "hardware:bridge": "node tools/hardware-bridge/server.mjs",
     "seed:demo": "npx ts-node prisma/seed.demo.ts",
     "build:preflight": "node -e \"require('dotenv').config(); if (!process.env.DATABASE_URL) { console.error('DATABASE_URL is required for a production build.'); process.exit(1); }\"",
@@ -22,7 +22,8 @@
     "bootstrap:embedded-postgres": "npx ts-node -r tsconfig-paths/register --project tsconfig.bootstrap.json scripts/bootstrap-embedded-postgres.ts",
     "prepare:embedded-postgres": "npx ts-node -r tsconfig-paths/register --project tsconfig.bootstrap.json scripts/prepare-embedded-postgres.ts",
     "prepare:node-runtime": "npx ts-node -r tsconfig-paths/register --project tsconfig.bootstrap.json scripts/prepare-node-runtime.ts",
-    "package:windows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package-windows.ps1"
+    "package:windows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package-windows.ps1",
+    "audit:production": "npm audit --omit=dev"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
@@ -30,7 +31,7 @@
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
-    "next": "^16.4.3",
+    "next": "16.4.6",
     "pg": "^8.23.0",
     "prisma": "7.10.0",
     "react": "19.2.8",
@@ -49,7 +50,7 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^9",
-    "eslint-config-next": "16.4.3",
+    "eslint-config-next": "16.4.6",
     "jsdom": "^30.0.1",
     "serwist": "^9.5.12",
     "tailwindcss": "^4",
@@ -67,7 +68,7 @@
     },
     "fast-uri": "3.1.9",
     "mysql2": "3.24.4",
-    "@next/eslint-plugin-next": "16.4.3",
+    "@next/eslint-plugin-next": "16.4.6",
     "fast-glob": "3.3.3",
     "micromatch": "4.0.8",
     "browserslist": "4.29.3"
