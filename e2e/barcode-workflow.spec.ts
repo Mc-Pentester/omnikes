@@ -23,7 +23,7 @@ test.describe('Barcode workflow', () => {
     await page.getByLabel(/nom du produit/i).fill(productName);
     await page.getByLabel(/^sku/i).fill(sku);
     await page.getByLabel(/prix/i).fill('125');
-    await page.getByLabel(/coût unitaire/i).fill('75');
+    await page.getByLabel(/coût d’acquisition unitaire/i).fill('75');
     await expect(page.getByLabel(/code-barres/i)).toBeVisible();
     await expect(page.getByLabel(/code-barres/i)).toHaveValue('');
     await page.getByRole('button', { name: /^créer$/i }).click();
