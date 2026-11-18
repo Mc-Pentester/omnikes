@@ -58,8 +58,15 @@ describe('Inventory report cost valuation - PostgreSQL', () => {
 
     await productService.update(ids.product, ids.organization, {
       variantId: ids.variant,
+      price: 125,
       cost: 18.75,
     });
+
+    const updatedVariant = await prisma.productVariant.findUniqueOrThrow({
+      where: { id: ids.variant },
+    });
+    expect(Number(updatedVariant.price)).toBe(125);
+    expect(Number(updatedVariant.cost)).toBe(18.75);
 
     const report = await inventoryReportRepository.getReport(ids.organization, {
       authorizedStoreIds: [ids.store],
