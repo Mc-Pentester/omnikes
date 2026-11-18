@@ -54,7 +54,7 @@ internal sealed class OmniKesApplicationContext : ApplicationContext
 
                 Directory.CreateDirectory(Path.GetDirectoryName(log));
                 appUrl = "http://127.0.0.1:3000/";
-                string healthUrl = new Uri(new Uri(appUrl), "api/health").ToString();
+                string healthUrl = "http://127.0.0.1:3000/api/health";
 
                 splash.SetStatus("Démarrage des services locaux...", 28);
                 StartServerHelper(script, installRoot, log);
