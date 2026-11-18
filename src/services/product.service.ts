@@ -120,10 +120,10 @@ export class ProductService {
     const exists = await productRepository.belongsToOrganization(id, organizationId);
     if (!exists) throw new Error('Product not found or access denied');
     const validatedData = productUpdateSchema.parse(data);
-    const { barcode, variantId, cost, ...productData } = validatedData;
+    const { barcode, variantId, price, cost, ...productData } = validatedData;
     return prisma.$transaction(async (tx) => {
       await tx.product.updateMany({ where: { id, organizationId }, data: productData as Prisma.ProductUpdateManyMutationInput });
-      if (barcode !== undefined || cost !== undefined) {
+      if (barcode !== undefined || price !== undefined || cost !== undefined) {
         const variant = await tx.productVariant.findFirst({
           where: { id: variantId, productId: id },
           select: { id: true },
@@ -133,6 +133,7 @@ export class ProductService {
           where: { id: variant.id },
           data: {
             ...(barcode !== undefined ? { barcode: barcode.trim() || null } : {}),
+            ...(price !== undefined ? { price } : {}),
             ...(cost !== undefined ? { cost } : {}),
           },
         });
