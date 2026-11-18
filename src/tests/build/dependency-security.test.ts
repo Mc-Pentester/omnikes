@@ -9,6 +9,7 @@ describe('production dependency security baseline', () => {
     const lock = JSON.parse(readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
 
     expect(manifest.dependencies.next).toBe('16.4.6');
+    expect(manifest.scripts['audit:production']).toBe('npm audit --omit=dev');
     expect(lock.packages[''].dependencies.next).toBe('16.4.6');
     expect(lock.packages['node_modules/next'].version).toBe('16.4.6');
     expect(manifest.devDependencies['eslint-config-next']).toBe('16.4.6');
