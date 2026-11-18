@@ -73,6 +73,13 @@ export async function PATCH(
 
     return NextResponse.json(product);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: error.flatten() },
+        { status: 400 }
+      );
+    }
+
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },

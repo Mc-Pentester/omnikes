@@ -158,7 +158,12 @@ export const productSchema = z.object({
 
 export const productUpdateSchema = productSchema.partial().omit({ organizationId: true }).extend({
   barcode: z.string().trim().max(50).optional().or(z.literal('')),
+  price: z.number().finite().nonnegative('Price must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Price must have at most 2 decimal places').optional(),
+  cost: z.number().finite().nonnegative('Cost must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Cost must have at most 2 decimal places').optional(),
   variantId: z.string().cuid().optional(),
+}).refine((data) => (data.price === undefined && data.cost === undefined && data.barcode === undefined) || Boolean(data.variantId), {
+  message: 'A variant is required when updating variant prices or barcode',
+  path: ['variantId'],
 });
 
 // ProductVariant validation

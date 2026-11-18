@@ -26,6 +26,7 @@ interface ProductVariant {
   sku: string;
   barcode?: string | null;
   price: number;
+  cost: number;
   stock: number;
 }
 
@@ -36,6 +37,7 @@ interface ProductFormData {
   sku: string;
   barcode: string;
   price: string;
+  cost: string;
 }
 
 export default function ProductsPage() {
@@ -55,6 +57,7 @@ export default function ProductsPage() {
     sku: '',
     barcode: '',
     price: '',
+    cost: '',
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -129,6 +132,7 @@ export default function ProductsPage() {
       sku: '',
       barcode: '',
       price: '',
+      cost: '',
     });
     setFormError(null);
     setShowModal(true);
@@ -145,6 +149,7 @@ export default function ProductsPage() {
       sku: product.variants[0]?.sku || '',
       barcode: product.variants[0]?.barcode || '',
       price: product.variants[0]?.price?.toString() || '',
+      cost: product.variants[0]?.cost?.toString() || '0',
     });
     setFormError(null);
     setShowModal(true);
@@ -239,8 +244,13 @@ export default function ProductsPage() {
       return;
     }
 
-    if (!formData.price || isNaN(parseFloat(formData.price))) {
-      setFormError('Le prix doit être un nombre valide.');
+    if (!formData.price || !Number.isFinite(Number(formData.price)) || Number(formData.price) < 0) {
+      setFormError('Le prix doit être un nombre valide et positif ou nul.');
+      setIsSubmitting(false);
+      return;
+    }
+    if (formData.cost.trim() === '' || !Number.isFinite(Number(formData.cost)) || Number(formData.cost) < 0) {
+      setFormError('Le coût unitaire doit être un nombre valide et positif ou nul.');
       setIsSubmitting(false);
       return;
     }
@@ -262,6 +272,7 @@ export default function ProductsPage() {
                 sku: formData.sku,
                 barcode: formData.barcode.trim() || undefined,
                 price: parseFloat(formData.price),
+                cost: parseFloat(formData.cost),
               }
             ],
             ...(requestedInitialStock > 0
@@ -274,6 +285,8 @@ export default function ProductsPage() {
             category: formData.category,
             variantId: selectedVariantId,
             barcode: formData.barcode.trim(),
+            price: parseFloat(formData.price),
+            cost: parseFloat(formData.cost),
           };
 
       const response = await fetch(url, {
@@ -406,7 +419,8 @@ export default function ProductsPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Nom</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Catégorie</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">SKU / Code-barres</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Prix</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Prix de vente</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Coût d’acquisition</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider">Stock</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Statut</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">Actions</th>
@@ -420,6 +434,9 @@ export default function ProductsPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{product.variants[0]?.sku || '-'}<span className="block text-xs">{product.variants[0]?.barcode || 'Sans code-barres'}</span></td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                           {product.variants[0]?.price != null ? `${parseFloat(String(product.variants[0].price)).toFixed(2)} HTG` : '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
+                          {product.variants[0]?.cost != null ? `${parseFloat(String(product.variants[0].cost)).toFixed(2)} HTG` : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                           {product.variants[0]?.stock != null ? (
@@ -588,7 +605,7 @@ export default function ProductsPage() {
               </div>
               <div>
                 <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">
-                  Prix (HTG) *
+                  Prix de vente (HTG) *
                 </label>
                 <Input
                   id="price"
@@ -599,6 +616,11 @@ export default function ProductsPage() {
                   placeholder="100.00"
                   required
                 />
+              </div>
+              <div>
+                <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">Coût d’acquisition unitaire (HTG) *</label>
+                <Input id="cost" type="number" min="0" step="0.01" value={formData.cost} onChange={(e) => setFormData({ ...formData, cost: e.target.value })} placeholder="0.00" required />
+                <p className="mt-1 text-xs text-muted">Ce coût sert au calcul de la valeur du stock (quantité × coût unitaire).</p>
               </div>
               <div className="rounded-lg border border-border bg-surface-muted p-3 space-y-3">
                 <div>
@@ -628,10 +650,40 @@ export default function ProductsPage() {
               <select id="barcode-variant" value={selectedVariantId} onChange={(e) => {
                 const variant = selectedProduct.variants.find((item) => item.id === e.target.value);
                 setSelectedVariantId(e.target.value);
-                setFormData((current) => ({ ...current, barcode: variant?.barcode || '' }));
+                setFormData((current) => ({ ...current, barcode: variant?.barcode || '', price: variant?.price?.toString() || '', cost: variant?.cost?.toString() || '0' }));
               }} className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground">
                 {selectedProduct.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.sku}</option>)}
               </select>
+            </div>
+          )}
+          {modalMode === 'edit' && (
+            <div className="rounded-lg border border-border bg-surface-muted p-3 space-y-3">
+              <p className="text-sm font-semibold text-foreground">Prix du produit</p>
+              <div>
+                <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">Prix de vente (HTG) *</label>
+                <Input id="price" type="number" min="0" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="100.00" required />
+                <p className="mt-1 text-xs text-muted">Prix appliqué aux prochaines ventes.</p>
+              </div>
+              <div>
+                <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">Coût d’acquisition unitaire (HTG) *</label>
+                <Input id="cost" type="number" min="0" step="0.01" value={formData.cost} onChange={(e) => setFormData({ ...formData, cost: e.target.value })} placeholder="0.00" required />
+                <p className="mt-1 text-xs text-muted">Utilisé pour calculer la valeur du stock, jamais le prix de vente.</p>
+              </div>
+            </div>
+          )}
+          {modalMode === 'edit' && selectedProduct && (
+            <div className="rounded-lg border border-border p-3 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Quantité en stock</p>
+                  <p className="text-sm text-muted">{selectedProduct.variants.find((variant) => variant.id === selectedVariantId)?.stock ?? 0} unité(s) actuellement enregistrée(s)</p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => {
+                  const variant = selectedProduct.variants.find((item) => item.id === selectedVariantId);
+                  if (variant) router.push(`/inventory?sku=${encodeURIComponent(variant.sku)}`);
+                }}>Gérer la quantité</Button>
+              </div>
+              <p className="text-xs text-muted">Les réceptions et ajustements se font dans la gestion des stocks afin de conserver l’historique des mouvements.</p>
             </div>
           )}
           {modalMode === 'edit' && (
