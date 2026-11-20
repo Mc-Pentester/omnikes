@@ -4,23 +4,76 @@ name: Windows offline installer
 # when a release is published, never for ordinary pushes or pull requests.
 on:
   workflow_dispatch:
-  workflow_call:
-  release:
-    types: [published]
+    inputs:
+      release_tag:
+        description: "Version tag to build and publish (for example v1.0.0)"
+        required: true
+        type: string
 
 permissions:
-  contents: read
+  actions: read
+  contents: write
 
 jobs:
   package-windows:
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     env:
       DATABASE_URL: postgresql://build:build@127.0.0.1:5432/omnikes_build
 
     steps:
-      - name: Checkout code
+      # Reject malformed input before any tag lookup or checkout.
+      - name: Validate release tag format
+        shell: powershell
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          if ($tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$') {
+            throw "Invalid release tag '$tag'. Expected a version such as v1.0.0."
+          }
+
+      - name: Checkout main for release validation
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate release tag and successful main CI
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          git fetch origin main --tags --force
+          if ($LASTEXITCODE -ne 0) { throw "Could not fetch main and release tags." }
+
+          $tagCommit = (git rev-list -n 1 $tag).Trim()
+          if ($LASTEXITCODE -ne 0 -or -not $tagCommit) { throw "Release tag '$tag' does not resolve to a commit." }
+
+          git merge-base --is-ancestor $tagCommit origin/main
+          if ($LASTEXITCODE -ne 0) {
+            throw "Release tag '$tag' is not on the current main history. Publish only validated main commits."
+          }
+
+          $runsJson = gh run list --workflow ci.yml --commit $tagCommit --json conclusion,status,databaseId --limit 20
+          if ($LASTEXITCODE -ne 0) { throw "Could not verify GitHub Actions CI for commit $tagCommit." }
+          $runs = @($runsJson | ConvertFrom-Json)
+          $successfulRun = $runs | Where-Object { $_.status -eq "completed" -and $_.conclusion -eq "success" } | Select-Object -First 1
+          if (-not $successfulRun) {
+            throw "No successful CI run for commit $tagCommit. Release build blocked."
+          }
+
+          Write-Host "Release tag: $tag"
+          Write-Host "Release commit: $tagCommit"
+          Write-Host "Validated CI run: $($successfulRun.databaseId)"
+
+      - name: Checkout validated release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -188,3 +241,287 @@ jobs:
           path: dist/installer/OmniKes-Setup-*-x64.exe
           if-no-files-found: error
           retention-days: 14
+      - name: Publish installer and SHA-256 to GitHub Release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $installer = Get-ChildItem "dist\installer\OmniKes-Setup-*-x64.exe" -File | Select-Object -First 1
+          if (-not $installer -or $installer.Length -le 0) {
+            throw "A non-empty Windows installer is required before publishing."
+          }
+
+          $hash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumPath = "$($installer.FullName).sha256"
+          "$hash  $($installer.Name)" | Set-Content -LiteralPath $checksumPath -Encoding ascii
+
+          $releaseJson = gh release view $tag --json isDraft,url 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --draft --title "OmniKes $tag" --generate-notes --verify-tag
+            if ($LASTEXITCODE -ne 0) { throw "Could not create draft GitHub Release '$tag'." }
+          } else {
+            $release = $releaseJson | ConvertFrom-Json
+            if (-not $release.isDraft) {
+              throw "Release '$tag' is already published. Use a new version tag instead of replacing a public release."
+            }
+          }
+
+          gh release upload $tag $installer.FullName $checksumPath --clobber
+          if ($LASTEXITCODE -ne 0) { throw "Could not upload installer assets to release '$tag'." }
+
+          gh release edit $tag --draft=false --title "OmniKes $tag"
+          if ($LASTEXITCODE -ne 0) { throw "Assets were uploaded, but GitHub could not publish release '$tag'. Inspect the draft before retrying." }
+
+          Write-Host "Published release: https://github.com/Mc-Pentester/omnikes/releases/tag/$tag"
+          Write-Host "Installer: $($installer.Name)"
+          Write-Host "SHA-256: $hash"
+
+) {
+            throw "Invalid release tag '$tag'. Expected a version such as v1.0.0."
+          }
+
+      - name: Checkout main for release validation
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate release tag and successful main CI
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          if ($tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$') {
+            throw "Invalid release tag '$tag'. Expected a version such as v1.0.0."
+          }
+
+          git fetch origin main --tags --force
+          if ($LASTEXITCODE -ne 0) { throw "Could not fetch main and release tags." }
+
+          $tagCommit = (git rev-list -n 1 $tag).Trim()
+          if ($LASTEXITCODE -ne 0 -or -not $tagCommit) { throw "Release tag '$tag' does not resolve to a commit." }
+
+          git merge-base --is-ancestor $tagCommit origin/main
+          if ($LASTEXITCODE -ne 0) {
+            throw "Release tag '$tag' is not on the current main history. Publish only validated main commits."
+          }
+
+          $runsJson = gh run list --workflow ci.yml --commit $tagCommit --json conclusion,status,databaseId --limit 20
+          if ($LASTEXITCODE -ne 0) { throw "Could not verify GitHub Actions CI for commit $tagCommit." }
+          $runs = @($runsJson | ConvertFrom-Json)
+          $successfulRun = $runs | Where-Object { $_.status -eq "completed" -and $_.conclusion -eq "success" } | Select-Object -First 1
+          if (-not $successfulRun) {
+            throw "No successful CI run for commit $tagCommit. Release build blocked."
+          }
+
+          Write-Host "Release tag: $tag"
+          Write-Host "Release commit: $tagCommit"
+          Write-Host "Validated CI run: $($successfulRun.databaseId)"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build Windows offline installer
+        shell: powershell
+        run: npm run package:windows
+
+      - name: Verify Prisma packaging
+        shell: powershell
+        run: npm test -- src/tests/build/prisma-packaging-verification.test.ts
+
+      - name: Verify launcher configuration
+        shell: powershell
+        run: npm test -- src/tests/build/launcher-verification.test.ts
+
+      - name: Verify Windows in-place upgrade safety
+        shell: powershell
+        run: npm test -- src/tests/build/windows-in-place-upgrade.test.ts
+
+      - name: Inspect and reject repository documentation in package
+        shell: powershell
+        run: |
+          $app = Join-Path $PWD "dist\\windows\\app"
+          if (-not (Test-Path $app)) { throw "Packaged application directory is missing." }
+
+          Write-Host "=== Application package root ==="
+          Get-ChildItem $app -Force | Select-Object Mode, Name
+
+          # Only repository-level documentation directories are forbidden.
+          # Nested app routes and third-party vendor documentation are legitimate.
+          $forbiddenDirectories = @("docs", "audit", "reports", "report", "rapports", "rapport")
+          $leakedDirectories = Get-ChildItem $app -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $forbiddenDirectories -contains $_.Name.ToLowerInvariant() }
+          if ($leakedDirectories) {
+            $names = ($leakedDirectories | ForEach-Object { $_.FullName }) -join ", "
+            throw "Repository documentation directories leaked into package: $names"
+          }
+
+          # Reject only report/audit text artifacts at the package root.
+          $leakedFiles = Get-ChildItem $app -File -ErrorAction SilentlyContinue |
+            Where-Object {
+              $_.Name -match '(?i)(audit|report|rapport|diagnostic|forensic|remediation|analysis|analyse)' -and
+              $_.Extension -match '(?i)^\\.(md|txt|log|csv|pdf|html)$'
+            }
+          if ($leakedFiles) {
+            $names = ($leakedFiles | ForEach-Object { $_.FullName }) -join ", "
+            throw "Repository audit/report files leaked into package: $names"
+          }
+
+          $rootMarkdown = @(Get-ChildItem $app -File -Filter "*.md" -ErrorAction SilentlyContinue)
+          if ($rootMarkdown.Count -gt 0) {
+            $names = ($rootMarkdown | ForEach-Object { $_.Name }) -join ", "
+            throw "Repository Markdown files leaked into application root: $names"
+          }
+
+          Write-Host "Package documentation and audit/report exclusion checks: PASS"
+
+      - name: Verify production package excludes development lint chain
+        shell: powershell
+        run: |
+          $app = Join-Path $PWD "dist\\windows\\app"
+          if (-not (Test-Path (Join-Path $app "server.js"))) {
+            throw "Standalone server.js is missing from the packaged application."
+          }
+          foreach ($package in @("eslint-config-next", "@next\\eslint-plugin-next")) {
+            $packagePath = Join-Path $app ("node_modules\\" + $package)
+            if (Test-Path $packagePath) {
+              throw "Development-only package was included in the distributed application: $package"
+            }
+          }
+          npm audit --omit=dev --prefix $app
+          $installer = Get-ChildItem "dist\\installer\\OmniKes-Setup-*-x64.exe" -File
+          if (-not $installer) {
+            throw "The Inno Setup executable was not produced."
+          }
+          $installer | ForEach-Object { Write-Host "Installer: $($_.FullName) ($($_.Length) bytes)" }
+
+      - name: Verify Windows install, first-store creation, in-place upgrade, and uninstall
+        shell: powershell
+        run: |
+          $installer = Get-ChildItem "dist\installer\OmniKes-Setup-*-x64.exe" -File | Select-Object -First 1
+          if (-not $installer) {
+            throw "The Windows lifecycle test cannot find the generated installer."
+          }
+          & "$PWD\scripts\test-windows-installer-lifecycle.ps1" -SetupExe $installer.FullName
+
+      - name: Collect Windows uninstall diagnostics
+        if: always()
+        shell: powershell
+        run: |
+          $diagnosticDir = Join-Path $env:RUNNER_TEMP "omnikes-uninstall-diagnostics"
+          New-Item -ItemType Directory -Path $diagnosticDir -Force | Out-Null
+          $sources = @(
+            (Join-Path $env:RUNNER_TEMP "omnikes-installer-lifecycle.log"),
+            (Join-Path $env:RUNNER_TEMP "omnikes-uninstall-normal-inno.log"),
+            (Join-Path $env:RUNNER_TEMP "omnikes-uninstall-purge-inno.log"),
+            (Join-Path $env:ProgramData "OmniKes\logs\uninstall-runtime.log")
+          )
+          foreach ($source in $sources) {
+            if (Test-Path -LiteralPath $source) {
+              Copy-Item -LiteralPath $source -Destination $diagnosticDir -Force
+              Write-Host "=== $source ==="
+              Get-Content -LiteralPath $source -Tail 300
+            } else { Write-Host "DIAGNOSTIC FILE NOT FOUND: $source" }
+          }
+          $installDir = Join-Path $env:RUNNER_TEMP "OmniKes-Lifecycle-Test"
+          if (Test-Path -LiteralPath $installDir) {
+            Get-ChildItem -LiteralPath $installDir -Force -Recurse -ErrorAction SilentlyContinue |
+              Select-Object -First 1000 FullName, Length, Attributes |
+              Format-Table -AutoSize | Out-String -Width 4096 |
+              Set-Content -LiteralPath (Join-Path $diagnosticDir "remaining-install-files.txt")
+          } else { "Install directory absent." | Set-Content -LiteralPath (Join-Path $diagnosticDir "remaining-install-files.txt") }
+          Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -in @("node.exe", "postgres.exe", "omnikes.exe") } |
+            Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine |
+            Format-List | Out-String -Width 4096 |
+            Set-Content -LiteralPath (Join-Path $diagnosticDir "processes-after-uninstall.txt")
+          # sc.exe returns 1060 when the service has been removed. That is
+          # the expected post-uninstall state, not a diagnostics failure.
+          $serviceOutput = & "$env:WINDIR\System32\sc.exe" queryex OmniKesPostgreSQL 2>&1
+          $serviceExitCode = $LASTEXITCODE
+          $serviceDiagnostic = @($serviceOutput | ForEach-Object { "$_" })
+          if ($serviceExitCode -eq 1060) {
+            $serviceDiagnostic += "Expected result: OmniKesPostgreSQL is not installed (sc.exe exit 1060)."
+          } elseif ($serviceExitCode -ne 0) {
+            $serviceDiagnostic += "WARNING: sc.exe queryex returned unexpected exit code $serviceExitCode."
+            Write-Warning "Could not query OmniKesPostgreSQL after uninstall (sc.exe exit $serviceExitCode)."
+          }
+          $serviceDiagnostic |
+            Set-Content -LiteralPath (Join-Path $diagnosticDir "postgres-service-after-uninstall.txt")
+
+          # GitHub Actions appends "exit $LASTEXITCODE" to built-in PowerShell
+          # steps. sc.exe uses 1060 to report the expected absent-service state
+          # after uninstall, so clear its native exit code after recording it.
+          # Unexpected sc.exe errors are retained in the diagnostic file and
+          # warned above; diagnostic collection itself must still complete.
+          $global:LASTEXITCODE = 0
+          Write-Host "Diagnostics directory: $diagnosticDir"
+          Write-Host "Windows uninstall diagnostics collection: PASS"
+
+      - name: Upload Windows installer lifecycle diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmniKes-Windows-Uninstall-Diagnostics
+          path: ${{ runner.temp }}/omnikes-uninstall-diagnostics/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmniKes-Windows-Offline-Installer
+          path: dist/installer/OmniKes-Setup-*-x64.exe
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish installer and SHA-256 to GitHub Release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $installer = Get-ChildItem "dist\installer\OmniKes-Setup-*-x64.exe" -File | Select-Object -First 1
+          if (-not $installer -or $installer.Length -le 0) {
+            throw "A non-empty Windows installer is required before publishing."
+          }
+
+          $hash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumPath = "$($installer.FullName).sha256"
+          "$hash  $($installer.Name)" | Set-Content -LiteralPath $checksumPath -Encoding ascii
+
+          $releaseJson = gh release view $tag --json isDraft,url 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --draft --title "OmniKes $tag" --generate-notes --verify-tag
+            if ($LASTEXITCODE -ne 0) { throw "Could not create draft GitHub Release '$tag'." }
+          } else {
+            $release = $releaseJson | ConvertFrom-Json
+            if (-not $release.isDraft) {
+              throw "Release '$tag' is already published. Use a new version tag instead of replacing a public release."
+            }
+          }
+
+          gh release upload $tag $installer.FullName $checksumPath --clobber
+          if ($LASTEXITCODE -ne 0) { throw "Could not upload installer assets to release '$tag'." }
+
+          gh release edit $tag --draft=false --title "OmniKes $tag"
+          if ($LASTEXITCODE -ne 0) { throw "Assets were uploaded, but GitHub could not publish release '$tag'. Inspect the draft before retrying." }
+
+          Write-Host "Published release: https://github.com/Mc-Pentester/omnikes/releases/tag/$tag"
+          Write-Host "Installer: $($installer.Name)"
+          Write-Host "SHA-256: $hash"
+
