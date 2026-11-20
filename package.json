@@ -25,14 +25,14 @@
     "package:windows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/package-windows.ps1"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "^7.10.0",
-    "@prisma/client": "7.10.0",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
     "next": "^16.4.5",
     "pg": "^8.23.0",
-    "prisma": "7.10.0",
+    "prisma": "7.10.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "sharp": "0.35.5",
