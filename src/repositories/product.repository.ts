@@ -20,10 +20,11 @@ export class ProductRepository {
     search?: string;
     category?: string;
     isActive?: boolean;
+    authorizedStoreIds?: string[] | null;
     skip?: number;
     take?: number;
   } = {}) {
-    const { search, category, isActive, skip = 0, take = 50 } = options;
+    const { search, category, isActive, authorizedStoreIds, skip = 0, take = 50 } = options;
 
     const where: Prisma.ProductWhereInput = {
       organizationId,
@@ -49,7 +50,19 @@ export class ProductRepository {
       prisma.product.findMany({
         where,
         include: {
-          variants: true,
+          variants: {
+            include: {
+              inventories: {
+                where: {
+                  store: {
+                    organizationId,
+                    ...(authorizedStoreIds != null ? { id: { in: authorizedStoreIds } } : {}),
+                  },
+                },
+                select: { quantity: true },
+              },
+            },
+          },
         },
         skip,
         take,
@@ -60,8 +73,18 @@ export class ProductRepository {
       prisma.product.count({ where }),
     ]);
 
+    // Stock is the on-hand quantity across stores the current user may access.
+    // Keep the inventory rows out of the public product payload.
+    const productsWithStock = products.map((product) => ({
+      ...product,
+      variants: product.variants.map(({ inventories, ...variant }) => ({
+        ...variant,
+        stock: inventories.reduce((totalStock, inventory) => totalStock + inventory.quantity, 0),
+      })),
+    }));
+
     return {
-      products,
+      products: productsWithStock,
       total,
       skip,
       take,

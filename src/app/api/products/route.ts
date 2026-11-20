@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { productService } from '@omnikes/services/product.service';
 import { productSchema, productVariantSchema } from '@omnikes/lib/validation';
-import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, getAuthorizedStoreIds } from '@omnikes/lib/auth';
 import { validatePagination } from '@omnikes/lib/pagination';
 
 const productCreateRequestSchema = productSchema.extend({
@@ -34,7 +34,8 @@ export async function GET(request: NextRequest) {
     const isActive = searchParams.get('isActive') === 'true' ? true :
                      searchParams.get('isActive') === 'false' ? false : undefined;
     const { skip, take } = validatePagination(searchParams.get('skip'), searchParams.get('take'));
-    const result = await productService.list(organizationId, { search, category, isActive, skip, take });
+    const authorizedStoreIds = await getAuthorizedStoreIds(request);
+    const result = await productService.list(organizationId, { search, category, isActive, authorizedStoreIds, skip, take });
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid request data' }, { status: 400 });
