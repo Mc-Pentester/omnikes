@@ -1,7 +1,7 @@
 name: Windows offline installer
 
-# The Windows installer is expensive to build. Run it only on demand or
-# when a release is published, never for ordinary pushes or pull requests.
+# The Windows installer is expensive to build. Run it only through an explicit
+# release dispatch after the target main commit has passed CI and E2E checks.
 on:
   workflow_dispatch:
     inputs:
@@ -30,9 +30,9 @@ jobs:
       - name: Validate release tag and successful main CI
         shell: powershell
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "\${{ inputs.release_tag }}"
+          $tag = "${{ inputs.release_tag }}"
           if ($tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$') {
             throw "Invalid release tag '$tag'. Expected a version such as v1.0.0."
           }
@@ -230,9 +230,9 @@ jobs:
       - name: Publish installer and SHA-256 to GitHub Release
         shell: powershell
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "\${{ inputs.release_tag }}"
+          $tag = "${{ inputs.release_tag }}"
           $installer = Get-ChildItem "dist\installer\OmniKes-Setup-*-x64.exe" -File | Select-Object -First 1
           if (-not $installer -or $installer.Length -le 0) {
             throw "A non-empty Windows installer is required before publishing."
