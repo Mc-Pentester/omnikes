@@ -30,6 +30,7 @@ test.describe('Barcode workflow', () => {
     await expect(page.getByText(productName)).toBeVisible();
 
     const productRow = page.getByRole('row').filter({ hasText: productName });
+    await expect(productRow.getByRole('cell').nth(5)).toHaveText('0');
     await productRow.getByRole('button', { name: /modifier/i }).click();
     await page.getByLabel(/prix de vente/i).fill('175.50');
     await page.getByLabel(/coût d’acquisition unitaire/i).fill('82.25');
