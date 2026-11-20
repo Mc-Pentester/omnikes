@@ -245,6 +245,23 @@ describe('Windows Launcher Verification', () => {
   });
 
 
+  it('should verify a pre-migration backup of an existing database before applying Prisma migrations', () => {
+    const runtime = readFileSync(runtimeInstallerPath, 'utf8');
+    const backupStart = runtime.indexOf("if (dbExists === '1')");
+    const migrationStart = runtime.indexOf("writeLog('Applying packaged Prisma migrations.')");
+    expect(backupStart).toBeGreaterThan(-1);
+    expect(migrationStart).toBeGreaterThan(backupStart);
+    const backup = runtime.slice(backupStart, migrationStart);
+    expect(backup).toContain("pg('pg_dump')");
+    expect(backup).toContain("pg('pg_restore')");
+    expect(backup).toContain("'-Fc'");
+    expect(backup).toContain("'--list'");
+    expect(backup).toContain('fs.statSync(temporaryBackup).size === 0');
+    expect(backup).toContain('fs.renameSync(temporaryBackup, backupFile)');
+    expect(backup).toContain('Refusing to apply migrations.');
+    expect(backup).toContain('PRE-MIGRATION BACKUP FAILED');
+  });
+
   it('should allow first-store creation without optional email and preserve actionable API errors', () => {
     const onboarding = readFileSync(path.join(root, 'src', 'app', 'onboarding', 'page.tsx'), 'utf8');
     const storeApi = readFileSync(path.join(root, 'src', 'app', 'api', 'stores', 'route.ts'), 'utf8');
