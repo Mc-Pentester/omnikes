@@ -111,7 +111,7 @@ export class ProductService {
   }
 
   async list(organizationId: string, options: {
-    search?: string; category?: string; isActive?: boolean; skip?: number; take?: number;
+    search?: string; category?: string; isActive?: boolean; authorizedStoreIds?: string[] | null; skip?: number; take?: number;
   } = {}) {
     return productRepository.listByOrganization(organizationId, options);
   }
