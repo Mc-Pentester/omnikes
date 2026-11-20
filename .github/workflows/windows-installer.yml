@@ -21,23 +21,30 @@ jobs:
       DATABASE_URL: postgresql://build:build@127.0.0.1:5432/omnikes_build
 
     steps:
-      # Validate the user input before attempting to resolve or check out the tag.
+      # Reject malformed input before any tag lookup or checkout.
       - name: Validate release tag format
         shell: powershell
         env:
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        run: |
-          $tag = $env:RELEASE_TAG
-          if ($tag -notmatch '^v[0-9]+\\.[0-9]+\\.[0-9]+([-.][0-9A-Za-z.-]+)?        shell: powershell
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG: \${{ inputs.release_tag }}
         run: |
           $tag = $env:RELEASE_TAG
           if ($tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$') {
             throw "Invalid release tag '$tag'. Expected a version such as v1.0.0."
           }
 
+      - name: Checkout main for release validation
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate release tag and successful main CI
+        shell: powershell
+        env:
+          GH_TOKEN: \${{ github.token }}
+          RELEASE_TAG: \${{ inputs.release_tag }}
+        run: |
+          $tag = $env:RELEASE_TAG
           git fetch origin main --tags --force
           if ($LASTEXITCODE -ne 0) { throw "Could not fetch main and release tags." }
 
@@ -64,7 +71,7 @@ jobs:
       - name: Checkout validated release tag
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_tag }}
+          ref: \${{ inputs.release_tag }}
           fetch-depth: 0
 
       - name: Setup Node.js
