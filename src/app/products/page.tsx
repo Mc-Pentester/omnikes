@@ -439,11 +439,9 @@ export default function ProductsPage() {
                           {product.variants[0]?.cost != null ? `${parseFloat(String(product.variants[0].cost)).toFixed(2)} HTG` : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                          {product.variants[0]?.stock != null ? (
-                            <span className={`font-semibold ${product.variants[0].stock <= 0 ? 'text-danger' : product.variants[0].stock < 5 ? 'text-warning' : 'text-success'}`}>
-                              {product.variants[0].stock}
-                            </span>
-                          ) : '-'}
+                          <span className={`font-semibold ${product.variants[0]?.stock === 0 ? 'text-danger' : (product.variants[0]?.stock ?? 0) < 5 ? 'text-warning' : 'text-success'}`}>
+                            {product.variants[0]?.stock ?? 0}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <Badge variant={product.isActive ? 'success' : 'neutral'}>
