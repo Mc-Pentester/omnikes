@@ -34,6 +34,18 @@ describe('Product creation with opening inventory - PostgreSQL runtime', () => {
     productId = product.id;
     expect(product.variants).toHaveLength(1);
 
+    const [scopedCatalogue, noStoreAccessCatalogue, organizationCatalogue] = await Promise.all([
+      productService.list(organizationId, { authorizedStoreIds: [storeId] }),
+      productService.list(organizationId, { authorizedStoreIds: [] }),
+      productService.list(organizationId, { authorizedStoreIds: null }),
+    ]);
+    const scopedVariant = scopedCatalogue.products.find((item) => item.id === product.id)?.variants[0];
+    const hiddenVariant = noStoreAccessCatalogue.products.find((item) => item.id === product.id)?.variants[0];
+    const organizationVariant = organizationCatalogue.products.find((item) => item.id === product.id)?.variants[0];
+    expect(scopedVariant?.stock).toBe(5);
+    expect(hiddenVariant?.stock).toBe(0);
+    expect(organizationVariant?.stock).toBe(5);
+
     const [inventory, movements] = await Promise.all([
       prisma.inventory.findUniqueOrThrow({
         where: { storeId_variantId: { storeId, variantId: product.variants[0].id } },
