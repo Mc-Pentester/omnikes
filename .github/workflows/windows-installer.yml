@@ -31,8 +31,9 @@ jobs:
         shell: powershell
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          $tag = "${{ inputs.release_tag }}"
+          $tag = $env:RELEASE_TAG
           if ($tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$') {
             throw "Invalid release tag '$tag'. Expected a version such as v1.0.0."
           }
@@ -61,10 +62,6 @@ jobs:
           Write-Host "Validated CI run: $($successfulRun.databaseId)"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.22.2'
-          cache: npm
         uses: actions/setup-node@v4
         with:
           node-version: '22.22.2'
@@ -234,8 +231,9 @@ jobs:
         shell: powershell
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          $tag = "${{ inputs.release_tag }}"
+          $tag = $env:RELEASE_TAG
           $installer = Get-ChildItem "dist\installer\OmniKes-Setup-*-x64.exe" -File | Select-Object -First 1
           if (-not $installer -or $installer.Length -le 0) {
             throw "A non-empty Windows installer is required before publishing."
