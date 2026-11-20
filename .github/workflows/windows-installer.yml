@@ -30,10 +30,37 @@ jobs:
       - name: Validate release tag and successful main CI
         shell: powershell
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: \${{ github.token }}
         run: |
-          $tag = "${{ inputs.release_tag }}"
-          if ($tag -notmatch '^v[0-9]+\\.[0-9]+\\.[0-9]+([-.][0-9A-Za-z.-]+)?
+          $tag = "\${{ inputs.release_tag }}"
+          if ($tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$') {
+            throw "Invalid release tag '$tag'. Expected a version such as v1.0.0."
+          }
+
+          git fetch origin main --tags --force
+          if ($LASTEXITCODE -ne 0) { throw "Could not fetch main and release tags." }
+
+          $tagCommit = (git rev-list -n 1 $tag).Trim()
+          if ($LASTEXITCODE -ne 0 -or -not $tagCommit) { throw "Release tag '$tag' does not resolve to a commit." }
+
+          git merge-base --is-ancestor $tagCommit origin/main
+          if ($LASTEXITCODE -ne 0) {
+            throw "Release tag '$tag' is not on the current main history. Publish only validated main commits."
+          }
+
+          $runsJson = gh run list --workflow ci.yml --commit $tagCommit --json conclusion,status,databaseId --limit 20
+          if ($LASTEXITCODE -ne 0) { throw "Could not verify GitHub Actions CI for commit $tagCommit." }
+          $runs = @($runsJson | ConvertFrom-Json)
+          $successfulRun = $runs | Where-Object { $_.status -eq "completed" -and $_.conclusion -eq "success" } | Select-Object -First 1
+          if (-not $successfulRun) {
+            throw "No successful CI run for commit $tagCommit. Release build blocked."
+          }
+
+          Write-Host "Release tag: $tag"
+          Write-Host "Release commit: $tagCommit"
+          Write-Host "Validated CI run: $($successfulRun.databaseId)"
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.22.2'
@@ -199,6 +226,43 @@ jobs:
           path: dist/installer/OmniKes-Setup-*-x64.exe
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish installer and SHA-256 to GitHub Release
+        shell: powershell
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          $tag = "\${{ inputs.release_tag }}"
+          $installer = Get-ChildItem "dist\installer\OmniKes-Setup-*-x64.exe" -File | Select-Object -First 1
+          if (-not $installer -or $installer.Length -le 0) {
+            throw "A non-empty Windows installer is required before publishing."
+          }
+
+          $hash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumPath = "$($installer.FullName).sha256"
+          "$hash  $($installer.Name)" | Set-Content -LiteralPath $checksumPath -Encoding ascii
+
+          $releaseJson = gh release view $tag --json isDraft,url 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --draft --title "OmniKes $tag" --generate-notes
+            if ($LASTEXITCODE -ne 0) { throw "Could not create draft GitHub Release '$tag'." }
+          } else {
+            $release = $releaseJson | ConvertFrom-Json
+            if (-not $release.isDraft) {
+              throw "Release '$tag' is already published. Use a new version tag instead of replacing a public release."
+            }
+          }
+
+          gh release upload $tag $installer.FullName $checksumPath --clobber
+          if ($LASTEXITCODE -ne 0) { throw "Could not upload installer assets to release '$tag'." }
+
+          gh release edit $tag --title "OmniKes $tag"
+          if ($LASTEXITCODE -ne 0) { throw "Assets were uploaded, but GitHub could not publish release '$tag'. Inspect the draft before retrying." }
+
+          Write-Host "Published release: https://github.com/Mc-Pentester/omnikes/releases/tag/$tag"
+          Write-Host "Installer: $($installer.Name)"
+          Write-Host "SHA-256: $hash"
+
 
       - name: Publish installer and SHA-256 to GitHub Release
         shell: powershell
