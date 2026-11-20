@@ -257,15 +257,19 @@ jobs:
           $checksumPath = "$($installer.FullName).sha256"
           "$hash  $($installer.Name)" | Set-Content -LiteralPath $checksumPath -Encoding ascii
 
-          $releaseJson = gh release view $tag --json isDraft,url 2>$null
-          if ($LASTEXITCODE -ne 0) {
+          # Listing releases is safe when the requested tag has no Release yet.
+          # gh release view exits non-zero for a missing release; PowerShell 5.1
+          # can promote that native stderr into a terminating NativeCommandError.
+          $releasesJson = gh release list --limit 100 --json tagName,isDraft,url
+          if ($LASTEXITCODE -ne 0) { throw "Could not list GitHub Releases." }
+          $releases = @($releasesJson | ConvertFrom-Json)
+          $release = $releases | Where-Object { $_.tagName -eq $tag } | Select-Object -First 1
+
+          if (-not $release) {
             gh release create $tag --draft --title "OmniKes $tag" --generate-notes --verify-tag
             if ($LASTEXITCODE -ne 0) { throw "Could not create draft GitHub Release '$tag'." }
-          } else {
-            $release = $releaseJson | ConvertFrom-Json
-            if (-not $release.isDraft) {
-              throw "Release '$tag' is already published. Use a new version tag instead of replacing a public release."
-            }
+          } elseif (-not $release.isDraft) {
+            throw "Release '$tag' is already published. Use a new version tag instead of replacing a public release."
           }
 
           gh release upload $tag $installer.FullName $checksumPath --clobber
