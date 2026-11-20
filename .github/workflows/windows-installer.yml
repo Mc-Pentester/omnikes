@@ -293,7 +293,7 @@ jobs:
           gh release upload $tag $installer.FullName $checksumPath --clobber
           if ($LASTEXITCODE -ne 0) { throw "Could not upload installer assets to release '$tag'." }
 
-          gh release edit $tag --title "OmniKès $tag"
+          gh release edit $tag --draft=false --title "OmniKès $tag"
           if ($LASTEXITCODE -ne 0) { throw "Assets were uploaded, but GitHub could not publish release '$tag'. Inspect the draft before retrying." }
 
           Write-Host "Published release: https://github.com/Mc-Pentester/omnikes/releases/tag/$tag"
