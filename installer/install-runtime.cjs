@@ -328,7 +328,7 @@ if (dbExists === '1') {
       windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-    if (!archiveListing || !archiveListing.split(/\\r?\\n/).some((line) => /^\\s*\\d+;/.test(line))) {
+    if (!archiveListing || !archiveListing.split(/\r?\n/).some((line) => /^\s*\d+;/.test(line))) {
       throw new Error('The pre-migration backup is not a readable PostgreSQL archive.');
     }
 
