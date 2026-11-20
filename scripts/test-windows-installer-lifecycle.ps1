@@ -29,7 +29,7 @@ function Install-OmniKes {
   Assert (Test-Path $portFile) 'PostgreSQL port file is missing.'
   Assert (Test-Path $appPortFile) 'Application port file is missing.'
   Assert (Test-Path $passwordFile) 'PostgreSQL password file is missing.'
-  $licenseLog = Join-Path $programDataRoot 'legal\license-acceptance.log'
+  $script:licenseLog = Join-Path $programDataRoot 'legal\license-acceptance.log'
   Assert (Test-Path $licenseLog) 'The installer did not persist the license acceptance record.'
   $licenseRecord = Get-Content -LiteralPath $licenseLog -Raw
   Assert ($licenseRecord.Contains('ContractVersion=1.0')) 'The license acceptance record has no contract version.'
