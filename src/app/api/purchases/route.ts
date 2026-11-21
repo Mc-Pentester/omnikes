@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireCurrentOrganizationId, requirePermission, requireAuthenticatedUser, requireStoreAccess, getAuthorizedStoreIds } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireAuthenticatedUser, requireStoreAccess, getAuthorizedStoreIds, requireSubscriptionCapability } from '@omnikes/lib/auth';
 import { purchaseCreateSchema } from '@omnikes/lib/validation';
 import { purchaseService } from '@omnikes/services/purchase.service';
 
@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(purchases);
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid purchase parameters' }, { status: 400 });
+  if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     const authResponse = authErrorResponse(error);
     if (authResponse) return authResponse;
     console.error('Error listing purchases:', error);
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
     const user = await requireAuthenticatedUser(request);
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'purchase.manage');
+    await requireSubscriptionCapability(request, 'purchases.manage', 'WRITE');
     const data = purchaseCreateSchema.parse(await request.json());
     await requireStoreAccess(request, data.storeId);
     const purchase = await purchaseService.create(organizationId, user.id, data);
