@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storeService } from '@omnikes/services/store.service';
 import { storeRepository } from '@omnikes/repositories/store.repository';
-import { requireCurrentOrganizationId, requirePermission, getAuthorizedStoreIds } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, getAuthorizedStoreIds, requireSubscriptionCapability } from '@omnikes/lib/auth';
 import { validatePagination } from '@omnikes/lib/pagination';
 import { storeSchema } from '@omnikes/lib/validation';
+import { prisma } from '@omnikes/lib/prisma';
 
 /**
  * GET /api/stores
@@ -74,6 +75,8 @@ export async function POST(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'store.create');
+    const existingStoreCount = await prisma.store.count({ where: { organizationId } });
+    if (existingStoreCount > 0) await requireSubscriptionCapability(request, 'organization.multi_store', 'WRITE');
     const body = await request.json();
 
     // Validate input using Zod schema
@@ -109,6 +112,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof Error) {
       if (error.message === 'Authentication required' || error.message === 'Invalid or expired session') {
         return NextResponse.json(
