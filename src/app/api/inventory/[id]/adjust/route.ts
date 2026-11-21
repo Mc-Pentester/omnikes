@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { inventoryService } from '@omnikes/services/inventory.service';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, requireSubscriptionCapability } from '@omnikes/lib/auth';
 
 function isValidCuid(id: string): boolean {
   return /^[a-z0-9]{24,}$/.test(id);
@@ -17,6 +17,7 @@ export async function POST(
 
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'inventory.adjust');
+    await requireSubscriptionCapability(request, 'inventory.core', 'WRITE');
     const inventory = await inventoryService.getById(id, organizationId);
     await requireStoreAccess(request, inventory.storeId);
 
@@ -28,6 +29,7 @@ export async function POST(
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid request data', details: error.issues }, { status: 400 });
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     if (error instanceof Error && error.message.startsWith('Permission required')) return NextResponse.json({ error: 'Permission required' }, { status: 403 });
