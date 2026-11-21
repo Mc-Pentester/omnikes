@@ -151,14 +151,17 @@ La synchronisation/validation distante éventuelle est hors de ce chantier initi
 9. Les tarifs affichés, la périodicité enregistrée et le calcul de validité sont cohérents.
 10. CI exécute les tests unitaires, PostgreSQL et E2E pertinents. Le workflow de packaging/installation Windows ne doit pas être déclenché par chaque push ou PR.
 
-## Décisions à confirmer avant le code qui modifie les règles commerciales
+## Décisions commerciales validées
 
-- Pendant l'essai de 7 jours, quel plan est accordé : Essentiel ou Professionnel?
-- À l'expiration/annulation : blocage des nouvelles opérations payantes, ou période de grâce? Les données doivent rester consultables/exportables.
-- L'annulation prend-elle effet immédiatement ou à la fin de la période déjà payée?
-- Les changements de plan prennent-ils effet immédiatement ou au prochain renouvellement?
-- Les limites de magasins/utilisateurs sont-elles réellement souhaitées? Aucune limite chiffrée n'est publiée; ne pas en créer sans validation.
-- Comment le paiement mensuel/annuel est-il constaté au lancement (confirmation manuelle, preuve de paiement ou intégration future)?
+Les décisions suivantes ont été confirmées pour cette implémentation :
+
+- Essai gratuit : plan Professionnel pendant exactement 7 jours à compter de la création de la première organisation de l'installation. L'essai est un état distinct (`TRIAL`) et ne constitue pas un paiement.
+- Expiration : refuser les nouvelles opérations d'écriture réservées au plan; conserver la consultation et l'export des données historiques. Aucune suppression ni verrouillage des données historiques.
+- Annulation : programmer la fin à l'échéance déjà payée (`cancelAtPeriodEnd`), sans couper immédiatement les droits.
+- Changement de plan : mise à niveau immédiate; rétrogradation au prochain renouvellement. Cette règle devra être matérialisée dans le flux d'administration avant d'être activée.
+- Quotas : aucun quota de magasins ou d'utilisateurs n'est ajouté tant qu'aucune limite n'est publiée.
+- Activation/paiement : confirmation manuelle par l'opérateur plateforme. Aucun paiement automatique ni intégration MonCash/NatCash dans ce chantier.
+- Périodicité : `MONTHLY` ou `ANNUAL`, enregistrée séparément du plan. Les montants doivent rester ceux publiés sur le site.
 
 ## Hors périmètre explicite
 
@@ -170,4 +173,4 @@ La synchronisation/validation distante éventuelle est hors de ce chantier initi
 
 ## Livrables attendus dans cette PR
 
-Cette PR établit le plan technique et les critères de preuve. Les phases d'implémentation doivent ensuite être livrées dans cette même branche/PR, avec migrations additives, tests et vérification CI avant fusion. Aucun changement de comportement commercial n'est activé par ce document seul.
+Cette PR contient le plan, les décisions commerciales validées et l'implémentation progressive du moteur d'entitlements, de l'essai, des contrôles API et des tests. Chaque phase doit être vérifiée en CI avant fusion; aucune activation payante automatique n'est autorisée.
