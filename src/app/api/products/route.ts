@@ -65,6 +65,9 @@ export async function POST(request: NextRequest) {
     const result = await productService.create(organizationId, productData, initialStock);
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) {
+      return NextResponse.json({ error: error.message }, { status: 402 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid request data', details: error.issues }, { status: 400 });
     }
