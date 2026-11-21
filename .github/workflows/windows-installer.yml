@@ -26,12 +26,16 @@ jobs:
       # Reject malformed input before any tag lookup or checkout.
       - name: Validate release tag format
         shell: powershell
-        env:
         run: |
-          $tag = $env:RELEASE_TAG
-          if ($tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$') {
+          $tag = $env:RELEASE_TAG.Trim()
+          if ($tag -cnotmatch '^[vV][0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$') {
             throw "Invalid release tag '$tag'. Expected a version such as v1.0.0."
           }
+          # Git refs are case-sensitive even though PowerShell's default regex
+          # operators are not. Normalize once for validation, checkout, and publish.
+          $tag = $tag.ToLowerInvariant()
+          "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Normalized release tag: $tag"
 
       - name: Checkout main for release validation
         uses: actions/checkout@v4
