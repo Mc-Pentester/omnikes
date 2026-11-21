@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const plans = ['OMNIKES_149', 'OMNIKES_249', 'OMNIKES_299'] as const;
+const planSelect = (page: import('@playwright/test').Page) => page.getByLabel('Plan', { exact: true });
 
 test.describe('Platform subscription administration', () => {
   test.beforeEach(async ({ page }) => {
@@ -38,10 +39,15 @@ test.describe('Platform subscription administration', () => {
 
     for (let index = 0; index < plans.length; index += 1) {
       await page.getByRole('button', { name: new RegExp(['Tenant Essential', 'Tenant Professional', 'Tenant Enterprise'][index]) }).click();
-      await page.getByLabel('Plan').selectOption(plans[index]);
-      await page.getByLabel(/date d’expiration/i).fill('2030-12-31');
+      await planSelect(page).selectOption(plans[index]);
+      await expect(planSelect(page)).toHaveValue(plans[index]);
+      await page.getByLabel('Date d’expiration', { exact: true }).fill('2030-12-31');
       await page.getByRole('button', { name: /activer \/ renouveler/i }).click();
-      await expect(page.getByText(/abonnement activé\/renouvelé après confirmation manuelle/i)).toBeVisible();
+
+      await expect(page.getByText(
+        'Abonnement activé/renouvelé après confirmation manuelle du paiement.',
+        { exact: true },
+      )).toBeVisible();
       await expect(page.locator('dd').filter({ hasText: plans[index] }).first()).toBeVisible();
     }
   });
@@ -49,14 +55,23 @@ test.describe('Platform subscription administration', () => {
   test('shows deferred downgrade and end-of-period cancellation states', async ({ page }) => {
     await page.goto('/administration/platform-subscriptions');
     await page.getByRole('button', { name: /tenant enterprise/i }).click();
-    await page.getByLabel('Plan').selectOption('OMNIKES_149');
+    await planSelect(page).selectOption('OMNIKES_149');
+    await expect(planSelect(page)).toHaveValue('OMNIKES_149');
     await page.getByRole('button', { name: /changer de forfait/i }).click();
-    await expect(page.getByText(/rétrogradation programmée au renouvellement/i)).toBeVisible();
-    await expect(page.getByText('OMNIKES_149')).toBeVisible();
+
+    await expect(page.getByText(
+      'Rétrogradation programmée au renouvellement. Le forfait actuel reste actif jusque-là.',
+      { exact: true },
+    )).toBeVisible();
+    await expect(page.locator('dd').filter({ hasText: 'OMNIKES_299' })).toBeVisible();
+    await expect(page.locator('dd').filter({ hasText: 'OMNIKES_149' })).toBeVisible();
 
     await page.getByRole('button', { name: /annuler l’abonnement/i }).click();
-    await expect(page.getByText(/annulation programmée à la fin de la période déjà payée/i)).toBeVisible();
-    await expect(page.getByText('À l’échéance')).toBeVisible();
+    await expect(page.getByText(
+      'Annulation programmée à la fin de la période déjà payée. Les droits restent actifs jusqu’à cette échéance.',
+      { exact: true },
+    )).toBeVisible();
+    await expect(page.getByText('À l’échéance', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /annuler l’abonnement/i })).toHaveCount(0);
   });
 });
