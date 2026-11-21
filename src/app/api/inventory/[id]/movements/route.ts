@@ -111,13 +111,14 @@ export async function POST(
 
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'inventory.adjust');
-    await requireSubscriptionCapability(request, 'inventory.core', 'WRITE');
 
-    // Get inventory to verify store access before creating movement
+    // Verify inventory and store access before evaluating commercial entitlements.
     const inventory = await inventoryService.getById(id, organizationId);
     if (inventory.storeId) {
       await requireStoreAccess(request, inventory.storeId);
     }
+
+    await requireSubscriptionCapability(request, 'inventory.core', 'WRITE');
 
     // Protect against invalid JSON
     let body;
