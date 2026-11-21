@@ -30,6 +30,8 @@ model Organization {
   subscriptionBillingInterval String?
   subscriptionTrialStartedAt  DateTime?
   subscriptionCancelAtPeriodEnd Boolean   @default(false)
+  subscriptionPendingPlan String?
+  subscriptionPendingBillingInterval String?
 
   // Configuration flags
   cloudEnabled       Boolean @default(false)

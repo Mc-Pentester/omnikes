@@ -37,9 +37,8 @@ export const adminSubscriptionUpdateSchema = z.discriminatedUnion('action', [
     billingInterval: z.enum(['MONTHLY', 'ANNUAL']).default('ANNUAL'),
     expiresAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expiration date must be YYYY-MM-DD'),
   }),
-  z.object({
-    action: z.literal('CANCEL'),
-  }),
+  z.object({ action: z.literal('CHANGE_PLAN'), plan: adminSubscriptionPlanSchema, billingInterval: z.enum(['MONTHLY', 'ANNUAL']).default('ANNUAL') }),
+  z.object({ action: z.literal('CANCEL') }),
 ]);
 
 export type AdminSubscriptionUpdateInput = z.infer<typeof adminSubscriptionUpdateSchema>;

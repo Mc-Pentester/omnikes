@@ -15,6 +15,8 @@ type Organization = {
   subscriptionExpiresAt: string | null;
   subscriptionBillingInterval: 'MONTHLY' | 'ANNUAL' | null;
   subscriptionCancelAtPeriodEnd: boolean;
+  subscriptionPendingPlan: string | null;
+  subscriptionPendingBillingInterval: 'MONTHLY' | 'ANNUAL' | null;
 };
 
 const PLANS = [
@@ -99,7 +101,7 @@ export default function PlatformSubscriptionsPage() {
     };
   }, [authLoading, user?.id]);
 
-  const save = async (action: 'ACTIVATE' | 'CANCEL') => {
+  const save = async (action: 'ACTIVATE' | 'CHANGE_PLAN' | 'CANCEL') => {
     if (!selectedId) return;
     if (action === 'ACTIVATE' && !expiresAt) {
       setError('La date d’expiration est obligatoire.');
@@ -116,7 +118,7 @@ export default function PlatformSubscriptionsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(action === 'ACTIVATE'
           ? { action, plan, billingInterval, expiresAt }
-          : { action }),
+          : action === 'CHANGE_PLAN' ? { action, plan, billingInterval } : { action }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || 'Opération refusée');
@@ -127,7 +129,9 @@ export default function PlatformSubscriptionsPage() {
       setMessage(
         action === 'ACTIVATE'
           ? 'Abonnement activé/renouvelé après confirmation manuelle du paiement.'
-          : 'Annulation programmée à la fin de la période déjà payée. Les droits restent actifs jusqu’à cette échéance.',
+          : action === 'CANCEL'
+            ? 'Annulation programmée à la fin de la période déjà payée. Les droits restent actifs jusqu’à cette échéance.'
+            : body.organization.subscriptionPendingPlan ? 'Rétrogradation programmée au renouvellement. Le forfait actuel reste actif jusque-là.' : 'Changement de forfait appliqué immédiatement.',
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Opération impossible');
@@ -187,6 +191,7 @@ export default function PlatformSubscriptionsPage() {
                 <div><dt className="text-muted">Périodicité</dt><dd>{selected.subscriptionBillingInterval ?? 'Non renseignée'}</dd></div>
                 <div><dt className="text-muted">Expiration</dt><dd>{formatDate(selected.subscriptionExpiresAt)}</dd></div>
                 <div><dt className="text-muted">Annulation</dt><dd>{selected.subscriptionCancelAtPeriodEnd ? 'À l’échéance' : 'Non programmée'}</dd></div>
+                <div><dt className="text-muted">Prochain forfait</dt><dd>{selected.subscriptionPendingPlan ?? 'Aucun changement programmé'}</dd></div>
               </dl>
 
               <div className="mt-6 space-y-4">
@@ -210,10 +215,12 @@ export default function PlatformSubscriptionsPage() {
                   <input type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
                 </label>
 
+                {selected.subscriptionStatus === 'ACTIVE' && <button type="button" disabled={saving} onClick={() => void save('CHANGE_PLAN')} className="w-full rounded-lg border px-4 py-2.5 disabled:opacity-50">Changer de forfait</button>}
+
                 <button
                   type="button"
                   disabled={saving}
-                  onClick={() => void save('ACTIVATE')}
+                  onClick={() => void save('ACTIVATE')
                   className="w-full rounded-lg bg-primary px-4 py-2.5 text-white disabled:opacity-50"
                 >
                   {saving ? 'Traitement…' : 'Activer / renouveler'}
