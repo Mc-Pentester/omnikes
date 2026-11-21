@@ -80,7 +80,10 @@ export function evaluateSubscriptionEntitlement(
     return { allowed: false, reason: 'UNKNOWN_PLAN' };
   }
 
-  if (PLAN_LEVEL[subscription.subscriptionPlan] < CAPABILITY_LEVEL[capability]) {
+  const requiredLevel = CAPABILITY_LEVEL[capability];
+  if (!requiredLevel) return { allowed: false, reason: 'CAPABILITY_NOT_INCLUDED' };
+
+  if (PLAN_LEVEL[subscription.subscriptionPlan] < requiredLevel) {
     return { allowed: false, reason: 'CAPABILITY_NOT_INCLUDED' };
   }
 
