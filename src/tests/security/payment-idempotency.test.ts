@@ -8,6 +8,7 @@ vi.mock('../../lib/auth', () => ({
   requirePermission: vi.fn(),
   getAuthenticatedUser: vi.fn(),
   requireStoreAccess: vi.fn(),
+  requireSubscriptionCapability: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../lib/prisma', () => ({
@@ -39,7 +40,7 @@ vi.mock('../../lib/prisma', () => ({
   },
 }));
 
-import { requireCurrentOrganizationId, requirePermission, getAuthenticatedUser, requireStoreAccess } from '../../lib/auth';
+import { requireCurrentOrganizationId, requirePermission, getAuthenticatedUser, requireStoreAccess, requireSubscriptionCapability } from '../../lib/auth';
 import { prisma } from '../../lib/prisma';
 
 // Type assertions for mocked functions
