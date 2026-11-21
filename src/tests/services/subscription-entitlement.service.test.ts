@@ -22,6 +22,18 @@ describe('evaluateSubscriptionEntitlement', () => {
       .toEqual({ allowed: false, reason: 'CAPABILITY_NOT_INCLUDED' });
   });
 
+  it('keeps pre-existing installations on Essential without granting Professional features', () => {
+    const legacy: SubscriptionSnapshot = {
+      subscriptionStatus: 'LEGACY',
+      subscriptionPlan: 'OMNIKES_149',
+      subscriptionExpiresAt: null,
+    };
+    expect(evaluateSubscriptionEntitlement(legacy, 'pos.sales', 'WRITE', now))
+      .toEqual({ allowed: true, reason: 'PLAN_INCLUDED' });
+    expect(evaluateSubscriptionEntitlement(legacy, 'purchases.manage', 'WRITE', now))
+      .toEqual({ allowed: false, reason: 'CAPABILITY_NOT_INCLUDED' });
+  });
+
   it('allows a higher plan to inherit lower-plan capabilities', () => {
     expect(evaluateSubscriptionEntitlement(active('OMNIKES_299'), 'inventory.transfers', 'WRITE', now))
       .toEqual({ allowed: true, reason: 'PLAN_INCLUDED' });
