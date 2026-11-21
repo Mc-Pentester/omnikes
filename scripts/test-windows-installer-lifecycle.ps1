@@ -12,6 +12,7 @@ $appPortFile = Join-Path $programDataRoot 'app-port.txt'
 $script:baseUrl = $null
 $passwordFile = Join-Path $programDataRoot '.omnikes-pg-password'
 $logFile = Join-Path $env:RUNNER_TEMP 'omnikes-installer-lifecycle.log'
+$licenseLog = Join-Path $programDataRoot 'legal\license-acceptance.log'
 
 function Assert([object]$Condition, [string]$Message) {
   # Accept native booleans as well as values such as IDs without letting
@@ -29,8 +30,7 @@ function Install-OmniKes {
   Assert (Test-Path $portFile) 'PostgreSQL port file is missing.'
   Assert (Test-Path $appPortFile) 'Application port file is missing.'
   Assert (Test-Path $passwordFile) 'PostgreSQL password file is missing.'
-  $script:licenseLog = Join-Path $programDataRoot 'legal\license-acceptance.log'
-  Assert (Test-Path $licenseLog) 'The installer did not persist the license acceptance record.'
+  Assert (Test-Path -LiteralPath $licenseLog) "The installer did not persist the license acceptance record at expected path: $licenseLog."
   $licenseRecord = Get-Content -LiteralPath $licenseLog -Raw
   Assert ($licenseRecord.Contains('ContractVersion=1.0')) 'The license acceptance record has no contract version.'
   Assert ($licenseRecord.Contains('Editor=Kodyra Technologies')) 'The license acceptance record has the wrong editor.'
@@ -84,6 +84,8 @@ try {
   Assert ($rejectedProcess.ExitCode -ne 0) 'Silent installation without explicit license acceptance was not rejected.'
   Assert (-not (Test-Path $installDir)) 'Silent installation without acceptance created the installation directory.'
   Install-OmniKes
+  $initialBackups = @(Get-ChildItem -LiteralPath (Join-Path $programDataRoot 'backups') -Filter 'omnikes-pre-migration-*.dump' -File -ErrorAction SilentlyContinue)
+  Assert ($initialBackups.Count -eq 0) 'A fresh Windows installation created an unnecessary pre-migration backup.'
 
   # Launch the local server without opening a browser or requiring an interactive desktop.
   $launcher = Join-Path $installDir 'installer\OmniKesLauncher.cmd'
@@ -239,7 +241,21 @@ try {
   [void](Invoke-Psql "CREATE TABLE IF NOT EXISTS installer_upgrade_probe (probe_key text PRIMARY KEY, probe_value text NOT NULL); INSERT INTO installer_upgrade_probe VALUES ('preservation', 'must-survive-upgrade') ON CONFLICT (probe_key) DO UPDATE SET probe_value = EXCLUDED.probe_value;")
   Stop-OmniKesServer
   Install-OmniKes
-  $acceptanceCount = ([regex]::Matches((Get-Content -LiteralPath $licenseLog -Raw), 'ContractVersion=1\.0')).Count
+  $backupDir = Join-Path $programDataRoot 'backups'
+  $preMigrationBackups = @(Get-ChildItem -LiteralPath $backupDir -Filter 'omnikes-pre-migration-*.dump' -File -ErrorAction SilentlyContinue)
+  Assert ($preMigrationBackups.Count -ge 1) 'In-place Windows upgrade did not create a pre-migration PostgreSQL backup.'
+  $latestBackup = $preMigrationBackups | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+  Assert ($latestBackup.Length -gt 0) 'Pre-migration PostgreSQL backup is empty.'
+  $pgRestore = Join-Path $installDir 'runtime\postgresql\bin\pg_restore.exe'
+  Assert (Test-Path -LiteralPath $pgRestore) 'pg_restore.exe is missing from the Windows runtime.'
+  $backupListing = & $pgRestore --list $latestBackup.FullName 2>&1
+  $restoreExitCode = $LASTEXITCODE
+  Assert ($restoreExitCode -eq 0) "Pre-migration PostgreSQL backup is unreadable (pg_restore exit $restoreExitCode)."
+  Assert (@($backupListing | Where-Object { $_ -match '^\s*\d+;' }).Count -gt 0) 'Pre-migration PostgreSQL archive contains no readable TOC entries.'
+  Write-Host 'PRE-MIGRATION BACKUP + PG_RESTORE VERIFICATION: PASS'
+  Assert (Test-Path -LiteralPath $licenseLog) "The license acceptance log is missing after the in-place upgrade: $licenseLog"
+  $licenseRecordAfterUpgrade = Get-Content -LiteralPath $licenseLog -Raw
+  $acceptanceCount = ([regex]::Matches($licenseRecordAfterUpgrade, 'ContractVersion=1\.0')).Count
   Assert ($acceptanceCount -eq 2) "Expected the in-place upgrade to append a second license acceptance record, found $acceptanceCount."
   $probe = Invoke-Psql "SELECT probe_value FROM installer_upgrade_probe WHERE probe_key = 'preservation';"
   Assert ($probe -eq 'must-survive-upgrade') 'In-place upgrade did not preserve the PostgreSQL database.'
