@@ -32,6 +32,8 @@ export class PlatformSubscriptionService {
         subscriptionStatus: true,
         subscriptionPlan: true,
         subscriptionExpiresAt: true,
+        subscriptionBillingInterval: true,
+        subscriptionCancelAtPeriodEnd: true,
       },
       orderBy: { name: 'asc' },
     });
@@ -88,11 +90,17 @@ export class PlatformSubscriptionService {
           subscriptionStatus: 'ACTIVE',
           subscriptionPlan: data.plan,
           subscriptionExpiresAt: parseExpirationDate(data.expiresAt),
+          subscriptionBillingInterval: data.billingInterval,
+          subscriptionCancelAtPeriodEnd: false,
         }
       : {
-          subscriptionStatus: 'CANCELLED',
+          // Cancellation is scheduled for the already-paid-through date.
+          // The current plan remains valid until its expiration timestamp.
+          subscriptionStatus: existing.subscriptionStatus,
           subscriptionPlan: existing.subscriptionPlan,
           subscriptionExpiresAt: existing.subscriptionExpiresAt,
+          subscriptionBillingInterval: existing.subscriptionBillingInterval,
+          subscriptionCancelAtPeriodEnd: true,
         };
 
     return prisma.$transaction(async (tx) => {
@@ -108,6 +116,8 @@ export class PlatformSubscriptionService {
           subscriptionStatus: true,
           subscriptionPlan: true,
           subscriptionExpiresAt: true,
+          subscriptionBillingInterval: true,
+          subscriptionCancelAtPeriodEnd: true,
         },
       });
 
@@ -117,7 +127,7 @@ export class PlatformSubscriptionService {
           organizationId,
           action: data.action === 'ACTIVATE'
             ? 'ORGANIZATION_SUBSCRIPTION_ACTIVATED'
-            : 'ORGANIZATION_SUBSCRIPTION_CANCELLED',
+            : 'ORGANIZATION_SUBSCRIPTION_CANCELLATION_SCHEDULED',
           module: 'subscription',
           entityId: organizationId,
           entityType: 'Organization',
@@ -125,11 +135,15 @@ export class PlatformSubscriptionService {
             subscriptionStatus: existing.subscriptionStatus,
             subscriptionPlan: existing.subscriptionPlan,
             subscriptionExpiresAt: existing.subscriptionExpiresAt,
+            subscriptionBillingInterval: existing.subscriptionBillingInterval,
+            subscriptionCancelAtPeriodEnd: existing.subscriptionCancelAtPeriodEnd,
           },
           newValues: {
             subscriptionStatus: organization.subscriptionStatus,
             subscriptionPlan: organization.subscriptionPlan,
             subscriptionExpiresAt: organization.subscriptionExpiresAt,
+            subscriptionBillingInterval: organization.subscriptionBillingInterval,
+            subscriptionCancelAtPeriodEnd: organization.subscriptionCancelAtPeriodEnd,
           },
           metadata: {
             authorizationScope: 'PLATFORM',
