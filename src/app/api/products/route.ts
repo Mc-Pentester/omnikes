@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { productService } from '@omnikes/services/product.service';
 import { productSchema, productVariantSchema } from '@omnikes/lib/validation';
-import { requireCurrentOrganizationId, requirePermission, getAuthorizedStoreIds } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, getAuthorizedStoreIds, requireSubscriptionCapability } from '@omnikes/lib/auth';
 import { validatePagination } from '@omnikes/lib/pagination';
 
 const productCreateRequestSchema = productSchema.extend({
@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
     const result = await productService.list(organizationId, { search, category, isActive, authorizedStoreIds, skip, take });
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid request data' }, { status: 400 });
     if (error instanceof Error) {
       if (error.message === 'Authentication required' || error.message === 'Invalid or expired session') {
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'product.manage');
+    await requireSubscriptionCapability(request, 'inventory.core', 'WRITE');
     const body = await request.json();
     const validatedData = productCreateRequestSchema.parse({ ...body, organizationId });
     const { initialStock, ...productData } = validatedData;
