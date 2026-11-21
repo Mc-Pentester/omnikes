@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { returnService } from '@omnikes/services/return.service';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, getAuthenticatedUser } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, getAuthenticatedUser, requireSubscriptionCapability } from '@omnikes/lib/auth';
 import { returnSchema } from '@omnikes/lib/validation';
 import { prisma } from '@omnikes/lib/prisma';
 import { idempotencyKeySchema } from '@omnikes/lib/validation';
@@ -31,6 +31,7 @@ export async function POST(
     const authenticatedUserId = user.id;
 
     await requirePermission(request, 'sale.return');
+    await requireSubscriptionCapability(request, 'pos.sales', 'WRITE');
 
     // Get idempotency key
     const idempotencyKey = request.headers.get('Idempotency-Key');
@@ -133,6 +134,7 @@ export async function POST(
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof ZodError) {
       return NextResponse.json(
         { error: 'Invalid request data', details: error.issues },
