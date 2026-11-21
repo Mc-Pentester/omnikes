@@ -125,6 +125,8 @@ describe('Subscription entitlements PostgreSQL runtime', () => {
     });
     await expect(requireSubscriptionCapability(request(), 'pos.sales', 'WRITE'))
       .rejects.toThrow('Subscription entitlement required: pos.sales');
+    await expect(requireSubscriptionCapability(request(), 'inventory.core', 'WRITE'))
+      .rejects.toThrow('Subscription entitlement required: inventory.core');
   });
 
   it('retains Essential access for grandfathered existing installations', async () => {

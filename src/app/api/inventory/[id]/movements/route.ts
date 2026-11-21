@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { validatePagination } from '@omnikes/lib/pagination';
 import { inventoryService } from '@omnikes/services/inventory.service';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, requireSubscriptionCapability } from '@omnikes/lib/auth';
 import { inventoryMovementSchema } from '@omnikes/lib/validation';
 
 // Simple CUID validation (basic format check)
@@ -111,6 +111,7 @@ export async function POST(
 
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'inventory.adjust');
+    await requireSubscriptionCapability(request, 'inventory.core', 'WRITE');
 
     // Get inventory to verify store access before creating movement
     const inventory = await inventoryService.getById(id, organizationId);
@@ -137,6 +138,9 @@ export async function POST(
 
     return NextResponse.json(movement, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) {
+      return NextResponse.json({ error: error.message }, { status: 402 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid movement data', details: error.flatten() },
