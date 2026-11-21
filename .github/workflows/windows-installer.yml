@@ -34,7 +34,7 @@ jobs:
           # Git refs are case-sensitive even though PowerShell's default regex
           # operators are not. Normalize once for validation, checkout, and publish.
           $tag = $tag.ToLowerInvariant()
-          "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          [System.IO.File]::AppendAllText($env:GITHUB_ENV, "RELEASE_TAG=$tag`n", [System.Text.UTF8Encoding]::new($false))
           Write-Host "Normalized release tag: $tag"
 
       - name: Checkout main for release validation
