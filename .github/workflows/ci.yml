@@ -114,6 +114,9 @@ jobs:
       - name: Apply PostgreSQL migrations
         run: npx prisma migrate deploy
 
+      - name: Verify organization-scoped barcode uniqueness
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-barcode-organization-scope.sql
+
       - name: Seed PostgreSQL test database
         run: npm run seed
 
