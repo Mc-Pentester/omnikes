@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { authService } from '@omnikes/services/auth.service';
 import { roleRepository } from '@omnikes/repositories/role.repository';
 import { platformRoleRepository } from '@omnikes/repositories/platform-role.repository';
+import { prisma } from '@omnikes/lib/prisma';
+import { evaluateSubscriptionEntitlement, type SubscriptionCapability, type SubscriptionOperation } from '@omnikes/services/subscription-entitlement.service';
 
 export interface AuthenticatedUser {
   id: string;
@@ -172,5 +174,33 @@ export async function requirePlatformRole(request: NextRequest, roleName: string
 
   if (!hasRole) {
     throw new Error(`Platform role required: ${roleName}`);
+  }
+}
+
+
+/**
+ * Enforce the organization's commercial plan after the caller has checked RBAC.
+ * Tenant scope is derived from the authenticated session; clients cannot supply it.
+ */
+export async function requireSubscriptionCapability(
+  request: NextRequest,
+  capability: SubscriptionCapability,
+  operation: SubscriptionOperation,
+): Promise<void> {
+  const organizationId = await requireCurrentOrganizationId(request);
+  const organization = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: {
+      subscriptionStatus: true,
+      subscriptionPlan: true,
+      subscriptionExpiresAt: true,
+    },
+  });
+
+  if (!organization) throw new Error('Organization not found');
+
+  const decision = evaluateSubscriptionEntitlement(organization, capability, operation);
+  if (!decision.allowed) {
+    throw new Error(`Subscription entitlement required: ${capability} (${decision.reason})`);
   }
 }
