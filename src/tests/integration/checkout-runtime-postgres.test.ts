@@ -14,6 +14,7 @@ vi.mock('@omnikes/lib/auth', () => ({
   requirePermission: vi.fn().mockResolvedValue(undefined),
   getAuthenticatedUser: vi.fn().mockImplementation(async () => ({ id: authState.userId })),
   requireStoreAccess: vi.fn().mockResolvedValue(undefined),
+  requireSubscriptionCapability: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe('P0-22 — Real PostgreSQL Runtime Validation', () => {

@@ -12,6 +12,7 @@ vi.mock('@omnikes/lib/auth', () => ({
   requirePermission: vi.fn().mockResolvedValue(undefined),
   getAuthenticatedUser: vi.fn().mockImplementation(async () => ({ id: authState.userId })),
   requireStoreAccess: vi.fn().mockResolvedValue(undefined),
+  requireSubscriptionCapability: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe('POS CASH end-to-end PostgreSQL runtime proof', () => {

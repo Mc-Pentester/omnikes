@@ -3,7 +3,7 @@ import { parseReportDateParam } from '@omnikes/lib/date-validation';
 import { z } from 'zod';
 import { salesReportService } from '@omnikes/services/sales-report.service';
 import { salesReportStoreSchema } from '@omnikes/lib/validation';
-import { requireCurrentOrganizationId, requirePermission, getAuthorizedStoreIds } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, getAuthorizedStoreIds, requireSubscriptionCapability } from '@omnikes/lib/auth';
 
 /**
  * GET /api/reports/sales/by-store
@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'report.read');
+    await requireSubscriptionCapability(request, 'reports.advanced', 'READ');
 
     const { searchParams } = new URL(request.url);
 
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },

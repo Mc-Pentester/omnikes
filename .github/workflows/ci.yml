@@ -121,7 +121,7 @@ jobs:
         run: npm run seed
 
       - name: Run real PostgreSQL runtime proof
-        run: npx vitest run --config vitest.integration.config.ts --no-file-parallelism src/tests/integration/sale-credit.postgres.test.ts src/tests/integration/sale-credit.api.postgres.test.ts src/tests/integration/cash-management.postgres.test.ts src/tests/integration/pos-cash-e2e.postgres.test.ts src/tests/integration/local-backup-restore.postgres.test.ts src/tests/integration/inventory-receipt-idempotency.postgres.test.ts src/tests/integration/product-opening-inventory.postgres.test.ts
+        run: npx vitest run --config vitest.integration.config.ts --no-file-parallelism src/tests/integration/sale-credit.postgres.test.ts src/tests/integration/sale-credit.api.postgres.test.ts src/tests/integration/cash-management.postgres.test.ts src/tests/integration/pos-cash-e2e.postgres.test.ts src/tests/integration/local-backup-restore.postgres.test.ts src/tests/integration/inventory-receipt-idempotency.postgres.test.ts src/tests/integration/product-opening-inventory.postgres.test.ts src/tests/integration/subscription-entitlements.postgres.test.ts src/tests/integration/platform-subscription-runtime.postgres.test.ts src/tests/integration/platform-subscription-rbac.postgres.test.ts src/tests/integration/platform-subscription-lifecycle.postgres.test.ts src/tests/integration/platform-subscription-access.postgres.test.ts
 
       - name: Run tests
         run: npm test
@@ -134,6 +134,9 @@ jobs:
           E2E_EMAIL: admin.a@omnikes.test
           E2E_PASSWORD: ${{ env.SEED_PASSWORD_A }}
         run: npx playwright test e2e/barcode-workflow.spec.ts --project=chromium
+
+      - name: Run platform subscription administration end-to-end test
+        run: npx playwright test e2e/platform-subscriptions.spec.ts --project=chromium
 
       - name: Lint
         shell: bash

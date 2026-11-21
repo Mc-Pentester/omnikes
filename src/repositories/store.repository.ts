@@ -50,6 +50,11 @@ export class StoreRepository {
     };
   }
 
+  /** Count all stores belonging to an organization. */
+  async countByOrganization(organizationId: string): Promise<number> {
+    return prisma.store.count({ where: { organizationId } });
+  }
+
   /**
    * Find a store by ID with organization check
    */

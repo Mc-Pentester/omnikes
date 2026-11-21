@@ -6,6 +6,7 @@ import { NextRequest } from 'next/server';
 vi.mock('@omnikes/lib/auth', () => ({
   requireCurrentOrganizationId: vi.fn(),
   requirePermission: vi.fn(),
+  requireSubscriptionCapability: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@omnikes/services/store.service', () => ({
@@ -18,6 +19,7 @@ vi.mock('@omnikes/services/store.service', () => ({
 vi.mock('@omnikes/repositories/store.repository', () => ({
   storeRepository: {
     findByCode: vi.fn(),
+    countByOrganization: vi.fn().mockResolvedValue(0),
   },
 }));
 

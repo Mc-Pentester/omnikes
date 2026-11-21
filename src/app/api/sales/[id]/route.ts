@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saleService } from '@omnikes/services/sale.service';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, requireSubscriptionCapability } from '@omnikes/lib/auth';
 
 // Simple CUID validation (basic format check)
 function isValidCuid(id: string): boolean {
@@ -38,6 +38,7 @@ export async function GET(
 
     return NextResponse.json(sale);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -95,6 +96,7 @@ export async function PATCH(
 
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'sale.update');
+    await requireSubscriptionCapability(request, 'pos.sales', 'WRITE');
 
     // Get existing sale to verify store access
     const existingSale = await saleService.getById(id, organizationId);
@@ -117,6 +119,7 @@ export async function PATCH(
 
     return NextResponse.json(sale);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },

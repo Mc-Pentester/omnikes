@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '@omnikes/lib/prisma';
 import { adminSubscriptionUpdateSchema, AdminSubscriptionUpdateInput } from '@omnikes/lib/validation';
 import {
@@ -11,6 +12,8 @@ function parseExpirationDate(value: string): Date {
   if (date.getTime() <= Date.now()) throw new Error('Expiration date must be in the future');
   return date;
 }
+
+const PLAN_LEVEL: Record<string, number> = { OMNIKES_149: 1, OMNIKES_249: 2, OMNIKES_299: 3 };
 
 function requirePlatformManage(allowed: boolean) {
   if (!allowed) throw new Error(`Permission required: ${PLATFORM_SUBSCRIPTION_PERMISSION}`);
@@ -32,6 +35,10 @@ export class PlatformSubscriptionService {
         subscriptionStatus: true,
         subscriptionPlan: true,
         subscriptionExpiresAt: true,
+        subscriptionBillingInterval: true,
+        subscriptionCancelAtPeriodEnd: true,
+        subscriptionPendingPlan: true,
+        subscriptionPendingBillingInterval: true,
       },
       orderBy: { name: 'asc' },
     });
@@ -53,6 +60,10 @@ export class PlatformSubscriptionService {
         subscriptionStatus: true,
         subscriptionPlan: true,
         subscriptionExpiresAt: true,
+        subscriptionBillingInterval: true,
+        subscriptionCancelAtPeriodEnd: true,
+        subscriptionPendingPlan: true,
+        subscriptionPendingBillingInterval: true,
       },
     });
 
@@ -78,22 +89,45 @@ export class PlatformSubscriptionService {
         subscriptionStatus: true,
         subscriptionPlan: true,
         subscriptionExpiresAt: true,
+        subscriptionBillingInterval: true,
+        subscriptionCancelAtPeriodEnd: true,
+        subscriptionPendingPlan: true,
+        subscriptionPendingBillingInterval: true,
       },
     });
 
     if (!existing) throw new Error('Organization not found');
 
-    const next = data.action === 'ACTIVATE'
-      ? {
-          subscriptionStatus: 'ACTIVE',
-          subscriptionPlan: data.plan,
-          subscriptionExpiresAt: parseExpirationDate(data.expiresAt),
-        }
-      : {
-          subscriptionStatus: 'CANCELLED',
-          subscriptionPlan: existing.subscriptionPlan,
-          subscriptionExpiresAt: existing.subscriptionExpiresAt,
-        };
+    if (data.action === 'CANCEL' && existing.subscriptionStatus !== 'ACTIVE') throw new Error('Only an active subscription can be cancelled');
+    if (data.action === 'CHANGE_PLAN' && existing.subscriptionStatus !== 'ACTIVE') throw new Error('Only an active subscription can change plans');
+
+    let next: Prisma.OrganizationUpdateInput;
+    if (data.action === 'ACTIVATE') {
+      next = {
+        subscriptionStatus: 'ACTIVE',
+        subscriptionPlan: existing.subscriptionPendingPlan ?? data.plan,
+        subscriptionExpiresAt: parseExpirationDate(data.expiresAt),
+        subscriptionBillingInterval: existing.subscriptionPendingBillingInterval ?? data.billingInterval,
+        subscriptionCancelAtPeriodEnd: false,
+        subscriptionPendingPlan: null,
+        subscriptionPendingBillingInterval: null,
+      };
+    } else if (data.action === 'CANCEL') {
+      next = { subscriptionCancelAtPeriodEnd: true };
+    } else {
+      if (!existing.subscriptionPlan || !(existing.subscriptionPlan in PLAN_LEVEL)) {
+        throw new Error('Current subscription plan is unknown; renew it before changing plans');
+      }
+      const downgrade = PLAN_LEVEL[data.plan] < PLAN_LEVEL[existing.subscriptionPlan];
+      next = downgrade
+        ? { subscriptionPendingPlan: data.plan, subscriptionPendingBillingInterval: data.billingInterval }
+        : {
+            subscriptionPlan: data.plan,
+            subscriptionBillingInterval: data.billingInterval,
+            subscriptionPendingPlan: null,
+            subscriptionPendingBillingInterval: null,
+          };
+    }
 
     return prisma.$transaction(async (tx) => {
       const organization = await tx.organization.update({
@@ -108,6 +142,10 @@ export class PlatformSubscriptionService {
           subscriptionStatus: true,
           subscriptionPlan: true,
           subscriptionExpiresAt: true,
+          subscriptionBillingInterval: true,
+          subscriptionCancelAtPeriodEnd: true,
+        subscriptionPendingPlan: true,
+        subscriptionPendingBillingInterval: true,
         },
       });
 
@@ -117,7 +155,9 @@ export class PlatformSubscriptionService {
           organizationId,
           action: data.action === 'ACTIVATE'
             ? 'ORGANIZATION_SUBSCRIPTION_ACTIVATED'
-            : 'ORGANIZATION_SUBSCRIPTION_CANCELLED',
+            : data.action === 'CANCEL'
+              ? 'ORGANIZATION_SUBSCRIPTION_CANCELLATION_SCHEDULED'
+              : 'ORGANIZATION_SUBSCRIPTION_PLAN_CHANGED_OR_SCHEDULED',
           module: 'subscription',
           entityId: organizationId,
           entityType: 'Organization',
@@ -125,11 +165,19 @@ export class PlatformSubscriptionService {
             subscriptionStatus: existing.subscriptionStatus,
             subscriptionPlan: existing.subscriptionPlan,
             subscriptionExpiresAt: existing.subscriptionExpiresAt,
+            subscriptionBillingInterval: existing.subscriptionBillingInterval,
+            subscriptionCancelAtPeriodEnd: existing.subscriptionCancelAtPeriodEnd,
+            subscriptionPendingPlan: existing.subscriptionPendingPlan,
+            subscriptionPendingBillingInterval: existing.subscriptionPendingBillingInterval,
           },
           newValues: {
             subscriptionStatus: organization.subscriptionStatus,
             subscriptionPlan: organization.subscriptionPlan,
             subscriptionExpiresAt: organization.subscriptionExpiresAt,
+            subscriptionBillingInterval: organization.subscriptionBillingInterval,
+            subscriptionCancelAtPeriodEnd: organization.subscriptionCancelAtPeriodEnd,
+            subscriptionPendingPlan: organization.subscriptionPendingPlan,
+            subscriptionPendingBillingInterval: organization.subscriptionPendingBillingInterval,
           },
           metadata: {
             authorizationScope: 'PLATFORM',

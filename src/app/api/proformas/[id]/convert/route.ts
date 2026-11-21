@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proformaService } from '@omnikes/services/proforma.service';
-import { requireCurrentOrganizationId, requireStoreAccess, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requireStoreAccess, requirePermission, requireSubscriptionCapability } from '@omnikes/lib/auth';
 
 /**
  * POST /api/proformas/[id]/convert
@@ -16,6 +16,7 @@ export async function POST(
 
     // Check permission
     await requirePermission(request, 'proforma.convert');
+    await requireSubscriptionCapability(request, 'pos.sales', 'WRITE');
 
     // Get proforma first to check store access
     const existingProforma = await proformaService.getById(id, organizationId);
@@ -27,6 +28,7 @@ export async function POST(
 
     return NextResponse.json(sale);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },

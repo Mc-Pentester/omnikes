@@ -56,8 +56,15 @@ async function main() {
       slug = `${slugBase}-${suffix++}`;
     }
 
+    const trialStartedAt = new Date();
+    const trialExpiresAt = new Date(trialStartedAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+
     const organization = await tx.organization.create({
       data: {
+        subscriptionStatus: 'TRIAL',
+        subscriptionPlan: 'OMNIKES_249',
+        subscriptionTrialStartedAt: trialStartedAt,
+        subscriptionExpiresAt: trialExpiresAt,
         name: organizationName,
         slug,
         country: process.env.OMNIKES_INSTALL_COUNTRY?.trim().toUpperCase() || 'HT',

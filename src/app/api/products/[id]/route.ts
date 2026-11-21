@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { productService } from '@omnikes/services/product.service';
-import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireSubscriptionCapability } from '@omnikes/lib/auth';
 import { productUpdateSchema } from '@omnikes/lib/validation';
 
 /**
@@ -21,6 +21,7 @@ export async function GET(
 
     return NextResponse.json(product);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid request data' }, { status: 400 });
     }
@@ -65,6 +66,7 @@ export async function PATCH(
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'product.manage');
+    await requireSubscriptionCapability(request, 'inventory.core', 'WRITE');
 
     const body = await request.json();
     const validatedData = productUpdateSchema.parse(body);
@@ -133,11 +135,13 @@ export async function DELETE(
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'product.manage');
+    await requireSubscriptionCapability(request, 'inventory.core', 'WRITE');
 
     const product = await productService.deactivate(id, organizationId);
 
     return NextResponse.json(product);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },

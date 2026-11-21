@@ -103,7 +103,18 @@ export class RegistrationService {
         return Boolean(await tx.organization.findUnique({ where: { slug: value }, select: { id: true } }));
       });
       const organization = await tx.organization.create({
-        data: { name: initialOrganizationName, slug, country, currency, locale, timezone },
+        data: {
+          name: initialOrganizationName,
+          slug,
+          country,
+          currency,
+          locale,
+          timezone,
+          subscriptionStatus: 'TRIAL',
+          subscriptionPlan: 'OMNIKES_249',
+          subscriptionTrialStartedAt: new Date(),
+          subscriptionExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
       });
       const { adminRoleId } = await provisionStandardOrganizationRoles(tx, organization.id);
       const user = await tx.user.create({

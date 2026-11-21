@@ -8,6 +8,7 @@ vi.mock('../../lib/auth', () => ({
   requirePermission: vi.fn(),
   getAuthenticatedUser: vi.fn(),
   requireStoreAccess: vi.fn(),
+  requireSubscriptionCapability: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../lib/prisma', () => ({

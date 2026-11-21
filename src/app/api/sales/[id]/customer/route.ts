@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, requireSubscriptionCapability } from '@omnikes/lib/auth';
 import { saleService } from '@omnikes/services/sale.service';
 import { saleCustomerAssignSchema } from '@omnikes/lib/validation';
 
@@ -12,6 +12,7 @@ export async function PATCH(
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'sale.customer.assign');
+    await requireSubscriptionCapability(request, 'pos.sales', 'WRITE');
     await requirePermission(request, 'customer.read');
 
     const existingSale = await saleService.getById(id, organizationId);
@@ -29,6 +30,7 @@ export async function PATCH(
     if (!sale) return NextResponse.json({ error: 'Sale not found or access denied' }, { status: 404 });
     return NextResponse.json({ id: sale.id, customerId: sale.customerId });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof ZodError) {
       return NextResponse.json({ error: 'Invalid customer assignment', details: error.issues }, { status: 400 });
     }

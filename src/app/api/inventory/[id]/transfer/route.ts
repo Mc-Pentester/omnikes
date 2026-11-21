@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { inventoryService } from '@omnikes/services/inventory.service';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, requireSubscriptionCapability } from '@omnikes/lib/auth';
 
 function isValidCuid(id: string): boolean {
   return /^[a-z0-9]{24,}$/.test(id);
@@ -19,6 +19,7 @@ export async function POST(
 
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'inventory.adjust');
+    await requireSubscriptionCapability(request, 'inventory.transfers', 'WRITE');
 
     const source = await inventoryService.getById(id, organizationId);
     await requireStoreAccess(request, source.storeId);
@@ -34,6 +35,7 @@ export async function POST(
     const result = await inventoryService.transferInventory(id, organizationId, data);
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid transfer data', details: error.issues }, { status: 400 });
     }

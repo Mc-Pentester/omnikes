@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { productVariantService } from '@omnikes/services/product-variant.service';
-import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireSubscriptionCapability } from '@omnikes/lib/auth';
 import { productVariantUpdateSchema } from '@omnikes/lib/validation';
 
 /**
@@ -20,6 +20,7 @@ export async function GET(
 
     return NextResponse.json(variant);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid request data' }, { status: 400 });
     }
@@ -64,6 +65,7 @@ export async function PATCH(
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'product.manage');
+    await requireSubscriptionCapability(request, 'inventory.core', 'WRITE');
     const body = await request.json();
     const validatedData = productVariantUpdateSchema.parse(body);
 
@@ -71,6 +73,7 @@ export async function PATCH(
 
     return NextResponse.json(variant);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -126,10 +129,12 @@ export async function DELETE(
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'product.manage');
+    await requireSubscriptionCapability(request, 'inventory.core', 'WRITE');
     const variant = await productVariantService.deactivate(id, organizationId);
 
     return NextResponse.json(variant);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },

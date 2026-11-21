@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { saleService } from '@omnikes/services/sale.service';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, getAuthenticatedUser } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, getAuthenticatedUser, requireSubscriptionCapability } from '@omnikes/lib/auth';
 import { prisma } from '@omnikes/lib/prisma';
 import { saleCreditSchema } from '@omnikes/lib/validation';
 
@@ -34,6 +34,7 @@ export async function POST(
     }
 
     await requireStoreAccess(request, sale.storeId);
+    await requireSubscriptionCapability(request, 'customers.credit', 'WRITE');
 
     const body = await request.json();
     const data = saleCreditSchema.parse(body);
@@ -47,6 +48,7 @@ export async function POST(
 
     return NextResponse.json(credit, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof ZodError) {
       return NextResponse.json(
         { error: 'Invalid request data', details: error.issues },

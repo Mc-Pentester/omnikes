@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { prisma } from '@omnikes/lib/prisma';
 import { saleService } from '@omnikes/services/sale.service';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, getAuthenticatedUser } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, getAuthenticatedUser, requireSubscriptionCapability } from '@omnikes/lib/auth';
 import { idempotencyKeySchema, paymentSchema } from '@omnikes/lib/validation';
 import { roundMoney } from '@omnikes/lib/money';
 
@@ -29,6 +29,7 @@ export async function GET(
 
     return NextResponse.json(payments);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof ZodError) {
       return NextResponse.json(
         { error: 'Invalid request data', details: error.issues },
@@ -108,6 +109,7 @@ export async function POST(
     }
 
     await requirePermission(request, 'payment.create');
+    await requireSubscriptionCapability(request, 'pos.sales', 'WRITE');
 
     // Get idempotency key
     const idempotencyKey = request.headers.get('Idempotency-Key');
@@ -400,6 +402,9 @@ export async function POST(
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) {
+      return NextResponse.json({ error: error.message }, { status: 402 });
+    }
     // Two simultaneous requests can both miss the pre-transaction lookup.
     // The unique database constraint is the final arbiter for the idempotency key.
     // If another transaction committed the same key first, return its cached response.

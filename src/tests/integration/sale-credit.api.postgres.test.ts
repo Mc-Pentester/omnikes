@@ -25,6 +25,17 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
       select: { id: true },
     });
 
+    // This API proof exercises a Professional capability and must run against
+    // an explicitly entitled test organization, not the unconfigured seed default.
+    await prisma.organization.update({
+      where: { id: orgA!.id },
+      data: {
+        subscriptionStatus: 'ACTIVE',
+        subscriptionPlan: 'OMNIKES_249',
+        subscriptionExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+
     storeA = await prisma.store.findFirstOrThrow({
       where: { organizationId: orgA!.id, code: 'STORE-A' },
       select: { id: true },
