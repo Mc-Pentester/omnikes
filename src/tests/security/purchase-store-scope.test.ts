@@ -12,6 +12,7 @@ vi.mock('../../lib/auth', () => ({
   requireAuthenticatedUser: vi.fn(),
   requireStoreAccess: vi.fn(),
   getAuthorizedStoreIds: vi.fn(),
+  requireSubscriptionCapability: vi.fn(),
 }));
 
 vi.mock('../../services/purchase.service', () => ({
@@ -31,6 +32,7 @@ import {
   requireAuthenticatedUser,
   requireStoreAccess,
   getAuthorizedStoreIds,
+  requireSubscriptionCapability,
 } from '../../lib/auth';
 import { purchaseService } from '../../services/purchase.service';
 
@@ -39,6 +41,7 @@ const mockPermission = requirePermission as ReturnType<typeof vi.fn>;
 const mockUser = requireAuthenticatedUser as ReturnType<typeof vi.fn>;
 const mockStoreAccess = requireStoreAccess as ReturnType<typeof vi.fn>;
 const mockAuthorizedStores = getAuthorizedStoreIds as ReturnType<typeof vi.fn>;
+const mockSubscriptionCapability = requireSubscriptionCapability as ReturnType<typeof vi.fn>;
 const mockList = purchaseService.list as ReturnType<typeof vi.fn>;
 const mockCreate = purchaseService.create as ReturnType<typeof vi.fn>;
 const mockGetById = purchaseService.getById as ReturnType<typeof vi.fn>;
@@ -61,6 +64,7 @@ describe('Purchase API store-scope authorization', () => {
     mockUser.mockResolvedValue({ id: 'user-a', organizationId: orgId });
     mockStoreAccess.mockResolvedValue(undefined);
     mockAuthorizedStores.mockResolvedValue([storeA]);
+    mockSubscriptionCapability.mockResolvedValue(undefined);
     mockGetById.mockResolvedValue({ id: purchaseId, storeId: storeB });
   });
 
