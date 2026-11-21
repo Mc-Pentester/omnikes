@@ -220,7 +220,7 @@ export default function PlatformSubscriptionsPage() {
                 <button
                   type="button"
                   disabled={saving}
-                  onClick={() => void save('ACTIVATE')
+                  onClick={() => void save('ACTIVATE')}
                   className="w-full rounded-lg bg-primary px-4 py-2.5 text-white disabled:opacity-50"
                 >
                   {saving ? 'Traitement…' : 'Activer / renouveler'}
