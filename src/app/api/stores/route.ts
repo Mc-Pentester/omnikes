@@ -4,7 +4,6 @@ import { storeRepository } from '@omnikes/repositories/store.repository';
 import { requireCurrentOrganizationId, requirePermission, getAuthorizedStoreIds, requireSubscriptionCapability } from '@omnikes/lib/auth';
 import { validatePagination } from '@omnikes/lib/pagination';
 import { storeSchema } from '@omnikes/lib/validation';
-import { prisma } from '@omnikes/lib/prisma';
 
 /**
  * GET /api/stores
@@ -75,7 +74,7 @@ export async function POST(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'store.create');
-    const existingStoreCount = await prisma.store.count({ where: { organizationId } });
+    const existingStoreCount = await storeRepository.countByOrganization(organizationId);
     if (existingStoreCount > 0) await requireSubscriptionCapability(request, 'organization.multi_store', 'WRITE');
     const body = await request.json();
 
