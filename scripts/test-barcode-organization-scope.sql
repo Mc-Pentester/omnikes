@@ -35,7 +35,7 @@ BEGIN
 
   BEGIN
     INSERT INTO "product_variants"
-      ("id", "productId", "sku", "barcode", "price", "cost", "attributes")
+      ("id", "productId", "sku", "barcode", "price", "cost", "attributes", "updatedAt")
     VALUES
       ('barcode-scope-variant-duplicate', 'barcode-scope-product-a',
        'BARCODE-SCOPE-SKU-DUP', '4006381333931', 1, 0, '{}', CURRENT_TIMESTAMP);
