@@ -15,7 +15,7 @@ export type SubscriptionCapability =
   | 'data.export';
 export type SubscriptionOperation = 'READ' | 'WRITE' | 'EXPORT';
 
-type SubscriptionStatus = 'NONE' | 'TRIAL' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | string;
+type SubscriptionStatus = 'NONE' | 'LEGACY' | 'TRIAL' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | string;
 
 export interface SubscriptionSnapshot {
   subscriptionStatus: SubscriptionStatus;
@@ -57,11 +57,12 @@ export function evaluateSubscriptionEntitlement(
   operation: SubscriptionOperation,
   now: Date = new Date(),
 ): EntitlementDecision {
-  const activeStatus = subscription.subscriptionStatus === 'TRIAL' || subscription.subscriptionStatus === 'ACTIVE';
+  const legacyEssential = subscription.subscriptionStatus === 'LEGACY';
+  const activeStatus = legacyEssential || subscription.subscriptionStatus === 'TRIAL' || subscription.subscriptionStatus === 'ACTIVE';
   const expiresAt = subscription.subscriptionExpiresAt
     ? new Date(subscription.subscriptionExpiresAt)
     : null;
-  const validUntil = Boolean(expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() > now.getTime());
+  const validUntil = legacyEssential || Boolean(expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() > now.getTime());
 
   // Once access expires, historical data remains readable and exportable.
   // This is a read-only exception, not permission to create or mutate records.
@@ -74,6 +75,13 @@ export function evaluateSubscriptionEntitlement(
       allowed: false,
       reason: activeStatus ? 'SUBSCRIPTION_EXPIRED' : 'SUBSCRIPTION_REQUIRED',
     };
+  }
+
+  if (legacyEssential) {
+    const legacyLevel = CAPABILITY_LEVEL[capability];
+    return legacyLevel === 1
+      ? { allowed: true, reason: 'PLAN_INCLUDED' }
+      : { allowed: false, reason: 'CAPABILITY_NOT_INCLUDED' };
   }
 
   if (!isPlan(subscription.subscriptionPlan)) {
