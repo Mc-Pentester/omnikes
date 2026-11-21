@@ -402,6 +402,9 @@ export async function POST(
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) {
+      return NextResponse.json({ error: error.message }, { status: 402 });
+    }
     // Two simultaneous requests can both miss the pre-transaction lookup.
     // The unique database constraint is the final arbiter for the idempotency key.
     // If another transaction committed the same key first, return its cached response.

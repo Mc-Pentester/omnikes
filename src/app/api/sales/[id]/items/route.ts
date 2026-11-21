@@ -96,6 +96,9 @@ export async function POST(
 
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) {
+      return NextResponse.json({ error: error.message }, { status: 402 });
+    }
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },
