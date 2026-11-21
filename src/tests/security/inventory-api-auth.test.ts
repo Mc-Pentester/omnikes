@@ -98,6 +98,7 @@ describe('P1-G inventory API authorization contract', () => {
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ error: 'Not authorized to access this store' });
     expect(requireStoreAccess).toHaveBeenCalledWith(expect.anything(), storeId);
+    expect(requireSubscriptionCapability).not.toHaveBeenCalled();
     expect(inventoryService.createMovement).not.toHaveBeenCalled();
   });
 
