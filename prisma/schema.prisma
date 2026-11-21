@@ -42,6 +42,7 @@ model Organization {
   users            User[]
   stores           Store[]
   products         Product[]
+  productVariants  ProductVariant[]
   customers        Customer[]
   sales            Sale[]
   proformas        Proforma[]
@@ -456,7 +457,8 @@ model ProductVariant {
   id         String  @id @default(cuid())
   productId  String
   sku        String  @unique
-  barcode    String?  @unique
+  barcode    String?
+  organizationId String?
   price      Decimal @db.Decimal(10, 2)
   cost       Decimal @db.Decimal(10, 2)
   /// UNIT keeps the existing semantics. Weight-based variants use G/KG/LB/OZ.
@@ -470,6 +472,7 @@ model ProductVariant {
 
   // Relations
   product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   inventoryItems InventoryItem[]
   inventories    Inventory[]
   saleItems      SaleItem[]
@@ -478,6 +481,8 @@ model ProductVariant {
 
   @@index([productId])
   @@index([sku])
+  @@unique([organizationId, barcode])
+  @@index([organizationId])
   @@map("product_variants")
 }
 
