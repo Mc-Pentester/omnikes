@@ -57,27 +57,23 @@ export function evaluateSubscriptionEntitlement(
   operation: SubscriptionOperation,
   now: Date = new Date(),
 ): EntitlementDecision {
-  if (operation === 'READ' && capability === 'data.read') {
-    if (subscription.subscriptionStatus === 'TRIAL' || subscription.subscriptionStatus === 'ACTIVE') {
-      const expiry = subscription.subscriptionExpiresAt ? new Date(subscription.subscriptionExpiresAt) : null;
-      if (expiry && expiry.getTime() > now.getTime()) return { allowed: true, reason: 'PLAN_INCLUDED' };
-    }
-    return { allowed: true, reason: 'HISTORICAL_READ_ONLY' };
-  }
-
-  if (operation === 'EXPORT' && capability === 'data.export') {
-    return { allowed: true, reason: 'HISTORICAL_READ_ONLY' };
-  }
-
-  if (subscription.subscriptionStatus !== 'TRIAL' && subscription.subscriptionStatus !== 'ACTIVE') {
-    return { allowed: false, reason: 'SUBSCRIPTION_REQUIRED' };
-  }
-
+  const activeStatus = subscription.subscriptionStatus === 'TRIAL' || subscription.subscriptionStatus === 'ACTIVE';
   const expiresAt = subscription.subscriptionExpiresAt
     ? new Date(subscription.subscriptionExpiresAt)
     : null;
-  if (!expiresAt || Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= now.getTime()) {
-    return { allowed: false, reason: 'SUBSCRIPTION_EXPIRED' };
+  const validUntil = Boolean(expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() > now.getTime());
+
+  // Once access expires, historical data remains readable and exportable.
+  // This is a read-only exception, not permission to create or mutate records.
+  if (!activeStatus || !validUntil) {
+    if (operation === 'READ') return { allowed: true, reason: 'HISTORICAL_READ_ONLY' };
+    if (operation === 'EXPORT' && capability === 'data.export') {
+      return { allowed: true, reason: 'HISTORICAL_READ_ONLY' };
+    }
+    return {
+      allowed: false,
+      reason: activeStatus ? 'SUBSCRIPTION_EXPIRED' : 'SUBSCRIPTION_REQUIRED',
+    };
   }
 
   if (!isPlan(subscription.subscriptionPlan)) {
