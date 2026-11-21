@@ -295,6 +295,53 @@ if (!exists(prismaCli)) throw new Error('Prisma CLI is missing from the offline 
 if (!exists(schema)) throw new Error('Prisma schema.prisma is missing from the offline package.');
 if (!exists(migrations)) throw new Error('Prisma migrations are missing from the offline package.');
 
+// Existing databases must have a recoverable, verified custom-format backup before
+// Prisma is allowed to change their schema. A failed or unverifiable dump aborts
+// installation; newly created empty databases do not need a pre-migration backup.
+if (dbExists === '1') {
+  const pgDump = pg('pg_dump');
+  const pgRestore = pg('pg_restore');
+  if (!exists(pgDump) || !exists(pgRestore)) {
+    throw new Error('PostgreSQL backup tools are missing; refusing to migrate the existing OmniKes database.');
+  }
+
+  const backupDir = path.join(omniKesDataDir, 'backups');
+  fs.mkdirSync(backupDir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const suffix = crypto.randomBytes(4).toString('hex');
+  const backupFile = path.join(backupDir, 'omnikes-pre-migration-' + stamp + '-' + suffix + '.dump');
+  const temporaryBackup = backupFile + '.partial';
+
+  try {
+    writeLog('Creating pre-migration PostgreSQL backup: ' + backupFile);
+    run(pgDump, [
+      '-w', '-h', '127.0.0.1', '-p', String(port), '-U', dbUser,
+      '-d', dbName, '-Fc', '-f', temporaryBackup,
+    ], psqlEnv);
+
+    if (!exists(temporaryBackup) || fs.statSync(temporaryBackup).size === 0) {
+      throw new Error('The pre-migration PostgreSQL backup is missing or empty.');
+    }
+
+    const archiveListing = execFileSync(pgRestore, ['--list', temporaryBackup], {
+      encoding: 'utf8',
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    if (!archiveListing || !archiveListing.split(/\r?\n/).some((line) => /^\s*\d+;/.test(line))) {
+      throw new Error('The pre-migration backup is not a readable PostgreSQL archive.');
+    }
+
+    fs.renameSync(temporaryBackup, backupFile);
+    writeLog('Verified pre-migration PostgreSQL backup: ' + backupFile);
+  } catch (error) {
+    try { if (exists(temporaryBackup)) fs.unlinkSync(temporaryBackup); } catch {}
+    writeLog('PRE-MIGRATION BACKUP FAILED; Prisma migrations were not started.');
+    throw new Error('Unable to create and verify a pre-migration PostgreSQL backup. Refusing to apply migrations. ' +
+      (error instanceof Error ? error.message : String(error)));
+  }
+}
+
 process.env.DATABASE_URL = url;
 writeLog('Applying packaged Prisma migrations.');
 run(process.execPath, [prismaCli, 'migrate', 'deploy', '--schema', schema], { ...process.env, DATABASE_URL: url }, app);
