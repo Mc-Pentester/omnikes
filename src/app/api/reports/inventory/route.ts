@@ -6,6 +6,7 @@ import {
   requireCurrentOrganizationId,
   requirePermission,
   requireStoreAccess,
+  requireSubscriptionCapability,
 } from '@omnikes/lib/auth';
 import { inventoryReportService } from '@omnikes/services/inventory-report.service';
 
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'report.read');
+    await requireSubscriptionCapability(request, 'reports.advanced', 'READ');
 
     const { searchParams } = new URL(request.url);
     const startDate = parseReportDateParam(searchParams.get('startDate'));
@@ -53,6 +55,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (
       error instanceof Error &&
       (error.message === 'Authentication required' ||
