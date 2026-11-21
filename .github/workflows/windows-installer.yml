@@ -248,7 +248,6 @@ jobs:
         shell: powershell
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           $tag = $env:RELEASE_TAG
           $installer = Get-ChildItem "dist\installer\OmniKes-Setup-*-x64.exe" -File | Select-Object -First 1
