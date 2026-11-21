@@ -72,6 +72,48 @@ describe('Subscription entitlements PostgreSQL runtime', () => {
       .rejects.toThrow('Subscription entitlement required: inventory.transfers');
   });
 
+  it('grants Enterprise the complete inherited capability set', async () => {
+    await prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        subscriptionStatus: 'ACTIVE',
+        subscriptionPlan: 'OMNIKES_299',
+        subscriptionExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+    const req = request();
+    for (const capability of [
+      'pos.sales',
+      'inventory.core',
+      'inventory.transfers',
+      'purchases.manage',
+      'customers.credit',
+      'reports.advanced',
+      'organization.multi_store',
+      'analytics.consolidated',
+      'catalog.centralized',
+      'backup.automated',
+    ] as const) {
+      await expect(requireSubscriptionCapability(req, capability, 'WRITE')).resolves.toBeUndefined();
+    }
+  });
+
+  it('allows historical reads and exports but blocks writes after expiry', async () => {
+    await prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        subscriptionStatus: 'EXPIRED',
+        subscriptionPlan: 'OMNIKES_249',
+        subscriptionExpiresAt: new Date(Date.now() - 1000),
+      },
+    });
+    const req = request();
+    await expect(requireSubscriptionCapability(req, 'pos.sales', 'READ')).resolves.toBeUndefined();
+    await expect(requireSubscriptionCapability(req, 'data.export', 'EXPORT')).resolves.toBeUndefined();
+    await expect(requireSubscriptionCapability(req, 'pos.sales', 'WRITE'))
+      .rejects.toThrow('Subscription entitlement required: pos.sales');
+  });
+
   it('blocks new writes after expiry without requiring an internet service', async () => {
     await prisma.organization.update({
       where: { id: organizationId },
