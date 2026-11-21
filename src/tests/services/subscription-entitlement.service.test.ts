@@ -49,8 +49,10 @@ describe('evaluateSubscriptionEntitlement', () => {
       .toEqual({ allowed: true, reason: 'HISTORICAL_READ_ONLY' });
   });
 
-  it('fails closed for unknown plans and capabilities are not inferred', () => {
+  it('fails closed for unknown plans and capability identifiers', () => {
     expect(evaluateSubscriptionEntitlement(active('UNRECOGNIZED'), 'pos.sales', 'WRITE', now))
       .toEqual({ allowed: false, reason: 'UNKNOWN_PLAN' });
+    expect(evaluateSubscriptionEntitlement(active('OMNIKES_299'), 'unregistered.feature' as never, 'WRITE', now))
+      .toEqual({ allowed: false, reason: 'CAPABILITY_NOT_INCLUDED' });
   });
 });
