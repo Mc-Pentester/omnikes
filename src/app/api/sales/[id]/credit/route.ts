@@ -23,7 +23,6 @@ export async function POST(
     }
 
     await requirePermission(request, 'sale.credit');
-    await requireSubscriptionCapability(request, 'customers.credit', 'WRITE');
 
     const sale = await prisma.sale.findFirst({
       where: { id: saleId, organizationId },
@@ -35,6 +34,7 @@ export async function POST(
     }
 
     await requireStoreAccess(request, sale.storeId);
+    await requireSubscriptionCapability(request, 'customers.credit', 'WRITE');
 
     const body = await request.json();
     const data = saleCreditSchema.parse(body);
