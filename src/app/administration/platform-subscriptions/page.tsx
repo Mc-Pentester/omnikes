@@ -195,25 +195,25 @@ export default function PlatformSubscriptionsPage() {
               </dl>
 
               <div className="mt-6 space-y-4">
-                <label className="block text-sm font-medium">
-                  Plan
-                  <select value={plan} onChange={(event) => setPlan(event.target.value as Plan)} className="mt-1 w-full rounded-lg border px-3 py-2">
+                <div className="block text-sm font-medium">
+                  <label htmlFor="subscription-plan">Plan</label>
+                  <select id="subscription-plan" value={plan} onChange={(event) => setPlan(event.target.value as Plan)} className="mt-1 w-full rounded-lg border px-3 py-2">
                     {PLANS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                   </select>
-                </label>
+                </div>
 
-                <label className="block text-sm font-medium">
-                  Périodicité
-                  <select value={billingInterval} onChange={(event) => setBillingInterval(event.target.value as 'MONTHLY' | 'ANNUAL')} className="mt-1 w-full rounded-lg border px-3 py-2">
+                <div className="block text-sm font-medium">
+                  <label htmlFor="subscription-billing-interval">Périodicité</label>
+                  <select id="subscription-billing-interval" value={billingInterval} onChange={(event) => setBillingInterval(event.target.value as 'MONTHLY' | 'ANNUAL')} className="mt-1 w-full rounded-lg border px-3 py-2">
                     <option value="MONTHLY">Mensuelle — 14,99 / 24,99 / 29,99 USD selon le plan</option>
                     <option value="ANNUAL">Annuelle — 149 / 249 / 299 USD selon le plan</option>
                   </select>
-                </label>
+                </div>
 
-                <label className="block text-sm font-medium">
-                  Date d’expiration
-                  <input type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
-                </label>
+                <div className="block text-sm font-medium">
+                  <label htmlFor="subscription-expires-at">Date d’expiration</label>
+                  <input id="subscription-expires-at" type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
+                </div>
 
                 {selected.subscriptionStatus === 'ACTIVE' && <button type="button" disabled={saving} onClick={() => void save('CHANGE_PLAN')} className="w-full rounded-lg border px-4 py-2.5 disabled:opacity-50">Changer de forfait</button>}
 
