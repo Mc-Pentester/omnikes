@@ -2,22 +2,22 @@
 -- Runs in a transaction and leaves no test data behind.
 BEGIN;
 
-INSERT INTO "organizations" ("id", "name", "slug", "country")
+INSERT INTO "organizations" ("id", "name", "slug", "country", "updatedAt")
 VALUES
-  ('barcode-scope-org-a', 'Barcode Scope A', 'barcode-scope-a', 'HT'),
-  ('barcode-scope-org-b', 'Barcode Scope B', 'barcode-scope-b', 'HT');
+  ('barcode-scope-org-a', 'Barcode Scope A', 'barcode-scope-a', 'HT', CURRENT_TIMESTAMP),
+  ('barcode-scope-org-b', 'Barcode Scope B', 'barcode-scope-b', 'HT', CURRENT_TIMESTAMP);
 
-INSERT INTO "products" ("id", "organizationId", "name")
+INSERT INTO "products" ("id", "organizationId", "name", "updatedAt")
 VALUES
-  ('barcode-scope-product-a', 'barcode-scope-org-a', 'Barcode Scope Product A'),
-  ('barcode-scope-product-b', 'barcode-scope-org-b', 'Barcode Scope Product B');
+  ('barcode-scope-product-a', 'barcode-scope-org-a', 'Barcode Scope Product A', CURRENT_TIMESTAMP),
+  ('barcode-scope-product-b', 'barcode-scope-org-b', 'Barcode Scope Product B', CURRENT_TIMESTAMP);
 
 -- The same EAN must be reusable by two independent organizations.
 INSERT INTO "product_variants"
-  ("id", "productId", "sku", "barcode", "price", "cost", "attributes")
+  ("id", "productId", "sku", "barcode", "price", "cost", "attributes", "updatedAt")
 VALUES
-  ('barcode-scope-variant-a', 'barcode-scope-product-a', 'BARCODE-SCOPE-SKU-A', '4006381333931', 1, 0, '{}'),
-  ('barcode-scope-variant-b', 'barcode-scope-product-b', 'BARCODE-SCOPE-SKU-B', '4006381333931', 1, 0, '{}');
+  ('barcode-scope-variant-a', 'barcode-scope-product-a', 'BARCODE-SCOPE-SKU-A', '4006381333931', 1, 0, '{}', CURRENT_TIMESTAMP),
+  ('barcode-scope-variant-b', 'barcode-scope-product-b', 'BARCODE-SCOPE-SKU-B', '4006381333931', 1, 0, '{}', CURRENT_TIMESTAMP);
 
 DO $$
 DECLARE
@@ -38,7 +38,7 @@ BEGIN
       ("id", "productId", "sku", "barcode", "price", "cost", "attributes")
     VALUES
       ('barcode-scope-variant-duplicate', 'barcode-scope-product-a',
-       'BARCODE-SCOPE-SKU-DUP', '4006381333931', 1, 0, '{}');
+       'BARCODE-SCOPE-SKU-DUP', '4006381333931', 1, 0, '{}', CURRENT_TIMESTAMP);
   EXCEPTION WHEN unique_violation THEN
     duplicate_rejected := true;
   END;
