@@ -24,9 +24,12 @@ model Organization {
 
   // Subscription / commercial entitlement
   // Identity is shown on customer documents only while the subscription is active.
-  subscriptionStatus    String    @default("NONE")
-  subscriptionPlan      String?
-  subscriptionExpiresAt DateTime?
+  subscriptionStatus          String    @default("NONE")
+  subscriptionPlan            String?
+  subscriptionExpiresAt       DateTime?
+  subscriptionBillingInterval String?
+  subscriptionTrialStartedAt  DateTime?
+  subscriptionCancelAtPeriodEnd Boolean   @default(false)
 
   // Configuration flags
   cloudEnabled       Boolean @default(false)
