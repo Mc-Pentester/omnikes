@@ -55,6 +55,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(purchase, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Invalid purchase data' }, { status: 400 });
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) {
+      return NextResponse.json({ error: error.message }, { status: 402 });
+    }
     const authResponse = authErrorResponse(error);
     if (authResponse) return authResponse;
     if (error instanceof Error && error.message.includes('already exists')) {
