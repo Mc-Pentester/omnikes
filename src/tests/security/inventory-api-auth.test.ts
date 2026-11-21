@@ -120,7 +120,8 @@ describe('P1-G inventory API authorization contract', () => {
       'inventory.core',
       'WRITE',
     );
-    expect(inventoryService.getById).not.toHaveBeenCalled();
+    expect(inventoryService.getById).toHaveBeenCalledWith(inventoryId, 'org-p1g');
+    expect(requireStoreAccess).toHaveBeenCalledWith(expect.anything(), storeId);
     expect(inventoryService.createMovement).not.toHaveBeenCalled();
   });
 
