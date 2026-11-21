@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proformaService } from '@omnikes/services/proforma.service';
-import { requireCurrentOrganizationId, requireStoreAccess, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requireStoreAccess, requirePermission, requireSubscriptionCapability } from '@omnikes/lib/auth';
 
 /**
  * PATCH /api/proformas/[id]/items/[itemId]
@@ -14,6 +14,7 @@ export async function PATCH(
     const { id, itemId } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'proforma.update');
+    await requireSubscriptionCapability(request, 'pos.sales', 'WRITE');
 
     const body = await request.json();
 
@@ -27,6 +28,7 @@ export async function PATCH(
 
     return NextResponse.json(item);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -100,6 +102,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },
