@@ -55,6 +55,8 @@ export class PlatformSubscriptionService {
         subscriptionStatus: true,
         subscriptionPlan: true,
         subscriptionExpiresAt: true,
+        subscriptionBillingInterval: true,
+        subscriptionCancelAtPeriodEnd: true,
       },
     });
 
@@ -80,10 +82,16 @@ export class PlatformSubscriptionService {
         subscriptionStatus: true,
         subscriptionPlan: true,
         subscriptionExpiresAt: true,
+        subscriptionBillingInterval: true,
+        subscriptionCancelAtPeriodEnd: true,
       },
     });
 
     if (!existing) throw new Error('Organization not found');
+
+    if (data.action === 'CANCEL' && existing.subscriptionStatus !== 'ACTIVE') {
+      throw new Error('Only an active subscription can be cancelled');
+    }
 
     const next = data.action === 'ACTIVATE'
       ? {
