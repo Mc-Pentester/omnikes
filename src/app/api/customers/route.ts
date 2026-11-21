@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireCurrentOrganizationId, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireSubscriptionCapability } from '@omnikes/lib/auth';
 import { customerRepository } from '@omnikes/repositories/customer.repository';
 import { customerCreateSchema, customerListQuerySchema } from '@omnikes/lib/validation';
 import { z } from 'zod';
@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid customer parameters' },
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'customer.create');
+    await requireSubscriptionCapability(request, 'pos.sales', 'WRITE');
 
     const body = await request.json();
     const validatedData = customerCreateSchema.parse(body);
