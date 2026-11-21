@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, requireSubscriptionCapability } from '@omnikes/lib/auth';
 import { inventoryRepository } from '@omnikes/repositories/inventory.repository';
 import { inventoryService } from '@omnikes/services/inventory.service';
 
@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
   try {
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'inventory.adjust');
+    await requireSubscriptionCapability(request, 'inventory.core', 'WRITE');
     const data = receiptRequestSchema.parse(await request.json());
 
     await requireStoreAccess(request, data.storeId);
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid request data', details: error.issues }, { status: 400 });
     }
