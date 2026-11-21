@@ -257,27 +257,35 @@ jobs:
           $checksumPath = "$($installer.FullName).sha256"
           "$hash  $($installer.Name)" | Set-Content -LiteralPath $checksumPath -Encoding ascii
 
-          # Listing releases is safe when the requested tag has no Release yet.
-          # gh release view exits non-zero for a missing release; PowerShell 5.1
-          # can promote that native stderr into a terminating NativeCommandError.
-          $releasesJson = gh release list --limit 100 --json tagName,isDraft,url
+          # gh release list only accepts fields supported by the installed gh CLI.
+          # In particular, "url" is not a valid JSON field and makes the command fail.
+          $releasesJson = gh release list --limit 100 --json tagName,isDraft
           if ($LASTEXITCODE -ne 0) { throw "Could not list GitHub Releases." }
           $releases = @($releasesJson | ConvertFrom-Json)
           $release = $releases | Where-Object { $_.tagName -eq $tag } | Select-Object -First 1
+          $publishAfterUpload = $false
 
           if (-not $release) {
             gh release create $tag --draft --title "OmniKes $tag" --generate-notes --verify-tag
             if ($LASTEXITCODE -ne 0) { throw "Could not create draft GitHub Release '$tag'." }
-          } elseif (-not $release.isDraft) {
-            throw "Release '$tag' is already published. Use a new version tag instead of replacing a public release."
+            $publishAfterUpload = $true
+          } elseif ($release.isDraft) {
+            # Complete an existing draft after its assets have been uploaded.
+            $publishAfterUpload = $true
+          } else {
+            # A published release with no assets (such as v1.0.1) can safely
+            # receive the installer and checksum without being unpublished.
+            Write-Host "Release '$tag' is already published; attaching installer assets."
           }
 
           gh release upload $tag $installer.FullName $checksumPath --clobber
           if ($LASTEXITCODE -ne 0) { throw "Could not upload installer assets to release '$tag'." }
 
-          gh release edit $tag --draft=false --title "OmniKes $tag"
-          if ($LASTEXITCODE -ne 0) { throw "Assets were uploaded, but GitHub could not publish release '$tag'. Inspect the draft before retrying." }
+          if ($publishAfterUpload) {
+            gh release edit $tag --draft=false --title "OmniKes $tag"
+            if ($LASTEXITCODE -ne 0) { throw "Assets were uploaded, but GitHub could not publish release '$tag'. Inspect the draft before retrying." }
+          }
 
-          Write-Host "Published release: https://github.com/Mc-Pentester/omnikes/releases/tag/$tag"
+          Write-Host "Release updated: https://github.com/Mc-Pentester/omnikes/releases/tag/$tag"
           Write-Host "Installer: $($installer.Name)"
           Write-Host "SHA-256: $hash"
