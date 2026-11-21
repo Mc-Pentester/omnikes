@@ -5,6 +5,7 @@ vi.mock('@omnikes/lib/auth', () => ({
   requireCurrentOrganizationId: vi.fn(),
   requirePermission: vi.fn(),
   requireStoreAccess: vi.fn(),
+  requireSubscriptionCapability: vi.fn(),
 }));
 
 vi.mock('@omnikes/services/inventory.service', () => ({
@@ -29,6 +30,7 @@ import {
   requireCurrentOrganizationId,
   requirePermission,
   requireStoreAccess,
+  requireSubscriptionCapability,
 } from '@omnikes/lib/auth';
 import { inventoryService } from '@omnikes/services/inventory.service';
 import { inventoryMovementSchema } from '@omnikes/lib/validation';
@@ -49,6 +51,7 @@ describe('P1-G inventory API authorization contract', () => {
     (requireCurrentOrganizationId as any).mockResolvedValue('org-p1g');
     (requirePermission as any).mockResolvedValue(undefined);
     (requireStoreAccess as any).mockResolvedValue(undefined);
+    (requireSubscriptionCapability as any).mockResolvedValue(undefined);
     (inventoryService.getById as any).mockResolvedValue({ id: inventoryId, storeId });
     (inventoryService.listMovements as any).mockResolvedValue({ movements: [], total: 0 });
     (inventoryService.createMovement as any).mockResolvedValue({ id: 'movement-p1g' });
@@ -76,6 +79,7 @@ describe('P1-G inventory API authorization contract', () => {
 
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ error: 'Permission required' });
+    expect(requireSubscriptionCapability).not.toHaveBeenCalled();
     expect(inventoryService.getById).not.toHaveBeenCalled();
     expect(inventoryService.createMovement).not.toHaveBeenCalled();
   });
@@ -96,7 +100,6 @@ describe('P1-G inventory API authorization contract', () => {
   });
 
   it('POST rejects invalid movement data with 400 before mutation', async () => {
-    (requireStoreAccess as any).mockResolvedValue(undefined);
     const { z } = await import('zod');
     (inventoryMovementSchema as any).parse.mockImplementationOnce(() => {
       throw new z.ZodError([]);
