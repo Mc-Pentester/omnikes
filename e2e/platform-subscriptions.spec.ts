@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const plans = ['OMNIKES_149', 'OMNIKES_249', 'OMNIKES_299'] as const;
-const planSelect = (page: import('@playwright/test').Page) => page.getByLabel('Plan', { exact: true });
+const planSelect = (page: import('@playwright/test').Page) => page.getByRole('combobox', { name: 'Plan', exact: true });
 
 async function selectOrganization(page: import('@playwright/test').Page, name: string) {
   await page.getByRole('button', { name: new RegExp(name, 'i') }).click();
