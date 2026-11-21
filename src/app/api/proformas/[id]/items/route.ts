@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proformaService } from '@omnikes/services/proforma.service';
-import { requireCurrentOrganizationId, requireStoreAccess, requirePermission } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requireStoreAccess, requirePermission, requireSubscriptionCapability } from '@omnikes/lib/auth';
 
 /**
  * GET /api/proformas/[id]/items
@@ -24,6 +24,7 @@ export async function GET(
 
     return NextResponse.json(proforma.items);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -72,6 +73,7 @@ export async function POST(
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'proforma.update');
+    await requireSubscriptionCapability(request, 'pos.sales', 'WRITE');
 
     const body = await request.json();
 
@@ -85,6 +87,7 @@ export async function POST(
 
     return NextResponse.json(item, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },
