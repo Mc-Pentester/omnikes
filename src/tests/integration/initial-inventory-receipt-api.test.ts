@@ -5,6 +5,7 @@ vi.mock('@omnikes/lib/auth', () => ({
   requireCurrentOrganizationId: vi.fn(),
   requirePermission: vi.fn(),
   requireStoreAccess: vi.fn(),
+  requireSubscriptionCapability: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@omnikes/repositories/inventory.repository', () => ({
