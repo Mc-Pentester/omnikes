@@ -3,6 +3,13 @@ import { expect, test } from '@playwright/test';
 const plans = ['OMNIKES_149', 'OMNIKES_249', 'OMNIKES_299'] as const;
 const planSelect = (page: import('@playwright/test').Page) => page.getByLabel('Plan', { exact: true });
 
+async function selectOrganization(page: import('@playwright/test').Page, name: string) {
+  await page.getByRole('button', { name: new RegExp(name, 'i') }).click();
+  // Wait for the selected organization's details panel before interacting with its form.
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  await expect(planSelect(page)).toBeVisible();
+}
+
 test.describe('Platform subscription administration', () => {
   test.beforeEach(async ({ page }) => {
     let organizations = [
@@ -38,7 +45,7 @@ test.describe('Platform subscription administration', () => {
     await expect(page.getByRole('heading', { name: /entitlements & abonnements/i })).toBeVisible();
 
     for (let index = 0; index < plans.length; index += 1) {
-      await page.getByRole('button', { name: new RegExp(['Tenant Essential', 'Tenant Professional', 'Tenant Enterprise'][index]) }).click();
+      await selectOrganization(page, ['Tenant Essential', 'Tenant Professional', 'Tenant Enterprise'][index]);
       await planSelect(page).selectOption(plans[index]);
       await expect(planSelect(page)).toHaveValue(plans[index]);
       await page.getByLabel('Date d’expiration', { exact: true }).fill('2030-12-31');
@@ -54,7 +61,7 @@ test.describe('Platform subscription administration', () => {
 
   test('shows deferred downgrade and end-of-period cancellation states', async ({ page }) => {
     await page.goto('/administration/platform-subscriptions');
-    await page.getByRole('button', { name: /tenant enterprise/i }).click();
+    await selectOrganization(page, 'Tenant Enterprise');
     await planSelect(page).selectOption('OMNIKES_149');
     await expect(planSelect(page)).toHaveValue('OMNIKES_149');
     await page.getByRole('button', { name: /changer de forfait/i }).click();
