@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saleService } from '@omnikes/services/sale.service';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, requireSubscriptionCapability } from '@omnikes/lib/auth';
 
 /**
  * POST /api/sales/[id]/complete
@@ -14,6 +14,7 @@ export async function POST(
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
     await requirePermission(request, 'sale.complete');
+    await requireSubscriptionCapability(request, 'pos.sales', 'WRITE');
 
     // Get sale to verify store access before completion
     const sale = await saleService.getById(id, organizationId);
@@ -25,6 +26,7 @@ export async function POST(
 
     return NextResponse.json(completedSale);
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
       return NextResponse.json(
         { error: 'Authentication required' },
