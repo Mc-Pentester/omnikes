@@ -132,6 +132,9 @@ jobs:
           E2E_PASSWORD: ${{ env.SEED_PASSWORD_A }}
         run: npx playwright test e2e/barcode-workflow.spec.ts --project=chromium
 
+      - name: Run platform subscription administration end-to-end test
+        run: npx playwright test e2e/platform-subscriptions.spec.ts --project=chromium
+
       - name: Lint
         shell: bash
         run: |
