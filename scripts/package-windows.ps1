@@ -88,13 +88,6 @@ $repositoryOnlyFiles = @(
   "tsconfig.json",
   "tsconfig.bootstrap.json",
   "check_admin_permissions.ts",
-  "check_data_counts.ts",
-  "check_permissions_forensic.ts",
-  "check_store_delete_permission.ts",
-  "reactivate_store_a.ts",
-  "test_api.ts",
-  "verify-rbac.ts",
-  "verify_store_state.ts"
 )
 foreach ($file in $repositoryOnlyFiles) {
   $path = Join-Path $app $file
