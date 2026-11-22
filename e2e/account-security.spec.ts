@@ -54,7 +54,7 @@ test('a cashier can change their own password without administrator permissions'
   await page.getByLabel('Email').fill(cashierEmail!);
   await page.getByLabel('Mot de passe').fill(cashierPassword!);
   await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page).not.toHaveURL(/\\/login$/);
+  await expect(page).not.toHaveURL(/\/login$/);
 
   await page.goto('/profile/security');
   await expect(page.getByRole('heading', { name: 'Profil et sécurité' })).toBeVisible();
@@ -62,18 +62,18 @@ test('a cashier can change their own password without administrator permissions'
   await page.locator('#newPassword').fill(temporaryPassword);
   await page.locator('#confirmPassword').fill(temporaryPassword);
   await page.getByRole('button', { name: 'Modifier mon mot de passe' }).click();
-  await expect(page).toHaveURL(/\\/login\\?passwordChanged=1$/);
+  await expect(page).toHaveURL(/\/login\\?passwordChanged=1$/);
   await expect(page.getByRole('status')).toContainText('Votre mot de passe a été modifié');
 
   await page.getByLabel('Email').fill(cashierEmail!);
   await page.getByLabel('Mot de passe').fill(temporaryPassword);
   await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page).not.toHaveURL(/\\/login$/);
+  await expect(page).not.toHaveURL(/\/login$/);
 
   await page.goto('/profile/security');
   await page.getByLabel('Mot de passe actuel').fill(temporaryPassword);
   await page.locator('#newPassword').fill(cashierPassword!);
   await page.locator('#confirmPassword').fill(cashierPassword!);
   await page.getByRole('button', { name: 'Modifier mon mot de passe' }).click();
-  await expect(page).toHaveURL(/\\/login\\?passwordChanged=1$/);
+  await expect(page).toHaveURL(/\/login\\?passwordChanged=1$/);
 });
