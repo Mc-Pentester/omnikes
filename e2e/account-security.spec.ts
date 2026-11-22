@@ -56,7 +56,7 @@ test('a cashier can change their own password without administrator permissions'
   await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page).not.toHaveURL(/\/login$/);
 
-  await page.goto('/profile/security');
+  await page.getByRole('link', { name: 'Mon profil et sécurité' }).click();
   await expect(page.getByRole('heading', { name: 'Profil et sécurité' })).toBeVisible();
   await page.getByLabel('Mot de passe actuel').fill(cashierPassword!);
   await page.locator('#newPassword').fill(temporaryPassword);
