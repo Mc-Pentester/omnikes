@@ -50,9 +50,11 @@ async function main() {
     // subscription operator role available on fresh and upgraded installs.
     const platformRole = await tx.platformRole.upsert({
       where: { name: 'OMNIKES_PLATFORM_OPERATOR' },
+      // Preserve an existing operator-role suspension during routine installs.
+      // Only a newly created role is active by default; explicit bootstrap may
+      // activate it after the operator setup has been deliberately requested.
       update: {
         description: 'Opérateur OmniKès autorisé à gérer les abonnements de la plateforme',
-        isActive: true,
       },
       create: {
         name: 'OMNIKES_PLATFORM_OPERATOR',
