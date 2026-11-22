@@ -58,6 +58,9 @@ describe('Windows installer RBAC bootstrap', () => {
     expect(platformBootstrap).toContain('an administrator must explicitly reactivate it before bootstrap');
     expect(platformBootstrap.indexOf("required('BOOTSTRAP_PLATFORM_OPERATOR_PASSWORD')")).toBeLessThan(platformBootstrap.indexOf('await ensurePlatformRoleAndPermissions()'));
     expect(platformBootstrap.indexOf('await ensurePlatformRoleAndPermissions()')).toBeLessThan(platformBootstrap.indexOf('await ensurePlatformOrganization()'));
+    expect(platformBootstrap).toContain("required('BOOTSTRAP_PLATFORM_OPERATOR_PASSWORD', { trim: false })");
+    expect(platformBootstrap).toContain('options.trim === false ? rawValue : rawValue?.trim()');
+    expect(platformBootstrap).toContain('Password must be at least 8 characters');
     expect(platformBootstrap).toContain('BOOTSTRAP_PLATFORM_OPERATOR_PASSWORD must be at least 8 characters');
     expect(platformBootstrap).not.toContain('BOOTSTRAP_PLATFORM_OPERATOR_ORGANIZATION_ID');
     expect(initializer).toContain("name: 'OMNIKES_PLATFORM_OPERATOR'");
