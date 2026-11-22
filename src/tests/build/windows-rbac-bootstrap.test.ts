@@ -54,6 +54,8 @@ describe('Windows installer RBAC bootstrap', () => {
     expect(platformBootstrap).toContain('platformOperatorBootstrapService.bootstrap');
     expect(platformBootstrap).not.toContain('BOOTSTRAP_PLATFORM_OPERATOR_ORGANIZATION_ID');
     expect(initializer).toContain("name: 'OMNIKES_PLATFORM_OPERATOR'");
+    expect(initializer).toMatch(/update:\s*\{\s*description: 'Opérateur OmniKès autorisé à gérer les abonnements de la plateforme',\s*\}/);
+    expect(initializer).toMatch(/create:\s*\{\s*name: 'OMNIKES_PLATFORM_OPERATOR',\s*description: 'Opérateur OmniKès autorisé à gérer les abonnements de la plateforme',\s*isActive: true,/);
     expect(initializer).toContain('tx.platformRolePermission.createMany');
     expect(initializer).toContain('skipDuplicates: true');
   });
