@@ -1,172 +1,108 @@
 # OmniKès
 
-A **Local-First** Point of Sale (POS) system with optional Cloud services and optional Online Store.
+**OmniKès** est un logiciel de point de vente (POS) conçu selon une architecture **Local-First**. Les opérations essentielles d'un établissement sont hébergées et exécutées sur son réseau local. Les services cloud et la boutique en ligne sont des extensions facultatives, et non des prérequis au fonctionnement du POS.
 
-## Vision
+## Principes
 
-OmniKès is designed to operate 100% locally without constant Internet dependency, with Cloud services and an Online Store as optional enhancements. The system supports multi-tenant, multi-store, multi-user operations with internationalization (multi-currency, configurable taxation).
+- **Local-First** : les fonctions essentielles du POS restent disponibles sur le réseau local.
+- **Cloud-Optional** : aucun compte cloud ni synchronisation distante obligatoire pour le fonctionnement local.
+- **Online Store-Optional** : la boutique en ligne est un module facultatif.
+- **Multi-organisation et multi-magasin** : séparation des organisations, établissements, utilisateurs et autorisations.
+- **PostgreSQL** : base de données relationnelle utilisée par l'application.
+- **Matériel** : intégration via une couche dédiée pour les périphériques pris en charge.
 
-## Architecture Principles
+## Technologies
 
-- **Local-First**: Core POS functions work without Internet
-- **Cloud-Optional**: Cloud services are add-ons, not requirements
-- **Online Store-Optional**: E-commerce is a separate module
-- **Modular**: Each business domain is isolated
-- **International**: Multi-country, multi-currency support
-- **Hardware-Abstracted**: Device independence
-- **Sync-Ready**: Prepared for offline/online synchronization
+- Next.js 16, React 19 et TypeScript
+- Prisma ORM
+- PostgreSQL
+- Tailwind CSS 4
+- Zod
+- Vitest pour les tests unitaires et d'intégration
+- Playwright pour les tests end-to-end
 
-## Tech Stack
+Les versions exactes sont définies dans `package.json` et `package-lock.json`.
 
-- **Frontend**: Next.js 16, React 19, TypeScript, TailwindCSS 4
-- **Backend**: Next.js API Routes, Prisma ORM
-- **Database**: PostgreSQL (via Docker)
-- **Validation**: Zod
-- **Testing**: Vitest (unit), Playwright (E2E)
-- **PWA**: next-pwa for offline capability
+## Installation Windows
 
-## Getting Started
+Pour les utilisateurs finaux, utiliser le programme d'installation Windows fourni dans les **GitHub Releases** du dépôt. Le package Windows embarque les runtimes nécessaires, notamment Node.js et PostgreSQL, afin d'éviter de demander à l'utilisateur d'installer Docker Desktop ou un environnement de développement.
 
-### Prerequisites
+Les mises à jour doivent être effectuées avec le processus d'installation prévu par OmniKès. Ne pas supprimer le répertoire de données PostgreSQL ni les données applicatives lors d'une mise à jour.
 
-- Node.js 18+
-- Docker Desktop (for PostgreSQL)
-- npm, yarn, pnpm, or bun
+## Développement
 
-### Installation
+### Prérequis
 
-1. Clone the repository
-2. Install dependencies:
+- Node.js compatible avec la version utilisée par le projet (voir le runtime défini dans le workflow Windows)
+- npm
+- Une instance PostgreSQL accessible depuis l'environnement de développement
+
+Docker Compose peut être utilisé comme option de développement/test pour fournir PostgreSQL. Docker Desktop n'est pas un prérequis pour l'installation Windows destinée aux utilisateurs.
+
+### Démarrage
+
+1. Cloner le dépôt et installer les dépendances :
+
    ```bash
-   npm install
+   npm ci
    ```
 
-3. Copy environment variables:
+2. Créer le fichier local d'environnement à partir du modèle :
+
    ```bash
    cp .env.example .env
    ```
 
-4. Start PostgreSQL with Docker:
-   ```bash
-   docker-compose up -d
-   ```
+3. Configurer `DATABASE_URL` dans `.env` pour pointer vers l'instance PostgreSQL de développement. Ne jamais committer un fichier `.env` contenant des identifiants ou secrets.
 
-5. Generate Prisma client:
+4. Générer le client Prisma et appliquer les migrations sur la base de développement :
+
    ```bash
    npx prisma generate
-   ```
-
-6. Run database migrations:
-   ```bash
    npx prisma migrate dev
    ```
 
-7. Start the development server:
+5. Lancer l'application :
+
    ```bash
    npm run dev
    ```
 
-8. Open [http://localhost:3000](http://localhost:3000)
+L'application de développement est accessible à l'adresse http://localhost:3000.
 
-## Project Structure
+## Commandes utiles
 
-```
-omnikes/
-├── prisma/              # Database schema and migrations
-├── src/
-│   ├── app/            # Next.js App Router
-│   │   ├── api/        # API routes
-│   │   └── (pages)     # UI pages
-│   ├── components/     # Reusable components
-│   │   └── ui/         # UI components (shadcn-style)
-│   ├── core/           # Core types and interfaces
-│   │   ├── types/      # TypeScript type definitions
-│   │   └── hardware/   # Hardware abstraction layer
-│   ├── lib/            # Utility libraries
-│   │   ├── prisma.ts   # Prisma client
-│   │   └── validation.ts # Zod schemas
-│   └── tests/          # Unit tests
-├── e2e/                # E2E tests (Playwright)
-├── docs/               # Documentation
-└── docker-compose.yml  # Docker services
-```
+| Commande | Description |
+| --- | --- |
+| `npm run dev` | Serveur de développement |
+| `npm run build` | Build de production (nécessite `DATABASE_URL`) |
+| `npm start` | Serveur Next.js |
+| `npm run lint` | Analyse ESLint |
+| `npm run typecheck` | Vérification TypeScript |
+| `npm test` | Tests Vitest |
+| `npx playwright test` | Tests Playwright configurés dans le dépôt |
+| `npx prisma validate` | Validation du schéma Prisma |
+| `npx prisma generate` | Génération du client Prisma |
 
-## Available Scripts
+## Structure du projet
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm start` - Start production server
-- `npm run lint` - Run ESLint
-- `npx prisma studio` - Open Prisma Studio
-- `npx prisma migrate dev` - Create and run migrations
-- `npx vitest` - Run unit tests
-- `npx playwright test` - Run E2E tests
+- `prisma/` : schéma et migrations de base de données
+- `src/app/` : pages et routes API Next.js
+- `src/components/` : composants d'interface
+- `src/services/` et `src/repositories/` : logique métier et accès aux données
+- `src/tests/` et `e2e/` : tests automatisés
+- `scripts/` : scripts d'administration, de validation et de packaging
+- `installer/` : ressources de l'installateur Windows
+- `.github/workflows/` : workflows CI et packaging/publication
 
-## API Endpoints
+## Sécurité et données
 
-### Health Check
+- Ne jamais committer de secrets, mots de passe, jetons ou fichiers d'environnement réels.
+- Ne pas exécuter de migration destructive sur une base contenant des données réelles.
+- Utiliser une base dédiée aux tests et au développement.
+- Préserver les données locales et le répertoire PostgreSQL pendant les mises à jour.
+- Les opérations sensibles doivent respecter les contrôles d'autorisation (RBAC) de l'application.
 
-```
-GET /api/health
-```
+## Licence
 
-Returns the system health status including database connectivity.
-
-## Database Schema
-
-The initial schema includes:
-
-- **Organization**: Multi-tenant support
-- **Store**: Multi-store per organization
-- **User**: Multi-user with RBAC
-- **Role**: Role definitions
-- **Permission**: Granular permissions
-- **Session**: Authentication sessions
-- **AuditLog**: Audit trail
-- **TaxConfiguration**: International tax support
-- **Currency**: Multi-currency support
-- **Locale**: Internationalization
-
-See `prisma/schema.prisma` for the complete schema.
-
-## Phase Status
-
-**Current Phase**: Phase 0 - Foundation 
-
-Phase 0 establishes the technical foundation:
-- Project initialized with Next.js
-- TypeScript configured
-- Database schema designed
-- Modular structure created
-- Health check API implemented
-- Design system foundation
-- PWA configured
-- Hardware abstraction layer defined
-- Test infrastructure set up
-- Documentation created
-
-## Next Steps
-
-After Phase 0 completion, the following modules will be developed:
-
-1. **Module 0 - Foundation**: Authentication, authorization, session management
-2. **Module 1 - Organization**: Organization management
-3. **Module 2 - Stores**: Store management
-4. **Module 3 - Users/Roles/Permissions**: RBAC implementation
-5. **Module 4 - Products/ProductVariants**: Product catalog
-6. **Module 5 - Inventory**: Inventory management
-7. **Module 6 - Suppliers/Purchases**: Supply chain
-8. **Module 7 - Cash Management**: Cash operations
-9. **Module 8 - POS/Sales**: Point of Sale
-10. **Module 9 - Payments**: Payment processing
-11. **Module 10 - Customers**: Customer management
-12. **Module 11 - Online Store**: E-commerce (OPTIONAL)
-13. **Module 12 - Sync/Cloud**: Cloud synchronization (OPTIONAL)
-
-## License
-
-Proprietary - All rights reserved
-
-## Support
-
-For questions or issues, please refer to the project documentation in the `docs/` directory.
+Logiciel propriétaire — tous droits réservés. Voir [docs/legal/OMNIKES-LICENSE.txt](docs/legal/OMNIKES-LICENSE.txt).
