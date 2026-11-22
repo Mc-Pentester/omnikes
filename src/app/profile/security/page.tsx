@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminPageShell } from '@omnikes/components/layout/AdminPageShell';
 import { useAuth } from '@omnikes/contexts/AuthContext';
@@ -48,11 +48,11 @@ export default function ProfileSecurityPage() {
     }
   };
 
-  if (authLoading) return <main className="p-8">Chargement du profil…</main>;
-  if (!user) {
-    router.replace('/login');
-    return <main className="p-8">Redirection vers la connexion…</main>;
-  }
+  useEffect(() => {
+    if (!authLoading && !user) router.replace('/login');
+  }, [authLoading, user, router]);
+
+  if (authLoading || !user) return <main className="p-8">Chargement du profil…</main>;
 
   return (
     <AdminPageShell>
