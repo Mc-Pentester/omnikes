@@ -78,7 +78,7 @@ L'application de développement est accessible à l'adresse http://localhost:300
 | `npm run build` | Build de production (nécessite `DATABASE_URL`) |
 | `npm start` | Serveur Next.js |
 | `npm run lint` | Analyse ESLint |
-| `npm run typecheck` | Vérification TypeScript |
+| `npx tsc --noEmit` | Vérification TypeScript |
 | `npm test` | Tests Vitest |
 | `npx playwright test` | Tests Playwright configurés dans le dépôt |
 | `npx prisma validate` | Validation du schéma Prisma |
