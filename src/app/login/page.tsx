@@ -1,24 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
 import { Input } from '@omnikes/components/ui/input';
 import { useAuth } from '@omnikes/contexts/AuthContext';
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [passwordChanged, setPasswordChanged] = useState(false);
-
-  useEffect(() => {
-    setPasswordChanged(new URLSearchParams(window.location.search).get('passwordChanged') === '1');
-  }, []);
+  const passwordChanged = searchParams.get('passwordChanged') === '1';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,5 +105,14 @@ export default function LoginPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }
