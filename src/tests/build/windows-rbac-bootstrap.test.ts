@@ -52,6 +52,13 @@ describe('Windows installer RBAC bootstrap', () => {
     expect(platformBootstrap).toContain('platformRole.upsert');
     expect(platformBootstrap).toContain('platformRolePermission.createMany');
     expect(platformBootstrap).toContain('platformOperatorBootstrapService.bootstrap');
+    expect(platformBootstrap).toMatch(/update:\s*\{\s*description: 'Opérateur OmniKès autorisé à gérer les abonnements de la plateforme',\s*\}/);
+    expect(platformBootstrap).toMatch(/create:\s*\{[\s\S]*?isActive: true,/);
+    expect(platformBootstrap).toContain('if (!role.isActive)');
+    expect(platformBootstrap).toContain('an administrator must explicitly reactivate it before bootstrap');
+    expect(platformBootstrap.indexOf("required('BOOTSTRAP_PLATFORM_OPERATOR_PASSWORD')")).toBeLessThan(platformBootstrap.indexOf('await ensurePlatformRoleAndPermissions()'));
+    expect(platformBootstrap.indexOf('await ensurePlatformRoleAndPermissions()')).toBeLessThan(platformBootstrap.indexOf('await ensurePlatformOrganization()'));
+    expect(platformBootstrap).toContain('BOOTSTRAP_PLATFORM_OPERATOR_PASSWORD must be at least 8 characters');
     expect(platformBootstrap).not.toContain('BOOTSTRAP_PLATFORM_OPERATOR_ORGANIZATION_ID');
     expect(initializer).toContain("name: 'OMNIKES_PLATFORM_OPERATOR'");
     expect(initializer).toMatch(/update:\s*\{\s*description: 'Opérateur OmniKès autorisé à gérer les abonnements de la plateforme',\s*\}/);
