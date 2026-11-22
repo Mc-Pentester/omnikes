@@ -22,19 +22,16 @@ function required(name: string): string {
 async function ensurePlatformOrganization(): Promise<string> {
   // A reserved, deterministic slug makes this operation repeatable. Never
   // repurpose an unrelated organization if that slug is already occupied.
-  const existing = await prisma.organization.findUnique({
+  const organization = await prisma.organization.upsert({
     where: { slug: PLATFORM_ORGANIZATION.slug },
+    update: {},
+    create: PLATFORM_ORGANIZATION,
     select: { id: true, name: true },
   });
 
-  if (existing && existing.name !== PLATFORM_ORGANIZATION.name) {
+  if (organization.name !== PLATFORM_ORGANIZATION.name) {
     throw new Error('Reserved OmniKès technical organization slug is already used by another organization');
   }
-
-  const organization = existing ?? await prisma.organization.create({
-    data: PLATFORM_ORGANIZATION,
-    select: { id: true },
-  });
 
   return organization.id;
 }
