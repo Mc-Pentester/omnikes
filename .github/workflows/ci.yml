@@ -142,6 +142,8 @@ jobs:
         env:
           E2E_EMAIL: admin.a@omnikes.test
           E2E_PASSWORD: ${{ env.SEED_PASSWORD_A }}
+          E2E_CASHIER_EMAIL: cashier.a@omnikes.test
+          E2E_CASHIER_PASSWORD: ${{ env.SEED_PASSWORD_CASHIER_A }}
         run: npx playwright test e2e/account-security.spec.ts --project=chromium
 
       - name: Lint

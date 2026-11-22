@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
@@ -14,6 +14,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [passwordChanged, setPasswordChanged] = useState(false);
+
+  useEffect(() => {
+    setPasswordChanged(new URLSearchParams(window.location.search).get('passwordChanged') === '1');
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +72,12 @@ export default function LoginPage() {
               disabled={loading}
             />
           </div>
+
+          {passwordChanged && (
+            <div role="status" className="rounded-lg border border-primary/30 bg-primary/10 p-3 text-sm text-primary">
+              Votre mot de passe a été modifié. Connectez-vous avec votre nouveau mot de passe.
+            </div>
+          )}
 
           {error && (
             <div className="text-danger text-sm">{error}</div>
