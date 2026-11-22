@@ -87,7 +87,7 @@ $repositoryOnlyFiles = @(
   "vitest.integration.config.ts",
   "tsconfig.json",
   "tsconfig.bootstrap.json",
-  "check_admin_permissions.ts",
+  "check_admin_permissions.ts"
 )
 foreach ($file in $repositoryOnlyFiles) {
   $path = Join-Path $app $file
