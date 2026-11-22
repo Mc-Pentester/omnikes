@@ -138,6 +138,14 @@ jobs:
       - name: Run platform subscription administration end-to-end test
         run: npx playwright test e2e/platform-subscriptions.spec.ts --project=chromium
 
+      - name: Run account security end-to-end tests
+        env:
+          E2E_EMAIL: admin.a@omnikes.test
+          E2E_PASSWORD: ${{ env.SEED_PASSWORD_A }}
+          E2E_CASHIER_EMAIL: cashier.a@omnikes.test
+          E2E_CASHIER_PASSWORD: ${{ env.SEED_PASSWORD_CASHIER_A }}
+        run: npx playwright test e2e/account-security.spec.ts --project=chromium
+
       - name: Lint
         shell: bash
         run: |

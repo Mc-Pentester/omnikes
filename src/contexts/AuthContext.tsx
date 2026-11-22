@@ -83,10 +83,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      setUser(null);
+      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!response.ok) {
+        errorLogger.auth(new Error(`Logout endpoint returned ${response.status}`), { context: 'AuthContext.logout' });
+      }
     } catch (err) {
       errorLogger.auth(err, { context: 'AuthContext.logout' });
+    } finally {
+      // Clear the local authenticated state even when the network is unavailable.
+      setUser(null);
+      setError(null);
     }
   };
 

@@ -4,6 +4,7 @@ import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { generateToken } from '@omnikes/lib/crypto';
 import { checkRateLimit, resetRateLimit, getAccountRateLimitIdentifier, getIpRateLimitIdentifier, startRateLimitCleanup } from '@omnikes/lib/rate-limiter';
 import { securityLogger } from '@omnikes/lib/security-logger';
+import { prisma } from '@omnikes/lib/prisma';
 
 const MAX_SESSIONS_PER_USER = 10; // Limit concurrent sessions per user
 
@@ -190,7 +191,7 @@ export class AuthService {
    * Hash a password (for user creation)
    */
   async hashPassword(password: string): Promise<string> {
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(12);
     return bcrypt.hash(password, salt);
   }
 
@@ -213,11 +214,23 @@ export class AuthService {
     // Hash new password
     const hashedPassword = await this.hashPassword(newPassword);
 
-    // Update password
-    await userRepository.update(userId, { password: hashedPassword });
+    // Persist the new hash and revoke every session atomically. The conditional
+    // update prevents concurrent requests from changing a password using a stale hash.
+    await prisma.$transaction(async (tx) => {
+      const update = await tx.user.updateMany({
+        where: { id: userId, password: user.password },
+        data: { password: hashedPassword },
+      });
 
-    // Revoke all sessions for security
-    await userRepository.revokeAllSessions(userId);
+      if (update.count !== 1) {
+        throw new Error('Password changed concurrently; please retry.');
+      }
+
+      await tx.session.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    });
 
     securityLogger.passwordChanged(userId, user.email);
   }
