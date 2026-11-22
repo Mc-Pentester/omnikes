@@ -45,6 +45,38 @@ async function main() {
     for (const definition of rbacCatalog.platformPermissions || []) {
       await tx.platformPermission.upsert({ where: { code: definition.code }, update: {}, create: definition });
     }
+
+    // Platform authorization is separate from tenant RBAC. Keep the
+    // subscription operator role available on fresh and upgraded installs.
+    const platformRole = await tx.platformRole.upsert({
+      where: { name: 'OMNIKES_PLATFORM_OPERATOR' },
+      // Preserve an existing operator-role suspension during routine installs.
+      // Only a newly created role is active by default; explicit bootstrap may
+      // activate it after the operator setup has been deliberately requested.
+      update: {
+        description: 'Opérateur OmniKès autorisé à gérer les abonnements de la plateforme',
+      },
+      create: {
+        name: 'OMNIKES_PLATFORM_OPERATOR',
+        description: 'Opérateur OmniKès autorisé à gérer les abonnements de la plateforme',
+        isActive: true,
+      },
+      select: { id: true },
+    });
+    const platformPermissions = await tx.platformPermission.findMany({
+      where: { code: { in: (rbacCatalog.platformPermissions || []).map((item) => item.code) } },
+      select: { id: true },
+    });
+    if ((rbacCatalog.platformPermissions || []).length > 0 && platformPermissions.length === 0) {
+      throw new Error('RBAC initialization failed: platform permission catalogue is empty.');
+    }
+    await tx.platformRolePermission.createMany({
+      data: platformPermissions.map((permission) => ({
+        platformRoleId: platformRole.id,
+        platformPermissionId: permission.id,
+      })),
+      skipDuplicates: true,
+    });
   });
 
   const count = await prisma.permission.count();
