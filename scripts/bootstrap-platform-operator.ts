@@ -13,9 +13,10 @@ const PLATFORM_ORGANIZATION = {
   onlineStoreEnabled: false,
 };
 
-function required(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`${name} is required`);
+function required(name: string, options: { trim?: boolean } = {}): string {
+  const rawValue = process.env[name];
+  const value = options.trim === false ? rawValue : rawValue?.trim();
+  if (value === undefined || value.length === 0) throw new Error(`${name} is required`);
   return value;
 }
 
@@ -86,7 +87,9 @@ async function main() {
   // Validate all inputs before the first database write.
   const email = required('BOOTSTRAP_PLATFORM_OPERATOR_EMAIL').toLowerCase();
   const name = required('BOOTSTRAP_PLATFORM_OPERATOR_NAME');
-  const password = required('BOOTSTRAP_PLATFORM_OPERATOR_PASSWORD');
+  // Passwords are opaque secrets: preserve every character, including leading
+  // and trailing spaces, so bootstrap and normal login use the same value.
+  const password = required('BOOTSTRAP_PLATFORM_OPERATOR_PASSWORD', { trim: false });
 
   if (!email.includes('@')) throw new Error('BOOTSTRAP_PLATFORM_OPERATOR_EMAIL must be a valid email address');
   if (name.length > 255) throw new Error('BOOTSTRAP_PLATFORM_OPERATOR_NAME must be 255 characters or fewer');
