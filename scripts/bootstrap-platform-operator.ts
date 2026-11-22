@@ -40,17 +40,21 @@ async function ensurePlatformRoleAndPermissions(): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const role = await tx.platformRole.upsert({
       where: { name: 'OMNIKES_PLATFORM_OPERATOR' },
+      // Preserve deliberate administrative suspensions during explicit bootstrap.
       update: {
         description: 'Opérateur OmniKès autorisé à gérer les abonnements de la plateforme',
-        isActive: true,
       },
       create: {
         name: 'OMNIKES_PLATFORM_OPERATOR',
         description: 'Opérateur OmniKès autorisé à gérer les abonnements de la plateforme',
         isActive: true,
       },
-      select: { id: true },
+      select: { id: true, isActive: true },
     });
+
+    if (!role.isActive) {
+      throw new Error('Platform operator role is inactive; an administrator must explicitly reactivate it before bootstrap');
+    }
 
     const permissions = [];
     for (const definition of PLATFORM_PERMISSIONS) {
@@ -79,14 +83,24 @@ async function main() {
     );
   }
 
-  const organizationId = await ensurePlatformOrganization();
+  // Validate all inputs before the first database write.
+  const email = required('BOOTSTRAP_PLATFORM_OPERATOR_EMAIL').toLowerCase();
+  const name = required('BOOTSTRAP_PLATFORM_OPERATOR_NAME');
+  const password = required('BOOTSTRAP_PLATFORM_OPERATOR_PASSWORD');
+
+  if (!email.includes('@')) throw new Error('BOOTSTRAP_PLATFORM_OPERATOR_EMAIL must be a valid email address');
+  if (name.length > 255) throw new Error('BOOTSTRAP_PLATFORM_OPERATOR_NAME must be 255 characters or fewer');
+  if (password.length < 8) throw new Error('BOOTSTRAP_PLATFORM_OPERATOR_PASSWORD must be at least 8 characters');
+
+  // Fail closed on a suspended role before creating the internal organization.
   await ensurePlatformRoleAndPermissions();
+  const organizationId = await ensurePlatformOrganization();
 
   const result = await platformOperatorBootstrapService.bootstrap({
     organizationId,
-    email: required('BOOTSTRAP_PLATFORM_OPERATOR_EMAIL'),
-    name: required('BOOTSTRAP_PLATFORM_OPERATOR_NAME'),
-    password: required('BOOTSTRAP_PLATFORM_OPERATOR_PASSWORD'),
+    email,
+    name,
+    password,
   });
 
   console.log('Platform operator bootstrap completed.');
