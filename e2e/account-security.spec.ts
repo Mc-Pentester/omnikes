@@ -22,16 +22,16 @@ test.describe('Account security', () => {
     await expect(page.getByRole('heading', { name: 'Profil et sécurité' })).toBeVisible();
 
     await page.getByLabel('Mot de passe actuel').fill(originalPassword!);
-    await page.getByLabel('Nouveau mot de passe').fill(temporaryPassword);
-    await page.getByLabel('Confirmer le nouveau mot de passe').fill(temporaryPassword);
+    await page.locator('#newPassword').fill(temporaryPassword);
+    await page.locator('#confirmPassword').fill(temporaryPassword);
     await page.getByRole('button', { name: 'Modifier mon mot de passe' }).click();
     await expect(page).toHaveURL(/\/login\?passwordChanged=1$/);
 
     await signIn(page, temporaryPassword);
     await page.goto('/profile/security');
     await page.getByLabel('Mot de passe actuel').fill(temporaryPassword);
-    await page.getByLabel('Nouveau mot de passe').fill(originalPassword!);
-    await page.getByLabel('Confirmer le nouveau mot de passe').fill(originalPassword!);
+    await page.locator('#newPassword').fill(originalPassword!);
+    await page.locator('#confirmPassword').fill(originalPassword!);
     await page.getByRole('button', { name: 'Modifier mon mot de passe' }).click();
     await expect(page).toHaveURL(/\/login\?passwordChanged=1$/);
 
