@@ -12,6 +12,7 @@ export default function ProfileSecurityPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [saving, setSaving] = useState(false);
+  const [passwordChangeCompleted, setPasswordChangeCompleted] = useState(false);
   const [error, setError] = useState('');
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -39,6 +40,10 @@ export default function ProfileSecurityPage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      // The API has already revoked every session and cleared the cookie.
+      // Suppress the unauthenticated-page redirect while logout clears client state,
+      // otherwise it can race router.replace and discard the success query parameter.
+      setPasswordChangeCompleted(true);
       await logout();
       router.replace('/login?passwordChanged=1');
     } catch (err) {
@@ -49,8 +54,8 @@ export default function ProfileSecurityPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && !user) router.replace('/login');
-  }, [authLoading, user, router]);
+    if (!authLoading && !user && !passwordChangeCompleted) router.replace('/login');
+  }, [authLoading, user, router, passwordChangeCompleted]);
 
   if (authLoading || !user) return <main className="p-8">Chargement du profil…</main>;
 
