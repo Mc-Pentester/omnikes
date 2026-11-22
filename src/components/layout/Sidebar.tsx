@@ -8,7 +8,7 @@ import { useAuth } from '@omnikes/contexts/AuthContext';
 
 type IconName =
   | 'dashboard' | 'pos' | 'products' | 'sales' | 'cash' | 'proformas' | 'reports'
-  | 'inventory' | 'purchases' | 'suppliers' | 'stores' | 'customers' | 'settings' | 'admin' | 'logout';
+  | 'inventory' | 'purchases' | 'suppliers' | 'stores' | 'customers' | 'settings' | 'admin' | 'logout' | 'user';
 
 interface MenuItem {
   id: string;
@@ -53,6 +53,7 @@ function MenuIcon({ name, className = 'h-5 w-5' }: { name: IconName; className?:
     settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 1.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.1h-2.6v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.8-1.8.1-.1A1.7 1.7 0 0 0 8 15a1.7 1.7 0 0 0-1.5-1H6v-2.6h.5A1.7 1.7 0 0 0 8 10a1.7 1.7 0 0 0-.3-1.9l-.1-.1 1.8-1.8.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V5h2.6v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l-.1-.1 1.8 1.8-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0-1.5 1h.1V14h-.1a1.7 1.7 0 0 0-1.5 1Z" /></>,
     admin: <><path d="M12 3 20 6v5c0 5-3.3 8.4-8 10-4.7-1.6-8-5-8-10V6l8-3Z" /><path d="m9 12 2 2 4-4" /></>,
     logout: <><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10" /></>,
+    user: <><circle cx="12" cy="8" r="3.5" /><path d="M4.5 20c.7-3.6 3.2-5.5 7.5-5.5s6.8 1.9 7.5 5.5" /></>,
   };
   return <svg {...common} aria-hidden="true">{paths[name]}</svg>;
 }
@@ -96,7 +97,14 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
       <nav className="flex-1 overflow-y-auto p-3" aria-label="Navigation principale">
         {groupedItems.map((group) => <div key={group.label} className="mb-4 last:mb-0">{!isCompact && <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">{group.label}</p>}<ul className="space-y-1" role="menu">{group.items.map((item) => { const active = pathname === item.path || (item.path === '/reports' && pathname.startsWith('/reports')); return <li key={item.id} role="none"><button onClick={() => handleNavigate(item)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] transition-colors ${active ? 'bg-primary-soft text-primary font-semibold' : 'text-muted hover:bg-surface-muted hover:text-foreground'}`} role="menuitem" aria-current={active ? 'page' : undefined}><MenuIcon name={item.icon} />{!isCompact && <span className="text-sm">{item.label}</span>}</button></li>; })}</ul></div>)}
       </nav>
-      <div className="p-3 border-t border-border">{isCompact ? <button onClick={handleToggle} className="w-full h-10 flex items-center justify-center rounded-[var(--radius-md)] text-muted hover:bg-surface-muted hover:text-foreground transition-colors" aria-label="Développer le menu"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg></button> : <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-muted hover:bg-danger-soft hover:text-danger transition-colors" aria-label="Déconnexion"><MenuIcon name="logout" /><span className="text-sm font-medium">Déconnexion</span></button>}</div>
+      <div className="p-3 border-t border-border space-y-1">
+        <Link href="/profile/security" title="Mon profil et sécurité" aria-label="Mon profil et sécurité" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-muted hover:bg-surface-muted hover:text-foreground transition-colors">
+          <MenuIcon name="user" />{!isCompact && <span className="text-sm font-medium">Mon profil et sécurité</span>}
+        </Link>
+        <button onClick={handleLogout} title="Déconnexion" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-muted hover:bg-danger-soft hover:text-danger transition-colors" aria-label="Déconnexion">
+          <MenuIcon name="logout" />{!isCompact && <span className="text-sm font-medium">Déconnexion</span>}
+        </button>
+      </div>
     </aside>
   );
 }
