@@ -76,6 +76,7 @@ export default function NewProformaPage() {
   const [items, setItems] = useState<ProformaItemDraft[]>([]);
   const [selectedVariantId, setSelectedVariantId] = useState('');
   const [itemQuantity, setItemQuantity] = useState(1);
+  const [taxEnabled, setTaxEnabled] = useState(false);
   const [taxRate, setTaxRate] = useState(0);
 
   useEffect(() => {
@@ -113,12 +114,16 @@ export default function NewProformaPage() {
       const response = await fetch('/api/tax');
       if (response.ok) {
         const data = await response.json();
-        setTaxRate(typeof data.taxRate === 'number' ? data.taxRate : 0);
+        const enabled = data.enabled === true;
+        setTaxEnabled(enabled);
+        setTaxRate(enabled && typeof data.taxRate === 'number' ? data.taxRate : 0);
       } else {
+        setTaxEnabled(false);
         setTaxRate(0);
       }
     } catch (err) {
       console.error('Error fetching tax configuration:', err);
+      setTaxEnabled(false);
       setTaxRate(0);
     }
   };
@@ -281,10 +286,10 @@ export default function NewProformaPage() {
 
   const { subtotal, tax, total } = useMemo(() => {
     const subtotal = items.reduce((sum, item) => sum + (Number(item.variant.price) * item.quantity), 0);
-    const tax = subtotal * taxRate;
+    const tax = taxEnabled ? subtotal * taxRate : 0;
     const total = subtotal + tax;
     return { subtotal, tax, total };
-  }, [items, taxRate]);
+  }, [items, taxRate, taxEnabled]);
 
   if (authLoading || loadingData) {
     return (
@@ -511,8 +516,12 @@ export default function NewProformaPage() {
                           <span>{subtotal.toFixed(2)} HTG</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Taxe ({(taxRate * 100).toFixed(2)}%):</span>
-                          <span>{tax.toFixed(2)} HTG</span>
+                          {taxEnabled && (
+                            <>
+                              <span>Taxe ({(taxRate * 100).toFixed(2)}%):</span>
+                              <span>{tax.toFixed(2)} HTG</span>
+                            </>
+                          )}
                         </div>
                         <div className="flex justify-between font-bold">
                           <span>Total:</span>

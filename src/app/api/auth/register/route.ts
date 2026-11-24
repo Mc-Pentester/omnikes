@@ -16,6 +16,8 @@ export async function POST(request: NextRequest) {
       currency: validatedData.currency,
       locale: validatedData.locale,
       timezone: validatedData.timezone,
+      taxEnabled: validatedData.taxEnabled,
+      taxRate: validatedData.taxRate,
     }, getClientIP(request.headers), request.headers.get('user-agent') || undefined);
 
     if (result.pendingApproval) {

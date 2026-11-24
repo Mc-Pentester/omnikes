@@ -171,7 +171,9 @@ describe('Windows Launcher Verification', () => {
     expect(service).toContain('country,');
     expect(service).toContain('currency,');
     expect(service).toContain('locale,');
-    expect(service).toContain('locale, timezone }');
+    expect(service).toContain('locale, timezone, taxEnabled = false, taxRate = 0 }');
+    expect(service).toContain('taxEnabled,');
+    expect(service).toContain('taxRate: taxRate / 100');
   });
 
   it('should retain the first-launch environment preparation script', () => {

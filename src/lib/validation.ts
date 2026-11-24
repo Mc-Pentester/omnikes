@@ -11,6 +11,8 @@ export const organizationSchema = z.object({
   timezone: z.string().default('UTC'),
   cloudEnabled: z.boolean().default(false),
   onlineStoreEnabled: z.boolean().default(false),
+  taxEnabled: z.boolean().default(false),
+  taxRate: z.number().finite().min(0).max(100).default(0),
 });
 
 
@@ -23,6 +25,8 @@ export const adminOrganizationUpdateSchema = z.object({
   timezone: z.string().trim().min(1).max(100).optional(),
   cloudEnabled: z.boolean().optional(),
   onlineStoreEnabled: z.boolean().optional(),
+  taxEnabled: z.boolean().optional(),
+  taxRate: z.number().finite().min(0).max(100).optional(),
 });
 
 export type AdminOrganizationUpdateInput = z.infer<typeof adminOrganizationUpdateSchema>;
@@ -568,6 +572,8 @@ export const registrationSchema = z.object({
   currency: z.string().trim().length(3).default('HTG').transform((value) => value.toUpperCase()),
   locale: z.string().trim().min(2).max(20).default('fr-HT'),
   timezone: z.string().trim().min(1).max(100).default('America/Port-au-Prince'),
+  taxEnabled: z.boolean().default(false),
+  taxRate: z.number().finite().min(0).max(100).default(0),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
   path: ['confirmPassword'],

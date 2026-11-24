@@ -59,10 +59,8 @@ export class SaleService {
       include: { taxConfiguration: true },
     });
 
-    const configuredRate = organization?.taxConfiguration?.taxRate;
-    const initialTaxRate = (validatedData.applyTax !== false && configuredRate !== null && configuredRate !== undefined)
-      ? Number(configuredRate)
-      : 0;
+    const initialTaxRate = organization?.taxEnabled === true ? Number(organization.taxRate) : 0;
+    const applyTax = organization?.taxEnabled === true && validatedData.applyTax !== false;
 
     // Financial totals are server-owned. A newly created sale has no trusted
     // line totals yet; they are recalculated from server-priced items as items are added.
@@ -76,6 +74,7 @@ export class SaleService {
       discount: 0,
       tax: initialTax,
       taxRate: initialTaxRate,
+      applyTax,
       total: initialTotal,
       organization: {
         connect: { id: organizationId },
@@ -370,9 +369,8 @@ export class SaleService {
       include: { organization: { include: { taxConfiguration: true } } },
     });
 
-    const configuredRate = sale?.organization?.taxConfiguration?.taxRate;
-    const effectiveRate = (sale?.applyTax !== false && configuredRate !== null && configuredRate !== undefined)
-      ? Number(configuredRate)
+    const effectiveRate = sale?.applyTax && sale.organization?.taxEnabled === true
+      ? Number(sale.organization.taxRate)
       : 0;
     const taxableSubtotal = roundMoney(subtotal - discount);
     const tax = roundMoney(taxableSubtotal * effectiveRate);
@@ -402,10 +400,7 @@ export class SaleService {
     });
     if (!sale) throw new Error('Sale not found or access denied');
 
-    const configuredRate = sale.organization?.taxConfiguration?.taxRate;
-    const effectiveRate = (sale.applyTax !== false && configuredRate !== null && configuredRate !== undefined)
-      ? Number(configuredRate)
-      : 0;
+    const effectiveRate = sale.applyTax && sale.organization?.taxEnabled === true ? Number(sale.organization.taxRate) : 0;
     const taxableSubtotal = roundMoney(subtotal - discount);
     const tax = roundMoney(taxableSubtotal * effectiveRate);
     const total = roundMoney(taxableSubtotal + tax);

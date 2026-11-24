@@ -370,11 +370,112 @@ internal sealed class OmniKesWindow : Form
         }
     }
 
-    private void HandleNewWindow(object sender, CoreWebView2NewWindowRequestedEventArgs e)
+    private async void HandleNewWindow(object sender, CoreWebView2NewWindowRequestedEventArgs e)
+    {
+        Uri target;
+        if (!Uri.TryCreate(e.Uri, UriKind.Absolute, out target))
+        {
+            e.Handled = true;
+            return;
+        }
+
+        Uri origin = new Uri(appUrl);
+        bool blankPopup = target.Scheme == Uri.UriSchemeAbout && target.AbsoluteUri == "about:blank";
+        bool localPage = target.Scheme == Uri.UriSchemeHttp && target.Host == origin.Host && target.Port == origin.Port;
+        if (!blankPopup && !localPage)
+        {
+            e.Handled = true;
+            OpenExternal(target);
+            return;
+        }
+
+        // BrowserPrinterAdapter intentionally opens about:blank synchronously
+        // from the POS click, then navigates that same window to the print URL.
+        // Assign NewWindow so the JavaScript WindowProxy remains valid.
+        e.Handled = true;
+        CoreWebView2Deferral deferral = e.GetDeferral();
+        OmniKesPopupWindow popup = new OmniKesPopupWindow(browser.CoreWebView2.Environment, origin);
+        try
+        {
+            await popup.PrepareAsync();
+            e.NewWindow = popup.CoreWebView2;
+            popup.Show(this);
+        }
+        catch (Exception ex)
+        {
+            try { File.AppendAllText(log, DateTime.Now.ToString("s") + " PRINT_WINDOW_ERROR " + ex + Environment.NewLine); } catch { }
+            popup.Close();
+            MessageBox.Show(this, "Impossible d’ouvrir la fenêtre d’impression : " + ex.Message,
+                "OmniKès", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        finally { deferral.Complete(); }
+    }
+
+    private static void OpenExternal(Uri target)
+    {
+        if (target.Scheme != Uri.UriSchemeHttp && target.Scheme != Uri.UriSchemeHttps) return;
+        try { Process.Start(new ProcessStartInfo(target.ToString()) { UseShellExecute = true }); } catch { }
+    }
+}
+
+internal sealed class OmniKesPopupWindow : Form
+{
+    private readonly CoreWebView2Environment environment;
+    private readonly Uri applicationOrigin;
+    private readonly WebView2 browser;
+
+    public CoreWebView2 CoreWebView2 { get { return browser.CoreWebView2; } }
+
+    public OmniKesPopupWindow(CoreWebView2Environment webViewEnvironment, Uri origin)
+    {
+        environment = webViewEnvironment;
+        applicationOrigin = origin;
+        Text = "OmniKès — Impression";
+        Icon = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+        Width = 1000;
+        Height = 800;
+        MinimumSize = new System.Drawing.Size(640, 480);
+        StartPosition = FormStartPosition.CenterParent;
+        browser = new WebView2();
+        browser.Dock = DockStyle.Fill;
+        Controls.Add(browser);
+    }
+
+    public async Task PrepareAsync()
+    {
+        CreateControl();
+        browser.CreateControl();
+        await browser.EnsureCoreWebView2Async(environment);
+        browser.CoreWebView2.Settings.AreDevToolsEnabled = false;
+        browser.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+        browser.CoreWebView2.Settings.IsStatusBarEnabled = false;
+        browser.CoreWebView2.WindowCloseRequested += delegate { Close(); };
+        browser.CoreWebView2.NavigationStarting += HandleNavigation;
+        browser.CoreWebView2.NewWindowRequested += HandleNestedWindow;
+    }
+
+    private void HandleNavigation(object sender, CoreWebView2NavigationStartingEventArgs e)
+    {
+        Uri navigation;
+        if (!Uri.TryCreate(e.Uri, UriKind.Absolute, out navigation)) { e.Cancel = true; return; }
+        bool local = navigation.Scheme == Uri.UriSchemeHttp &&
+            navigation.Host == applicationOrigin.Host && navigation.Port == applicationOrigin.Port;
+        if (!local && navigation.Scheme != Uri.UriSchemeAbout)
+        {
+            e.Cancel = true;
+            OpenExternal(navigation);
+        }
+    }
+
+    private void HandleNestedWindow(object sender, CoreWebView2NewWindowRequestedEventArgs e)
     {
         e.Handled = true;
-        Uri target;
-        if (Uri.TryCreate(e.Uri, UriKind.Absolute, out target)) OpenExternal(target);
+        Uri nested;
+        if (Uri.TryCreate(e.Uri, UriKind.Absolute, out nested) &&
+            nested.Scheme == Uri.UriSchemeHttp && nested.Host == applicationOrigin.Host && nested.Port == applicationOrigin.Port)
+            browser.CoreWebView2.Navigate(nested.ToString());
+        else if (Uri.TryCreate(e.Uri, UriKind.Absolute, out nested))
+            OpenExternal(nested);
     }
 
     private static void OpenExternal(Uri target)

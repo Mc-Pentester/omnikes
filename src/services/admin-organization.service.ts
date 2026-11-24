@@ -23,6 +23,8 @@ export class AdminOrganizationService {
         timezone: true,
         cloudEnabled: true,
         onlineStoreEnabled: true,
+        taxEnabled: true,
+        taxRate: true,
         taxConfigurationId: true,
         createdAt: true,
         updatedAt: true,
@@ -30,7 +32,7 @@ export class AdminOrganizationService {
     });
 
     if (!organization) throw new Error('Organization not found');
-    return organization;
+    return { ...organization, taxRate: Number(organization.taxRate) * 100 };
   }
 
   async update(
@@ -60,14 +62,20 @@ export class AdminOrganizationService {
         timezone: true,
         cloudEnabled: true,
         onlineStoreEnabled: true,
+        taxEnabled: true,
+        taxRate: true,
       },
     });
 
     if (!existing) throw new Error('Organization not found');
 
+    const { taxRate, ...organizationData } = data;
     const updated = await prisma.organization.update({
       where: { id: organizationId },
-      data,
+      data: {
+        ...organizationData,
+        ...(taxRate !== undefined ? { taxRate: taxRate / 100 } : {}),
+      },
       select: {
         id: true,
         name: true,
@@ -78,6 +86,8 @@ export class AdminOrganizationService {
         timezone: true,
         cloudEnabled: true,
         onlineStoreEnabled: true,
+        taxEnabled: true,
+        taxRate: true,
         taxConfigurationId: true,
         createdAt: true,
         updatedAt: true,
@@ -92,6 +102,8 @@ export class AdminOrganizationService {
       timezone: existing.timezone,
       cloudEnabled: existing.cloudEnabled,
       onlineStoreEnabled: existing.onlineStoreEnabled,
+      taxEnabled: existing.taxEnabled,
+      taxRate: Number(existing.taxRate) * 100,
     };
     const newValues = {
       name: updated.name,
@@ -101,6 +113,8 @@ export class AdminOrganizationService {
       timezone: updated.timezone,
       cloudEnabled: updated.cloudEnabled,
       onlineStoreEnabled: updated.onlineStoreEnabled,
+      taxEnabled: updated.taxEnabled,
+      taxRate: Number(updated.taxRate) * 100,
     };
 
     await prisma.auditLog.create({
@@ -116,7 +130,7 @@ export class AdminOrganizationService {
       },
     });
 
-    return updated;
+    return { ...updated, taxRate: Number(updated.taxRate) * 100 };
   }
 }
 

@@ -37,7 +37,11 @@ model Organization {
   cloudEnabled       Boolean @default(false)
   onlineStoreEnabled Boolean @default(false)
 
-  // Fiscal configuration
+  // Organization-owned fiscal defaults; sale/proforma tax fields are historical snapshots.
+  taxEnabled Boolean @default(false)
+  taxRate    Decimal @default(0) @db.Decimal(5, 4)
+
+  // Legacy country tax configuration retained for backward compatibility.
   taxConfigurationId String?
 
   createdAt DateTime @default(now())

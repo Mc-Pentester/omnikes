@@ -7,7 +7,7 @@ describe('SaleService - Financial authority at creation', () => {
     (storeService.validateStoreBelongsToOrganization as any).mockResolvedValue(undefined);
     (prisma.organization.findUnique as any).mockResolvedValue({
       id: 'corg1234567',
-      taxConfiguration: { taxRate: 0.10 },
+      taxEnabled: true, taxRate: 0.10 ,
     });
     (saleRepository.create as any).mockResolvedValue({ id: 'sale-123' });
 
@@ -129,9 +129,7 @@ describe('SaleService - Tax Calculation', () => {
         applyTax: true,
         organization: {
           id: mockOrganizationId,
-          taxConfiguration: {
-            taxRate: mockTaxRate,
-          },
+          taxEnabled: true, taxRate: mockTaxRate,
         },
       });
       (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
@@ -210,9 +208,7 @@ describe('SaleService - Tax Calculation', () => {
         applyTax: true,
         organization: {
           id: mockOrganizationId,
-          taxConfiguration: {
-            taxRate: mockTaxRate,
-          },
+          taxEnabled: true, taxRate: mockTaxRate,
         },
       });
       (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
@@ -252,9 +248,7 @@ describe('SaleService - Tax Calculation', () => {
         applyTax: false,
         organization: {
           id: mockOrganizationId,
-          taxConfiguration: {
-            taxRate: mockTaxRate,
-          },
+          taxEnabled: true, taxRate: mockTaxRate,
         },
       });
       (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
@@ -294,9 +288,7 @@ describe('SaleService - Tax Calculation', () => {
         applyTax: true,
         organization: {
           id: mockOrganizationId,
-          taxConfiguration: {
-            taxRate: mockTaxRate,
-          },
+          taxEnabled: true, taxRate: mockTaxRate,
         },
       });
       (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
@@ -337,9 +329,7 @@ describe('SaleService - Tax Calculation', () => {
         applyTax: true,
         organization: {
           id: mockOrganizationId,
-          taxConfiguration: {
-            taxRate: mockTaxRate,
-          },
+          taxEnabled: true, taxRate: mockTaxRate,
         },
       });
       (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
@@ -379,9 +369,7 @@ describe('SaleService - Tax Calculation', () => {
         applyTax: true,
         organization: {
           id: mockOrganizationId,
-          taxConfiguration: {
-            taxRate: mockTaxRate,
-          },
+          taxEnabled: true, taxRate: mockTaxRate,
         },
       });
       (saleRepository.updateWithTaxRate as any).mockResolvedValue({});
@@ -536,7 +524,7 @@ describe('P1-C - Customer tenant isolation in sales', () => {
     (storeService.validateStoreBelongsToOrganization as any).mockResolvedValue(undefined);
     (prisma.organization.findUnique as any).mockResolvedValue({
       id: 'corg1234567',
-      taxConfiguration: { taxRate: 0.10 },
+      taxEnabled: true, taxRate: 0.10 ,
     });
   });
 

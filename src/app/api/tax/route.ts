@@ -11,8 +11,11 @@ export async function GET(request: NextRequest) {
     const organizationId = await requireCurrentOrganizationId(request);
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },
-      include: {
-        taxConfiguration: true,
+      select: {
+        id: true,
+        country: true,
+        taxEnabled: true,
+        taxRate: true,
       },
     });
 
@@ -23,18 +26,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!organization.taxConfiguration) {
-      // Return null tax rate if no configuration exists
-      // No organization tax configuration means taxation is disabled.
-      return NextResponse.json({
-        taxRate: null,
-        country: null,
-      });
-    }
-
     return NextResponse.json({
-      taxRate: Number(organization.taxConfiguration.taxRate),
-      country: organization.taxConfiguration.country,
+      enabled: organization.taxEnabled,
+      taxRate: Number(organization.taxRate),
+      country: organization.country,
     });
   } catch (error) {
     if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {

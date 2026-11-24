@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop, feature/windows-webview2-desktop ]
+    branches: [ main, develop, feature/windows-webview2-desktop, feat/organization-tax-webview-print ]
   pull_request:
     # Include the stacked installer-feature branch so PRs targeting it receive full CI.
     branches: [ main, develop, feat/omnikes-installer-license-acceptance ]
