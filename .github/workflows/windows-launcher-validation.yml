@@ -1,0 +1,61 @@
+name: Windows launcher validation
+
+on:
+  push:
+    branches: [feat/organization-tax-webview-print]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  compile-and-contract:
+    name: Compile native WebView2 launcher and verify startup contract
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download WebView2 SDK
+        shell: powershell
+        run: |
+          $version = "1.0.2903.40"
+          $package = Join-Path $env:RUNNER_TEMP "Microsoft.Web.WebView2.$version.zip"
+          $extract = Join-Path $env:RUNNER_TEMP "WebView2-SDK"
+          Invoke-WebRequest -Uri "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/$version" -OutFile $package
+          Expand-Archive -LiteralPath $package -DestinationPath $extract -Force
+          $lib = Join-Path $extract "lib\net462"
+          foreach ($file in @("Microsoft.Web.WebView2.WinForms.dll", "Microsoft.Web.WebView2.Core.dll")) {
+            if (-not (Test-Path (Join-Path $lib $file))) { throw "Missing WebView2 reference assembly: $file" }
+          }
+          "WEBVIEW2_LIB=$lib" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Compile actual native launcher source
+        shell: powershell
+        run: |
+          $csc = Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          if (-not (Test-Path $csc)) { throw "The Windows .NET Framework C# compiler is unavailable." }
+          $out = Join-Path $env:RUNNER_TEMP "omnikes.exe"
+          $arguments = @('/nologo', '/target:winexe', '/optimize+', "/out:$out", '/reference:System.dll', '/reference:System.Core.dll', '/reference:System.Drawing.dll', '/reference:System.Windows.Forms.dll', "/reference:$env:WEBVIEW2_LIB\Microsoft.Web.WebView2.WinForms.dll", "/reference:$env:WEBVIEW2_LIB\Microsoft.Web.WebView2.Core.dll", 'installer\OmniKesLauncher.cs')
+          & $csc @arguments
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $out)) { throw "Native WebView2 launcher compilation failed." }
+          Write-Host "Native launcher compilation: PASS ($out)"
+
+      - name: Verify launcher is independent of inherited PATH and does not block hidden startup
+        shell: powershell
+        run: |
+          $cmd = Get-Content installer\OmniKesLauncher.cmd -Raw
+          $cs = Get-Content installer\OmniKesLauncher.cs -Raw
+          $lifecycle = Get-Content scripts\test-windows-installer-lifecycle.ps1 -Raw
+          if ($cmd -match '(?im)^\s*pause\s*$') { throw "Hidden launcher still contains an interactive PAUSE." }
+          foreach ($tool in @("netstat.exe", "findstr.exe", "sc.exe", "timeout.exe", "WindowsPowerShell\v1.0\powershell.exe")) {
+            if (-not $cmd.Contains("%SystemRoot%\System32\$tool")) { throw "Launcher does not use the absolute system path for $tool." }
+          }
+          foreach ($key in @('["PATH"]', '["NODE_OPTIONS"]', '["DATABASE_URL"]', '["PORT"]', '["HOSTNAME"]')) {
+            if (-not $cs.Contains($key)) { throw "Native launcher does not isolate inherited environment variable $key." }
+          }
+          if (-not $cmd.Contains('"%PG_SERVICE_STATE%"=="4"')) { throw "Launcher does not avoid requesting SERVICE_START when PostgreSQL is already running." }
+          if (-not $lifecycle.Contains("NATIVE LAUNCHER CLICK-TO-RESTART AFTER SERVER STOP")) { throw "Windows lifecycle suite does not exercise native executable restart after stopping the server." }
+          Write-Host "Launcher startup contract checks: PASS"

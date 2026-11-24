@@ -84,6 +84,45 @@ try {
   Assert ($rejectedProcess.ExitCode -ne 0) 'Silent installation without explicit license acceptance was not rejected.'
   Assert (-not (Test-Path $installDir)) 'Silent installation without acceptance created the installation directory.'
   Install-OmniKes
+
+  # Verify a non-administrator can recover a stopped PostgreSQL service.
+  # The installer must grant only SERVICE_START to BUILTIN\Users.
+  $qaUserName = 'OmniKesStandardQA'
+  $qaPassword = ConvertTo-SecureString 'OmniKes-Standard-QA-2026!x' -AsPlainText -Force
+  $qaCredential = New-Object System.Management.Automation.PSCredential(($env:COMPUTERNAME + '\' + $qaUserName), $qaPassword)
+  try {
+    if (Get-LocalUser -Name $qaUserName -ErrorAction SilentlyContinue) {
+      Remove-LocalUser -Name $qaUserName
+    }
+    New-LocalUser -Name $qaUserName -Password $qaPassword -PasswordNeverExpires -UserMayNotChangePassword | Out-Null
+    $scExe = Join-Path $env:WINDIR 'System32\sc.exe'
+    $stopService = Start-Process -FilePath $scExe -ArgumentList @('stop', 'OmniKesPostgreSQL') -Wait -PassThru -WindowStyle Hidden
+    Assert ($stopService.ExitCode -eq 0) 'Administrator could not stop PostgreSQL for the standard-user service-start test.'
+    $serviceStopped = $false
+    for ($attempt = 0; $attempt -lt 30; $attempt++) {
+      $serviceState = Get-Service -Name 'OmniKesPostgreSQL' -ErrorAction Stop
+      if ($serviceState.Status -eq 'Stopped') { $serviceStopped = $true; break }
+      Start-Sleep -Seconds 1
+    }
+    Assert $serviceStopped 'PostgreSQL service did not reach Stopped before the standard-user start test.'
+    $standardStart = Start-Process -FilePath $scExe -ArgumentList @('start', 'OmniKesPostgreSQL') -Credential $qaCredential -LoadUserProfile -Wait -PassThru -WindowStyle Hidden
+    Assert ($standardStart.ExitCode -eq 0) "A standard Windows user could not start OmniKesPostgreSQL (sc.exe exit $($standardStart.ExitCode))."
+    $pgPortForStandardUser = (Get-Content -LiteralPath $portFile -Raw).Trim()
+    $pgReadyForStandardUser = Join-Path $installDir 'runtime\postgresql\bin\pg_isready.exe'
+    $pgStartedForStandardUser = $false
+    for ($attempt = 0; $attempt -lt 45; $attempt++) {
+      & $pgReadyForStandardUser -h 127.0.0.1 -p $pgPortForStandardUser -t 2 *> $null
+      if ($LASTEXITCODE -eq 0) { $pgStartedForStandardUser = $true; break }
+      Start-Sleep -Seconds 1
+    }
+    Assert $pgStartedForStandardUser 'PostgreSQL did not become ready after a standard user started its Windows service.'
+    Write-Host 'STANDARD WINDOWS USER CAN START POSTGRESQL SERVICE: PASS'
+  } finally {
+    if (Get-LocalUser -Name $qaUserName -ErrorAction SilentlyContinue) {
+      Remove-LocalUser -Name $qaUserName
+    }
+  }
+
   $initialBackups = @(Get-ChildItem -LiteralPath (Join-Path $programDataRoot 'backups') -Filter 'omnikes-pre-migration-*.dump' -File -ErrorAction SilentlyContinue)
   Assert ($initialBackups.Count -eq 0) 'A fresh Windows installation created an unnecessary pre-migration backup.'
 
@@ -276,6 +315,32 @@ try {
   Assert $upgradeHealthReady 'OmniKes did not become healthy after the in-place upgrade.'
   Write-Host 'IN-PLACE UPGRADE + DATABASE AND APPLICATION HEALTH: PASS'
   Stop-OmniKesServer
+
+  # Exercise the actual Start Menu/Desktop executable after the application server
+  # has been stopped. This reproduces the user's click-to-restart journey.
+  $nativeLauncher = Join-Path $installDir 'installer\omnikes.exe'
+  Assert (Test-Path -LiteralPath $nativeLauncher) 'Native omnikes.exe launcher is missing.'
+  $nativeLauncherProcess = Start-Process -FilePath $nativeLauncher -WorkingDirectory $installDir -PassThru
+  $nativeLaunchReady = $false
+  for ($attempt = 0; $attempt -lt 90; $attempt++) {
+    try {
+      $nativeHealth = Invoke-WebRequest -Uri "$baseUrl/api/health" -UseBasicParsing -TimeoutSec 2
+      $nativeHealthBody = $nativeHealth.Content | ConvertFrom-Json
+      if ($nativeHealth.StatusCode -eq 200 -and $nativeHealthBody.application -eq 'OmniKes') {
+        $nativeLaunchReady = $true
+        break
+      }
+    } catch {}
+    Start-Sleep -Seconds 1
+  }
+  Assert $nativeLaunchReady 'Clicking the native omnikes.exe did not restart the stopped OmniKes server.'
+  $nativeLauncherProcess.Refresh()
+  Assert (-not $nativeLauncherProcess.HasExited) 'Native OmniKes launcher exited unexpectedly after startup.'
+  Write-Host 'NATIVE LAUNCHER CLICK-TO-RESTART AFTER SERVER STOP: PASS'
+  Stop-OmniKesServer
+  if (-not $nativeLauncherProcess.HasExited) {
+    Stop-Process -Id $nativeLauncherProcess.Id -Force -ErrorAction SilentlyContinue
+  }
 
   # Keep a separate Node process running to simulate Clarodaro. The OmniKes
   # uninstaller must leave applications outside its own installation directory

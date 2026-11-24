@@ -113,13 +113,26 @@ internal sealed class OmniKesApplicationContext : ApplicationContext
     private static void StartServerHelper(string script, string installRoot, string log)
     {
         ProcessStartInfo start = new ProcessStartInfo();
-        start.FileName = Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe";
+        string systemRoot = Environment.GetEnvironmentVariable("SystemRoot");
+        if (String.IsNullOrWhiteSpace(systemRoot))
+            throw new InvalidOperationException("La variable système SystemRoot est absente.");
+        string system32 = Path.Combine(systemRoot, "System32");
+        start.FileName = Path.Combine(system32, "cmd.exe");
         string quote = ((char)34).ToString();
         start.Arguments = "/d /s /c " + quote + quote + script + quote + quote;
         start.WorkingDirectory = installRoot;
         start.UseShellExecute = false;
         start.CreateNoWindow = true;
         start.WindowStyle = ProcessWindowStyle.Hidden;
+        start.EnvironmentVariables["ComSpec"] = Path.Combine(system32, "cmd.exe");
+        start.EnvironmentVariables["PATH"] = system32 + Path.PathSeparator +
+            Path.Combine(installRoot, "runtime", "node");
+        start.EnvironmentVariables["OMNIKES_HOME"] = installRoot;
+        start.EnvironmentVariables["OMNIKES_LOG_DIR"] = Path.GetDirectoryName(log);
+        start.EnvironmentVariables["NODE_OPTIONS"] = String.Empty;
+        start.EnvironmentVariables["DATABASE_URL"] = String.Empty;
+        start.EnvironmentVariables["PORT"] = String.Empty;
+        start.EnvironmentVariables["HOSTNAME"] = String.Empty;
         Process process = Process.Start(start);
         if (process == null)
             throw new InvalidOperationException("Impossible de démarrer le serveur local OmniKès.");
@@ -380,7 +393,7 @@ internal sealed class OmniKesWindow : Form
         }
 
         Uri origin = new Uri(appUrl);
-        bool blankPopup = target.Scheme == Uri.UriSchemeAbout && target.AbsoluteUri == "about:blank";
+        bool blankPopup = target.Scheme == "about" && target.AbsoluteUri == "about:blank";
         bool localPage = target.Scheme == Uri.UriSchemeHttp && target.Host == origin.Host && target.Port == origin.Port;
         if (!blankPopup && !localPage)
         {
@@ -460,7 +473,7 @@ internal sealed class OmniKesPopupWindow : Form
         if (!Uri.TryCreate(e.Uri, UriKind.Absolute, out navigation)) { e.Cancel = true; return; }
         bool local = navigation.Scheme == Uri.UriSchemeHttp &&
             navigation.Host == applicationOrigin.Host && navigation.Port == applicationOrigin.Port;
-        if (!local && navigation.Scheme != Uri.UriSchemeAbout)
+        if (!local && navigation.Scheme != "about")
         {
             e.Cancel = true;
             OpenExternal(navigation);

@@ -9,6 +9,12 @@ set "PG_READY=%OMNIKES_HOME%\runtime\postgresql\bin\pg_isready.exe"
 set "PG_PORT_FILE=%ProgramData%\OmniKes\postgresql-port.txt"
 set "APP_PORT_FILE=%ProgramData%\OmniKes\app-port.txt"
 set "NODE_ENV=production"
+REM Use Windows system tools and bundled Node, never a user-installed Node.
+set "PATH=%SystemRoot%\System32;%OMNIKES_HOME%\runtime\node"
+set "NODE_OPTIONS="
+set "PORT="
+set "HOSTNAME="
+set "DATABASE_URL="
 
 REM Configure user-writable directories and initialize logging before any operation.
 set "OMNIKES_DATA_DIR=%LOCALAPPDATA%\OmniKes"
@@ -28,32 +34,27 @@ echo [%time%] OMNIKES_HOME=%OMNIKES_HOME% >> "%LOG_FILE%"
 if not exist "%NODE_EXE%" (
     echo [%time%] ERROR: Node.js runtime not found at %NODE_EXE% >> "%LOG_FILE%"
     echo ERROR: Runtime Node.js introuvable. Reinstallez OmniKes.
-    pause
     exit /b 1
 )
 if not exist "%APP_DIR%\server.js" (
     echo [%time%] ERROR: Application server not found at %APP_DIR% >> "%LOG_FILE%"
     echo ERROR: Application OmniKes introuvable. Reinstallez OmniKes.
-    pause
     exit /b 1
 )
 if not exist "%PG_READY%" (
     echo [%time%] ERROR: PostgreSQL readiness tool missing at %PG_READY% >> "%LOG_FILE%"
     echo ERROR: Runtime PostgreSQL incomplet. Reinstallez OmniKes.
-    pause
     exit /b 1
 )
 if not exist "%PG_PORT_FILE%" (
     echo [%time%] ERROR: PostgreSQL port configuration missing at %PG_PORT_FILE% >> "%LOG_FILE%"
     echo ERREUR: Configuration du port PostgreSQL introuvable. Relancez l'installation OmniKes.
-    pause
     exit /b 1
 )
 set /p PG_PORT=<"%PG_PORT_FILE%"
-echo %PG_PORT%| findstr /R "^[0-9][0-9]*$" >nul || (
+echo %PG_PORT%| %SystemRoot%\System32\findstr.exe /R "^[0-9][0-9]*$" >nul || (
     echo [%time%] ERROR: Invalid PostgreSQL port value: %PG_PORT% >> "%LOG_FILE%"
     echo ERREUR: Port PostgreSQL OmniKes invalide.
-    pause
     exit /b 1
 )
 if %PG_PORT% LSS 5433 (
@@ -68,11 +69,10 @@ if %PG_PORT% GTR 5532 (
 if not exist "%APP_PORT_FILE%" (
     echo [%time%] ERROR: Application port configuration missing at %APP_PORT_FILE% >> "%LOG_FILE%"
     echo ERREUR: Configuration du port OmniKes introuvable. Relancez l'installation.
-    pause
     exit /b 1
 )
 set /p APP_PORT=<"%APP_PORT_FILE%"
-echo %APP_PORT%| findstr /R "^[0-9][0-9]*$" >nul || (
+echo %APP_PORT%| %SystemRoot%\System32\findstr.exe /R "^[0-9][0-9]*$" >nul || (
     echo [%time%] ERROR: Invalid application port value: %APP_PORT% >> "%LOG_FILE%"
     exit /b 1
 )
@@ -95,38 +95,44 @@ if not exist "%OMNIKES_DATA_DIR%\.next" (
         echo [%time%] ERROR: Failed to prepare user environment >> "%LOG_FILE%"
         echo ERROR: Impossible de préparer l'environnement utilisateur.
         echo Consultez le journal: %LOG_FILE%
-        pause
-        exit /b 1
+            exit /b 1
     )
 )
 
 REM Reuse an existing OmniKes instance only when its health endpoint identifies this application.
-netstat -ano | findstr /R /C:":%APP_PORT% .*LISTENING" >nul 2>&1
+%SystemRoot%\System32\netstat.exe -ano | %SystemRoot%\System32\findstr.exe /R /C:":%APP_PORT% .*LISTENING" >nul 2>&1
 if not errorlevel 1 (
-    powershell -NoProfile -Command "$r=Invoke-WebRequest -Uri '%APP_HEALTH_URL%' -UseBasicParsing -TimeoutSec 2; $j=$r.Content | ConvertFrom-Json; if ($r.StatusCode -eq 200 -and $j.application -eq 'OmniKes') { exit 0 }; exit 1" >nul 2>&1
+    %SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -Command "$r=Invoke-WebRequest -Uri '%APP_HEALTH_URL%' -UseBasicParsing -TimeoutSec 2; $j=$r.Content | ConvertFrom-Json; if ($r.StatusCode -eq 200 -and $j.application -eq 'OmniKes') { exit 0 }; exit 1" >nul 2>&1
     if not errorlevel 1 (
         echo [%time%] Existing OmniKes instance verified on port %APP_PORT%; native WebView2 window will attach. >> "%LOG_FILE%"
-        exit /b 0
+    exit /b 0
     )
     echo [%time%] ERROR: Configured application port %APP_PORT% is occupied by another service. >> "%LOG_FILE%"
     echo ERREUR: Le port OmniKes est utilisé par une autre application. Relancez l'installation.
-    pause
     exit /b 1
 )
 
 REM Require the Windows service to exist, then request startup if it is stopped.
-sc.exe query OmniKesPostgreSQL >nul 2>&1
-if errorlevel 1 (
-    echo [%time%] ERROR: Windows service OmniKesPostgreSQL is not registered. >> "%LOG_FILE%"
+set "PG_SERVICE_STATE="
+for /f "tokens=3" %%S in ('%SystemRoot%\System32\sc.exe query OmniKesPostgreSQL ^| %SystemRoot%\System32\findstr.exe /C:"STATE"') do set "PG_SERVICE_STATE=%%S"
+if not defined PG_SERVICE_STATE (
+    echo [%time%] ERROR: Windows service OmniKesPostgreSQL is not registered or cannot be queried. >> "%LOG_FILE%"
     echo ERREUR: Le service PostgreSQL OmniKesPostgreSQL est introuvable.
     echo Reexecutez le programme d'installation OmniKes en administrateur.
-    echo Consultez le journal: %LOG_FILE%
-    pause
     exit /b 1
 )
-
-sc.exe start OmniKesPostgreSQL >> "%LOG_FILE%" 2>&1
-REM ERRORLEVEL 1056 means the service is already running; readiness is checked below.
+REM A standard Windows user can query a running service without SERVICE_START rights.
+REM Do not issue sc start when PostgreSQL is already running.
+if "%PG_SERVICE_STATE%"=="4" (
+    echo [%time%] PostgreSQL service is already running; no service-start privilege required. >> "%LOG_FILE%"
+) else (
+    %SystemRoot%\System32\sc.exe start OmniKesPostgreSQL >> "%LOG_FILE%" 2>&1
+    if errorlevel 1 (
+        echo [%time%] ERROR: PostgreSQL is stopped and this Windows account cannot start its service. >> "%LOG_FILE%"
+        echo ERREUR: PostgreSQL est arrêté. Relancez Windows ou demandez à l'administrateur de démarrer le service OmniKesPostgreSQL.
+        exit /b 1
+    )
+)
 
 REM Wait up to 45 seconds for PostgreSQL itself, not merely an open TCP port.
 set "WAIT_COUNT=0"
@@ -137,10 +143,9 @@ if %WAIT_COUNT% geq 45 (
     echo [%time%] ERROR: PostgreSQL service did not become ready. >> "%LOG_FILE%"
     echo ERREUR: PostgreSQL ne demarre pas. Consultez le journal et le service Windows.
     echo Consultez le journal: %LOG_FILE%
-    pause
     exit /b 1
 )
-timeout /t 1 /nobreak >nul
+%SystemRoot%\System32\timeout.exe /t 1 /nobreak >nul
 set /a WAIT_COUNT+=1
 goto postgres_wait
 
@@ -164,12 +169,11 @@ if %WAIT_COUNT% geq %MAX_WAIT% (
     echo [%time%] ERROR: Server did not start within %MAX_WAIT% seconds >> "%LOG_FILE%"
     echo ERROR: OmniKes n'a pas pu démarrer dans le délai imparti.
     echo Consultez le journal: %LOG_FILE%
-    pause
     exit /b 1
 )
-powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri '%APP_HEALTH_URL%' -UseBasicParsing -TimeoutSec 2; $j=$r.Content | ConvertFrom-Json; if ($r.StatusCode -eq 200 -and $j.application -eq 'OmniKes') { exit 0 }; exit 1 } catch { exit 1 }" >nul 2>&1
+%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -Command "try { $r = Invoke-WebRequest -Uri '%APP_HEALTH_URL%' -UseBasicParsing -TimeoutSec 2; $j=$r.Content | ConvertFrom-Json; if ($r.StatusCode -eq 200 -and $j.application -eq 'OmniKes') { exit 0 }; exit 1 } catch { exit 1 }" >nul 2>&1
 if not errorlevel 1 goto server_ready
-timeout /t 1 /nobreak >nul
+%SystemRoot%\System32\timeout.exe /t 1 /nobreak >nul
 set /a WAIT_COUNT+=1
 goto wait_loop
 
