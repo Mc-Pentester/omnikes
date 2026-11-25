@@ -13,6 +13,7 @@ export const organizationSchema = z.object({
   onlineStoreEnabled: z.boolean().default(false),
   taxEnabled: z.boolean().default(false),
   taxRate: z.number().finite().min(0).max(100).default(0),
+  creditDefaultDueDays: z.number().int().min(1).max(3650).default(30),
 });
 
 
@@ -28,6 +29,7 @@ export const adminOrganizationUpdateSchema = z.object({
   onlineStoreEnabled: z.boolean().optional(),
   taxEnabled: z.boolean().optional(),
   taxRate: z.number().finite().min(0).max(100).optional(),
+  creditDefaultDueDays: z.number().int().min(1).max(3650).optional(),
 });
 
 export type AdminOrganizationUpdateInput = z.infer<typeof adminOrganizationUpdateSchema>;
@@ -337,7 +339,19 @@ export const saleCreditSchema = z.object({
   customerId: z.string().cuid(),
   amount: z.number().finite().positive('Credit amount must be positive').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Credit amount must have at most 2 decimal places'),
   note: z.string().max(1000).optional(),
+  dueAt: z.coerce.date().optional(),
 });
+
+export const creditPaymentSchema = z.object({
+  amount: z.number().finite().positive().max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces),
+  method: z.enum(['CASH', 'CARD', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CHECK']),
+  reference: z.string().trim().max(150).optional(),
+}).strict();
+
+export const creditPinSetupSchema = z.object({
+  currentPassword: z.string().min(1),
+  pin: z.string().regex(/^\\d{4,8}$/, 'PIN must contain 4 to 8 digits'),
+}).strict();
 
 export type SaleCreditInput = z.infer<typeof saleCreditSchema>;
 
@@ -430,6 +444,7 @@ export const customerCreateSchema = z.object({
   city: z.string().trim().max(120).optional().or(z.literal('')),
   country: z.string().trim().length(2).toUpperCase().optional().or(z.literal('')),
   isActive: z.boolean().optional(),
+  creditLimit: z.number().finite().nonnegative().max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Credit limit must have at most two decimal places').nullable().optional(),
 }).strict();
 
 export const customerUpdateSchema = customerCreateSchema.partial().strict();
