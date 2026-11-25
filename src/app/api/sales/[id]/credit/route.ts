@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 import { ZodError } from 'zod';
 import { saleService } from '@omnikes/services/sale.service';
 import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, getAuthenticatedUser, requireSubscriptionCapability } from '@omnikes/lib/auth';
 import { prisma } from '@omnikes/lib/prisma';
 import { saleCreditSchema } from '@omnikes/lib/validation';
+import { roleRepository } from '@omnikes/repositories/role.repository';
 
 /**
  * POST /api/sales/[id]/credit
@@ -38,11 +40,36 @@ export async function POST(
 
     const body = await request.json();
     const data = saleCreditSchema.parse(body);
+    const approverEmail = typeof body.approverEmail === 'string' ? body.approverEmail.trim().toLowerCase() : '';
+    const approverPassword = typeof body.approverPassword === 'string' ? body.approverPassword : '';
+
+    if (!approverEmail || !approverPassword) {
+      return NextResponse.json({ error: 'Manager credentials are required to approve customer credit' }, { status: 400 });
+    }
+
+    // Re-authenticate a second, distinct user at the point of approval.
+    // The cashier's session or legacy sale.credit permission can never approve itself.
+    const approver = await prisma.user.findFirst({
+      where: { email: approverEmail, organizationId, isActive: true },
+      select: { id: true, password: true },
+    });
+
+    if (!approver || approver.id === user.id || !(await bcrypt.compare(approverPassword, approver.password))) {
+      return NextResponse.json({ error: 'Invalid manager approval credentials' }, { status: 403 });
+    }
+
+    if (!(await roleRepository.hasPermission(approver.id, 'credit.approve'))) {
+      return NextResponse.json({ error: 'Approver is not authorized to approve customer credit' }, { status: 403 });
+    }
+
+    if (!(await roleRepository.canAccessStore(approver.id, sale.storeId))) {
+      return NextResponse.json({ error: 'Approver is not authorized for this store' }, { status: 403 });
+    }
 
     const credit = await saleService.authorizeCredit(
       saleId,
       organizationId,
-      user.id,
+      approver.id,
       data
     );
 
