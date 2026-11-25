@@ -35,7 +35,7 @@ export class CreditRefundService {
 
       const credit = await tx.saleCredit.findFirst({
         where: { id: saleCreditId, organizationId },
-        select: { id: true, storeId: true, saleId: true },
+        include: { payments: { select: { amount: true } }, adjustments: { select: { amount: true } } },
       });
       if (!credit) throw new Error('Credit not found');
 
@@ -54,11 +54,18 @@ export class CreditRefundService {
         tx.return.findFirst({ where: { id: input.returnId, organizationId } }),
         tx.creditPayment.findFirst({ where: { id: input.paymentId, organizationId } }),
       ]);
-      if (!returnRecord || returnRecord.saleId !== credit.saleId || returnRecord.storeId !== credit.storeId) {
+      if (!returnRecord || returnRecord.status !== 'COMPLETED' || returnRecord.saleId !== credit.saleId || returnRecord.storeId !== credit.storeId) {
         throw new Error('Return does not belong to this customer credit');
       }
       if (!payment || payment.saleCreditId !== saleCreditId || payment.storeId !== credit.storeId) {
         throw new Error('Credit payment does not belong to this customer credit');
+      }
+
+      const paidTotal = roundMoney(credit.payments.reduce((sum, item) => sum + Number(item.amount), 0));
+      const adjustedTotal = roundMoney(credit.adjustments.reduce((sum, item) => sum + Number(item.amount), 0));
+      const outstandingDebt = roundMoney(Math.max(0, Number(credit.amount) - paidTotal - adjustedTotal));
+      if (outstandingDebt > 0) {
+        throw new Error('Outstanding customer credit must be reduced before refunding repayments');
       }
 
       const [normalRefunds, creditAdjustments, priorCreditRefunds] = await Promise.all([
