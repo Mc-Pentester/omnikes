@@ -2,6 +2,7 @@ import { prisma } from '@omnikes/lib/prisma';
 import { returnSchema, ReturnInput } from '@omnikes/lib/validation';
 import { recordInventoryMovement, updateInventoryQuantity } from '@omnikes/services/inventory.service';
 import { roundMoney } from '@omnikes/lib/money';
+import { calculateCreditReturnAllocation } from '@omnikes/lib/credit-return-allocation';
 
 export class ReturnService {
   /**
@@ -251,9 +252,10 @@ export class ReturnService {
       if (lockedSaleCredit && ['AUTHORIZED', 'SETTLED'].includes(lockedSaleCredit.status)) {
         const creditPaid = roundMoney(lockedSaleCredit.payments.reduce((sum, payment) => sum + Number(payment.amount), 0));
         const previouslyAdjusted = roundMoney(lockedSaleCredit.adjustments.reduce((sum, adjustment) => sum + Number(adjustment.amount), 0));
-        const outstandingCredit = roundMoney(Math.max(0, Number(lockedSaleCredit.amount) - creditPaid - previouslyAdjusted));
-        creditAdjustmentAmount = roundMoney(Math.min(totalRefunded, outstandingCredit));
-        creditRefundDue = roundMoney(totalRefunded - creditAdjustmentAmount);
+        const allocation = calculateCreditReturnAllocation(Number(lockedSaleCredit.amount), creditPaid, previouslyAdjusted, totalRefunded);
+        const outstandingCredit = allocation.outstandingBefore;
+        creditAdjustmentAmount = allocation.debtAdjustment;
+        creditRefundDue = allocation.repaymentRefundDue;
         if (creditAdjustmentAmount > 0) {
           await tx.creditAdjustment.create({
             data: {
