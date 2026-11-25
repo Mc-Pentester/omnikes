@@ -184,7 +184,7 @@ jobs:
             (Join-Path $env:RUNNER_TEMP "omnikes-installer-lifecycle.log"),
             (Join-Path $env:RUNNER_TEMP "omnikes-uninstall-normal-inno.log"),
             (Join-Path $env:RUNNER_TEMP "omnikes-uninstall-purge-inno.log"),
-            (Join-Path $env:ProgramData "OmniKes\logs\uninstall-runtime.log")
+            (Join-Path $env:ProgramData "OmniKes\logs\runtime-install.log")
           )
           foreach ($source in $sources) {
             if (Test-Path -LiteralPath $source) {
@@ -237,7 +237,7 @@ jobs:
           name: OmniKes-Windows-Uninstall-Diagnostics
           path: ${{ runner.temp }}/omnikes-uninstall-diagnostics/**
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 3
 
       - name: Upload Windows installer
         id: upload-windows-installer-artifact
@@ -247,7 +247,7 @@ jobs:
           name: OmniKes-Windows-Offline-Installer
           path: dist/installer/OmniKes-Setup-*-x64.exe
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
       - name: Summarize optional workflow artifact uploads
         if: always()
         shell: powershell
