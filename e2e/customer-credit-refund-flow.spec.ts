@@ -139,11 +139,11 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
     await page.locator('main select').first().selectOption('CARD');
     await page.locator('main input[type="number"]').first().fill('125');
     await page.getByRole('button', { name: 'Confirmer le remboursement' }).click();
-    await expect(page.getByRole('status')).toContainText('Solde restant : 125.00 HTG');
+    await expect(page.getByRole('status')).toContainText('Solde restant : 125.00 USD');
 
     await page.locator('main input[type="number"]').first().fill('125');
     await page.getByRole('button', { name: 'Confirmer le remboursement' }).click();
-    await expect(page.getByRole('status')).toContainText('Solde restant : 0.00 HTG');
+    await expect(page.getByRole('status')).toContainText('Solde restant : 0.00 USD');
 
     const creditsResponse = await page.request.get('/api/credits?take=100');
     expect(creditsResponse.status(), await creditsResponse.text()).toBe(200);
@@ -187,7 +187,7 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
     await originalPaymentSelect.selectOption({ index: 1 });
     await refundPanel.locator('input[type="number"]').fill('125');
     await refundPanel.getByRole('button', { name: 'Confirmer le remboursement' }).click();
-    await expect(refundPanel.getByRole('status')).toContainText('Remboursement enregistré : 125.00 HTG');
+    await expect(refundPanel.getByRole('status')).toContainText('Remboursement enregistré : 125.00 USD');
 
     // The first repayment is now fully refunded and disappears from the choices.
     await expect(originalPaymentSelect.locator('option')).toHaveCount(2);
