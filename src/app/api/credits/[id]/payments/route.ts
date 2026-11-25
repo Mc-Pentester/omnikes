@@ -112,7 +112,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             createdBy: user.id,
             type: 'CASH_IN',
             amount: data.amount,
-            referenceId: payment.id,
+            referenceId: credit.saleId,
             referenceType: 'CUSTOMER_CREDIT_PAYMENT',
             note: `Customer credit repayment for sale ${credit.sale.orderNumber}`,
           },
