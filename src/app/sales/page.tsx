@@ -603,23 +603,27 @@ export default function PendingSalesPage() {
                             placeholder={`Maximum ${money(Math.max(0, Number(selectedSale.total) - totals.paid))} ${selectedSale.currencyCode}`}
                             disabled={processing || totals.remaining <= 0}
                           />
-                          <Input
-                            value={creditNote}
-                            onChange={(event) => setCreditNote(event.target.value)}
-                            placeholder="Motif / note (facultatif)"
-                            disabled={processing || totals.remaining <= 0}
-                            maxLength={1000}
-                          />
-                          <Input
-                            type="date"
-                            value={creditDueAt}
-                            onChange={(event) => setCreditDueAt(event.target.value)}
-                            placeholder="Date d'échéance (optionnelle)"
-                            disabled={processing || totals.remaining <= 0}
-                          />
                           <div className="rounded-md border border-border p-3 space-y-2">
                             <p className="text-sm font-medium text-foreground">Validation par un responsable</p>
-                            <p className="text-xs text-muted">Un autre utilisateur habilité doit confirmer sur place. Il peut utiliser son mot de passe ou son PIN personnel.</p>
+                            <p className="text-xs text-muted">Le responsable choisit l'échéance, confirme le motif et autorise sur place avec son mot de passe ou son PIN personnel.</p>
+                            <label className="block text-xs font-medium text-muted">Motif / note (obligatoire si le plafond client est dépassé)
+                              <Input
+                                value={creditNote}
+                                onChange={(event) => setCreditNote(event.target.value)}
+                                placeholder="Motif de l'exception ou note facultative"
+                                disabled={processing || totals.remaining <= 0}
+                                maxLength={1000}
+                              />
+                            </label>
+                            <label className="block text-xs font-medium text-muted">Date d'échéance choisie par le responsable
+                              <Input
+                                type="date"
+                                value={creditDueAt}
+                                onChange={(event) => setCreditDueAt(event.target.value)}
+                                placeholder="Échéance par défaut de l'organisation"
+                                disabled={processing || totals.remaining <= 0}
+                              />
+                            </label>
                             <Input
                               type="email"
                               autoComplete="username"
