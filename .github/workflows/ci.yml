@@ -5,7 +5,7 @@ on:
     branches: [ main, develop, feature/windows-webview2-desktop, feat/organization-tax-webview-print, feat/customer-credit-approval ]
   pull_request:
     # Include the stacked installer-feature branch so PRs targeting it receive full CI.
-    branches: [ main, develop, feat/omnikes-installer-license-acceptance ]
+    branches: [ main, develop, feat/omnikes-installer-license-acceptance, feat/organization-tax-webview-print ]
 
 jobs:
   validate:
