@@ -7,6 +7,7 @@ import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
 import { Input } from '@omnikes/components/ui/input';
 import { useAuth } from '@omnikes/contexts/AuthContext';
+import { CreditRefundPanel } from '@omnikes/components/credits/CreditRefundPanel';
 
 type CreditRow = {
   id: string;
@@ -18,16 +19,18 @@ type CreditRow = {
   status: string;
   overdue: boolean;
   customer: { id: string; name: string; phone?: string | null; creditLimit?: string | number | null };
-  sale: { id: string; orderNumber: string; currencyCode: string; currencySymbol: string; total: string | number };
+  sale: { id: string; orderNumber: string; currencyCode: string; currencySymbol: string; total: string | number; returns: Array<{ id: string; totalRefunded: number; createdAt: string; refundableRemaining: number }> };
   authorizedByUser?: { name?: string | null; email?: string };
   adjustments?: Array<{ id: string; amount: string | number; reason: string; createdAt: string; processedByUser?: { name?: string | null; email?: string } }>;
 };
 type CreditPayment = {
   id: string;
   amount: string | number;
+  refundedAmount: string | number;
   method: string;
   reference?: string | null;
   createdAt: string;
+  refunds?: Array<{ id: string; amount: string | number; method: string; reference?: string | null; createdAt: string }>;
   receivedByUser?: { name?: string | null; email?: string };
 };
 
@@ -220,12 +223,25 @@ export default function CustomerCreditsPage() {
                       {historyError ? <p className="mt-2 text-sm text-danger">{historyError}</p> : history.length === 0 ? <p className="mt-2 text-sm text-muted">Aucun paiement enregistré.</p> : (
                         <ul className="mt-2 divide-y divide-border">
                           {history.map((payment) => (
-                            <li key={payment.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
-                              <span>{new Date(payment.createdAt).toLocaleString()} · {payment.method} · {payment.reference || 'Sans référence'} · {payment.receivedByUser?.name || payment.receivedByUser?.email || 'Utilisateur'}</span>
-                              <strong>{Number(payment.amount).toFixed(2)} {credit.sale.currencyCode}</strong>
+                            <li key={payment.id} className="py-2 text-sm">
+                              <div className="flex flex-wrap justify-between gap-2">
+                                <span>{new Date(payment.createdAt).toLocaleString()} · {payment.method} · {payment.reference || 'Sans référence'} · {payment.receivedByUser?.name || payment.receivedByUser?.email || 'Utilisateur'}</span>
+                                <strong>{Number(payment.amount).toFixed(2)} {credit.sale.currencyCode}</strong>
+                              </div>
+                              {Number(payment.refundedAmount || 0) > 0 && <p className="text-xs text-muted">Remboursé : {Number(payment.refundedAmount).toFixed(2)}</p>}
+                              {payment.refunds?.map((refund) => <p key={refund.id} className="pl-3 text-xs text-muted">↳ Remboursement {Number(refund.amount).toFixed(2)} · {refund.reference || refund.method} · {new Date(refund.createdAt).toLocaleString()}</p>)}
                             </li>
                           ))}
                         </ul>
+                      )}
+                      {user.canRefundCreditPayment && (
+                        <CreditRefundPanel
+                          creditId={credit.id}
+                          currencyCode={credit.sale.currencyCode}
+                          returns={credit.sale.returns || []}
+                          payments={history}
+                          onComplete={async () => { await loadHistory(credit.id); await loadCredits(); }}
+                        />
                       )}
                       {credit.adjustments && credit.adjustments.length > 0 && (
                         <div className="mt-3 border-t border-border pt-3">
