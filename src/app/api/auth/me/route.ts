@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       roleRepository.hasPermission(user.id, 'credit.view'),
       roleRepository.hasPermission(user.id, 'credit.history.view'),
       roleRepository.hasPermission(user.id, 'credit.payment.receive'),
-      roleRepository.hasPermission(user.id, 'payment.refund'),
+      roleRepository.hasPermission(user.id, 'credit.refund'),
       roleRepository.hasPermission(user.id, 'sale.return'),
       roleRepository.hasPermission(user.id, 'hardware.bridge.read'),
     ]);
