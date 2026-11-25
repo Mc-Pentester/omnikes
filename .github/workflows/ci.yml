@@ -114,6 +114,37 @@ jobs:
       - name: Apply PostgreSQL migrations
         run: npx prisma migrate deploy
 
+      - name: Verify first-registration fiscal settings against isolated PostgreSQL databases
+        shell: bash
+        env:
+          PG_ADMIN_URL: postgresql://ci:ci@127.0.0.1:5432/postgres
+        run: |
+          set -euo pipefail
+
+          for scenario in enabled disabled; do
+            database="omnikes_registration_${scenario}"
+            if [ "$scenario" = "enabled" ]; then
+              tax_enabled=true
+              tax_rate=10
+            else
+              tax_enabled=false
+              tax_rate=0
+            fi
+
+            psql "$PG_ADMIN_URL" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"$database\""
+            registration_database_url="postgresql://ci:ci@127.0.0.1:5432/$database"
+
+            echo "Applying all production migrations to isolated database: $database"
+            DATABASE_URL="$registration_database_url" npx prisma migrate deploy
+
+            echo "Testing actual first-registration persistence: taxEnabled=$tax_enabled, taxRate=$tax_rate"
+            DATABASE_URL="$registration_database_url" \
+              REGISTRATION_EXPECTED_TAX_ENABLED="$tax_enabled" \
+              REGISTRATION_EXPECTED_TAX_RATE="$tax_rate" \
+              npx vitest run --config vitest.integration.config.ts --no-file-parallelism \
+                src/tests/integration/organization-tax-registration.postgres.test.ts
+          done
+
       - name: Verify organization-scoped barcode uniqueness
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-barcode-organization-scope.sql
 
