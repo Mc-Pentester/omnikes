@@ -261,7 +261,9 @@
         "customer.read",
         "audit.read",
         "store.read",
-        "credit.report.view"
+        "credit.report.view",
+        "credit.view",
+        "credit.history.view"
       ]
     },
     {
@@ -397,7 +399,9 @@
         "supplier.read",
         "purchase.read",
         "supplier.payment.read",
-        "credit.report.view"
+        "credit.report.view",
+        "credit.view",
+        "credit.history.view"
       ]
     }
   ],
