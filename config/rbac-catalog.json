@@ -57,7 +57,8 @@
     "supplier.payment.read",
     "sale.customer.assign",
     "sale.pos.sync",
-    "credit.approve"
+    "credit.approve",
+    "credit.request"
   ],
   "standardRoles": [
     {
@@ -161,7 +162,8 @@
         "cash.movement",
         "customer.read",
         "sale.customer.assign",
-        "sale.pos.sync"
+        "sale.pos.sync",
+        "credit.request"
       ]
     },
     {
@@ -181,7 +183,8 @@
         "proforma.accept",
         "store.read",
         "sale.customer.assign",
-        "sale.pos.sync"
+        "sale.pos.sync",
+        "credit.request"
       ]
     },
     {
@@ -341,7 +344,8 @@
         "sale.complete",
         "payment.create",
         "payment.read",
-        "inventory.read"
+        "inventory.read",
+        "credit.request"
       ]
     },
     {
