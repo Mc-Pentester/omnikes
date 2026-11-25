@@ -146,6 +146,12 @@ jobs:
           E2E_CASHIER_PASSWORD: ${{ env.SEED_PASSWORD_CASHIER_A }}
         run: npx playwright test e2e/account-security.spec.ts --project=chromium
 
+      - name: Run customer credit security and collection end-to-end tests
+        env:
+          E2E_EMAIL: admin.a@omnikes.test
+          E2E_PASSWORD: ${{ env.SEED_PASSWORD_A }}
+        run: npx playwright test e2e/customer-credit.spec.ts --project=chromium
+
       - name: Lint
         shell: bash
         run: |
