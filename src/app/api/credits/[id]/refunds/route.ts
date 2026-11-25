@@ -30,8 +30,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (message === 'Authentication required') return NextResponse.json({ error: message }, { status: 401 });
     if (message.startsWith('Permission required') || message === 'Not authorized to access this store') return NextResponse.json({ error: message }, { status: 403 });
     if (message === 'Credit not found' || message === 'Return not found or access denied' || message === 'Credit payment not found or access denied') return NextResponse.json({ error: message }, { status: 404 });
-    if (message.includes('exceeds remaining refundable amount') || message.includes('open cash session')) return NextResponse.json({ error: message }, { status: 409 });
-    if (message.includes('Idempotency key already used')) return NextResponse.json({ error: message }, { status: 409 });
+    if (message.includes('exceeds remaining refundable amount') || message.includes('open cash session') || message.includes('Outstanding customer credit')) return NextResponse.json({ error: message }, { status: 409 });
+    if (message.includes('Idempotency key already used') || (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002')) return NextResponse.json({ error: message || 'Idempotency key conflict' }, { status: 409 });
     if (message === 'Return does not belong to this customer credit' || message === 'Credit payment does not belong to this customer credit') return NextResponse.json({ error: message }, { status: 409 });
     console.error('Error processing customer credit refund:', error);
     return NextResponse.json({ error: 'Failed to process customer credit refund' }, { status: 500 });
