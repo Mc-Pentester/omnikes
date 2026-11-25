@@ -20,6 +20,7 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
   let managerRole: { id: string } | undefined;
   let permission: { id: string } | undefined;
   let approvalPermission: { id: string } | undefined;
+  let repaymentPermission: { id: string } | undefined;
   const managerPassword = 'P0F2D-Manager-Approval!2026';
   let sameStoreSaleId: string;
   let crossStoreSaleId: string;
@@ -84,6 +85,10 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
       where: { code: 'credit.approve' },
       select: { id: true },
     });
+    repaymentPermission = await prisma.permission.findUniqueOrThrow({
+      where: { code: 'credit.payment.receive' },
+      select: { id: true },
+    });
 
     scopedUser = await prisma.user.create({
       data: {
@@ -117,6 +122,9 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
         userId: scopedUser!.id,
         roleId: scopedRole!.id,
       },
+    });
+    await prisma.rolePermission.create({
+      data: { roleId: scopedRole!.id, permissionId: repaymentPermission!.id },
     });
 
     managerUser = await prisma.user.create({
