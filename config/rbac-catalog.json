@@ -58,7 +58,13 @@
     "sale.customer.assign",
     "sale.pos.sync",
     "credit.approve",
-    "credit.request"
+    "credit.request",
+    "credit.payment.receive",
+    "credit.view",
+    "credit.history.view",
+    "credit.report.view",
+    "credit.limit.manage",
+    "credit.settings.manage"
   ],
   "standardRoles": [
     {
@@ -114,7 +120,12 @@
         "proforma.cancel",
         "proforma.convert",
         "organization.read",
-        "credit.approve"
+        "credit.approve",
+        "credit.payment.receive",
+        "credit.view",
+        "credit.history.view",
+        "credit.report.view",
+        "credit.limit.manage"
       ]
     },
     {
@@ -141,7 +152,11 @@
         "user.read",
         "audit.read",
         "proforma.read",
-        "credit.approve"
+        "credit.approve",
+        "credit.payment.receive",
+        "credit.view",
+        "credit.history.view",
+        "credit.report.view"
       ]
     },
     {
@@ -163,7 +178,10 @@
         "customer.read",
         "sale.customer.assign",
         "sale.pos.sync",
-        "credit.request"
+        "credit.request",
+        "credit.payment.receive",
+        "credit.view",
+        "credit.history.view"
       ]
     },
     {
@@ -242,7 +260,8 @@
         "supplier.payment.read",
         "customer.read",
         "audit.read",
-        "store.read"
+        "store.read",
+        "credit.report.view"
       ]
     },
     {
@@ -269,7 +288,12 @@
         "inventory.read",
         "store.read",
         "sale.pos.sync",
-        "credit.approve"
+        "credit.approve",
+        "credit.payment.receive",
+        "credit.view",
+        "credit.history.view",
+        "credit.report.view",
+        "credit.limit.manage"
       ]
     },
     {
@@ -323,7 +347,12 @@
         "supplier.read",
         "purchase.read",
         "purchase.receive",
-        "credit.approve"
+        "credit.approve",
+        "credit.payment.receive",
+        "credit.view",
+        "credit.history.view",
+        "credit.report.view",
+        "credit.limit.manage"
       ]
     },
     {
@@ -367,7 +396,8 @@
         "audit.read",
         "supplier.read",
         "purchase.read",
-        "supplier.payment.read"
+        "supplier.payment.read",
+        "credit.report.view"
       ]
     }
   ],
