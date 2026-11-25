@@ -124,6 +124,7 @@ export class SaleService {
     tx: Prisma.TransactionClient,
     saleId: string,
     organizationId: string,
+    invalidateCreditApproval = true,
   ) {
     const rows = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM sales
@@ -145,10 +146,10 @@ export class SaleService {
 
     // Any edit to a pending sale invalidates its prior manager approval.
     // The sale can be re-approved after the cashier finishes the edits.
-    const invalidated = await tx.saleCredit.updateMany({
+    const invalidated = invalidateCreditApproval ? await tx.saleCredit.updateMany({
       where: { saleId, status: 'APPROVED_PENDING_COMPLETION' },
       data: { status: 'INVALIDATED' },
-    });
+    }) : { count: 0 };
     if (invalidated.count > 0) {
       await tx.auditLog.create({
         data: {
@@ -181,7 +182,9 @@ export class SaleService {
     }
 
     return prisma.$transaction(async (tx) => {
-      await this.lockPendingSale(tx, id, organizationId);
+      const invalidatesCreditApproval = ['customerId', 'storeId', 'applyTax', 'discount', 'subtotal', 'tax', 'total']
+        .some((field) => Object.prototype.hasOwnProperty.call(validatedData, field));
+      await this.lockPendingSale(tx, id, organizationId, invalidatesCreditApproval);
       await tx.sale.update({
         where: { id },
         data: validatedData as Prisma.SaleUpdateInput,
