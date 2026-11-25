@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
           customer: { select: { id: true, name: true, phone: true, creditLimit: true } },
           sale: { select: { id: true, orderNumber: true, total: true, currencyCode: true, currencySymbol: true, status: true } },
           payments: { select: { id: true, amount: true, method: true, reference: true, createdAt: true, receivedBy: true } },
+          adjustments: { select: { id: true, amount: true, reason: true, createdAt: true } },
           authorizedByUser: { select: { id: true, name: true, email: true } },
         },
       }),
@@ -58,11 +59,14 @@ export async function GET(request: NextRequest) {
 
     const rows = credits.map((credit) => {
       const paid = roundMoney(credit.payments.reduce((sum, payment) => sum + Number(payment.amount), 0));
-      const outstanding = roundMoney(Math.max(0, Number(credit.amount) - paid));
-      const { payments, ...rest } = credit;
+      const adjusted = roundMoney(credit.adjustments.reduce((sum, adjustment) => sum + Number(adjustment.amount), 0));
+      const outstanding = roundMoney(Math.max(0, Number(credit.amount) - paid - adjusted));
+      const { payments, adjustments, ...rest } = credit;
       return {
         ...rest,
         paid,
+        adjusted,
+        adjustments,
         outstanding,
         overdue: credit.status === 'AUTHORIZED' && outstanding > 0 && credit.dueAt < new Date(),
         ...(canViewHistory ? { payments } : {}),
