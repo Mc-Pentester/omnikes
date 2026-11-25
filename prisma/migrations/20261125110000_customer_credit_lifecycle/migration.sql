@@ -23,6 +23,15 @@ WHERE sc."organizationId" = o."id" AND sc."dueAt" IS NULL;
 
 ALTER TABLE "sale_credits" ALTER COLUMN "dueAt" SET NOT NULL;
 
+-- Legacy approvals attached to still-pending sales are reservations, not
+-- receivables. They become AUTHORIZED only when the sale completion commits.
+UPDATE "sale_credits" sc
+SET "status" = 'APPROVED_PENDING_COMPLETION'
+FROM "sales" s
+WHERE sc."saleId" = s."id"
+  AND s."status" = 'PENDING'
+  AND sc."status" = 'AUTHORIZED';
+
 CREATE TABLE IF NOT EXISTS "credit_payments" (
   "id" TEXT NOT NULL,
   "organizationId" TEXT NOT NULL,
