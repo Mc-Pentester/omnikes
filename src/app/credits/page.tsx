@@ -23,6 +23,8 @@ type CreditRow = {
   authorizedByUser?: { name?: string | null; email?: string };
   adjustments?: Array<{ id: string; amount: string | number; reason: string; createdAt: string; processedByUser?: { name?: string | null; email?: string } }>;
 };
+const CREDITS_PAGE_SIZE = 25;
+
 type CreditPayment = {
   id: string;
   amount: string | number;
@@ -41,7 +43,6 @@ export default function CustomerCreditsPage() {
   const [totals, setTotals] = useState<Record<string, { credit: number; paid: number; adjusted: number; outstanding: number; overdue: number }>>({});
   const [total, setTotal] = useState(0);
   const [skip, setSkip] = useState(0);
-  const pageSize = 25;
   const [loading, setLoading] = useState(true);
   const creditsLoaded = useRef(false);
   const [error, setError] = useState('');
@@ -65,7 +66,7 @@ export default function CustomerCreditsPage() {
     if (!creditsLoaded.current) setLoading(true);
     setError('');
     try {
-      const query = new URLSearchParams({ take: String(pageSize), skip: String(skip) });
+      const query = new URLSearchParams({ take: String(CREDITS_PAGE_SIZE), skip: String(skip) });
       const response = await fetch('/api/credits?' + query.toString(), { cache: 'no-store' });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Impossible de charger les créances clients.');
@@ -274,10 +275,10 @@ export default function CustomerCreditsPage() {
                   {total === 0 ? 'Aucune créance' : `Affichage de ${skip + 1} à ${Math.min(skip + credits.length, total)} sur ${total} créances`}
                 </p>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setSkip((current) => Math.max(0, current - pageSize))} disabled={loading || skip === 0}>
+                  <Button size="sm" variant="outline" onClick={() => setSkip((current) => Math.max(0, current - CREDITS_PAGE_SIZE))} disabled={loading || skip === 0}>
                     Précédent
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setSkip((current) => Math.min(Math.max(0, total - 1), current + pageSize))} disabled={loading || skip + credits.length >= total}>
+                  <Button size="sm" variant="outline" onClick={() => setSkip((current) => Math.min(Math.max(0, total - 1), current + CREDITS_PAGE_SIZE))} disabled={loading || skip + credits.length >= total}>
                     Suivant
                   </Button>
                 </div>
