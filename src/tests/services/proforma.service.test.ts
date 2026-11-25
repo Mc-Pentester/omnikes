@@ -510,7 +510,11 @@ describe('ProformaService - Conversion', () => {
 
   describe('Create returns persisted totals', () => {
     it('returns the recalculated and rounded database record', async () => {
-      const organizationId = 'org-create-rounding';
+      // Use schema-valid CUIDs because create() validates its input before
+      // reaching the mocked Prisma transaction.
+      const organizationId = 'cmu8gsgwp0000fgqr0uckya14';
+      const storeId = 'cmubhviiu000i0sqr92jnxdrs';
+      const variantId = 'cmubhviiu000i0sqr92jnxdrt';
       const created = { id: 'proforma-created', applyTax: true };
       const persisted = {
         id: created.id,
@@ -537,11 +541,11 @@ describe('ProformaService - Conversion', () => {
       (prismaMock.$transaction as any).mockImplementation(async (callback: any) => callback(tx));
 
       const result = await proformaService.create(organizationId, {
-        storeId: 'store-1',
+        storeId,
         proformaNumber: 'PF-ROUND-1',
         subtotal: 0,
         total: 0,
-        items: [{ variantId: 'variant-1', quantity: 2 }],
+        items: [{ variantId, quantity: 2 }],
       } as any);
 
       expect(tx.proforma.update).toHaveBeenCalledWith(expect.objectContaining({
