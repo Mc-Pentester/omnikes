@@ -128,7 +128,7 @@ export default function RegisterPage() {
                     {taxEnabled && (
                       <div>
                         <label htmlFor="taxRate" className="mb-1 block text-sm font-medium text-foreground">Taux fiscal (%)</label>
-                        <Input id="taxRate" type="number" inputMode="decimal" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} required disabled={loading} />
+                        <Input id="taxRate" type="number" inputMode="decimal" step="0.01" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} required disabled={loading} />
                         <p className="mt-1 text-xs text-muted">Saisissez un taux entre 0 et 100. Exemple : 10 pour 10 %.</p>
                       </div>
                     )}
@@ -151,7 +151,7 @@ export default function RegisterPage() {
               <div><label htmlFor="password" className="mb-2 block text-sm font-medium text-foreground">Mot de passe</label><Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" minLength={8} required disabled={loading} /></div>
               <div><label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-foreground">Confirmer le mot de passe</label><Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" minLength={8} required disabled={loading} /></div>
 
-              {error && <div className="text-sm text-danger">{error}</div>}
+              {error && <div role="alert" className="text-sm text-danger">{error}</div>}
               <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Création…' : 'Créer un compte'}</Button>
             </form>
           </>
