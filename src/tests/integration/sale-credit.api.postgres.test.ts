@@ -6,6 +6,7 @@ import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { prisma } from '@omnikes/lib/prisma';
 
 import { POST as creditPost } from '@omnikes/app/api/sales/[id]/credit/route';
+import { POST as creditPaymentPost } from '@omnikes/app/api/credits/[id]/payments/route';
 
 describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
   let orgA: { id: string } | undefined;
@@ -22,6 +23,8 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
   const managerPassword = 'P0F2D-Manager-Approval!2026';
   let sameStoreSaleId: string;
   let crossStoreSaleId: string;
+  let pinSaleId: string;
+  const managerTestPin = ['7', '3', '9', '1', '8', '4'].join('');
 
   beforeAll(async () => {
     orgA = await prisma.organization.findUniqueOrThrow({
@@ -74,7 +77,7 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     temporaryCustomerA = true;
 
     permission = await prisma.permission.findUniqueOrThrow({
-      where: { code: 'sale.credit' },
+      where: { code: 'credit.request' },
       select: { id: true },
     });
     approvalPermission = await prisma.permission.findUniqueOrThrow({
@@ -139,6 +142,10 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
       select: { id: true },
     });
     await prisma.userRole.create({ data: { userId: managerUser.id, roleId: managerRole.id } });
+    await prisma.user.update({
+      where: { id: managerUser.id },
+      data: { creditPinHash: await bcrypt.hash(managerTestPin, 12) },
+    });
 
     const sameStoreSale = await prisma.sale.create({
       data: {
@@ -160,6 +167,24 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
       throw new Error('Credit API fixture failed to persist the expected customer on the authorized-store sale');
     }
     sameStoreSaleId = sameStoreSale.id;
+
+    const pinSale = await prisma.sale.create({
+      data: {
+        organizationId: orgA!.id,
+        storeId: storeA!.id,
+        orderNumber: `P0-24-F2-D-API-PIN-${suffix}`,
+        customerId: customerA!.id,
+        status: 'PENDING',
+        subtotal: 500,
+        tax: 0,
+        taxRate: 0,
+        total: 500,
+        discount: 0,
+        applyTax: false,
+      },
+      select: { id: true },
+    });
+    pinSaleId = pinSale.id;
 
     const crossStoreSale = await prisma.sale.create({
       data: {
@@ -207,9 +232,10 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     if (scopedUser?.id) await prisma.session.deleteMany({ where: { userId: scopedUser!.id } });
     if (managerUser?.id) await prisma.session.deleteMany({ where: { userId: managerUser!.id } });
     if (sameStoreSaleId || crossStoreSaleId) {
-      await prisma.saleCredit.deleteMany({
-        where: { saleId: { in: [sameStoreSaleId, crossStoreSaleId].filter(Boolean) } },
-      });
+      const saleIds = [sameStoreSaleId, crossStoreSaleId, pinSaleId].filter(Boolean);
+      const creditIds = (await prisma.saleCredit.findMany({ where: { saleId: { in: saleIds } }, select: { id: true } })).map((item) => item.id);
+      await prisma.creditPayment.deleteMany({ where: { saleCreditId: { in: creditIds } } });
+      await prisma.saleCredit.deleteMany({ where: { saleId: { in: saleIds } } });
       await prisma.sale.deleteMany({
         where: { id: { in: [sameStoreSaleId, crossStoreSaleId].filter(Boolean) } },
       });
@@ -316,6 +342,66 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     expect(response.status).toBe(403);
     expect((await response.json()).error).toBe('Invalid manager approval credentials');
     expect(await prisma.saleCredit.count({ where: { saleId: sameStoreSaleId } })).toBe(before);
+  });
+
+  it('supports manager PIN approval and requires a reason when the customer limit is exceeded', async () => {
+    await prisma.customer.update({ where: { id: customerA!.id }, data: { creditLimit: 100 } });
+    const request = new NextRequest(`http://localhost/api/sales/${pinSaleId}/credit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost' },
+      body: JSON.stringify({
+        customerId: customerA!.id,
+        amount: 200,
+        approverEmail: managerUser!.email,
+        approverPin: managerTestPin,
+      }),
+    });
+    const response = await creditPost(request, { params: Promise.resolve({ id: pinSaleId }) });
+    expect(response.status).toBe(409);
+    expect((await response.json()).error).toContain('Customer credit limit exceeded');
+    expect(await prisma.saleCredit.count({ where: { saleId: pinSaleId } })).toBe(0);
+
+    const overrideRequest = new NextRequest(`http://localhost/api/sales/${pinSaleId}/credit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost' },
+      body: JSON.stringify({
+        customerId: customerA!.id,
+        amount: 200,
+        note: 'Test de dépassement de plafond autorisé',
+        approverEmail: managerUser!.email,
+        approverPin: managerTestPin,
+      }),
+    });
+    const overrideResponse = await creditPost(overrideRequest, { params: Promise.resolve({ id: pinSaleId }) });
+    expect(overrideResponse.status).toBe(201);
+    const credit = await prisma.saleCredit.findUnique({ where: { saleId: pinSaleId } });
+    expect(credit?.dueAt).toBeInstanceOf(Date);
+    expect(credit?.authorizedBy).toBe(managerUser!.id);
+  });
+
+  it('records partial and final customer credit repayments', async () => {
+    const credit = await prisma.saleCredit.findUniqueOrThrow({ where: { saleId: pinSaleId } });
+    const firstKey = 'credit-payment-part-1-' + Date.now();
+    const firstRequest = new NextRequest(`http://localhost/api/credits/${credit.id}/payments`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost', 'Idempotency-Key': firstKey },
+      body: JSON.stringify({ amount: 50, method: 'CARD', reference: 'CARD-REF-1' }),
+    });
+    const firstResponse = await creditPaymentPost(firstRequest, { params: Promise.resolve({ id: credit.id }) });
+    expect(firstResponse.status).toBe(201);
+    expect((await firstResponse.json()).outstandingAfter).toBe(150);
+
+    const secondRequest = new NextRequest(`http://localhost/api/credits/${credit.id}/payments`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost', 'Idempotency-Key': 'credit-payment-part-2-' + Date.now() },
+      body: JSON.stringify({ amount: 150, method: 'CARD', reference: 'CARD-REF-2' }),
+    });
+    const secondResponse = await creditPaymentPost(secondRequest, { params: Promise.resolve({ id: credit.id }) });
+    expect(secondResponse.status).toBe(201);
+    expect((await secondResponse.json()).outstandingAfter).toBe(0);
+    const updatedCredit = await prisma.saleCredit.findUniqueOrThrow({ where: { id: credit.id } });
+    expect(updatedCredit.status).toBe('SETTLED');
+    expect(await prisma.creditPayment.count({ where: { saleCreditId: credit.id } })).toBe(2);
   });
 
   it('rejects the same scoped user on a different store through the real API route', async () => {
