@@ -136,7 +136,7 @@ export default function ProfileSecurityPage() {
         {creditPinAllowed && (
         <section className="rounded-xl border bg-surface p-5">
           <h2 className="text-lg font-semibold">PIN confidentiel pour autoriser les crédits</h2>
-          <p className="mt-1 text-sm text-muted">Configurez un PIN personnel de 4 à 8 chiffres. Il est stocké sous forme de hash et peut être utilisé à la place de votre mot de passe lors d'une approbation au POS.</p>
+          <p className="mt-1 text-sm text-muted">Configurez un PIN personnel de 4 à 8 chiffres. Il est stocké sous forme de hash et peut être utilisé à la place de votre mot de passe lors d&apos;une approbation au POS.</p>
           {creditPinConfigured && <p className="mt-3 text-sm text-success">Un PIN est actuellement configuré sur votre compte.</p>}
           {creditPinError && <div role="alert" className="mt-3 rounded-lg bg-danger-soft p-3 text-sm text-danger">{creditPinError}</div>}
           {creditPinMessage && <div role="status" className="mt-3 rounded-lg bg-success-soft p-3 text-sm text-success">{creditPinMessage}</div>}

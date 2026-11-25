@@ -70,7 +70,10 @@ export default function CustomerCreditsPage() {
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login');
-    if (!authLoading && user) void loadCredits();
+    if (!authLoading && user) {
+      const timer = window.setTimeout(() => void loadCredits(), 0);
+      return () => window.clearTimeout(timer);
+    }
   }, [authLoading, user, loadCredits, router]);
 
   const receivePayment = async (credit: CreditRow) => {

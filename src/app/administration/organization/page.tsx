@@ -255,7 +255,7 @@ export default function AdministrationOrganizationPage() {
               <div className="space-y-3 rounded-lg border p-4">
                 <h3 className="font-medium">Politique de crédit client</h3>
                 <label className="block">
-                  <span className="text-sm font-medium">Délai standard d'échéance (jours)</span>
+                  <span className="text-sm font-medium">Délai standard d&apos;échéance (jours)</span>
                   <input
                     type="number"
                     min="1"
@@ -268,7 +268,7 @@ export default function AdministrationOrganizationPage() {
                     className="mt-1 w-full rounded-lg border px-3 py-2 disabled:opacity-50"
                   />
                 </label>
-                <p className="text-xs text-muted">Ce délai est appliqué par défaut aux nouveaux crédits. Le responsable peut choisir une autre date d'échéance pour chaque vente. Les crédits existants conservent leur échéance.</p>
+                <p className="text-xs text-muted">Ce délai est appliqué par défaut aux nouveaux crédits. Le responsable peut choisir une autre date d&apos;échéance pour chaque vente. Les crédits existants conservent leur échéance.</p>
               </div>
 
               <div className="space-y-3 rounded-lg border p-4">

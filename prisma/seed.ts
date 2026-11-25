@@ -382,7 +382,7 @@ async function main() {
       module: 'sales',    },
   });
 
-  const saleUpdatePermission = await prisma.permission.upsert({
+  await prisma.permission.upsert({
     where: { code: 'sale.update' },
     update: {},
     create: {

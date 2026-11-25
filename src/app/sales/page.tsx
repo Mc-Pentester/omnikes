@@ -605,12 +605,12 @@ export default function PendingSalesPage() {
                           />
                           <div className="rounded-md border border-border p-3 space-y-2">
                             <p className="text-sm font-medium text-foreground">Validation par un responsable</p>
-                            <p className="text-xs text-muted">Le responsable choisit l'échéance, confirme le motif et autorise sur place avec son mot de passe ou son PIN personnel.</p>
+                            <p className="text-xs text-muted">Le responsable choisit l&apos;échéance, confirme le motif et autorise sur place avec son mot de passe ou son PIN personnel.</p>
                             <label className="block text-xs font-medium text-muted">Motif / note (obligatoire si le plafond client est dépassé)
                               <Input
                                 value={creditNote}
                                 onChange={(event) => setCreditNote(event.target.value)}
-                                placeholder="Motif de l'exception ou note facultative"
+                                placeholder="Motif de l&apos;exception ou note facultative"
                                 disabled={processing || totals.remaining <= 0}
                                 maxLength={1000}
                               />
