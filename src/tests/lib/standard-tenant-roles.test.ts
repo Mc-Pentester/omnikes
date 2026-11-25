@@ -36,7 +36,7 @@ describe('standard tenant RBAC roles', () => {
   it('grants customer-credit capabilities according to the least-privilege role matrix', () => {
     const role = (name: string) => name === 'CASHIER' ? CASHIER_ROLE.permissions : STANDARD_TENANT_ROLES.find((item) => item.name === name)!.permissions;
     const creditPermissions = [
-      'credit.approve', 'credit.request', 'credit.payment.receive', 'credit.view',
+      'credit.approve', 'credit.refund', 'credit.request', 'credit.payment.receive', 'credit.view',
       'credit.history.view', 'credit.report.view', 'credit.limit.manage', 'credit.settings.manage',
     ];
     for (const code of creditPermissions) expect(TENANT_PERMISSION_CODES).toContain(code);
@@ -44,7 +44,7 @@ describe('standard tenant RBAC roles', () => {
     for (const name of ['MANAGER', 'SUPERVISOR', 'SALES_MANAGER', 'STORE_MANAGER']) {
       expect(role(name)).toContain('credit.approve');
       expect(role(name)).toContain('credit.view');
-      expect(role(name)).toContain('payment.refund');
+      expect(role(name)).toContain('credit.refund');
     }
     for (const name of ['CASHIER', 'SELLER', 'SALES_ASSOCIATE']) {
       expect(role(name)).toContain('credit.request');
@@ -57,6 +57,8 @@ describe('standard tenant RBAC roles', () => {
       expect(role(name)).not.toContain('credit.approve');
       expect(role(name)).not.toContain('credit.payment.receive');
     }
+    expect(role('SALES_MANAGER')).not.toContain('payment.refund');
+    expect(role('MANAGER')).toContain('payment.refund');
     expect(role('MANAGER')).not.toContain('credit.settings.manage');
     expect(role('CASHIER')).not.toContain('credit.limit.manage');
   });
