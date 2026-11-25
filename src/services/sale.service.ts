@@ -440,7 +440,7 @@ export class SaleService {
   /**
    * Complete a sale (transactional - deducts stock)
    */
-  async complete(saleId: string, organizationId: string) {
+  async complete(saleId: string, organizationId: string, completedBy?: string) {
     return prisma.$transaction(async (tx) => {
       // Lock the sale row so payment/credit/finalization decisions are serialized.
       const lockedSaleRows = await tx.$queryRaw<Array<{ id: string }>>`
@@ -544,6 +544,28 @@ export class SaleService {
         await tx.saleCredit.update({
           where: { id: sale.saleCredit.id },
           data: { status: 'AUTHORIZED' },
+        });
+        await tx.auditLog.create({
+          data: {
+            userId: completedBy ?? sale.saleCredit.authorizedBy,
+            organizationId,
+            storeId: sale.storeId,
+            action: 'CUSTOMER_CREDIT_RECEIVABLE_CREATED',
+            module: 'credit',
+            entityId: sale.saleCredit.id,
+            entityType: 'SaleCredit',
+            newValues: {
+              status: 'AUTHORIZED',
+              amount: Number(sale.saleCredit.amount),
+              dueAt: sale.saleCredit.dueAt.toISOString(),
+            },
+            metadata: {
+              saleId,
+              orderNumber: sale.orderNumber,
+              approvedBy: sale.saleCredit.authorizedBy,
+              finalizedBy: completedBy ?? null,
+            },
+          },
         });
       }
 
