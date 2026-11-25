@@ -350,7 +350,7 @@ export const creditPaymentSchema = z.object({
 
 export const creditPinSetupSchema = z.object({
   currentPassword: z.string().min(1),
-  pin: z.string().regex(/^\\d{4,8}$/, 'PIN must contain 4 to 8 digits'),
+  pin: z.string().regex(/^\d{4,8}$/, 'PIN must contain 4 to 8 digits'),
 }).strict();
 
 export type SaleCreditInput = z.infer<typeof saleCreditSchema>;
