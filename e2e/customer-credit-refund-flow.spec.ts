@@ -180,7 +180,12 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
     expect(Number(returned.totalRefunded)).toBe(unitPrice);
 
     await page.goto('/credits');
-    await page.getByRole('button', { name: 'Historique des paiements' }).first().click();
+    // Target this scenario's credit explicitly; seeded/parallel credits may
+    // appear before it in the list and must not receive the interaction.
+    const scenarioCreditCard = page.getByText(customerName, { exact: true })
+      .locator('xpath=ancestor::div[.//button[contains(., "Historique des paiements")]][1]');
+    await expect(scenarioCreditCard).toBeVisible();
+    await scenarioCreditCard.getByRole('button', { name: 'Historique des paiements' }).click();
     const refundPanel = page.getByRole('heading', { name: 'Rembourser un trop-perçu après retour' }).locator('..');
     await expect(refundPanel).toBeVisible();
 
