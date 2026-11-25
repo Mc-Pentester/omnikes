@@ -24,6 +24,7 @@ interface User {
   canViewCreditHistory?: boolean;
   canReceiveCreditPayment?: boolean;
   canRefundCreditPayment?: boolean;
+  canReturnSale?: boolean;
 }
 
 interface AuthContextType {
