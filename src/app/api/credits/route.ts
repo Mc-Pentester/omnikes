@@ -75,11 +75,12 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const totalsByCurrency = rows.reduce<Record<string, { credit: number; paid: number; outstanding: number; overdue: number }>>((acc, row) => {
+    const totalsByCurrency = rows.reduce<Record<string, { credit: number; paid: number; adjusted: number; outstanding: number; overdue: number }>>((acc, row) => {
       const currency = row.sale.currencyCode;
-      acc[currency] ??= { credit: 0, paid: 0, outstanding: 0, overdue: 0 };
+      acc[currency] ??= { credit: 0, paid: 0, adjusted: 0, outstanding: 0, overdue: 0 };
       acc[currency].credit = roundMoney(acc[currency].credit + Number(row.amount));
       acc[currency].paid = roundMoney(acc[currency].paid + row.paid);
+      acc[currency].adjusted = roundMoney(acc[currency].adjusted + row.adjusted);
       acc[currency].outstanding = roundMoney(acc[currency].outstanding + row.outstanding);
       if (row.overdue) acc[currency].overdue = roundMoney(acc[currency].overdue + row.outstanding);
       return acc;
