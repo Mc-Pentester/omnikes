@@ -124,7 +124,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             amount: data.amount,
             referenceId: credit.saleId,
             referenceType: 'CUSTOMER_CREDIT_PAYMENT',
-            note: `Customer credit repayment for sale ${credit.sale.orderNumber}`,
+            note: `Customer credit repayment ${payment.id} for sale ${credit.sale.orderNumber}`,
           },
         });
       }
