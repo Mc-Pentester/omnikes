@@ -310,7 +310,7 @@ describe('P0-24-F.2-D - real PostgreSQL sale credit runtime', () => {
       customerId: customerA.id,
       amount: 1000,
     });
-    await saleService.update(sale.id, orgA.id, { notes: 'Basket changed after approval' });
+    await saleService.update(sale.id, orgA.id, { discount: 1 });
     const invalidated = await prisma.saleCredit.findUniqueOrThrow({ where: { saleId: sale.id } });
     expect(invalidated.status).toBe('INVALIDATED');
 
