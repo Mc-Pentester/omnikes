@@ -40,7 +40,7 @@ describe('first organization registration persists fiscal settings in PostgreSQL
 
     const organization = await prisma.organization.findUniqueOrThrow({
       where: { id: result.user.organizationId },
-      select: { name: true, taxEnabled: true, taxRate: true },
+      select: { id: true, name: true, taxEnabled: true, taxRate: true },
     });
     expect(organization.name).toBe(organizationName);
     expect(organization.taxEnabled).toBe(expectedTaxEnabled);
