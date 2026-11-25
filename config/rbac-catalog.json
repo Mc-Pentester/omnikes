@@ -56,7 +56,8 @@
     "supplier.payment.manage",
     "supplier.payment.read",
     "sale.customer.assign",
-    "sale.pos.sync"
+    "sale.pos.sync",
+    "credit.approve"
   ],
   "standardRoles": [
     {
@@ -111,7 +112,8 @@
         "proforma.accept",
         "proforma.cancel",
         "proforma.convert",
-        "organization.read"
+        "organization.read",
+        "credit.approve"
       ]
     },
     {
@@ -137,7 +139,8 @@
         "report.read",
         "user.read",
         "audit.read",
-        "proforma.read"
+        "proforma.read",
+        "credit.approve"
       ]
     },
     {
@@ -262,7 +265,8 @@
         "product.read",
         "inventory.read",
         "store.read",
-        "sale.pos.sync"
+        "sale.pos.sync",
+        "credit.approve"
       ]
     },
     {
@@ -315,7 +319,8 @@
         "report.read",
         "supplier.read",
         "purchase.read",
-        "purchase.receive"
+        "purchase.receive",
+        "credit.approve"
       ]
     },
     {
