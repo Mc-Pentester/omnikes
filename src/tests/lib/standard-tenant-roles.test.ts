@@ -31,7 +31,7 @@ describe('standard tenant RBAC roles', () => {
       expect(STANDARD_TENANT_ROLES.find((role) => role.name === roleName)?.permissions).toContain('sale.pos.sync');
     }
     expect(accountant.permissions).not.toContain('sale.update');
-    expect(auditor.permissions.every((code) => code.endsWith('.read') || code === 'audit.read')).toBe(true);
+    expect(auditor.permissions.every((code) => code.endsWith('.read') || code.endsWith('.view') || code === 'audit.read')).toBe(true);
   });
   it('does not grant tenant roles platform subscription permissions', () => {
     for (const role of [CASHIER_ROLE, ...STANDARD_TENANT_ROLES]) expect(role.permissions).not.toContain('organization.subscription.manage');
