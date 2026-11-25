@@ -24,7 +24,7 @@ export async function POST(
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    await requirePermission(request, 'sale.credit');
+    await requirePermission(request, 'credit.request');
 
     const sale = await prisma.sale.findFirst({
       where: { id: saleId, organizationId },
