@@ -21,7 +21,7 @@ test.describe('Initial organization fiscal configuration', () => {
     await page.getByLabel('Nom de l’organisation').fill('Commerce Haiti');
     await page.getByLabel('Votre nom').fill('Admin');
     await page.getByLabel('Email').fill('admin@example.test');
-    await page.getByLabel('Mot de passe').fill('secure-password');
+    await page.getByLabel('Mot de passe', { exact: true }).fill('secure-password');
     await page.getByLabel('Confirmer le mot de passe').fill('secure-password');
     await page.getByRole('button', { name: 'Créer un compte' }).click();
 
@@ -44,7 +44,7 @@ test.describe('Initial organization fiscal configuration', () => {
     await page.getByLabel('Nom de l’organisation').fill('Commerce sans taxe');
     await page.getByLabel('Votre nom').fill('Admin');
     await page.getByLabel('Email').fill('admin-no-tax@example.test');
-    await page.getByLabel('Mot de passe').fill('secure-password');
+    await page.getByLabel('Mot de passe', { exact: true }).fill('secure-password');
     await page.getByLabel('Confirmer le mot de passe').fill('secure-password');
     await page.getByRole('button', { name: 'Créer un compte' }).click();
 
@@ -65,7 +65,7 @@ test.describe('Initial organization fiscal configuration', () => {
     await page.getByLabel('Nom de l’organisation').fill('Commerce invalide');
     await page.getByLabel('Votre nom').fill('Admin');
     await page.getByLabel('Email').fill('invalid-tax@example.test');
-    await page.getByLabel('Mot de passe').fill('secure-password');
+    await page.getByLabel('Mot de passe', { exact: true }).fill('secure-password');
     await page.getByLabel('Confirmer le mot de passe').fill('secure-password');
     await page.getByRole('button', { name: 'Créer un compte' }).click();
 
