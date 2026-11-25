@@ -1,0 +1,65 @@
+CONTRAT DE LICENCE ET D’UTILISATION DU LOGICIEL OMNIKÈS
+Version 1.0
+Éditeur : Kodyra Technologies
+Entrée en vigueur : date de l’installation, correspondant à la date d’acceptation électronique du présent contrat.
+Pays de référence : République d’Haïti
+
+PRÉAMBULE
+Le présent contrat définit les conditions dans lesquelles l’utilisateur est autorisé à installer et utiliser OmniKès, logiciel de gestion commerciale et de point de vente édité par Kodyra Technologies. En sélectionnant « J’accepte » dans l’installateur, l’utilisateur confirme avoir pris connaissance du contrat et en accepter les dispositions.
+
+ARTICLE 1 – OBJET ET FONCTIONNALITÉS
+Le contrat accorde un droit d’utilisation du logiciel OmniKès. Selon la version et la licence souscrite, le logiciel peut notamment permettre la gestion des produits, variantes, catégories, codes-barres, stocks, inventaires, ventes, caisses, clients, fournisseurs, achats, proformas, reçus, crédits clients, remboursements, rapports, utilisateurs, rôles, sauvegardes et restaurations.
+
+ARTICLE 2 – LICENCE D’UTILISATION
+Kodyra Technologies accorde à l’utilisateur une licence limitée, non exclusive et non transférable, pour installer et utiliser OmniKès dans le cadre des activités de son entreprise, sur les équipements et selon le nombre de postes autorisés par la licence souscrite. Cette licence ne constitue ni une vente du logiciel ni un transfert de propriété intellectuelle.
+
+ARTICLE 3 – PROPRIÉTÉ INTELLECTUELLE
+Le logiciel, son code, son architecture, ses interfaces, ses éléments graphiques, sa documentation et ses marques demeurent la propriété de leurs titulaires respectifs. Sauf autorisation écrite ou disposition légale impérative, l’utilisateur ne peut copier, distribuer, revendre, louer, sous-licencier, décompiler, désassembler ou tenter d’extraire le code source du logiciel, ni supprimer les mentions de propriété intellectuelle.
+
+ARTICLE 4 – PROPRIÉTÉ DES DONNÉES
+Les données commerciales saisies ou produites par l’utilisateur (clients, produits, stocks, ventes, transactions, fournisseurs, historiques et informations internes) restent la propriété de l’entreprise utilisatrice ou de leurs titulaires légitimes. Le présent contrat ne transfère pas ces données à Kodyra Technologies.
+
+OmniKès est conçu selon une approche locale-first : les données peuvent être conservées sur l’infrastructure locale de l’entreprise. L’utilisation du logiciel ne nécessite pas nécessairement une connexion Internet permanente ni une synchronisation obligatoire avec un serveur distant. Certaines fonctions optionnelles ou intégrations tierces peuvent toutefois nécessiter Internet.
+
+L’utilisateur demeure responsable des accès à son installation, de la sécurité de ses équipements et du respect des droits des personnes dont les données sont enregistrées.
+
+ARTICLE 5 – SAUVEGARDE ET RESTAURATION
+L’utilisateur est responsable de la réalisation et de la vérification régulières de sauvegardes. Il lui est recommandé de conserver des copies sur un support distinct de l’ordinateur ou du serveur principal et de tester périodiquement leur restauration. La présence d’une fonction de sauvegarde dans OmniKès ne dispense pas l’utilisateur de cette responsabilité.
+
+ARTICLE 6 – SÉCURITÉ ET OBLIGATIONS DE L’UTILISATEUR
+L’utilisateur s’engage à protéger ses identifiants, attribuer les permissions selon les responsabilités de chaque employé, éviter le partage de comptes personnels, sécuriser ses ordinateurs et son réseau, maintenir ses sauvegardes et vérifier les opérations enregistrées. Il est responsable de l’exactitude des données saisies et des actions effectuées par les personnes auxquelles il accorde un accès.
+
+ARTICLE 7 – LICENCE, ABONNEMENT ET PAIEMENT
+L’accès à certaines fonctionnalités peut être soumis à une licence payante ou à un abonnement. Les tarifs, la durée, les modalités de renouvellement, les limites d’utilisation et les fonctionnalités incluses sont communiqués avant la souscription. Lorsqu’une période d’essai est proposée, sa durée et ses conditions sont indiquées lors de son activation. L’expiration ou la suspension d’une licence peut limiter certaines fonctionnalités selon les conditions commerciales applicables, sans autoriser la suppression arbitraire des données de l’utilisateur.
+
+ARTICLE 8 – MISES À JOUR ET MAINTENANCE
+Kodyra Technologies peut proposer des mises à jour pour corriger des erreurs, améliorer la sécurité, ajouter des fonctionnalités ou maintenir la compatibilité. Elles peuvent être distribuées par Internet ou par un autre moyen compatible avec le fonctionnement local-first. Il est recommandé d’effectuer une sauvegarde avant toute opération importante de mise à jour ou de maintenance.
+
+ARTICLE 9 – SERVICES ET ÉQUIPEMENTS TIERS
+Certaines fonctions peuvent dépendre d’équipements ou de services tiers, notamment les imprimantes, lecteurs de codes-barres, tiroirs-caisses, terminaux de paiement, services de paiement électronique, messagerie ou autres intégrations. Leur disponibilité et leur fonctionnement dépendent également de leurs fournisseurs et de leurs propres conditions.
+
+ARTICLE 10 – RESPONSABILITÉ
+OmniKès est un outil de gestion et ne remplace pas les obligations légales, fiscales, comptables ou commerciales de l’entreprise. L’utilisateur reste responsable de la vérification de ses ventes, stocks, encaissements et déclarations. Dans les limites autorisées par la loi, Kodyra Technologies ne saurait être tenue responsable des pertes résultant notamment d’une mauvaise utilisation, d’erreurs de saisie, d’un accès non autorisé imputable à l’utilisateur, d’une défaillance du matériel ou du réseau de l’utilisateur, de l’absence de sauvegarde appropriée ou d’une interruption imputable à un service tiers. Aucune disposition du contrat n’exclut une responsabilité qui ne peut légalement être exclue.
+
+ARTICLE 11 – SUSPENSION ET FIN DU DROIT D’UTILISATION
+L’utilisateur peut cesser d’utiliser le logiciel à tout moment. Le droit d’utilisation peut être suspendu ou prendre fin en cas de violation substantielle du contrat ou d’expiration de la licence, conformément aux conditions applicables. La fin du droit d’utilisation ne transfère pas à Kodyra Technologies la propriété des données de l’entreprise. Les modalités d’exportation et de récupération dépendent des fonctions disponibles et des conditions applicables.
+
+ARTICLE 12 – MODIFICATION DU CONTRAT
+Kodyra Technologies peut faire évoluer le contrat pour tenir compte des évolutions du logiciel ou des obligations légales. Toute nouvelle version est communiquée à l’utilisateur. Une nouvelle acceptation sera demandée lorsqu’elle est nécessaire avant l’application des nouvelles conditions concernées.
+
+ARTICLE 13 – DROIT APPLICABLE ET DIFFÉRENDS
+Le contrat est destiné à être régi par le droit applicable en République d’Haïti, sous réserve des règles impératives applicables. Les parties chercheront prioritairement une solution amiable à tout différend. À défaut d’accord, le différend sera soumis aux juridictions compétentes conformément à la législation applicable.
+
+ARTICLE 14 – ACCEPTATION ÉLECTRONIQUE
+Avant de poursuivre une installation interactive, l’utilisateur doit sélectionner expressément « J’accepte » sur l’écran de licence. Le refus ou l’absence de sélection empêche de poursuivre l’installation. Pour une installation silencieuse ou automatisée, l’acceptation doit être transmise explicitement au moyen du paramètre documenté /ACCEPTLICENSE=yes. Le lancement de l’installateur ou le téléchargement du logiciel ne constitue pas, à lui seul, une acceptation.
+
+L’installateur enregistre localement dans ProgramData\OmniKes\legal\license-acceptance.log la version du contrat, la date et l’heure locales, le compte Windows utilisé et le mode d’acceptation. Cette trace sert à documenter l’acceptation sur l’équipement installé.
+
+En acceptant, l’utilisateur confirme avoir lu le contrat, comprendre les conditions d’utilisation et être autorisé à accepter ces conditions pour son compte ou pour l’entreprise qu’il représente.
+
+FIN DU CONTRAT
+
+Kodyra Technologies
+OmniKès – Logiciel de gestion commerciale et de point de vente
+
+Note : ce contrat constitue les conditions de licence du logiciel. Les obligations légales impératives applicables prévalent sur toute stipulation contraire.

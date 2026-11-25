@@ -1,0 +1,118 @@
+'use client';
+
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Logo } from '@omnikes/components/branding/Logo';
+import { Button } from '@omnikes/components/ui/button';
+import { Card } from '@omnikes/components/ui/card';
+import { Input } from '@omnikes/components/ui/input';
+import { useAuth } from '@omnikes/contexts/AuthContext';
+
+function LoginPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login, loading } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const passwordChanged = searchParams.get('passwordChanged') === '1';
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      await login(email, password);
+      router.push('/');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Login failed';
+      setError(message);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <Card className="w-full max-w-md p-8">
+        <div className="flex flex-col items-center mb-8">
+          <Logo size={80} />
+          <h1 className="text-2xl font-bold text-foreground mt-4">OmniKès</h1>
+          <p className="text-sm text-muted">Système de Gestion Commerciale</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
+              Email
+            </label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="votre@email.com"
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
+              Mot de passe
+            </label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              disabled={loading}
+            />
+          </div>
+
+          {passwordChanged && (
+            <div role="status" className="rounded-lg border border-primary/30 bg-primary/10 p-3 text-sm text-primary">
+              Votre mot de passe a été modifié. Connectez-vous avec votre nouveau mot de passe.
+            </div>
+          )}
+
+          {error && (
+            <div className="text-danger text-sm">{error}</div>
+          )}
+
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={loading}
+          >
+            {loading ? 'Connexion...' : 'Se connecter'}
+          </Button>
+        </form>
+
+        <div className="mt-6 text-center text-sm text-muted">
+          <p>Utilisez votre compte utilisateur existant.</p>
+          <p className="mt-2">
+            Pas encore de compte?{' '}
+            <a href="/register" className="text-primary hover:text-primary-hover">
+              Créer un compte
+            </a>
+          </p>
+          <p className="mt-2">
+            <a href="/forgot-password" className="text-primary hover:text-primary-hover">
+              Mot de passe oublié?
+            </a>
+          </p>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}

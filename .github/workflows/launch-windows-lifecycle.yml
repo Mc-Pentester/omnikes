@@ -1,0 +1,100 @@
+name: Windows installer lifecycle validation
+
+# Manual only: build the selected branch and exercise the real installer.
+# This workflow deliberately does not publish a GitHub Release.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-lifecycle:
+    name: Build and test Windows installer lifecycle
+    runs-on: windows-latest
+    timeout-minutes: 180
+    env:
+      DATABASE_URL: postgresql://build:build@127.0.0.1:5432/omnikes_build
+
+    steps:
+      - name: Checkout selected branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build Windows offline installer from selected branch
+        shell: powershell
+        run: npm run package:windows
+
+      - name: Verify Prisma packaging
+        shell: powershell
+        run: npm test -- src/tests/build/prisma-packaging-verification.test.ts
+
+      - name: Verify launcher configuration
+        shell: powershell
+        run: npm test -- src/tests/build/launcher-verification.test.ts
+
+      - name: Verify Windows in-place upgrade safety
+        shell: powershell
+        run: npm test -- src/tests/build/windows-in-place-upgrade.test.ts
+
+      - name: Run complete Windows installer lifecycle
+        shell: powershell
+        run: |
+          $installer = Get-ChildItem "dist\\installer\\OmniKes-Setup-*-x64.exe" -File | Select-Object -First 1
+          if (-not $installer) {
+            throw "The Windows lifecycle test cannot find the generated installer."
+          }
+          & "$PWD\\scripts\\test-windows-installer-lifecycle.ps1" -SetupExe $installer.FullName
+
+      - name: Collect Windows lifecycle diagnostics
+        if: always()
+        shell: powershell
+        run: |
+          $diagnosticDir = Join-Path $env:RUNNER_TEMP "omnikes-uninstall-diagnostics"
+          New-Item -ItemType Directory -Path $diagnosticDir -Force | Out-Null
+          $sources = @(
+            (Join-Path $env:RUNNER_TEMP "omnikes-installer-lifecycle.log"),
+            (Join-Path $env:RUNNER_TEMP "omnikes-uninstall-normal-inno.log"),
+            (Join-Path $env:RUNNER_TEMP "omnikes-uninstall-purge-inno.log"),
+            (Join-Path $env:ProgramData "OmniKes\\logs\\uninstall-runtime.log")
+          )
+          foreach ($source in $sources) {
+            if (Test-Path -LiteralPath $source) {
+              Copy-Item -LiteralPath $source -Destination $diagnosticDir -Force
+              Write-Host "=== $source ==="
+              Get-Content -LiteralPath $source -Tail 300
+            } else {
+              Write-Host "DIAGNOSTIC FILE NOT FOUND: $source"
+            }
+          }
+          $global:LASTEXITCODE = 0
+
+      - name: Upload Windows lifecycle diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmniKes-Windows-Lifecycle-Diagnostics
+          path: ${{ runner.temp }}/omnikes-uninstall-diagnostics/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Windows installer
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmniKes-Windows-Offline-Installer
+          path: dist/installer/OmniKes-Setup-*-x64.exe
+          if-no-files-found: warn
+          retention-days: 14

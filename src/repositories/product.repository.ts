@@ -1,0 +1,162 @@
+import { prisma } from '@omnikes/lib/prisma';
+import { Prisma } from '@prisma/client';
+
+export class ProductRepository {
+  async create(data: Prisma.ProductCreateInput) {
+    return prisma.product.create({ data, include: { variants: true } });
+  }
+
+  async findById(id: string, organizationId: string) {
+    return prisma.product.findFirst({
+      where: { id, organizationId },
+      include: { variants: true },
+    });
+  }
+
+  /**
+   * List products for an organization with optional filters
+   */
+  async listByOrganization(organizationId: string, options: {
+    search?: string;
+    category?: string;
+    isActive?: boolean;
+    authorizedStoreIds?: string[] | null;
+    skip?: number;
+    take?: number;
+  } = {}) {
+    const { search, category, isActive, authorizedStoreIds, skip = 0, take = 50 } = options;
+
+    const where: Prisma.ProductWhereInput = {
+      organizationId,
+    };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { variants: { some: { sku: { contains: search, mode: 'insensitive' } } } },
+        { variants: { some: { barcode: { contains: search, mode: 'insensitive' } } } },
+      ];
+    }
+
+    if (category) {
+      where.category = category;
+    }
+
+    if (isActive !== undefined) {
+      where.isActive = isActive;
+    }
+
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        include: {
+          variants: {
+            include: {
+              inventories: {
+                where: {
+                  store: {
+                    organizationId,
+                    ...(authorizedStoreIds != null ? { id: { in: authorizedStoreIds } } : {}),
+                  },
+                },
+                select: { quantity: true },
+              },
+            },
+          },
+        },
+        skip,
+        take,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      prisma.product.count({ where }),
+    ]);
+
+    // Stock is the on-hand quantity across stores the current user may access.
+    // Keep the inventory rows out of the public product payload.
+    const productsWithStock = products.map((product) => ({
+      ...product,
+      variants: product.variants.map(({ inventories, ...variant }) => ({
+        ...variant,
+        stock: inventories.reduce((totalStock, inventory) => totalStock + inventory.quantity, 0),
+      })),
+    }));
+
+    return {
+      products: productsWithStock,
+      total,
+      skip,
+      take,
+    };
+  }
+
+  /** Exact barcode lookup, scoped to the authenticated organization. */
+  async findByBarcode(organizationId: string, barcode: string) {
+    const normalized = barcode.trim();
+    return prisma.product.findFirst({
+      where: { organizationId, isActive: true, variants: { some: { barcode: { equals: normalized }, isActive: true } } },
+      include: { variants: { where: { barcode: { equals: normalized }, isActive: true } } },
+    });
+  }
+
+  /**
+   * Update a product
+   */
+  async update(id: string, organizationId: string, data: Prisma.ProductUpdateInput) {
+    return prisma.product.updateMany({
+      where: {
+        id,
+        organizationId,
+      },
+      data,
+    });
+  }
+
+  /**
+   * Soft delete/deactivate a product
+   */
+  async deactivate(id: string, organizationId: string) {
+    return prisma.product.updateMany({
+      where: {
+        id,
+        organizationId,
+      },
+      data: {
+        isActive: false,
+      },
+    });
+  }
+
+  /**
+   * Reactivate a product
+   */
+  async activate(id: string, organizationId: string) {
+    return prisma.product.updateMany({
+      where: {
+        id,
+        organizationId,
+      },
+      data: {
+        isActive: true,
+      },
+    });
+  }
+
+  /**
+   * Check if a product belongs to an organization
+   */
+  async belongsToOrganization(productId: string, organizationId: string): Promise<boolean> {
+    const product = await prisma.product.findFirst({
+      where: {
+        id: productId,
+        organizationId,
+      },
+      select: { id: true },
+    });
+
+    return !!product;
+  }
+}
+
+export const productRepository = new ProductRepository();
