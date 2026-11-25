@@ -57,7 +57,15 @@ export async function GET(request: NextRequest) {
         orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }],
         include: {
           customer: { select: { id: true, name: true, phone: true, creditLimit: true } },
-          sale: { select: { id: true, orderNumber: true, total: true, currencyCode: true, currencySymbol: true, status: true } },
+          sale: { select: {
+            id: true, orderNumber: true, total: true, currencyCode: true, currencySymbol: true, status: true,
+            returns: { select: {
+              id: true, totalRefunded: true, createdAt: true,
+              refunds: { where: { status: 'COMPLETED' }, select: { amount: true } },
+              creditAdjustments: { select: { amount: true } },
+              creditRefunds: { select: { amount: true } },
+            } },
+          } },
           payments: { select: { id: true, amount: true, method: true, reference: true, createdAt: true, receivedBy: true } },
           adjustments: { select: { id: true, amount: true, reason: true, createdAt: true, processedByUser: { select: { id: true, name: true, email: true } } } },
           authorizedByUser: { select: { id: true, name: true, email: true } },
@@ -71,8 +79,20 @@ export async function GET(request: NextRequest) {
       const adjusted = roundMoney(credit.adjustments.reduce((sum, adjustment) => sum + Number(adjustment.amount), 0));
       const outstanding = roundMoney(Math.max(0, Number(credit.amount) - paid - adjusted));
       const { payments, adjustments, ...rest } = credit;
+      const returns = credit.sale.returns.map((returnRecord) => {
+        const normalRefunds = returnRecord.refunds.reduce((sum, item) => sum + Number(item.amount), 0);
+        const debtAdjustments = returnRecord.creditAdjustments.reduce((sum, item) => sum + Number(item.amount), 0);
+        const creditRefunds = returnRecord.creditRefunds.reduce((sum, item) => sum + Number(item.amount), 0);
+        return {
+          id: returnRecord.id,
+          totalRefunded: Number(returnRecord.totalRefunded),
+          createdAt: returnRecord.createdAt,
+          refundableRemaining: roundMoney(Math.max(0, Number(returnRecord.totalRefunded) - normalRefunds - debtAdjustments - creditRefunds)),
+        };
+      });
       return {
         ...rest,
+        sale: { ...credit.sale, returns },
         paid,
         adjusted,
         adjustments,
