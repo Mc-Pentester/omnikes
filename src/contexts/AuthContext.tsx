@@ -17,6 +17,11 @@ interface User {
   canActivateStores?: boolean;
   canDeactivateStores?: boolean;
   canAuthorizeCredit?: boolean;
+  canRequestCredit?: boolean;
+  canManageCreditLimit?: boolean;
+  canViewCredit?: boolean;
+  canViewCreditHistory?: boolean;
+  canReceiveCreditPayment?: boolean;
 }
 
 interface AuthContextType {
