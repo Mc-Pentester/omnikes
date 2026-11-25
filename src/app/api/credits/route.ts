@@ -25,6 +25,13 @@ export async function GET(request: NextRequest) {
       },
       select: { id: true },
     });
+    const canViewReport = await prisma.rolePermission.findFirst({
+      where: {
+        role: { userRoles: { some: { userId: user.id } } },
+        permission: { code: 'credit.report.view' },
+      },
+      select: { id: true },
+    });
 
     let storeScope: string[] | null = null;
     if (storeId) {
@@ -86,7 +93,7 @@ export async function GET(request: NextRequest) {
       return acc;
     }, {});
 
-    return NextResponse.json({ credits: rows, total, skip, take, totalsByCurrency });
+    return NextResponse.json({ credits: rows, total, skip, take, ...(canViewReport ? { totalsByCurrency } : {}) });
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('Permission required')) return NextResponse.json({ error: 'Permission required' }, { status: 403 });
     if (error instanceof Error && error.message === 'Not authorized to access this store') return NextResponse.json({ error: error.message }, { status: 403 });
