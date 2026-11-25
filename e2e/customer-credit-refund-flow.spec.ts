@@ -133,6 +133,9 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
 
     // The manager now collects the debt in two partial card payments.
     await switchUser(page, managerEmail!, managerPassword!);
+    const managerPermissions = await page.request.get('/api/auth/me');
+    expect(managerPermissions.status(), await managerPermissions.text()).toBe(200);
+    expect((await managerPermissions.json()).user.canRefundCreditPayment).toBe(true);
     await page.goto('/credits');
     await expect(page.getByText(customerName)).toBeVisible();
     await page.getByRole('button', { name: 'Encaisser un remboursement' }).first().click();
