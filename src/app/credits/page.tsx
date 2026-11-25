@@ -11,6 +11,7 @@ type CreditRow = {
   id: string;
   amount: string | number;
   paid: number;
+  adjusted?: number;
   outstanding: number;
   dueAt: string;
   status: string;
@@ -170,7 +171,7 @@ export default function CustomerCreditsPage() {
                     </div>
                     <div className="grid grid-cols-3 gap-3 text-right text-sm">
                       <div><p className="text-xs text-muted">Crédit</p><p className="font-semibold">{Number(credit.amount).toFixed(2)}</p></div>
-                      <div><p className="text-xs text-muted">Payé</p><p className="font-semibold">{credit.paid.toFixed(2)}</p></div>
+                      <div><p className="text-xs text-muted">Payé</p><p className="font-semibold">{credit.paid.toFixed(2)}</p>{Boolean(credit.adjusted) && <p className="text-xs text-muted">Réduit {Number(credit.adjusted).toFixed(2)}</p>}</div>
                       <div><p className="text-xs text-muted">Solde</p><p className="font-semibold">{credit.outstanding.toFixed(2)} {credit.sale.currencyCode}</p></div>
                     </div>
                   </div>
