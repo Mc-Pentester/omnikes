@@ -60,23 +60,43 @@ export async function POST(
     }
 
     if (approverPin) {
-      if (approver.creditPinLockedUntil && approver.creditPinLockedUntil > new Date()) {
-        return NextResponse.json({ error: 'Manager PIN is temporarily locked after repeated failures' }, { status: 423 });
-      }
-      const pinValid = Boolean(approver.creditPinHash) && /^\\d{4,8}$/.test(approverPin)
-        && await bcrypt.compare(approverPin, approver.creditPinHash!);
-      if (!pinValid) {
-        const attempts = approver.creditPinFailedAttempts + 1;
-        await prisma.user.update({
+      const pinResult = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw<Array<{ id: string }>>\`
+          SELECT id FROM users WHERE id = \${approver.id} AND "organizationId" = \${organizationId} FOR UPDATE
+        \`;
+        const current = await tx.user.findFirst({
+          where: { id: approver.id, organizationId, isActive: true },
+          select: { creditPinHash: true, creditPinFailedAttempts: true, creditPinLockedUntil: true },
+        });
+        if (!current) return { valid: false, locked: false };
+        if (current.creditPinLockedUntil && current.creditPinLockedUntil > new Date()) {
+          return { valid: false, locked: true };
+        }
+        const valid = Boolean(current.creditPinHash) && /^\d{4,8}$/.test(approverPin)
+          && await bcrypt.compare(approverPin, current.creditPinHash!);
+        if (valid) {
+          await tx.user.update({
+            where: { id: approver.id },
+            data: { creditPinFailedAttempts: 0, creditPinLockedUntil: null },
+          });
+          return { valid: true, locked: false };
+        }
+        const attempts = current.creditPinFailedAttempts + 1;
+        await tx.user.update({
           where: { id: approver.id },
           data: {
             creditPinFailedAttempts: attempts >= 5 ? 0 : attempts,
             creditPinLockedUntil: attempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null,
           },
         });
+        return { valid: false, locked: attempts >= 5 };
+      });
+      if (pinResult.locked) {
+        return NextResponse.json({ error: 'Manager PIN is temporarily locked after repeated failures' }, { status: 423 });
+      }
+      if (!pinResult.valid) {
         return NextResponse.json({ error: 'Invalid manager approval credentials' }, { status: 403 });
       }
-      await prisma.user.update({ where: { id: approver.id }, data: { creditPinFailedAttempts: 0, creditPinLockedUntil: null } });
     } else if (!(await bcrypt.compare(approverPassword, approver.password))) {
       return NextResponse.json({ error: 'Invalid manager approval credentials' }, { status: 403 });
     }
