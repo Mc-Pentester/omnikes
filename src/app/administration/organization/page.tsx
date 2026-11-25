@@ -262,9 +262,10 @@ export default function AdministrationOrganizationPage() {
                     max="3650"
                     step="1"
                     required
+                    disabled={!user?.canManageCreditSettings}
                     value={form.creditDefaultDueDays}
                     onChange={(event) => setForm({ ...form, creditDefaultDueDays: Number(event.target.value) })}
-                    className="mt-1 w-full rounded-lg border px-3 py-2"
+                    className="mt-1 w-full rounded-lg border px-3 py-2 disabled:opacity-50"
                   />
                 </label>
                 <p className="text-xs text-muted">Ce délai est appliqué par défaut aux nouveaux crédits. Le responsable peut choisir une autre date d'échéance pour chaque vente. Les crédits existants conservent leur échéance.</p>
