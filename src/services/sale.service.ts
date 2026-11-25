@@ -838,20 +838,52 @@ export class SaleService {
         amount: validatedData.amount,
         status: 'APPROVED_PENDING_COMPLETION',
         authorizedBy,
+        authorizedAt: new Date(),
         note: validatedData.note,
         dueAt,
       };
-      if (sale.saleCredit?.status === 'INVALIDATED') {
-        return tx.saleCredit.update({
-          where: { id: sale.saleCredit.id },
-          data: creditData,
-          include: { customer: true },
-        });
-      }
-      return tx.saleCredit.create({
-        data: creditData,
-        include: { customer: true },
+      const credit = sale.saleCredit?.status === 'INVALIDATED'
+        ? await tx.saleCredit.update({
+            where: { id: sale.saleCredit.id },
+            data: creditData,
+            include: { customer: true },
+          })
+        : await tx.saleCredit.create({
+            data: creditData,
+            include: { customer: true },
+          });
+
+      await tx.auditLog.create({
+        data: {
+          userId: authorizedBy,
+          organizationId,
+          storeId: sale.storeId,
+          action: 'CUSTOMER_CREDIT_APPROVED',
+          module: 'credit',
+          entityId: credit.id,
+          entityType: 'SaleCredit',
+          oldValues: sale.saleCredit ? {
+            status: sale.saleCredit.status,
+            amount: Number(sale.saleCredit.amount),
+            authorizedBy: sale.saleCredit.authorizedBy,
+          } : undefined,
+          newValues: {
+            status: 'APPROVED_PENDING_COMPLETION',
+            amount: validatedData.amount,
+            customerId: customer.id,
+            dueAt,
+            currencyCode: sale.currencyCode,
+          },
+          metadata: {
+            saleId,
+            orderNumber: sale.orderNumber,
+            note: validatedData.note ?? null,
+            receivableCreated: false,
+          },
+        },
       });
+
+      return credit;
     });
   }
 
