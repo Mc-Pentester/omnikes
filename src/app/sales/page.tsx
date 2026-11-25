@@ -130,7 +130,7 @@ export default function PendingSalesPage() {
     const paid = selectedSale.payments
       .filter((payment) => payment.status === 'COMPLETED' && payment.method !== 'CREDIT')
       .reduce((sum, payment) => sum + Number(payment.amount), 0);
-    const credit = selectedSale.saleCredit?.status === 'AUTHORIZED'
+    const credit = selectedSale.saleCredit?.status === 'AUTHORIZED' || selectedSale.saleCredit?.status === 'APPROVED_PENDING_COMPLETION'
       ? Number(selectedSale.saleCredit.amount)
       : 0;
     return {
@@ -258,7 +258,7 @@ export default function PendingSalesPage() {
         const paid = sale.payments
           .filter((payment) => payment.status === 'COMPLETED' && payment.method !== 'CREDIT')
           .reduce((sum, payment) => sum + Number(payment.amount), 0);
-        const credit = sale.saleCredit?.status === 'AUTHORIZED' ? Number(sale.saleCredit.amount) : 0;
+        const credit = sale.saleCredit?.status === 'AUTHORIZED' || sale.saleCredit?.status === 'APPROVED_PENDING_COMPLETION' ? Number(sale.saleCredit.amount) : 0;
 
         if (paid + credit >= Number(sale.total)) {
           const completeResponse = await fetch('/api/sales/' + selectedSale.id + '/complete', { method: 'POST' });
