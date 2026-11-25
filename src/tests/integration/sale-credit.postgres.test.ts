@@ -392,6 +392,22 @@ describe('P0-24-F.2-D - real PostgreSQL sale credit runtime', () => {
     expect(await prisma.inventoryMovement.count({ where: { referenceId: sale.id } })).toBe(0);
   });
 
+  it('clears outstanding credit through a traceable adjustment when a completed sale is cancelled', async () => {
+    const { sale } = await createSale();
+    await saleService.authorizeCredit(sale.id, orgA.id, adminA.id, {
+      customerId: customerA.id,
+      amount: 1000,
+    });
+    await saleService.complete(sale.id, orgA.id);
+    await saleService.cancel(sale.id, orgA.id, adminA.id);
+
+    const credit = await prisma.saleCredit.findUniqueOrThrow({ where: { saleId: sale.id } });
+    const adjustment = await prisma.creditAdjustment.findFirstOrThrow({ where: { saleCreditId: credit.id } });
+    expect(credit.status).toBe('SETTLED');
+    expect(Number(adjustment.amount)).toBe(1000);
+    expect(adjustment.reason).toContain('Full cancellation');
+  });
+
   it('rejects cross-organization credit authorization', async () => {
     const { sale } = await createSale();
 
