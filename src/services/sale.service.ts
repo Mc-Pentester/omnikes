@@ -726,7 +726,7 @@ export class SaleService {
               saleCreditId: cancellationCredit.id,
               processedBy: cancelledBy,
               amount: cancellationCreditAdjustment,
-              reason: \`Full cancellation of sale \${sale.orderNumber}\`,
+              reason: `Full cancellation of sale ${sale.orderNumber}`,
             },
           });
           await tx.saleCredit.update({
