@@ -402,7 +402,18 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     });
     const firstResponse = await creditPaymentPost(firstRequest, { params: Promise.resolve({ id: credit.id }) });
     expect(firstResponse.status).toBe(201);
-    expect((await firstResponse.json()).outstandingAfter).toBe(150);
+    const firstBody = await firstResponse.json();
+    expect(firstBody.outstandingAfter).toBe(150);
+
+    const replayRequest = new NextRequest(`http://localhost/api/credits/${credit.id}/payments`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost', 'Idempotency-Key': firstKey },
+      body: JSON.stringify({ amount: 50, method: 'CARD', reference: 'CARD-REF-1' }),
+    });
+    const replayResponse = await creditPaymentPost(replayRequest, { params: Promise.resolve({ id: credit.id }) });
+    expect(replayResponse.status).toBe(200);
+    expect((await replayResponse.json()).id).toBe(firstBody.id);
+    expect(await prisma.creditPayment.count({ where: { saleCreditId: credit.id } })).toBe(1);
 
     const secondRequest = new NextRequest(`http://localhost/api/credits/${credit.id}/payments`, {
       method: 'POST',
