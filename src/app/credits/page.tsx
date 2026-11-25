@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Sidebar } from '@omnikes/components/layout/Sidebar';
 import { Button } from '@omnikes/components/ui/button';
 import { Card } from '@omnikes/components/ui/card';
@@ -30,6 +31,7 @@ type CreditPayment = {
 };
 
 export default function CustomerCreditsPage() {
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [credits, setCredits] = useState<CreditRow[]>([]);
   const [totals, setTotals] = useState<Record<string, { credit: number; paid: number; adjusted: number; outstanding: number; overdue: number }>>({});
@@ -67,8 +69,9 @@ export default function CustomerCreditsPage() {
   }, [storeId]);
 
   useEffect(() => {
+    if (!authLoading && !user) router.replace('/login');
     if (!authLoading && user) void loadCredits();
-  }, [authLoading, user, loadCredits]);
+  }, [authLoading, user, loadCredits, router]);
 
   const receivePayment = async (credit: CreditRow) => {
     setPaymentError('');
