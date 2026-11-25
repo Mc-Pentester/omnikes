@@ -35,8 +35,13 @@ export class ProductService {
         variants: {
           create: variants.map((variant: ProductVariantCreateInput) => ({
             sku: variant.sku,
-            price: variant.price,
-            cost: variant.cost || 0,
+            price: variant.unitPrice ?? variant.price ?? 0,
+            cost: variant.cost ?? null,
+            casePrice: variant.casePrice,
+            dozenPrice: variant.dozenPrice,
+            pack3Price: variant.pack3Price,
+            unitPrice: variant.unitPrice ?? variant.price,
+            unitsPerCase: variant.unitsPerCase,
             saleUnit: variant.saleUnit,
             barcode: variant.barcode?.trim() || null,
             attributes: variant.attributes || {},
@@ -120,10 +125,10 @@ export class ProductService {
     const exists = await productRepository.belongsToOrganization(id, organizationId);
     if (!exists) throw new Error('Product not found or access denied');
     const validatedData = productUpdateSchema.parse(data);
-    const { barcode, variantId, price, cost, ...productData } = validatedData;
+    const { barcode, variantId, price, cost, casePrice, dozenPrice, pack3Price, unitPrice, unitsPerCase, ...productData } = validatedData;
     return prisma.$transaction(async (tx) => {
       await tx.product.updateMany({ where: { id, organizationId }, data: productData as Prisma.ProductUpdateManyMutationInput });
-      if (barcode !== undefined || price !== undefined || cost !== undefined) {
+      if (barcode !== undefined || price !== undefined || cost !== undefined || casePrice !== undefined || dozenPrice !== undefined || pack3Price !== undefined || unitPrice !== undefined || unitsPerCase !== undefined) {
         const variant = await tx.productVariant.findFirst({
           where: { id: variantId, productId: id },
           select: { id: true },
@@ -135,6 +140,11 @@ export class ProductService {
             ...(barcode !== undefined ? { barcode: barcode.trim() || null } : {}),
             ...(price !== undefined ? { price } : {}),
             ...(cost !== undefined ? { cost } : {}),
+            ...(casePrice !== undefined ? { casePrice } : {}),
+            ...(dozenPrice !== undefined ? { dozenPrice } : {}),
+            ...(pack3Price !== undefined ? { pack3Price } : {}),
+            ...(unitPrice !== undefined ? { unitPrice, price: unitPrice } : {}),
+            ...(unitsPerCase !== undefined ? { unitsPerCase } : {}),
           },
         });
       }

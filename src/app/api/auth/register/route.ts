@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
       password: validatedData.password,
       country: validatedData.country,
       currency: validatedData.currency,
+      currencySymbol: validatedData.currencySymbol,
       locale: validatedData.locale,
       timezone: validatedData.timezone,
       taxEnabled: validatedData.taxEnabled,
