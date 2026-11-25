@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
       canViewCredit,
       canViewCreditHistory,
       canReceiveCreditPayment,
+      canRefundCreditPayment,
       canReadHardwareBridge,
     ] = await Promise.all([
       roleRepository.hasPermission(user.id, 'user.read'),
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
       roleRepository.hasPermission(user.id, 'credit.view'),
       roleRepository.hasPermission(user.id, 'credit.history.view'),
       roleRepository.hasPermission(user.id, 'credit.payment.receive'),
+      roleRepository.hasPermission(user.id, 'payment.refund'),
       roleRepository.hasPermission(user.id, 'hardware.bridge.read'),
     ]);
 
@@ -69,6 +71,7 @@ export async function GET(request: NextRequest) {
         canViewCredit,
         canViewCreditHistory,
         canReceiveCreditPayment,
+        canRefundCreditPayment,
         canReadHardwareBridge,
       },
     });
