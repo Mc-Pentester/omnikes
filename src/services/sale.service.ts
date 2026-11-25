@@ -142,6 +142,25 @@ export class SaleService {
     if (sale.status !== 'PENDING') {
       throw new Error('Sale can only be modified while PENDING');
     }
+
+    // Any edit to a pending sale invalidates its prior manager approval.
+    // The sale can be re-approved after the cashier finishes the edits.
+    const invalidated = await tx.saleCredit.updateMany({
+      where: { saleId, status: 'APPROVED_PENDING_COMPLETION' },
+      data: { status: 'INVALIDATED' },
+    });
+    if (invalidated.count > 0) {
+      await tx.auditLog.create({
+        data: {
+          organizationId,
+          action: 'CUSTOMER_CREDIT_APPROVAL_INVALIDATED',
+          module: 'credit',
+          entityId: saleId,
+          entityType: 'Sale',
+          metadata: { reason: 'PENDING_SALE_MODIFIED' },
+        },
+      });
+    }
   }
 
   /**
@@ -713,7 +732,7 @@ export class SaleService {
       if (!sale.customerId) {
         throw new Error('A customer is required to authorize credit');
       }
-      if (sale.saleCredit) {
+      if (sale.saleCredit && sale.saleCredit.status !== 'INVALIDATED') {
         throw new Error('Credit is already authorized for this sale');
       }
 
@@ -767,18 +786,26 @@ export class SaleService {
       const dueAt = validatedData.dueAt ?? new Date(Date.now() + organization.creditDefaultDueDays * 24 * 60 * 60 * 1000);
       if (dueAt.getTime() <= Date.now()) throw new Error('Credit due date must be in the future');
 
+      const creditData = {
+        organizationId,
+        storeId: sale.storeId,
+        saleId,
+        customerId: customer.id,
+        amount: validatedData.amount,
+        status: 'APPROVED_PENDING_COMPLETION',
+        authorizedBy,
+        note: validatedData.note,
+        dueAt,
+      };
+      if (sale.saleCredit?.status === 'INVALIDATED') {
+        return tx.saleCredit.update({
+          where: { id: sale.saleCredit.id },
+          data: creditData,
+          include: { customer: true },
+        });
+      }
       return tx.saleCredit.create({
-        data: {
-          organizationId,
-          storeId: sale.storeId,
-          saleId,
-          customerId: customer.id,
-          amount: validatedData.amount,
-          status: 'APPROVED_PENDING_COMPLETION',
-          authorizedBy,
-          note: validatedData.note,
-          dueAt,
-        },
+        data: creditData,
         include: { customer: true },
       });
     });
