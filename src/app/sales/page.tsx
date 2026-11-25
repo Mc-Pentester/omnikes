@@ -409,7 +409,7 @@ export default function PendingSalesPage() {
                     const paid = sale.payments
                       .filter((payment) => payment.status === 'COMPLETED' && payment.method !== 'CREDIT')
                       .reduce((sum, payment) => sum + Number(payment.amount), 0);
-                    const credit = sale.saleCredit?.status === 'AUTHORIZED' ? Number(sale.saleCredit.amount) : 0;
+                    const credit = sale.saleCredit && ['AUTHORIZED', 'APPROVED_PENDING_COMPLETION'].includes(sale.saleCredit.status) ? Number(sale.saleCredit.amount) : 0;
                     const remaining = Math.max(0, Number(sale.total) - paid - credit);
                     const fullyCovered = remaining <= 0;
 
