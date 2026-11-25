@@ -6,10 +6,25 @@ export class SaleRepository {
    * Create a new sale
    */
   async create(data: Prisma.SaleCreateInput) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { organizationId, storeId, ...createData } = data as Prisma.SaleCreateInput & { organizationId: string; storeId: string };
+    // The service validates scalar IDs before reaching this repository. Once
+    // relation connects are used for organization/store, Prisma expects the
+    // checked create input and rejects the scalar customerId field.
+    const {
+      organizationId,
+      storeId,
+      customerId,
+      ...createData
+    } = data as Prisma.SaleCreateInput & {
+      organizationId: string;
+      storeId: string;
+      customerId?: string | null;
+    };
+
     return prisma.sale.create({
-      data: createData,
+      data: {
+        ...createData,
+        ...(customerId ? { customer: { connect: { id: customerId } } } : {}),
+      },
       include: {
         store: true,
         customer: true,
