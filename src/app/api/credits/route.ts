@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       ...(overdueOnly ? { status: 'AUTHORIZED', dueAt: { lt: new Date() } } : {}),
     };
 
-    const [credits, total] = await Promise.all([
+    const [credits, total, reportCredits] = await Promise.all([
       prisma.saleCredit.findMany({
         where,
         skip,
@@ -72,6 +72,17 @@ export async function GET(request: NextRequest) {
         },
       }),
       prisma.saleCredit.count({ where }),
+      canViewReport ? prisma.saleCredit.findMany({
+        where,
+        select: {
+          amount: true,
+          status: true,
+          dueAt: true,
+          payments: { select: { amount: true } },
+          adjustments: { select: { amount: true } },
+          sale: { select: { currencyCode: true } },
+        },
+      }) : Promise.resolve([]),
     ]);
 
     const rows = credits.map((credit) => {
@@ -95,21 +106,24 @@ export async function GET(request: NextRequest) {
         sale: { ...credit.sale, returns },
         paid,
         adjusted,
-        adjustments,
         outstanding,
         overdue: credit.status === 'AUTHORIZED' && outstanding > 0 && credit.dueAt < new Date(),
         ...(canViewHistory ? { payments, adjustments } : {}),
       };
     });
 
-    const totalsByCurrency = rows.reduce<Record<string, { credit: number; paid: number; adjusted: number; outstanding: number; overdue: number }>>((acc, row) => {
-      const currency = row.sale.currencyCode;
+    const totalsByCurrency = reportCredits.reduce<Record<string, { credit: number; paid: number; adjusted: number; outstanding: number; overdue: number }>>((acc, credit) => {
+      const currency = credit.sale.currencyCode;
+      const paid = roundMoney(credit.payments.reduce((sum, payment) => sum + Number(payment.amount), 0));
+      const adjusted = roundMoney(credit.adjustments.reduce((sum, adjustment) => sum + Number(adjustment.amount), 0));
+      const outstanding = roundMoney(Math.max(0, Number(credit.amount) - paid - adjusted));
+      const overdue = credit.status === 'AUTHORIZED' && outstanding > 0 && credit.dueAt < new Date();
       acc[currency] ??= { credit: 0, paid: 0, adjusted: 0, outstanding: 0, overdue: 0 };
-      acc[currency].credit = roundMoney(acc[currency].credit + Number(row.amount));
-      acc[currency].paid = roundMoney(acc[currency].paid + row.paid);
-      acc[currency].adjusted = roundMoney(acc[currency].adjusted + row.adjusted);
-      acc[currency].outstanding = roundMoney(acc[currency].outstanding + row.outstanding);
-      if (row.overdue) acc[currency].overdue = roundMoney(acc[currency].overdue + row.outstanding);
+      acc[currency].credit = roundMoney(acc[currency].credit + Number(credit.amount));
+      acc[currency].paid = roundMoney(acc[currency].paid + paid);
+      acc[currency].adjusted = roundMoney(acc[currency].adjusted + adjusted);
+      acc[currency].outstanding = roundMoney(acc[currency].outstanding + outstanding);
+      if (overdue) acc[currency].overdue = roundMoney(acc[currency].overdue + outstanding);
       return acc;
     }, {});
 
