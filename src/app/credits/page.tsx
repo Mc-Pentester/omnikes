@@ -39,6 +39,9 @@ export default function CustomerCreditsPage() {
   const { user, loading: authLoading } = useAuth();
   const [credits, setCredits] = useState<CreditRow[]>([]);
   const [totals, setTotals] = useState<Record<string, { credit: number; paid: number; adjusted: number; outstanding: number; overdue: number }>>({});
+  const [total, setTotal] = useState(0);
+  const [skip, setSkip] = useState(0);
+  const pageSize = 25;
   const [loading, setLoading] = useState(true);
   const creditsLoaded = useRef(false);
   const [error, setError] = useState('');
@@ -62,11 +65,12 @@ export default function CustomerCreditsPage() {
     if (!creditsLoaded.current) setLoading(true);
     setError('');
     try {
-      const query = new URLSearchParams({ take: '100' });
+      const query = new URLSearchParams({ take: String(pageSize), skip: String(skip) });
       const response = await fetch('/api/credits?' + query.toString(), { cache: 'no-store' });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Impossible de charger les créances clients.');
       setCredits(data.credits || []);
+      setTotal(Number(data.total) || 0);
       setTotals(data.totalsByCurrency || {});
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Erreur de chargement des crédits.');
@@ -74,7 +78,7 @@ export default function CustomerCreditsPage() {
       creditsLoaded.current = true;
       setLoading(false);
     }
-  }, []);
+  }, [skip]);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login');
@@ -265,6 +269,19 @@ export default function CustomerCreditsPage() {
                   )}
                 </Card>
               ))}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+                <p className="text-sm text-muted">
+                  {total === 0 ? 'Aucune créance' : `Affichage de ${skip + 1} à ${Math.min(skip + credits.length, total)} sur ${total} créances`}
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setSkip((current) => Math.max(0, current - pageSize))} disabled={loading || skip === 0}>
+                    Précédent
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setSkip((current) => Math.min(Math.max(0, total - 1), current + pageSize))} disabled={loading || skip + credits.length >= total}>
+                    Suivant
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </div>
