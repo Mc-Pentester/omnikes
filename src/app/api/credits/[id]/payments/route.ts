@@ -22,7 +22,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       orderBy: { createdAt: 'desc' },
       include: { receivedByUser: { select: { id: true, name: true, email: true } }, refunds: { orderBy: { createdAt: 'desc' } } },
     });
-    return NextResponse.json(payments);
+    // The refund ledger is authoritative. Reconcile the exposed balance from
+    // completed refund records instead of trusting a denormalized counter that
+    // may be stale after retries or older application versions.
+    const reconciledPayments = payments.map((payment) => ({
+      ...payment,
+      refundedAmount: payment.refunds
+        .filter((refund) => refund.status === 'COMPLETED')
+        .reduce((sum, refund) => sum + Number(refund.amount), 0),
+    }));
+    return NextResponse.json(reconciledPayments);
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('Permission required')) return NextResponse.json({ error: 'Permission required' }, { status: 403 });
     if (error instanceof Error && error.message === 'Not authorized to access this store') return NextResponse.json({ error: error.message }, { status: 403 });
