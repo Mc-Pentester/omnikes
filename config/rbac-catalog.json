@@ -270,6 +270,7 @@
       "name": "SALES_MANAGER",
       "description": "Pilotage commercial, clients, ventes et proformas",
       "permissionCodes": [
+        "payment.refund",
         "sale.create",
         "sale.read",
         "sale.update",
