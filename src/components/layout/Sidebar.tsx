@@ -8,7 +8,7 @@ import { useAuth } from '@omnikes/contexts/AuthContext';
 
 type IconName =
   | 'dashboard' | 'pos' | 'products' | 'sales' | 'cash' | 'proformas' | 'reports'
-  | 'inventory' | 'purchases' | 'suppliers' | 'stores' | 'customers' | 'settings' | 'admin' | 'logout' | 'user';
+  | 'inventory' | 'purchases' | 'suppliers' | 'stores' | 'customers' | 'returns' | 'settings' | 'admin' | 'logout' | 'user';
 
 interface MenuItem {
   id: string;
@@ -23,6 +23,7 @@ const menuItems: MenuItem[] = [
   { id: 'pos', label: 'Point de vente', icon: 'pos', path: '/', available: true },
   { id: 'products', label: 'Produits', icon: 'products', path: '/products', available: true },
   { id: 'sales', label: 'Ventes en attente', icon: 'sales', path: '/sales', available: true },
+  { id: 'returns', label: 'Retours', icon: 'returns', path: '/returns', available: false },
   { id: 'cash', label: 'Caisse', icon: 'cash', path: '/cash', available: true },
   { id: 'proformas', label: 'Proformas', icon: 'proformas', path: '/proformas', available: true },
   { id: 'reports', label: 'Rapports', icon: 'reports', path: '/reports', available: true },
@@ -50,6 +51,7 @@ function MenuIcon({ name, className = 'h-5 w-5' }: { name: IconName; className?:
     suppliers: <><path d="M3 7h11v10H3zM14 10h4l3 3v4h-7z" /><circle cx="7" cy="19" r="1.5" /><circle cx="17" cy="19" r="1.5" /></>,
     stores: <><path d="M3 21h18" /><path d="M5 21V7l8-4 8 4v14" /><path d="M8 9a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v10H8V9Z" /></>,
     customers: <><circle cx="9" cy="8" r="3" /><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5M16 5a3 3 0 0 1 0 6M18 15c2 .5 3 2 3 5" /></>,
+    returns: <><path d='M4 7h11a5 5 0 0 1 0 10h-2' /><path d='m7 4-3 3 3 3M17 14l-4 3 4 3' /></>,
     settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 1.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.1h-2.6v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.8-1.8.1-.1A1.7 1.7 0 0 0 8 15a1.7 1.7 0 0 0-1.5-1H6v-2.6h.5A1.7 1.7 0 0 0 8 10a1.7 1.7 0 0 0-.3-1.9l-.1-.1 1.8-1.8.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V5h2.6v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l-.1-.1 1.8 1.8-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0-1.5 1h.1V14h-.1a1.7 1.7 0 0 0-1.5 1Z" /></>,
     admin: <><path d="M12 3 20 6v5c0 5-3.3 8.4-8 10-4.7-1.6-8-5-8-10V6l8-3Z" /><path d="m9 12 2 2 4-4" /></>,
     logout: <><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10" /></>,
@@ -65,23 +67,27 @@ export function Sidebar({ compact = false, onToggleCompact }: SidebarProps) {
   const pathname = usePathname();
   const { logout } = useAuth();
   const [canAccessAdministration, setCanAccessAdministration] = useState(false);
+  const [canReturnSale, setCanReturnSale] = useState(false);
   const [isCompact, setIsCompact] = useState(compact);
 
   useEffect(() => {
     let mounted = true;
     fetch('/api/auth/me').then((response) => (response.ok ? response.json() : null)).then((data) => {
-      if (mounted) setCanAccessAdministration(data?.user?.canAccessAdministration === true || data?.user?.canManageStores === true || data?.user?.canManageRoles === true);
+      if (mounted) {
+        setCanAccessAdministration(data?.user?.canAccessAdministration === true || data?.user?.canManageStores === true || data?.user?.canManageRoles === true);
+        setCanReturnSale(data?.user?.canReturnSale === true);
+      }
     }).catch(() => { if (mounted) setCanAccessAdministration(false); });
     return () => { mounted = false; };
   }, []);
 
   const handleToggle = () => { setIsCompact(!isCompact); onToggleCompact?.(); };
-  const handleNavigate = (item: MenuItem) => { if (!item.available && !(item.id === 'administration' && canAccessAdministration)) return; router.push(item.path); };
+  const handleNavigate = (item: MenuItem) => { if (!item.available && !(item.id === 'administration' && canAccessAdministration) && !(item.id === 'returns' && canReturnSale)) return; router.push(item.path); };
   const handleLogout = async () => { await logout(); router.push('/login'); };
-  const availableItems = menuItems.filter((item) => item.available || (item.id === 'administration' && canAccessAdministration));
+  const availableItems = menuItems.filter((item) => item.available || (item.id === 'administration' && canAccessAdministration) || (item.id === 'returns' && canReturnSale));
   const groupedItems = [
     { label: 'Accueil', items: availableItems.filter((item) => item.id === 'dashboard') },
-    { label: 'Ventes', items: availableItems.filter((item) => ['pos', 'sales', 'proformas'].includes(item.id)) },
+    { label: 'Ventes', items: availableItems.filter((item) => ['pos', 'sales', 'returns', 'proformas'].includes(item.id)) },
     { label: 'Catalogue', items: availableItems.filter((item) => item.id === 'products') },
     { label: 'Stock', items: availableItems.filter((item) => ['inventory', 'purchases', 'suppliers'].includes(item.id)) },
     { label: 'Finance', items: availableItems.filter((item) => ['cash', 'reports'].includes(item.id)) },
