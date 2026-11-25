@@ -46,6 +46,32 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
     const store = storesBody.stores.find((item: { code: string }) => item.code === 'STORE-A');
     expect(store, 'Seeded STORE-A must exist').toBeTruthy();
 
+    // Establish stock through the same idempotent receipt endpoint used by
+    // operators. Do not rely on a seed-only inventory row being present:
+    // products/stores can exist before their first physical delivery.
+    const productsResponse = await page.request.get('/api/products?search=Produit%20Test%20A');
+    expect(productsResponse.status(), await productsResponse.text()).toBe(200);
+    const productsBody = await productsResponse.json();
+    const product = productsBody.products.find((item: { name: string }) => item.name === productName);
+    expect(product, `Seeded product "${productName}" must exist`).toBeTruthy();
+    const variant = product.variants[0];
+    expect(variant).toBeTruthy();
+
+    const receiptResponse = await page.request.post('/api/inventory/receive', {
+      data: {
+        storeId: store.id,
+        variantId: variant.id,
+        quantity: 100,
+        referenceId: `E2E-CREDIT-RECEIPT-${suffix}`,
+        notes: 'Initial stock for customer-credit E2E scenario',
+      },
+    });
+    expect(receiptResponse.status(), await receiptResponse.text()).toBe(200);
+    const receivedInventory = await receiptResponse.json();
+    expect(receivedInventory.storeId).toBe(store.id);
+    expect(receivedInventory.variantId).toBe(variant.id);
+    expect(receivedInventory.quantity).toBeGreaterThanOrEqual(100);
+
     await switchUser(page, cashierEmail!, cashierPassword!);
     await page.goto('/');
 
@@ -56,14 +82,6 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
     const customerSelector = page.getByLabel('Sélectionner un client');
     await expect(customerSelector.locator(`option[value="${customer.id}"]`)).toHaveCount(1);
     await customerSelector.selectOption(customer.id);
-
-    const productsResponse = await page.request.get('/api/products?search=Produit%20Test%20A');
-    expect(productsResponse.status(), await productsResponse.text()).toBe(200);
-    const productsBody = await productsResponse.json();
-    const product = productsBody.products.find((item: { name: string }) => item.name === productName);
-    expect(product, `Seeded product "${productName}" must exist`).toBeTruthy();
-    const variant = product.variants[0];
-    expect(variant).toBeTruthy();
 
     const saleCreated = page.waitForResponse((response) =>
       response.url().endsWith('/api/sales') && response.request().method() === 'POST',
