@@ -612,6 +612,19 @@ export class SaleService {
       }
 
       const oldStatus = sale.status;
+      let cancellationCreditAdjustment = 0;
+      let cancellationCredit = sale.saleCredit;
+      if (oldStatus === 'COMPLETED' && sale.saleCredit?.status === 'AUTHORIZED') {
+        await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM sale_credits
+          WHERE id = ${sale.saleCredit.id} AND "organizationId" = ${organizationId}
+          FOR UPDATE
+        `;
+        cancellationCredit = await tx.saleCredit.findFirst({
+          where: { id: sale.saleCredit.id, organizationId },
+          include: { payments: true, adjustments: true },
+        });
+      }
 
       // Only a COMPLETED sale has previously deducted stock.
       // Lock every affected inventory row before restoring quantities.
@@ -671,6 +684,33 @@ export class SaleService {
         },
       });
 
+      if (oldStatus === 'PENDING' && sale.saleCredit?.status === 'APPROVED_PENDING_COMPLETION') {
+        await tx.saleCredit.update({
+          where: { id: sale.saleCredit.id },
+          data: { status: 'CANCELLED' },
+        });
+      } else if (oldStatus === 'COMPLETED' && cancellationCredit?.status === 'AUTHORIZED') {
+        const paidOnCredit = roundMoney(cancellationCredit.payments.reduce((sum, payment) => sum + Number(payment.amount), 0));
+        const alreadyAdjusted = roundMoney(cancellationCredit.adjustments.reduce((sum, adjustment) => sum + Number(adjustment.amount), 0));
+        cancellationCreditAdjustment = roundMoney(Math.max(0, Number(cancellationCredit.amount) - paidOnCredit - alreadyAdjusted));
+        if (cancellationCreditAdjustment > 0) {
+          await tx.creditAdjustment.create({
+            data: {
+              organizationId,
+              storeId: sale.storeId,
+              saleCreditId: cancellationCredit.id,
+              processedBy: cancelledBy,
+              amount: cancellationCreditAdjustment,
+              reason: \`Full cancellation of sale \${sale.orderNumber}\`,
+            },
+          });
+          await tx.saleCredit.update({
+            where: { id: cancellationCredit.id },
+            data: { status: 'SETTLED' },
+          });
+        }
+      }
+
       await tx.auditLog.create({
         data: {
           userId: cancelledBy,
@@ -690,6 +730,7 @@ export class SaleService {
             orderNumber: sale.orderNumber,
             stockRestored: oldStatus === 'COMPLETED',
             paymentCount: sale.payments.length,
+            creditDebtAdjustment: cancellationCreditAdjustment,
             authorizedCredit: sale.saleCredit?.status === 'AUTHORIZED'
               ? Number(sale.saleCredit.amount)
               : 0,
