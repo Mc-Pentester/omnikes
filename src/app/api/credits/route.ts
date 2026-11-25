@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
           customer: { select: { id: true, name: true, phone: true, creditLimit: true } },
           sale: { select: { id: true, orderNumber: true, total: true, currencyCode: true, currencySymbol: true, status: true } },
           payments: { select: { id: true, amount: true, method: true, reference: true, createdAt: true, receivedBy: true } },
-          adjustments: { select: { id: true, amount: true, reason: true, createdAt: true } },
+          adjustments: { select: { id: true, amount: true, reason: true, createdAt: true, processedByUser: { select: { id: true, name: true, email: true } } } },
           authorizedByUser: { select: { id: true, name: true, email: true } },
         },
       }),
