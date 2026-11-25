@@ -123,7 +123,7 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
     await page.getByRole('button', { name: 'Confirmer le remboursement' }).click();
     await expect(page.getByRole('status')).toContainText('Solde restant : 125.00 HTG');
 
-    await page.locator('input[type="number"]').first().fill('125');
+    await page.locator('main input[type="number"]').first().fill('125');
     await page.getByRole('button', { name: 'Confirmer le remboursement' }).click();
     await expect(page.getByRole('status')).toContainText('Solde restant : 0.00 HTG');
 
