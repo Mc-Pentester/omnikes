@@ -81,13 +81,15 @@ export default function CustomerCreditsPage() {
       setPaymentError('Le montant doit être positif et ne pas dépasser le solde restant.');
       return;
     }
+    const idempotencyKey = paymentIdempotencyKey || crypto.randomUUID();
+    setPaymentIdempotencyKey(idempotencyKey);
     setSaving(true);
     try {
       const response = await fetch('/api/credits/' + credit.id + '/payments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Idempotency-Key': paymentIdempotencyKey || crypto.randomUUID(),
+          'Idempotency-Key': idempotencyKey,
         },
         body: JSON.stringify({
           amount: value,
