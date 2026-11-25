@@ -38,7 +38,6 @@ export default function CustomerCreditsPage() {
   const [totals, setTotals] = useState<Record<string, { credit: number; paid: number; adjusted: number; outstanding: number; overdue: number }>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [storeId, setStoreId] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('CASH');
@@ -56,7 +55,6 @@ export default function CustomerCreditsPage() {
     setError('');
     try {
       const query = new URLSearchParams({ take: '100' });
-      if (storeId) query.set('storeId', storeId);
       const response = await fetch('/api/credits?' + query.toString(), { cache: 'no-store' });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Impossible de charger les créances clients.');
@@ -67,7 +65,7 @@ export default function CustomerCreditsPage() {
     } finally {
       setLoading(false);
     }
-  }, [storeId]);
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login');
