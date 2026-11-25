@@ -83,7 +83,7 @@ export default function ProfileSecurityPage() {
       setCreditPinError('La confirmation du PIN ne correspond pas.');
       return;
     }
-    if (!/^\\d{4,8}$/.test(creditPin)) {
+    if (!/^\d{4,8}$/.test(creditPin)) {
     if (!/^\d{4,8}$/.test(creditPin)) {
       return;
     }
