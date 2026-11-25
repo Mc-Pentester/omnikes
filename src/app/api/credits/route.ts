@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         adjustments,
         outstanding,
         overdue: credit.status === 'AUTHORIZED' && outstanding > 0 && credit.dueAt < new Date(),
-        ...(canViewHistory ? { payments } : {}),
+        ...(canViewHistory ? { payments, adjustments } : {}),
       };
     });
 
