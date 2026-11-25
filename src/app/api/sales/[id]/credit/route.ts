@@ -42,8 +42,9 @@ export async function POST(
     const data = saleCreditSchema.parse(body);
     const approverEmail = typeof body.approverEmail === 'string' ? body.approverEmail.trim().toLowerCase() : '';
     const approverPassword = typeof body.approverPassword === 'string' ? body.approverPassword : '';
+    const approverPin = typeof body.approverPin === 'string' ? body.approverPin : '';
 
-    if (!approverEmail || !approverPassword) {
+    if (!approverEmail || (!approverPassword && !approverPin) || (approverPassword && approverPin)) {
       return NextResponse.json({ error: 'Manager credentials are required to approve customer credit' }, { status: 400 });
     }
 
@@ -51,10 +52,32 @@ export async function POST(
     // The cashier's session or legacy sale.credit permission can never approve itself.
     const approver = await prisma.user.findFirst({
       where: { email: approverEmail, organizationId, isActive: true },
-      select: { id: true, password: true },
+      select: { id: true, password: true, creditPinHash: true, creditPinFailedAttempts: true, creditPinLockedUntil: true },
     });
 
-    if (!approver || approver.id === user.id || !(await bcrypt.compare(approverPassword, approver.password))) {
+    if (!approver || approver.id === user.id) {
+      return NextResponse.json({ error: 'Invalid manager approval credentials' }, { status: 403 });
+    }
+
+    if (approverPin) {
+      if (approver.creditPinLockedUntil && approver.creditPinLockedUntil > new Date()) {
+        return NextResponse.json({ error: 'Manager PIN is temporarily locked after repeated failures' }, { status: 423 });
+      }
+      const pinValid = Boolean(approver.creditPinHash) && /^\\d{4,8}$/.test(approverPin)
+        && await bcrypt.compare(approverPin, approver.creditPinHash!);
+      if (!pinValid) {
+        const attempts = approver.creditPinFailedAttempts + 1;
+        await prisma.user.update({
+          where: { id: approver.id },
+          data: {
+            creditPinFailedAttempts: attempts >= 5 ? 0 : attempts,
+            creditPinLockedUntil: attempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null,
+          },
+        });
+        return NextResponse.json({ error: 'Invalid manager approval credentials' }, { status: 403 });
+      }
+      await prisma.user.update({ where: { id: approver.id }, data: { creditPinFailedAttempts: 0, creditPinLockedUntil: null } });
+    } else if (!(await bcrypt.compare(approverPassword, approver.password))) {
       return NextResponse.json({ error: 'Invalid manager approval credentials' }, { status: 403 });
     }
 
@@ -105,7 +128,9 @@ export async function POST(
       error.message === 'Credit is already authorized for this sale' ||
       error.message === 'Customer not found or access denied' ||
       error.message === 'Credit customer must match the sale customer' ||
-      error.message.startsWith('Credit amount exceeds remaining balance')
+      error.message.startsWith('Credit amount exceeds remaining balance') ||
+      error.message.startsWith('Customer credit limit exceeded') ||
+      error.message === 'Credit due date must be in the future'
     )) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
