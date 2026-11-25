@@ -23,6 +23,7 @@ interface User {
   canViewCredit?: boolean;
   canViewCreditHistory?: boolean;
   canReceiveCreditPayment?: boolean;
+  canRefundCreditPayment?: boolean;
 }
 
 interface AuthContextType {
