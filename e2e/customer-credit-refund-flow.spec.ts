@@ -139,14 +139,21 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
 
     // Return the sold unit. With no debt left, the return amount is refundable
     // against the original two collected repayments, not another debt adjustment.
-    const returnResponse = await page.request.post(`/api/sales/${sale.id}/returns`, {
-      headers: { 'Idempotency-Key': `e2e-credit-return-${suffix}` },
-      data: {
-        saleId: sale.id,
-        items: [{ saleItemId: completedSale.items[0].id, quantity: 1 }],
-        reason: 'E2E full return after credit settlement',
-      },
-    });
+    // Process the return through the dedicated returns workspace, not by
+    // calling the API directly, so this test exercises the real operator flow.
+    await page.goto('/returns');
+    await expect(page.getByRole('heading', { name: 'Traitement des retours' })).toBeVisible();
+    const saleToReturn = page.getByText(sale.orderNumber, { exact: true }).first();
+    await expect(saleToReturn).toBeVisible();
+    const saleRow = saleToReturn.locator('..').locator('..');
+    await saleRow.getByRole('button', { name: 'Traiter le retour' }).click();
+    await page.getByLabel('Quantité à retourner - ' + productName).fill('1');
+    await page.getByLabel('Motif du retour (facultatif)').fill('E2E full return after credit settlement');
+    const returnResponsePromise = page.waitForResponse((response) =>
+      response.url().endsWith(`/api/sales/${sale.id}/returns`) && response.request().method() === 'POST',
+    );
+    await page.getByRole('button', { name: 'Confirmer le retour' }).click();
+    const returnResponse = await returnResponsePromise;
     expect(returnResponse.status(), await returnResponse.text()).toBe(201);
     const returned = await returnResponse.json();
     expect(Number(returned.totalRefunded)).toBe(unitPrice);
