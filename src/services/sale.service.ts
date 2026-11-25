@@ -745,7 +745,7 @@ export class SaleService {
   /**
    * Authorize explicit customer credit for a pending sale.
    */
-  async authorizeCredit(saleId: string, organizationId: string, authorizedBy: string, data: SaleCreditInput) {
+  async authorizeCredit(saleId: string, organizationId: string, authorizedBy: string, data: SaleCreditInput, expectedStoreId?: string) {
     const validatedData = saleCreditSchema.parse(data);
 
     return prisma.$transaction(async (tx) => {
@@ -766,6 +766,9 @@ export class SaleService {
 
       if (!sale) {
         throw new Error('Sale not found or access denied');
+      }
+      if (expectedStoreId && sale.storeId !== expectedStoreId) {
+        throw new Error('Sale store changed during credit approval; please retry');
       }
       if (sale.status !== 'PENDING') {
         throw new Error('Credit can only be authorized for a PENDING sale');
