@@ -72,6 +72,20 @@ export class ReturnService {
         throw new Error('Store does not belong to the organization');
       }
 
+      // Serialize debt reductions against concurrent repayment collection.
+      let lockedSaleCredit = sale.saleCredit;
+      if (sale.saleCredit) {
+        await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM sale_credits
+          WHERE id = ${sale.saleCredit.id} AND "organizationId" = ${organizationId}
+          FOR UPDATE
+        `;
+        lockedSaleCredit = await tx.saleCredit.findFirst({
+          where: { id: sale.saleCredit.id, organizationId },
+          include: { payments: true, adjustments: true },
+        });
+      }
+
       // Only COMPLETED sales can be returned
       if (sale.status !== 'COMPLETED') {
         throw new Error(`Sale cannot be returned from status ${sale.status}. Only COMPLETED sales can be returned.`);
@@ -233,17 +247,17 @@ export class ReturnService {
       // The adjustment is a separate immutable record; the original credit amount
       // and repayment history are never rewritten.
       let creditAdjustmentAmount = 0;
-      if (sale.saleCredit?.status === 'AUTHORIZED') {
-        const creditPaid = roundMoney(sale.saleCredit.payments.reduce((sum, payment) => sum + Number(payment.amount), 0));
-        const previouslyAdjusted = roundMoney(sale.saleCredit.adjustments.reduce((sum, adjustment) => sum + Number(adjustment.amount), 0));
-        const outstandingCredit = roundMoney(Math.max(0, Number(sale.saleCredit.amount) - creditPaid - previouslyAdjusted));
+      if (lockedSaleCredit?.status === 'AUTHORIZED') {
+        const creditPaid = roundMoney(lockedSaleCredit.payments.reduce((sum, payment) => sum + Number(payment.amount), 0));
+        const previouslyAdjusted = roundMoney(lockedSaleCredit.adjustments.reduce((sum, adjustment) => sum + Number(adjustment.amount), 0));
+        const outstandingCredit = roundMoney(Math.max(0, Number(lockedSaleCredit.amount) - creditPaid - previouslyAdjusted));
         creditAdjustmentAmount = roundMoney(Math.min(totalRefunded, outstandingCredit));
         if (creditAdjustmentAmount > 0) {
           await tx.creditAdjustment.create({
             data: {
               organizationId,
               storeId: sale.storeId,
-              saleCreditId: sale.saleCredit.id,
+              saleCreditId: lockedSaleCredit.id,
               returnId: createdReturn.id,
               processedBy: userId,
               amount: creditAdjustmentAmount,
@@ -251,7 +265,7 @@ export class ReturnService {
             },
           });
           if (creditAdjustmentAmount >= outstandingCredit) {
-            await tx.saleCredit.update({ where: { id: sale.saleCredit.id }, data: { status: 'SETTLED' } });
+            await tx.saleCredit.update({ where: { id: lockedSaleCredit.id }, data: { status: 'SETTLED' } });
           }
         }
       }
