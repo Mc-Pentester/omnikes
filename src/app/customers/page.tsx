@@ -8,6 +8,7 @@ import { Card } from '@omnikes/components/ui/card';
 import { EmptyState } from '@omnikes/components/ui/empty-state';
 import { Input } from '@omnikes/components/ui/input';
 import { Modal } from '@omnikes/components/ui/modal';
+import { useAuth } from '@omnikes/contexts/AuthContext';
 
 type Customer = {
   id: string;
@@ -16,16 +17,18 @@ type Customer = {
   email?: string | null;
   address?: string | null;
   isActive: boolean;
+  creditLimit?: string | number | null;
 };
 
 export default function CustomersPage() {
+  const { user } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '', address: '', city: '' });
+  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '', address: '', city: '', creditLimit: '' });
   const [isSidebarCompact, setIsSidebarCompact] = useState(false);
 
   const fetchCustomers = useCallback(async () => {
@@ -56,7 +59,7 @@ export default function CustomersPage() {
 
   const openCreateModal = () => {
     setCreateError(null);
-    setNewCustomer({ name: '', phone: '', email: '', address: '', city: '' });
+    setNewCustomer({ name: '', phone: '', email: '', address: '', city: '', creditLimit: '' });
     setShowCreateModal(true);
   };
 
@@ -79,6 +82,7 @@ export default function CustomersPage() {
           email: newCustomer.email.trim(),
           address: newCustomer.address.trim(),
           city: newCustomer.city.trim(),
+          ...(user?.canManageCreditLimit && newCustomer.creditLimit.trim() ? { creditLimit: Number(newCustomer.creditLimit) } : {}),
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -161,6 +165,7 @@ export default function CustomersPage() {
                     <div>
                       <p className="font-medium text-foreground">{customer.name}</p>
                       <p className="text-sm text-muted">{customer.phone || customer.email || 'Aucune coordonnée'}</p>
+                      {customer.creditLimit !== null && customer.creditLimit !== undefined && <p className="text-xs text-muted">Plafond crédit : {Number(customer.creditLimit).toFixed(2)}</p>}
                     </div>
                     <span className="text-sm">{customer.isActive ? 'Actif' : 'Inactif'}</span>
                   </div>
@@ -194,6 +199,12 @@ export default function CustomersPage() {
             <label htmlFor="customer-city" className="mb-1 block text-sm font-medium text-foreground">Ville</label>
             <Input id="customer-city" value={newCustomer.city} onChange={(event) => setNewCustomer((current) => ({ ...current, city: event.target.value }))} maxLength={120} placeholder="Ville" />
           </div>
+          {user?.canManageCreditLimit && (
+            <div>
+              <label htmlFor="customer-credit-limit" className="mb-1 block text-sm font-medium text-foreground">Plafond de crédit (facultatif)</label>
+              <Input id="customer-credit-limit" type="number" min="0" step="0.01" value={newCustomer.creditLimit} onChange={(event) => setNewCustomer((current) => ({ ...current, creditLimit: event.target.value }))} placeholder="Sans plafond" />
+            </div>
+          )}
           {createError ? <p role="alert" className="text-sm text-danger">{createError}</p> : null}
           <div className="flex justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="outline" onClick={closeCreateModal} disabled={isCreating}>Annuler</Button>
