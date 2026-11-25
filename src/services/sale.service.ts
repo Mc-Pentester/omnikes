@@ -708,9 +708,18 @@ export class SaleService {
         throw new Error('Credit is already authorized for this sale');
       }
 
+      // Serialize all credit admissions for the same customer so concurrent
+      // sales cannot race past an optional customer credit limit.
+      const customerLocks = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM customers
+        WHERE id = ${validatedData.customerId} AND "organizationId" = ${organizationId}
+        FOR UPDATE
+      `;
+      if (customerLocks.length === 0) throw new Error('Customer not found or access denied');
+
       const customer = await tx.customer.findFirst({
         where: { id: validatedData.customerId, organizationId },
-        select: { id: true },
+        select: { id: true, creditLimit: true },
       });
       if (!customer) {
         throw new Error('Customer not found or access denied');
@@ -728,6 +737,27 @@ export class SaleService {
         throw new Error(`Credit amount exceeds remaining balance. Remaining: ${remaining}, Attempted: ${validatedData.amount}`);
       }
 
+      if (customer.creditLimit !== null) {
+        const activeCredits = await tx.saleCredit.findMany({
+          where: { organizationId, customerId: customer.id, status: 'AUTHORIZED' },
+          select: { amount: true, payments: { select: { amount: true } } },
+        });
+        const outstanding = roundMoney(activeCredits.reduce((sum, credit) =>
+          sum + Math.max(0, Number(credit.amount) - credit.payments.reduce((paid, payment) => paid + Number(payment.amount), 0)), 0));
+        const projected = roundMoney(outstanding + validatedData.amount);
+        if (projected > Number(customer.creditLimit) && !validatedData.note?.trim()) {
+          throw new Error(`Customer credit limit exceeded. Outstanding: ${outstanding}, Limit: ${Number(customer.creditLimit)}. A reason is required for manager override.`);
+        }
+      }
+
+      const organization = await tx.organization.findUnique({
+        where: { id: organizationId },
+        select: { creditDefaultDueDays: true },
+      });
+      if (!organization) throw new Error('Organization not found');
+      const dueAt = validatedData.dueAt ?? new Date(Date.now() + organization.creditDefaultDueDays * 24 * 60 * 60 * 1000);
+      if (dueAt.getTime() <= Date.now()) throw new Error('Credit due date must be in the future');
+
       return tx.saleCredit.create({
         data: {
           organizationId,
@@ -738,6 +768,7 @@ export class SaleService {
           status: 'AUTHORIZED',
           authorizedBy,
           note: validatedData.note,
+          dueAt,
         },
         include: { customer: true },
       });
