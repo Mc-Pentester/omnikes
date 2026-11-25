@@ -14,8 +14,10 @@ export async function GET(request: NextRequest) {
     const customerId = url.searchParams.get('customerId') || undefined;
     const status = url.searchParams.get('status') || undefined;
     const overdueOnly = url.searchParams.get('overdue') === 'true';
-    const take = Math.min(100, Math.max(1, Number(url.searchParams.get('take') || 50)));
-    const skip = Math.max(0, Number(url.searchParams.get('skip') || 0));
+    const requestedTake = Number(url.searchParams.get('take') || 50);
+    const requestedSkip = Number(url.searchParams.get('skip') || 0);
+    const take = Number.isFinite(requestedTake) ? Math.min(100, Math.max(1, Math.trunc(requestedTake))) : 50;
+    const skip = Number.isFinite(requestedSkip) ? Math.max(0, Math.trunc(requestedSkip)) : 0;
     const canViewHistory = await prisma.rolePermission.findFirst({
       where: {
         role: { userRoles: { some: { userId: user.id } } },
