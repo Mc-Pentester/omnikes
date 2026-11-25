@@ -65,9 +65,9 @@ export async function POST(
     // Both password and PIN challenges share the same persistent lockout.
     // The row lock makes concurrent guesses count atomically.
     const credentialResult = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw<Array<{ id: string }>>\`
-        SELECT id FROM users WHERE id = \${approver.id} AND "organizationId" = \${organizationId} FOR UPDATE
-      \`;
+      await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM users WHERE id = ${approver.id} AND "organizationId" = ${organizationId} FOR UPDATE
+      `;
       const current = await tx.user.findFirst({
         where: { id: approver.id, organizationId, isActive: true },
         select: {
