@@ -44,6 +44,7 @@ describe('standard tenant RBAC roles', () => {
     for (const name of ['MANAGER', 'SUPERVISOR', 'SALES_MANAGER', 'STORE_MANAGER']) {
       expect(role(name)).toContain('credit.approve');
       expect(role(name)).toContain('credit.view');
+      expect(role(name)).toContain('payment.refund');
     }
     for (const name of ['CASHIER', 'SELLER', 'SALES_ASSOCIATE']) {
       expect(role(name)).toContain('credit.request');
