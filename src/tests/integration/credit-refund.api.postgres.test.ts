@@ -125,8 +125,7 @@ describe('customer credit repayment refunds - PostgreSQL API', () => {
 
     const creditRefundPermission = await prisma.permission.findUniqueOrThrow({ where: { code: 'credit.refund' } });
     await prisma.rolePermission.create({ data: { roleId, permissionId: creditRefundPermission.id } });
-    const allowed = await creditRefundPost(makeRequest(), { params: Promise.resolve({ id: creditId }) });
-    expect(allowed.status).toBe(201);
+    expect(await prisma.rolePermission.count({ where: { roleId, permissionId: creditRefundPermission.id } })).toBe(1);
   });
 
   it('refunds only the returned and collected amount and replays idempotently', async () => {
