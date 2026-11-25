@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       roleRepository.hasPermission(user.id, 'store.update'),
       roleRepository.hasPermission(user.id, 'store.activate'),
       roleRepository.hasPermission(user.id, 'store.deactivate'),
-      roleRepository.hasPermission(user.id, 'sale.credit'),
+      roleRepository.hasPermission(user.id, 'credit.approve'),
       roleRepository.hasPermission(user.id, 'credit.request'),
       roleRepository.hasPermission(user.id, 'credit.limit.manage'),
       roleRepository.hasPermission(user.id, 'credit.settings.manage'),

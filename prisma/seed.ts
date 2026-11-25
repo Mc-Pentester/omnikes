@@ -1088,6 +1088,20 @@ async function main() {
     },
   });
 
+  // ADMIN is defined by the canonical RBAC catalogue as having every tenant permission.
+  // Reconcile additively so newly introduced permissions are present in fresh CI seeds
+  // and repeat seed runs without removing any organization-specific grants.
+  const allTenantPermissionRows = await prisma.permission.findMany({
+    where: { code: { in: TENANT_PERMISSION_CODES } },
+    select: { id: true },
+  });
+  for (const roleId of [adminRoleA.id, adminRoleB.id]) {
+    await prisma.rolePermission.createMany({
+      data: allTenantPermissionRows.map((permission) => ({ roleId, permissionId: permission.id })),
+      skipDuplicates: true,
+    });
+  }
+
   console.log('✅ Role permissions assigned');
 
   // ============================================================

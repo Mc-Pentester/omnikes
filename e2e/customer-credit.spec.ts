@@ -14,6 +14,11 @@ test.describe('Customer credit security and collection UI', () => {
     await page.getByRole('button', { name: 'Se connecter' }).click();
     await expect(page).toHaveURL(/\/$/);
 
+    const pinStatusBeforeNavigation = await page.request.get('/api/users/me/credit-pin');
+    expect(pinStatusBeforeNavigation.status(), await pinStatusBeforeNavigation.text()).toBe(200);
+    const ledgerAccess = await page.request.get('/api/credits');
+    expect(ledgerAccess.status(), await ledgerAccess.text()).toBe(200);
+
     await page.goto('/profile/security');
     await expect(page.getByRole('heading', { name: 'Profil et sécurité' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'PIN confidentiel pour autoriser les crédits' })).toBeVisible();

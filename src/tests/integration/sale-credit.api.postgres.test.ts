@@ -5,6 +5,7 @@ import { generateToken } from '@omnikes/lib/crypto';
 import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { prisma } from '@omnikes/lib/prisma';
 import { saleService } from '@omnikes/services/sale.service';
+import { roleRepository } from '@omnikes/repositories/role.repository';
 
 import { POST as creditPost } from '@omnikes/app/api/sales/[id]/credit/route';
 import { POST as creditPaymentPost } from '@omnikes/app/api/credits/[id]/payments/route';
@@ -280,6 +281,22 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     }
 
     await prisma.$disconnect();
+  });
+
+  it('provisions the seeded ADMIN with credit management and keeps CASHIER approval restricted', async () => {
+    const admin = await prisma.user.findUniqueOrThrow({
+      where: { email: 'admin.a@omnikes.test' }, select: { id: true },
+    });
+    const cashier = await prisma.user.findUniqueOrThrow({
+      where: { email: 'cashier.a@omnikes.test' }, select: { id: true },
+    });
+
+    expect(await roleRepository.hasPermission(admin.id, 'credit.approve')).toBe(true);
+    expect(await roleRepository.hasPermission(admin.id, 'credit.view')).toBe(true);
+    expect(await roleRepository.hasPermission(admin.id, 'credit.settings.manage')).toBe(true);
+    expect(await roleRepository.hasPermission(cashier.id, 'credit.request')).toBe(true);
+    expect(await roleRepository.hasPermission(cashier.id, 'credit.approve')).toBe(false);
+    expect(await roleRepository.hasPermission(cashier.id, 'credit.settings.manage')).toBe(false);
   });
 
   it('allows the scoped user to authorize credit on the authorized store through the real API route', async () => {
