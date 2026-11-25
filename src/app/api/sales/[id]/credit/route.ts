@@ -52,52 +52,61 @@ export async function POST(
     // The cashier's session or legacy sale.credit permission can never approve itself.
     const approver = await prisma.user.findFirst({
       where: { email: approverEmail, organizationId, isActive: true },
-      select: { id: true, password: true, creditPinHash: true, creditPinFailedAttempts: true, creditPinLockedUntil: true },
+      select: { id: true },
     });
 
     if (!approver || approver.id === user.id) {
       return NextResponse.json({ error: 'Invalid manager approval credentials' }, { status: 403 });
     }
 
-    if (approverPin) {
-      const pinResult = await prisma.$transaction(async (tx) => {
-        await tx.$queryRaw<Array<{ id: string }>>\`
-          SELECT id FROM users WHERE id = \${approver.id} AND "organizationId" = \${organizationId} FOR UPDATE
-        \`;
-        const current = await tx.user.findFirst({
-          where: { id: approver.id, organizationId, isActive: true },
-          select: { creditPinHash: true, creditPinFailedAttempts: true, creditPinLockedUntil: true },
-        });
-        if (!current) return { valid: false, locked: false };
-        if (current.creditPinLockedUntil && current.creditPinLockedUntil > new Date()) {
-          return { valid: false, locked: true };
-        }
-        const valid = Boolean(current.creditPinHash) && /^\d{4,8}$/.test(approverPin)
-          && await bcrypt.compare(approverPin, current.creditPinHash!);
-        if (valid) {
-          await tx.user.update({
-            where: { id: approver.id },
-            data: { creditPinFailedAttempts: 0, creditPinLockedUntil: null },
-          });
-          return { valid: true, locked: false };
-        }
-        const attempts = current.creditPinFailedAttempts + 1;
+    // Both password and PIN challenges share the same persistent lockout.
+    // The row lock makes concurrent guesses count atomically.
+    const credentialResult = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw<Array<{ id: string }>>\`
+        SELECT id FROM users WHERE id = \${approver.id} AND "organizationId" = \${organizationId} FOR UPDATE
+      \`;
+      const current = await tx.user.findFirst({
+        where: { id: approver.id, organizationId, isActive: true },
+        select: {
+          password: true,
+          creditPinHash: true,
+          creditApprovalFailedAttempts: true,
+          creditApprovalLockedUntil: true,
+        },
+      });
+      if (!current) return { valid: false, locked: false };
+      if (current.creditApprovalLockedUntil && current.creditApprovalLockedUntil > new Date()) {
+        return { valid: false, locked: true };
+      }
+
+      const valid = approverPin
+        ? Boolean(current.creditPinHash) && /^\d{4,8}$/.test(approverPin)
+          && await bcrypt.compare(approverPin, current.creditPinHash!)
+        : await bcrypt.compare(approverPassword, current.password);
+
+      if (valid) {
         await tx.user.update({
           where: { id: approver.id },
-          data: {
-            creditPinFailedAttempts: attempts >= 5 ? 0 : attempts,
-            creditPinLockedUntil: attempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null,
-          },
+          data: { creditApprovalFailedAttempts: 0, creditApprovalLockedUntil: null },
         });
-        return { valid: false, locked: attempts >= 5 };
+        return { valid: true, locked: false };
+      }
+
+      const attempts = current.creditApprovalFailedAttempts + 1;
+      await tx.user.update({
+        where: { id: approver.id },
+        data: {
+          creditApprovalFailedAttempts: attempts >= 5 ? 0 : attempts,
+          creditApprovalLockedUntil: attempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null,
+        },
       });
-      if (pinResult.locked) {
-        return NextResponse.json({ error: 'Manager PIN is temporarily locked after repeated failures' }, { status: 423 });
-      }
-      if (!pinResult.valid) {
-        return NextResponse.json({ error: 'Invalid manager approval credentials' }, { status: 403 });
-      }
-    } else if (!(await bcrypt.compare(approverPassword, approver.password))) {
+      return { valid: false, locked: attempts >= 5 };
+    });
+
+    if (credentialResult.locked) {
+      return NextResponse.json({ error: 'Manager approval is temporarily locked after repeated failures' }, { status: 423 });
+    }
+    if (!credentialResult.valid) {
       return NextResponse.json({ error: 'Invalid manager approval credentials' }, { status: 403 });
     }
 
