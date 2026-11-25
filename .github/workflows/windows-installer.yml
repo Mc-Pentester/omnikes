@@ -229,7 +229,9 @@ jobs:
           Write-Host "Windows uninstall diagnostics collection: PASS"
 
       - name: Upload Windows installer lifecycle diagnostics
+        id: upload-lifecycle-diagnostics
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: OmniKes-Windows-Uninstall-Diagnostics
@@ -238,12 +240,32 @@ jobs:
           retention-days: 14
 
       - name: Upload Windows installer
+        id: upload-windows-installer-artifact
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: OmniKes-Windows-Offline-Installer
           path: dist/installer/OmniKes-Setup-*-x64.exe
           if-no-files-found: error
           retention-days: 14
+      - name: Summarize optional workflow artifact uploads
+        if: always()
+        shell: powershell
+        env:
+          DIAGNOSTICS_OUTCOME: ${{ steps.upload-lifecycle-diagnostics.outcome }}
+          INSTALLER_ARTIFACT_OUTCOME: ${{ steps.upload-windows-installer-artifact.outcome }}
+        run: |
+          $failedUploads = @()
+          if ($env:DIAGNOSTICS_OUTCOME -eq "failure") { $failedUploads += "uninstall diagnostics" }
+          if ($env:INSTALLER_ARTIFACT_OUTCOME -eq "failure") { $failedUploads += "installer workflow artifact" }
+          if ($failedUploads.Count -gt 0) {
+            $message = "WARNING: GitHub Actions artifact storage prevented upload of: $($failedUploads -join ", "). Build and lifecycle checks are evaluated independently. The release asset upload remains a required step."
+            Write-Warning $message
+            Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value ("## Optional workflow artifacts unavailable`n`n" + $message)
+          } else {
+            Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "## Workflow artifacts`n`nInstaller and lifecycle diagnostics were uploaded successfully."
+          }
+
       - name: Publish installer and SHA-256 to GitHub Release
         shell: powershell
         env:
