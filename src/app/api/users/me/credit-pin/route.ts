@@ -39,7 +39,7 @@ export async function PUT(request: NextRequest) {
     const creditPinHash = await bcrypt.hash(input.pin, 12);
     await prisma.user.update({
       where: { id: user.id },
-      data: { creditPinHash, creditPinFailedAttempts: 0, creditPinLockedUntil: null },
+      data: { creditPinHash, creditApprovalFailedAttempts: 0, creditApprovalLockedUntil: null },
     });
     await prisma.auditLog.create({
       data: {
@@ -76,7 +76,7 @@ export async function DELETE(request: NextRequest) {
     }
     await prisma.user.update({
       where: { id: user.id },
-      data: { creditPinHash: null, creditPinFailedAttempts: 0, creditPinLockedUntil: null },
+      data: { creditPinHash: null, creditApprovalFailedAttempts: 0, creditApprovalLockedUntil: null },
     });
     await prisma.auditLog.create({
       data: {
