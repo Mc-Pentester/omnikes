@@ -167,9 +167,18 @@ export const productUpdateSchema = productSchema.partial().omit({ organizationId
   barcode: z.string().trim().max(50).optional().or(z.literal('')),
   price: z.number().finite().nonnegative('Price must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Price must have at most 2 decimal places').optional(),
   cost: z.number().finite().nonnegative('Cost must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Cost must have at most 2 decimal places').optional(),
+  casePrice: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  dozenPrice: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  pack3Price: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  unitPrice: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  unitsPerCase: z.number().int().positive().max(1000000).optional(),
   variantId: z.string().cuid().optional(),
-}).refine((data) => (data.price === undefined && data.cost === undefined && data.barcode === undefined) || Boolean(data.variantId), {
-  message: 'A variant is required when updating variant prices or barcode',
+}).refine((data) => (
+  data.price === undefined && data.cost === undefined && data.barcode === undefined &&
+  data.casePrice === undefined && data.dozenPrice === undefined && data.pack3Price === undefined &&
+  data.unitPrice === undefined && data.unitsPerCase === undefined
+) || Boolean(data.variantId), {
+  message: 'A variant is required when updating variant prices, packaging or barcode',
   path: ['variantId'],
 });
 
