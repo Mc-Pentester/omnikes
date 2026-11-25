@@ -14,8 +14,12 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
   let customerA: { id: string } | undefined;
   let temporaryCustomerA = false;
   let scopedUser: { id: string; email: string } | undefined;
+  let managerUser: { id: string; email: string } | undefined;
   let scopedRole: { id: string } | undefined;
+  let managerRole: { id: string } | undefined;
   let permission: { id: string } | undefined;
+  let approvalPermission: { id: string } | undefined;
+  const managerPassword = 'P0F2D-Manager-Approval!2026';
   let sameStoreSaleId: string;
   let crossStoreSaleId: string;
 
@@ -73,6 +77,10 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
       where: { code: 'sale.credit' },
       select: { id: true },
     });
+    approvalPermission = await prisma.permission.findUniqueOrThrow({
+      where: { code: 'credit.approve' },
+      select: { id: true },
+    });
 
     scopedUser = await prisma.user.create({
       data: {
@@ -107,6 +115,30 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
         roleId: scopedRole!.id,
       },
     });
+
+    managerUser = await prisma.user.create({
+      data: {
+        organizationId: orgA!.id,
+        email: `p0-24-f2-d-manager-${suffix}@omnikes.test`,
+        name: 'P0-24-F.2-D Credit Manager',
+        password: await bcrypt.hash(managerPassword, 10),
+        isActive: true,
+      },
+      select: { id: true, email: true },
+    });
+
+    managerRole = await prisma.role.create({
+      data: {
+        organizationId: orgA!.id,
+        name: `P0-F2-D-MANAGER-${suffix}`,
+        description: 'Temporary credit approval role',
+        isGlobal: false,
+        storeId: storeA!.id,
+        rolePermissions: { create: { permissionId: approvalPermission!.id } },
+      },
+      select: { id: true },
+    });
+    await prisma.userRole.create({ data: { userId: managerUser.id, roleId: managerRole.id } });
 
     const sameStoreSale = await prisma.sale.create({
       data: {
@@ -172,9 +204,8 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
   }
 
   afterAll(async () => {
-    if (scopedUser?.id) {
-      await prisma.session.deleteMany({ where: { userId: scopedUser!.id } });
-    }
+    if (scopedUser?.id) await prisma.session.deleteMany({ where: { userId: scopedUser!.id } });
+    if (managerUser?.id) await prisma.session.deleteMany({ where: { userId: managerUser!.id } });
     if (sameStoreSaleId || crossStoreSaleId) {
       await prisma.saleCredit.deleteMany({
         where: { saleId: { in: [sameStoreSaleId, crossStoreSaleId].filter(Boolean) } },
@@ -190,6 +221,12 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
       await prisma.rolePermission.deleteMany({ where: { roleId: scopedRole!.id } });
       await prisma.role.delete({ where: { id: scopedRole!.id } }).catch(() => undefined);
     }
+    if (managerRole?.id) {
+      await prisma.rolePermission.deleteMany({ where: { roleId: managerRole!.id } });
+      await prisma.userRole.deleteMany({ where: { roleId: managerRole!.id } });
+      await prisma.role.delete({ where: { id: managerRole!.id } }).catch(() => undefined);
+    }
+    if (managerUser?.id) await prisma.user.delete({ where: { id: managerUser!.id } }).catch(() => undefined);
     if (scopedUser?.id) {
       await prisma.user.delete({ where: { id: scopedUser!.id } }).catch(() => undefined);
     }
@@ -225,6 +262,8 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
         body: JSON.stringify({
           customerId: customerA!.id,
           amount: 1000,
+          approverEmail: managerUser!.email,
+          approverPassword: managerPassword,
         }),
       },
     );
@@ -262,6 +301,8 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
         body: JSON.stringify({
           customerId: customerA!.id,
           amount: 1000,
+          approverEmail: managerUser!.email,
+          approverPassword: managerPassword,
         }),
       },
     );
