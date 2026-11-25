@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@omnikes/components/layout/Sidebar';
 import { Button } from '@omnikes/components/ui/button';
@@ -40,6 +40,7 @@ export default function CustomerCreditsPage() {
   const [credits, setCredits] = useState<CreditRow[]>([]);
   const [totals, setTotals] = useState<Record<string, { credit: number; paid: number; adjusted: number; outstanding: number; overdue: number }>>({});
   const [loading, setLoading] = useState(true);
+  const creditsLoaded = useRef(false);
   const [error, setError] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
@@ -55,7 +56,10 @@ export default function CustomerCreditsPage() {
   const [compact, setCompact] = useState(false);
 
   const loadCredits = useCallback(async () => {
-    setLoading(true);
+    // Keep the current credit cards mounted during background refreshes. In particular,
+    // refund completion refreshes both history and credits; unmounting this tree would
+    // discard the refund panel's local state and detach active Playwright/user controls.
+    if (!creditsLoaded.current) setLoading(true);
     setError('');
     try {
       const query = new URLSearchParams({ take: '100' });
@@ -67,6 +71,7 @@ export default function CustomerCreditsPage() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Erreur de chargement des crédits.');
     } finally {
+      creditsLoaded.current = true;
       setLoading(false);
     }
   }, []);
