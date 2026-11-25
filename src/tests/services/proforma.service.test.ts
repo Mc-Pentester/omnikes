@@ -518,6 +518,7 @@ describe('ProformaService - Conversion', () => {
       const created = { id: 'proforma-created', applyTax: true };
       const persisted = {
         id: created.id,
+        applyTax: true,
         subtotal: 0.1,
         tax: 0.02,
         total: 0.12,
