@@ -103,7 +103,7 @@ model Store {
   sales        Sale[]
   proformas    Proforma[]
   saleCredits  SaleCredit[]
-  creditLimit Decimal? @db.Decimal(12, 2)
+  creditPayments CreditPayment[]
   returns      Return[]
   purchases    Purchase[]
   payments     SupplierPayment[]
@@ -612,6 +612,7 @@ model CashSession {
   closedByUser User?        @relation("CashSessionClosedBy", fields: [closedBy], references: [id], onDelete: Restrict)
   movements    CashMovement[]
   supplierPayments SupplierPayment[]
+  creditPayments CreditPayment[]
 
   @@index([organizationId])
   @@index([storeId])
@@ -677,6 +678,7 @@ model Customer {
   sales        Sale[]
   proformas    Proforma[]
   saleCredits  SaleCredit[]
+  creditLimit Decimal? @db.Decimal(12, 2)
 
   @@index([organizationId])
   @@index([email])
