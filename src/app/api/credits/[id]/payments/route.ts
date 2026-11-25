@@ -55,12 +55,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const creditForAccess = await prisma.saleCredit.findFirst({
       where: { id, organizationId: user.organizationId },
-      select: { storeId: true },
+      select: { storeId: true, saleId: true },
     });
     if (!creditForAccess) return NextResponse.json({ error: 'Credit not found' }, { status: 404 });
     await requireStoreAccess(request, creditForAccess.storeId);
 
     const result = await prisma.$transaction(async (tx) => {
+      // Use the same sale -> credit lock order as returns and cancellations.
+      // This prevents deadlocks when cash movements reference the source sale.
+      const lockedSale = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM sales
+        WHERE id = ${creditForAccess.saleId} AND "organizationId" = ${user.organizationId}
+        FOR UPDATE
+      `;
+      if (!lockedSale.length) throw new Error('Credit not found');
+
       const locked = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT id FROM sale_credits
         WHERE id = ${id} AND "organizationId" = ${user.organizationId}
