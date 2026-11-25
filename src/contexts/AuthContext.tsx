@@ -19,6 +19,7 @@ interface User {
   canAuthorizeCredit?: boolean;
   canRequestCredit?: boolean;
   canManageCreditLimit?: boolean;
+  canManageCreditSettings?: boolean;
   canViewCredit?: boolean;
   canViewCreditHistory?: boolean;
   canReceiveCreditPayment?: boolean;
