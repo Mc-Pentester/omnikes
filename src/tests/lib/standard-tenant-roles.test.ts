@@ -34,7 +34,7 @@ describe('standard tenant RBAC roles', () => {
     expect(auditor.permissions.every((code) => code.endsWith('.read') || code.endsWith('.view') || code === 'audit.read')).toBe(true);
   });
   it('grants customer-credit capabilities according to the least-privilege role matrix', () => {
-    const role = (name: string) => STANDARD_TENANT_ROLES.find((item) => item.name === name)!.permissions;
+    const role = (name: string) => name === 'CASHIER' ? CASHIER_ROLE.permissions : STANDARD_TENANT_ROLES.find((item) => item.name === name)!.permissions;
     const creditPermissions = [
       'credit.approve', 'credit.request', 'credit.payment.receive', 'credit.view',
       'credit.history.view', 'credit.report.view', 'credit.limit.manage', 'credit.settings.manage',
