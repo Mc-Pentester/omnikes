@@ -113,7 +113,8 @@ export async function POST(
       saleId,
       organizationId,
       approver.id,
-      data
+      data,
+      sale.storeId
     );
 
     return NextResponse.json(credit, { status: 201 });
@@ -150,7 +151,8 @@ export async function POST(
       error.message === 'Credit customer must match the sale customer' ||
       error.message.startsWith('Credit amount exceeds remaining balance') ||
       error.message.startsWith('Customer credit limit exceeded') ||
-      error.message === 'Credit due date must be in the future'
+      error.message === 'Credit due date must be in the future' ||
+      error.message === 'Sale store changed during credit approval; please retry'
     )) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
