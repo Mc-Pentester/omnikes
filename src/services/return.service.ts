@@ -59,6 +59,7 @@ export class ReturnService {
             },
           },
           store: true,
+          saleCredit: { include: { payments: true, adjustments: true } },
         },
       });
 
@@ -228,6 +229,33 @@ export class ReturnService {
         },
       });
 
+      // A merchandise return first reduces the outstanding customer debt.
+      // The adjustment is a separate immutable record; the original credit amount
+      // and repayment history are never rewritten.
+      let creditAdjustmentAmount = 0;
+      if (sale.saleCredit?.status === 'AUTHORIZED') {
+        const creditPaid = roundMoney(sale.saleCredit.payments.reduce((sum, payment) => sum + Number(payment.amount), 0));
+        const previouslyAdjusted = roundMoney(sale.saleCredit.adjustments.reduce((sum, adjustment) => sum + Number(adjustment.amount), 0));
+        const outstandingCredit = roundMoney(Math.max(0, Number(sale.saleCredit.amount) - creditPaid - previouslyAdjusted));
+        creditAdjustmentAmount = roundMoney(Math.min(totalRefunded, outstandingCredit));
+        if (creditAdjustmentAmount > 0) {
+          await tx.creditAdjustment.create({
+            data: {
+              organizationId,
+              storeId: sale.storeId,
+              saleCreditId: sale.saleCredit.id,
+              returnId: createdReturn.id,
+              processedBy: userId,
+              amount: creditAdjustmentAmount,
+              reason: validatedData.reason?.trim() || `Debt reduction from return ${sale.orderNumber}`,
+            },
+          });
+          if (creditAdjustmentAmount >= outstandingCredit) {
+            await tx.saleCredit.update({ where: { id: sale.saleCredit.id }, data: { status: 'SETTLED' } });
+          }
+        }
+      }
+
       // Create audit log
       await tx.auditLog.create({
         data: {
@@ -242,6 +270,7 @@ export class ReturnService {
             returnId: createdReturn.id,
             orderNumber: sale.orderNumber,
             totalRefunded,
+            creditAdjustmentAmount,
             itemCount: returnItemsData.length,
           },
         },
