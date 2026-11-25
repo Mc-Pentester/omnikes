@@ -595,7 +595,7 @@ export class SaleService {
             },
           },
           payments: true,
-          saleCredit: true,
+          saleCredit: { include: { payments: true, adjustments: true } },
         },
       });
 
