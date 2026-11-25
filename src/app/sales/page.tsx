@@ -27,6 +27,8 @@ interface Sale {
   total: string | number;
   createdAt: string;
   storeId: string;
+  currencyCode: string;
+  currencySymbol: string;
   store?: { id: string; name: string; code: string } | null;
   customer?: { id: string; name: string; phone?: string | null } | null;
   items: Array<{
@@ -224,7 +226,7 @@ export default function PendingSalesPage() {
     const outstandingBeforePayment = totals.remaining;
 
     if (!Number.isFinite(amount) || amount <= 0 || amount > outstandingBeforePayment) {
-      setError(`Montant invalide. Maximum autorisé: ${money(outstandingBeforePayment)} HTG.`);
+      setError(`Montant invalide. Maximum autorisé: ${money(outstandingBeforePayment)} ${selectedSale.currencyCode}.`);
       return;
     }
 
@@ -287,7 +289,7 @@ export default function PendingSalesPage() {
     const remainingBeforeCredit = Math.max(0, Number(selectedSale.total) - totals.paid);
 
     if (!Number.isFinite(amount) || amount <= 0 || amount > remainingBeforeCredit) {
-      setError(`Crédit invalide. Maximum autorisé: ${money(remainingBeforeCredit)} HTG.`);
+      setError(`Crédit invalide. Maximum autorisé: ${money(remainingBeforeCredit)} ${selectedSale.currencyCode}.`);
       return;
     }
 
@@ -325,7 +327,7 @@ export default function PendingSalesPage() {
         const paid = sale.payments
           .filter((payment) => payment.status === 'COMPLETED' && payment.method !== 'CREDIT')
           .reduce((sum, payment) => sum + Number(payment.amount), 0);
-        const credit = sale.saleCredit?.status === 'AUTHORIZED' ? Number(sale.saleCredit.amount) : 0;
+        const credit = sale.saleCredit && ['AUTHORIZED', 'APPROVED_PENDING_COMPLETION'].includes(sale.saleCredit.status) ? Number(sale.saleCredit.amount) : 0;
 
         if (paid + credit >= Number(sale.total)) {
           const completeResponse = await fetch('/api/sales/' + selectedSale.id + '/complete', { method: 'POST' });
@@ -419,12 +421,12 @@ export default function PendingSalesPage() {
                       >
                         <div className="flex justify-between gap-3">
                           <span className="font-semibold text-foreground">{sale.orderNumber}</span>
-                          <span className="font-bold text-foreground">{money(sale.total)} HTG</span>
+                          <span className="font-bold text-foreground">{money(sale.total)} {sale.currencyCode}</span>
                         </div>
                         <div className="flex justify-between gap-3 mt-2 text-sm">
                           <span className="text-muted">{sale.customer?.name || 'Client anonyme'}</span>
                           <span className={fullyCovered ? 'text-warning font-semibold' : 'text-warning font-medium'}>
-                            {fullyCovered ? 'Paiement complet — finalisation en attente' : 'Reste ' + money(remaining) + ' HTG'}
+                            {fullyCovered ? 'Paiement complet — finalisation en attente' : 'Reste ' + money(remaining) + ' ' + sale.currencyCode}
                           </span>
                         </div>
                         <p className="text-xs text-muted mt-2">
@@ -468,15 +470,15 @@ export default function PendingSalesPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 my-5">
                     <div className="p-4 rounded-lg bg-background">
                       <p className="text-xs text-muted">Total vente</p>
-                      <p className="text-xl font-bold">{money(selectedSale.total)} HTG</p>
+                      <p className="text-xl font-bold">{money(selectedSale.total)} {selectedSale.currencyCode}</p>
                     </div>
                     <div className="p-4 rounded-lg bg-background">
                       <p className="text-xs text-muted">Déjà encaissé</p>
-                      <p className="text-xl font-bold">{money(totals.paid)} HTG</p>
+                      <p className="text-xl font-bold">{money(totals.paid)} {selectedSale.currencyCode}</p>
                     </div>
                     <div className="p-4 rounded-lg bg-background">
                       <p className="text-xs text-muted">Crédit autorisé</p>
-                      <p className="text-xl font-bold">{money(totals.credit)} HTG</p>
+                      <p className="text-xl font-bold">{money(totals.credit)} {selectedSale.currencyCode}</p>
                     </div>
                   </div>
 
@@ -490,8 +492,8 @@ export default function PendingSalesPage() {
                             <p className="text-sm text-muted">{item.variant.name} · {item.variant.sku}</p>
                           </div>
                           <div className="text-right">
-                            <p className="font-medium">{item.quantity} × {money(item.unitPrice)} HTG</p>
-                            <p className="font-bold">{money(item.totalPrice)} HTG</p>
+                            <p className="font-medium">{item.quantity} × {money(item.unitPrice)} {selectedSale.currencyCode}</p>
+                            <p className="font-bold">{money(item.totalPrice)} {selectedSale.currencyCode}</p>
                           </div>
                         </div>
                       ))}
@@ -505,7 +507,7 @@ export default function PendingSalesPage() {
                         {selectedSale.payments.map((payment) => (
                           <div key={payment.id} className="p-3 flex justify-between text-sm">
                             <span>{paymentMethods.find((method) => method.value === payment.method)?.label || payment.method}</span>
-                            <span className="font-semibold">{money(payment.amount)} HTG</span>
+                            <span className="font-semibold">{money(payment.amount)} {selectedSale.currencyCode}</span>
                           </div>
                         ))}
                       </div>
@@ -515,7 +517,7 @@ export default function PendingSalesPage() {
                   {selectedSale.saleCredit && (
                     <div className="mb-6 p-4 rounded-lg border border-border bg-warning-soft">
                       <p className="font-semibold text-warning">Crédit autorisé</p>
-                      <p className="text-sm text-warning mt-1">{money(selectedSale.saleCredit.amount)} HTG pour {selectedSale.customer?.name || 'le client'}</p>
+                      <p className="text-sm text-warning mt-1">{money(selectedSale.saleCredit.amount)} {selectedSale.currencyCode} pour {selectedSale.customer?.name || 'le client'}</p>
                       {selectedSale.saleCredit.note && <p className="text-sm text-warning mt-1">{selectedSale.saleCredit.note}</p>}
                     </div>
                   )}
@@ -569,7 +571,7 @@ export default function PendingSalesPage() {
                           step="0.01"
                           value={paymentAmount}
                           onChange={(event) => setPaymentAmount(event.target.value)}
-                          placeholder={`Maximum ${money(totals.remaining)} HTG`}
+                          placeholder={`Maximum ${money(totals.remaining)} ${selectedSale.currencyCode}`}
                           disabled={processing || totals.remaining <= 0}
                         />
                         <Button
@@ -598,7 +600,7 @@ export default function PendingSalesPage() {
                             step="0.01"
                             value={creditAmount}
                             onChange={(event) => setCreditAmount(event.target.value)}
-                            placeholder={`Maximum ${money(Math.max(0, Number(selectedSale.total) - totals.paid))} HTG`}
+                            placeholder={`Maximum ${money(Math.max(0, Number(selectedSale.total) - totals.paid))} ${selectedSale.currencyCode}`}
                             disabled={processing || totals.remaining <= 0}
                           />
                           <Input
@@ -672,7 +674,7 @@ export default function PendingSalesPage() {
                   <div className="mt-6 p-4 rounded-lg bg-foreground text-white flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div>
                       <p className="text-sm text-surface-muted">Reste à couvrir</p>
-                      <p className="text-2xl font-bold">{money(totals.remaining)} HTG</p>
+                      <p className="text-2xl font-bold">{money(totals.remaining)} {selectedSale.currencyCode}</p>
                     </div>
                     <p className="text-sm text-surface-muted max-w-xl">
                       La finalisation est exclusivement contrôlée par le serveur. Elle intervient seulement lorsque les paiements réels + le crédit explicitement autorisé couvrent le total et que le stock est disponible.
