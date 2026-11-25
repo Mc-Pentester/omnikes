@@ -917,6 +917,7 @@ model SaleCredit {
   customer          Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
   authorizedByUser  User         @relation("SaleCreditAuthorizedBy", fields: [authorizedBy], references: [id], onDelete: Restrict)
   payments          CreditPayment[]
+  adjustments       CreditAdjustment[]
 
   @@unique([saleId])
   @@index([organizationId])
