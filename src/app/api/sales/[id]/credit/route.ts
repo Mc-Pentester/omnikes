@@ -39,6 +39,9 @@ export async function POST(
     await requireSubscriptionCapability(request, 'customers.credit', 'WRITE');
 
     const body = await request.json();
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Invalid credit approval request' }, { status: 400 });
+    }
     const data = saleCreditSchema.parse(body);
     const approverEmail = typeof body.approverEmail === 'string' ? body.approverEmail.trim().toLowerCase() : '';
     const approverPassword = typeof body.approverPassword === 'string' ? body.approverPassword : '';
