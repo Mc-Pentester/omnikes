@@ -247,11 +247,13 @@ export class ReturnService {
       // The adjustment is a separate immutable record; the original credit amount
       // and repayment history are never rewritten.
       let creditAdjustmentAmount = 0;
-      if (lockedSaleCredit?.status === 'AUTHORIZED') {
+      let creditRefundDue = 0;
+      if (lockedSaleCredit && ['AUTHORIZED', 'SETTLED'].includes(lockedSaleCredit.status)) {
         const creditPaid = roundMoney(lockedSaleCredit.payments.reduce((sum, payment) => sum + Number(payment.amount), 0));
         const previouslyAdjusted = roundMoney(lockedSaleCredit.adjustments.reduce((sum, adjustment) => sum + Number(adjustment.amount), 0));
         const outstandingCredit = roundMoney(Math.max(0, Number(lockedSaleCredit.amount) - creditPaid - previouslyAdjusted));
         creditAdjustmentAmount = roundMoney(Math.min(totalRefunded, outstandingCredit));
+        creditRefundDue = roundMoney(totalRefunded - creditAdjustmentAmount);
         if (creditAdjustmentAmount > 0) {
           await tx.creditAdjustment.create({
             data: {
@@ -264,9 +266,9 @@ export class ReturnService {
               reason: validatedData.reason?.trim() || `Debt reduction from return ${sale.orderNumber}`,
             },
           });
-          if (creditAdjustmentAmount >= outstandingCredit) {
-            await tx.saleCredit.update({ where: { id: lockedSaleCredit.id }, data: { status: 'SETTLED' } });
-          }
+        }
+        if (roundMoney(outstandingCredit - creditAdjustmentAmount) <= 0 && lockedSaleCredit.status !== 'SETTLED') {
+          await tx.saleCredit.update({ where: { id: lockedSaleCredit.id }, data: { status: 'SETTLED' } });
         }
       }
 
@@ -285,6 +287,7 @@ export class ReturnService {
             orderNumber: sale.orderNumber,
             totalRefunded,
             creditAdjustmentAmount,
+            creditRefundDue,
             itemCount: returnItemsData.length,
           },
         },

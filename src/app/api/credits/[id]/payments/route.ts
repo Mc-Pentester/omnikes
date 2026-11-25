@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const payments = await prisma.creditPayment.findMany({
       where: { saleCreditId: id, organizationId: user.organizationId },
       orderBy: { createdAt: 'desc' },
-      include: { receivedByUser: { select: { id: true, name: true, email: true } } },
+      include: { receivedByUser: { select: { id: true, name: true, email: true } }, refunds: { orderBy: { createdAt: 'desc' } } },
     });
     return NextResponse.json(payments);
   } catch (error) {

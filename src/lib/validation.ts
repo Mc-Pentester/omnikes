@@ -401,6 +401,14 @@ export const refundSchema = z.object({
 
 export type RefundInput = z.infer<typeof refundSchema>;
 
+export const creditRefundSchema = z.object({
+  returnId: z.string().cuid('Return ID is required'),
+  paymentId: z.string().cuid('Credit payment ID is required'),
+  amount: z.number().finite().positive('Amount must be positive').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Amount must have at most 2 decimal places'),
+  reference: z.string().trim().max(200).optional(),
+});
+export type CreditRefundInput = z.infer<typeof creditRefundSchema>;
+
 // Proforma validation
 export const proformaSchema = z.object({
   organizationId: z.string().cuid(),
