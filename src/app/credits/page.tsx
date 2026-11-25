@@ -20,7 +20,7 @@ type CreditRow = {
   customer: { id: string; name: string; phone?: string | null; creditLimit?: string | number | null };
   sale: { id: string; orderNumber: string; currencyCode: string; currencySymbol: string; total: string | number };
   authorizedByUser?: { name?: string | null; email?: string };
-  adjustments?: Array<{ id: string; amount: string | number; reason: string; createdAt: string }>;
+  adjustments?: Array<{ id: string; amount: string | number; reason: string; createdAt: string; processedByUser?: { name?: string | null; email?: string } }>;
 };
 type CreditPayment = {
   id: string;
@@ -214,7 +214,7 @@ export default function CustomerCreditsPage() {
                         <ul className="mt-2 divide-y divide-border">
                           {history.map((payment) => (
                             <li key={payment.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
-                              <span>{new Date(payment.createdAt).toLocaleString()} · {payment.method} · {payment.reference || 'Sans référence'}</span>
+                              <span>{new Date(payment.createdAt).toLocaleString()} · {payment.method} · {payment.reference || 'Sans référence'} · {payment.receivedByUser?.name || payment.receivedByUser?.email || 'Utilisateur'}</span>
                               <strong>{Number(payment.amount).toFixed(2)} {credit.sale.currencyCode}</strong>
                             </li>
                           ))}
@@ -226,7 +226,7 @@ export default function CustomerCreditsPage() {
                           <ul className="mt-1 divide-y divide-border">
                             {credit.adjustments.map((adjustment) => (
                               <li key={adjustment.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
-                                <span>{new Date(adjustment.createdAt).toLocaleString()} · {adjustment.reason}</span>
+                                <span>{new Date(adjustment.createdAt).toLocaleString()} · {adjustment.reason} · {adjustment.processedByUser?.name || adjustment.processedByUser?.email || 'Utilisateur'}</span>
                                 <strong>{Number(adjustment.amount).toFixed(2)} {credit.sale.currencyCode}</strong>
                               </li>
                             ))}
