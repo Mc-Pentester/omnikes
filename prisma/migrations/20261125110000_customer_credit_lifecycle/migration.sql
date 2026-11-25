@@ -8,8 +8,8 @@ ALTER TABLE "customers"
 
 ALTER TABLE "users"
   ADD COLUMN IF NOT EXISTS "creditPinHash" TEXT,
-  ADD COLUMN IF NOT EXISTS "creditPinFailedAttempts" INTEGER NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS "creditPinLockedUntil" TIMESTAMP(3);
+  ADD COLUMN IF NOT EXISTS "creditApprovalFailedAttempts" INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "creditApprovalLockedUntil" TIMESTAMP(3);
 
 ALTER TABLE "sale_credits"
   ADD COLUMN IF NOT EXISTS "dueAt" TIMESTAMP(3);
