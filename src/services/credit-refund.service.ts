@@ -79,7 +79,15 @@ export class CreditRefundService {
         Number(priorCreditRefunds._sum.amount || 0)
       );
       const returnRemaining = roundMoney(Number(returnRecord.totalRefunded) - alreadyAllocated);
-      const paymentRemaining = roundMoney(Number(payment.amount) - Number(payment.refundedAmount));
+      // Reconcile against the immutable refund ledger while the payment row is
+      // locked. This prevents stale refundedAmount counters from permitting a
+      // duplicate/over-limit refund.
+      const completedPaymentRefunds = await tx.creditRefund.aggregate({
+        where: { organizationId, creditPaymentId: payment.id, status: 'COMPLETED' },
+        _sum: { amount: true },
+      });
+      const alreadyRefunded = roundMoney(Number(completedPaymentRefunds._sum.amount || 0));
+      const paymentRemaining = roundMoney(Number(payment.amount) - alreadyRefunded);
       if (input.amount > returnRemaining || input.amount > paymentRemaining) {
         throw new Error(`Credit refund exceeds remaining refundable amount (return: ${returnRemaining}, payment: ${paymentRemaining})`);
       }
@@ -111,7 +119,7 @@ export class CreditRefundService {
       });
       await tx.creditPayment.update({
         where: { id: payment.id },
-        data: { refundedAmount: roundMoney(Number(payment.refundedAmount) + input.amount) },
+        data: { refundedAmount: roundMoney(alreadyRefunded + input.amount) },
       });
 
       if (cashSessionId) {
@@ -145,7 +153,7 @@ export class CreditRefundService {
             returnId: returnRecord.id,
             amount: input.amount,
             method: payment.method,
-            paymentRefundedTotal: roundMoney(Number(payment.refundedAmount) + input.amount),
+            paymentRefundedTotal: roundMoney(alreadyRefunded + input.amount),
           },
         },
       });
