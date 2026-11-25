@@ -650,7 +650,7 @@ export default function PendingSalesPage() {
                                 inputMode="numeric"
                                 autoComplete="off"
                                 value={approverPin}
-                                onChange={(event) => setApproverPin(event.target.value.replace(/\\D/g, '').slice(0, 8))}
+                                onChange={(event) => setApproverPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
                                 placeholder="PIN (4 à 8 chiffres)"
                                 disabled={processing || totals.remaining <= 0}
                               />
@@ -658,7 +658,7 @@ export default function PendingSalesPage() {
                           </div>
                           <Button
                             onClick={authorizeCredit}
-                            disabled={processing || totals.remaining <= 0 || !creditAmount || !approverEmail.trim() || (approvalMethod === 'password' ? !approverPassword : !/^\\d{4,8}$/.test(approverPin))}
+                            disabled={processing || totals.remaining <= 0 || !creditAmount || !approverEmail.trim() || (approvalMethod === 'password' ? !approverPassword : !/^\d{4,8}$/.test(approverPin))}
                             variant="outline"
                             className="w-full"
                           >
