@@ -42,6 +42,7 @@ export default function CustomerCreditsPage() {
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('CASH');
   const [reference, setReference] = useState('');
+  const [paymentIdempotencyKey, setPaymentIdempotencyKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [paymentMessage, setPaymentMessage] = useState('');
@@ -86,7 +87,7 @@ export default function CustomerCreditsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Idempotency-Key': crypto.randomUUID(),
+          'Idempotency-Key': paymentIdempotencyKey || crypto.randomUUID(),
         },
         body: JSON.stringify({
           amount: value,
@@ -97,6 +98,7 @@ export default function CustomerCreditsPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Impossible d’enregistrer le remboursement.');
       setPaymentMessage('Paiement enregistré. Solde restant : ' + Number(data.outstandingAfter).toFixed(2) + ' ' + credit.sale.currencyCode);
+      setPaymentIdempotencyKey(null);
       setAmount('');
       setReference('');
       await loadCredits();
@@ -180,7 +182,7 @@ export default function CustomerCreditsPage() {
 
                   <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-3">
                     {user.canReceiveCreditPayment && credit.outstanding > 0 && credit.status === 'AUTHORIZED' && (
-                      <Button size="sm" onClick={() => { setSelectedId(selectedId === credit.id ? null : credit.id); setPaymentError(''); setPaymentMessage(''); }}>
+                      <Button size="sm" onClick={() => { setSelectedId(selectedId === credit.id ? null : credit.id); setPaymentIdempotencyKey(null); setPaymentError(''); setPaymentMessage(''); }}>
                         {selectedId === credit.id ? 'Fermer encaissement' : 'Encaisser un remboursement'}
                       </Button>
                     )}
@@ -192,15 +194,15 @@ export default function CustomerCreditsPage() {
                   {selectedId === credit.id && (
                     <div className="mt-4 max-w-xl space-y-3 rounded-lg border border-border p-4">
                       <h3 className="font-medium">Nouveau remboursement · {credit.sale.currencyCode}</h3>
-                      <Input type="number" min="0.01" max={credit.outstanding} step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder={`Maximum ${credit.outstanding.toFixed(2)}`} />
-                      <select value={method} onChange={(event) => setMethod(event.target.value)} className="h-10 w-full rounded-md border border-border-strong px-3 text-sm">
+                      <Input type="number" min="0.01" max={credit.outstanding} step="0.01" value={amount} onChange={(event) => { setAmount(event.target.value); setPaymentIdempotencyKey(null); }} placeholder={`Maximum ${credit.outstanding.toFixed(2)}`} />
+                      <select value={method} onChange={(event) => { setMethod(event.target.value); setPaymentIdempotencyKey(null); }} className="h-10 w-full rounded-md border border-border-strong px-3 text-sm">
                         <option value="CASH">Espèces</option>
                         <option value="CARD">Carte</option>
                         <option value="MOBILE_MONEY">Mobile Money</option>
                         <option value="BANK_TRANSFER">Virement</option>
                         <option value="CHECK">Chèque</option>
                       </select>
-                      <Input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="Référence (facultative)" />
+                      <Input value={reference} onChange={(event) => { setReference(event.target.value); setPaymentIdempotencyKey(null); }} placeholder="Référence (facultative)" />
                       {paymentError && <p role="alert" className="text-sm text-danger">{paymentError}</p>}
                       {paymentMessage && <p role="status" className="text-sm text-success">{paymentMessage}</p>}
                       <Button disabled={saving || !amount} onClick={() => void receivePayment(credit)}>{saving ? 'Enregistrement…' : 'Confirmer le remboursement'}</Button>
