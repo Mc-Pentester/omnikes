@@ -84,7 +84,7 @@ export default function ProfileSecurityPage() {
       return;
     }
     if (!/^\\d{4,8}$/.test(creditPin)) {
-      setCreditPinError('Le PIN doit contenir de 4 à 8 chiffres.');
+    if (!/^\d{4,8}$/.test(creditPin)) {
       return;
     }
     setCreditPinBusy(true);
@@ -147,11 +147,11 @@ export default function ProfileSecurityPage() {
             </label>
             <label className="block">
               <span className="text-sm font-medium">{creditPinConfigured ? 'Nouveau PIN' : 'PIN personnel'}</span>
-              <input type="password" inputMode="numeric" autoComplete="off" minLength={4} maxLength={8} pattern="[0-9]{4,8}" required value={creditPin} onChange={(event) => setCreditPin(event.target.value.replace(/\\D/g, '').slice(0, 8))} className="mt-1 w-full rounded-lg border bg-background px-3 py-2" />
+              <input type="password" inputMode="numeric" autoComplete="off" minLength={4} maxLength={8} pattern="[0-9]{4,8}" required value={creditPin} onChange={(event) => setCreditPin(event.target.value.replace(/\D/g, '').slice(0, 8))} className="mt-1 w-full rounded-lg border bg-background px-3 py-2" />
             </label>
             <label className="block">
               <span className="text-sm font-medium">Confirmer le PIN</span>
-              <input type="password" inputMode="numeric" autoComplete="off" minLength={4} maxLength={8} pattern="[0-9]{4,8}" required value={creditPinConfirm} onChange={(event) => setCreditPinConfirm(event.target.value.replace(/\\D/g, '').slice(0, 8))} className="mt-1 w-full rounded-lg border bg-background px-3 py-2" />
+              <input type="password" inputMode="numeric" autoComplete="off" minLength={4} maxLength={8} pattern="[0-9]{4,8}" required value={creditPinConfirm} onChange={(event) => setCreditPinConfirm(event.target.value.replace(/\D/g, '').slice(0, 8))} className="mt-1 w-full rounded-lg border bg-background px-3 py-2" />
             </label>
             <button type="submit" disabled={creditPinBusy} className="rounded-lg bg-primary px-5 py-2.5 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50">
               {creditPinBusy ? 'Enregistrement…' : creditPinConfigured ? 'Remplacer mon PIN' : 'Configurer mon PIN'}
