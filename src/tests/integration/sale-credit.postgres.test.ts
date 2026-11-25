@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma } from '@omnikes/lib/prisma';
 import { saleService } from '@omnikes/services/sale.service';
+import { returnService } from '@omnikes/services/return.service';
 
 describe('P0-24-F.2-D - real PostgreSQL sale credit runtime', () => {
   let orgA: { id: string };
@@ -123,6 +124,17 @@ describe('P0-24-F.2-D - real PostgreSQL sale credit runtime', () => {
 
     if (!sale) return;
 
+    const saleCredit = await prisma.saleCredit.findUnique({ where: { saleId }, select: { id: true } });
+    if (saleCredit) {
+      await prisma.creditPayment.deleteMany({ where: { saleCreditId: saleCredit.id } });
+      await prisma.creditAdjustment.deleteMany({ where: { saleCreditId: saleCredit.id } });
+      await prisma.saleCredit.delete({ where: { id: saleCredit.id } });
+    }
+    const returnRows = await prisma.return.findMany({ where: { saleId }, select: { id: true } });
+    if (returnRows.length) {
+      await prisma.creditAdjustment.deleteMany({ where: { returnId: { in: returnRows.map((row) => row.id) } } });
+      await prisma.return.deleteMany({ where: { id: { in: returnRows.map((row) => row.id) } } });
+    }
     await prisma.inventoryMovement.deleteMany({ where: { referenceId: saleId } });
     await prisma.sale.delete({ where: { id: saleId } });
 
@@ -178,6 +190,8 @@ describe('P0-24-F.2-D - real PostgreSQL sale credit runtime', () => {
       customerId: customerA.id,
       amount: 1000,
     });
+    const approvedCredit = await prisma.saleCredit.findUniqueOrThrow({ where: { saleId: sale.id } });
+    expect(approvedCredit.status).toBe('APPROVED_PENDING_COMPLETION');
 
     await saleService.complete(sale.id, orgA.id);
 
@@ -288,6 +302,46 @@ describe('P0-24-F.2-D - real PostgreSQL sale credit runtime', () => {
     ).rejects.toThrow('Credit amount exceeds remaining balance');
 
     expect(await prisma.saleCredit.count({ where: { saleId: sale.id } })).toBe(0);
+  });
+
+  it('invalidates manager approval when the pending sale is edited and permits reapproval', async () => {
+    const { sale } = await createSale();
+    await saleService.authorizeCredit(sale.id, orgA.id, adminA.id, {
+      customerId: customerA.id,
+      amount: 1000,
+    });
+    await saleService.update(sale.id, orgA.id, { notes: 'Basket changed after approval' });
+    const invalidated = await prisma.saleCredit.findUniqueOrThrow({ where: { saleId: sale.id } });
+    expect(invalidated.status).toBe('INVALIDATED');
+
+    await saleService.authorizeCredit(sale.id, orgA.id, adminA.id, {
+      customerId: customerA.id,
+      amount: 1000,
+      note: 'Reapproved after sale edit',
+    });
+    const reapproved = await prisma.saleCredit.findUniqueOrThrow({ where: { saleId: sale.id } });
+    expect(reapproved.status).toBe('APPROVED_PENDING_COMPLETION');
+    expect(reapproved.note).toBe('Reapproved after sale edit');
+  });
+
+  it('reduces outstanding customer debt through an immutable return adjustment', async () => {
+    const { sale } = await createSale();
+    await saleService.authorizeCredit(sale.id, orgA.id, adminA.id, {
+      customerId: customerA.id,
+      amount: 1000,
+    });
+    await saleService.complete(sale.id, orgA.id);
+    const saleItem = await prisma.saleItem.findFirstOrThrow({ where: { saleId: sale.id }, select: { id: true } });
+
+    const returned = await returnService.create(orgA.id, adminA.id, {
+      saleId: sale.id,
+      items: [{ saleItemId: saleItem.id, quantity: 1 }],
+      reason: 'Customer returned the item',
+    });
+    const adjustment = await prisma.creditAdjustment.findUniqueOrThrow({ where: { returnId: returned.id } });
+    const credit = await prisma.saleCredit.findUniqueOrThrow({ where: { saleId: sale.id } });
+    expect(Number(adjustment.amount)).toBe(1000);
+    expect(credit.status).toBe('SETTLED');
   });
 
   it('rejects a second credit agreement for the same sale', async () => {
