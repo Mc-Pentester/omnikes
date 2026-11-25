@@ -42,6 +42,9 @@ model Organization {
   taxEnabled Boolean @default(false)
   taxRate    Decimal @default(0) @db.Decimal(5, 4)
 
+  // Customer credit policy defaults; per-sale due dates remain immutable snapshots.
+  creditDefaultDueDays Int @default(30)
+
   // Legacy country tax configuration retained for backward compatibility.
   taxConfigurationId String?
 
@@ -64,6 +67,7 @@ model Organization {
   suppliers        Supplier[]
   purchases        Purchase[]
   supplierPayments SupplierPayment[]
+  creditPayments CreditPayment[]
   supplierPaymentIdempotency SupplierPaymentIdempotency[]
   taxConfiguration TaxConfiguration? @relation(fields: [taxConfigurationId], references: [id])
 
@@ -99,6 +103,7 @@ model Store {
   sales        Sale[]
   proformas    Proforma[]
   saleCredits  SaleCredit[]
+  creditLimit Decimal? @db.Decimal(12, 2)
   returns      Return[]
   purchases    Purchase[]
   payments     SupplierPayment[]
@@ -141,6 +146,10 @@ model User {
   sessions           Session[]
   auditLogs             AuditLog[]
   authorizedSaleCredits SaleCredit[] @relation("SaleCreditAuthorizedBy")
+  receivedCreditPayments CreditPayment[] @relation("CreditPaymentReceivedBy")
+  creditPinHash String?
+  creditPinFailedAttempts Int @default(0)
+  creditPinLockedUntil DateTime?
   openedCashSessions CashSession[] @relation("CashSessionOpenedBy")
   closedCashSessions CashSession[] @relation("CashSessionClosedBy")
   cashMovements CashMovement[] @relation("CashMovementCreatedBy")
@@ -893,6 +902,7 @@ model SaleCredit {
   authorizedBy   String
   authorizedAt   DateTime @default(now())
   note           String?
+  dueAt          DateTime
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -901,6 +911,7 @@ model SaleCredit {
   sale              Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
   customer          Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
   authorizedByUser  User         @relation("SaleCreditAuthorizedBy", fields: [authorizedBy], references: [id], onDelete: Restrict)
+  payments          CreditPayment[]
 
   @@unique([saleId])
   @@index([organizationId])
@@ -909,6 +920,36 @@ model SaleCredit {
   @@index([authorizedBy])
   @@index([status])
   @@map("sale_credits")
+}
+
+// ============================================================
+// CREDIT_PAYMENT (Customer credit collection ledger)
+// ============================================================
+
+model CreditPayment {
+  id             String   @id @default(cuid())
+  organizationId String
+  storeId        String
+  saleCreditId   String
+  receivedBy     String
+  cashSessionId  String?
+  amount         Decimal  @db.Decimal(12, 2)
+  method         String
+  reference      String?
+  idempotencyKey String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  store        Store        @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  saleCredit   SaleCredit   @relation(fields: [saleCreditId], references: [id], onDelete: Restrict)
+  receivedByUser User       @relation("CreditPaymentReceivedBy", fields: [receivedBy], references: [id], onDelete: Restrict)
+  cashSession  CashSession? @relation(fields: [cashSessionId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, storeId, createdAt])
+  @@index([saleCreditId, createdAt])
+  @@index([receivedBy])
+  @@map("credit_payments")
 }
 
 // ============================================================
