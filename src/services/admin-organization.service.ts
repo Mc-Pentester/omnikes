@@ -25,6 +25,7 @@ export class AdminOrganizationService {
         onlineStoreEnabled: true,
         taxEnabled: true,
         taxRate: true,
+        creditDefaultDueDays: true,
         taxConfigurationId: true,
         createdAt: true,
         updatedAt: true,
@@ -64,6 +65,7 @@ export class AdminOrganizationService {
         onlineStoreEnabled: true,
         taxEnabled: true,
         taxRate: true,
+        creditDefaultDueDays: true,
       },
     });
 
@@ -88,6 +90,7 @@ export class AdminOrganizationService {
         onlineStoreEnabled: true,
         taxEnabled: true,
         taxRate: true,
+        creditDefaultDueDays: true,
         taxConfigurationId: true,
         createdAt: true,
         updatedAt: true,
@@ -104,6 +107,7 @@ export class AdminOrganizationService {
       onlineStoreEnabled: existing.onlineStoreEnabled,
       taxEnabled: existing.taxEnabled,
       taxRate: Number(existing.taxRate) * 100,
+      creditDefaultDueDays: existing.creditDefaultDueDays,
     };
     const newValues = {
       name: updated.name,
@@ -115,6 +119,7 @@ export class AdminOrganizationService {
       onlineStoreEnabled: updated.onlineStoreEnabled,
       taxEnabled: updated.taxEnabled,
       taxRate: Number(updated.taxRate) * 100,
+      creditDefaultDueDays: updated.creditDefaultDueDays,
     };
 
     await prisma.auditLog.create({
