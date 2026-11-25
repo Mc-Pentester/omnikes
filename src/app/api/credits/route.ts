@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       organizationId: user.organizationId,
       ...(storeScope ? { storeId: { in: storeScope } } : {}),
       ...(customerId ? { customerId } : {}),
-      ...(status ? { status } : {}),
+      ...(status ? { status } : { status: { in: ['AUTHORIZED', 'SETTLED'] } }),
       ...(overdueOnly ? { status: 'AUTHORIZED', dueAt: { lt: new Date() } } : {}),
     };
 
