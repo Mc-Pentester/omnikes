@@ -51,7 +51,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         return NextResponse.json({ error: 'Idempotency-Key already used with different credit payment data' }, { status: 409 });
       }
       await requireStoreAccess(request, existing.storeId);
-      return NextResponse.json(existing);
+      const currentCredit = await prisma.saleCredit.findFirst({
+        where: { id, organizationId: user.organizationId },
+        include: {
+          payments: { select: { amount: true } },
+          adjustments: { select: { amount: true } },
+          sale: { select: { currencyCode: true } },
+        },
+      });
+      const outstandingAfter = currentCredit
+        ? roundMoney(Number(currentCredit.amount)
+          - currentCredit.payments.reduce((sum, item) => sum + Number(item.amount), 0)
+          - currentCredit.adjustments.reduce((sum, item) => sum + Number(item.amount), 0))
+        : 0;
+      return NextResponse.json({
+        ...existing,
+        outstandingAfter: Math.max(0, outstandingAfter),
+        currencyCode: currentCredit?.sale.currencyCode,
+      });
     }
 
     const creditForAccess = await prisma.saleCredit.findFirst({
