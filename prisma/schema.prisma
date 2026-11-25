@@ -909,6 +909,7 @@ model SaleCredit {
   status         String   @default("AUTHORIZED") // APPROVED_PENDING_COMPLETION, INVALIDATED, AUTHORIZED, SETTLED, CANCELLED
   authorizedBy   String
   authorizedAt   DateTime @default(now())
+  expiresAt      DateTime?
   note           String?
   dueAt          DateTime
   createdAt      DateTime @default(now())

@@ -477,6 +477,11 @@ export class SaleService {
         throw new Error(`Sale cannot be completed from status ${sale.status}`);
       }
 
+      if (sale.saleCredit?.status === 'APPROVED_PENDING_COMPLETION'
+        && (!sale.saleCredit.expiresAt || sale.saleCredit.expiresAt <= new Date())) {
+        throw new Error('Credit approval has expired; request a new approval');
+      }
+
       // Only real completed payments count as money received.
       // Historical Payment.method=CREDIT records are intentionally excluded;
       // new credit must be represented by SaleCredit.
@@ -810,7 +815,9 @@ export class SaleService {
       if (!sale.customerId) {
         throw new Error('A customer is required to authorize credit');
       }
-      if (sale.saleCredit && sale.saleCredit.status !== 'INVALIDATED') {
+      const expiredPendingApproval = sale.saleCredit?.status === 'APPROVED_PENDING_COMPLETION'
+        && (!sale.saleCredit.expiresAt || sale.saleCredit.expiresAt <= new Date());
+      if (sale.saleCredit && sale.saleCredit.status !== 'INVALIDATED' && !expiredPendingApproval) {
         throw new Error('Credit is already authorized for this sale');
       }
 
@@ -873,10 +880,11 @@ export class SaleService {
         status: 'APPROVED_PENDING_COMPLETION',
         authorizedBy,
         authorizedAt: new Date(),
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
         note: validatedData.note,
         dueAt,
       };
-      const credit = sale.saleCredit?.status === 'INVALIDATED'
+      const credit = sale.saleCredit && (sale.saleCredit.status === 'INVALIDATED' || expiredPendingApproval)
         ? await tx.saleCredit.update({
             where: { id: sale.saleCredit.id },
             data: creditData,

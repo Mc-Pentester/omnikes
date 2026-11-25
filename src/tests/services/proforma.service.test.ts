@@ -508,6 +508,49 @@ describe('ProformaService - Conversion', () => {
     });
   });
 
+  describe('Create returns persisted totals', () => {
+    it('returns the recalculated and rounded database record', async () => {
+      const organizationId = 'org-create-rounding';
+      const created = { id: 'proforma-created', applyTax: true };
+      const persisted = {
+        id: created.id,
+        subtotal: 0.1,
+        tax: 0.02,
+        total: 0.12,
+        items: [{ unitPrice: 0.05, quantity: 2, discount: 0 }],
+      };
+      const finalRecord = { ...persisted, store: { id: 'store-1' }, customer: null };
+      const tx = {
+        proforma: {
+          create: vi.fn().mockResolvedValue(created),
+          findUnique: vi.fn().mockResolvedValueOnce(persisted).mockResolvedValueOnce(finalRecord),
+          update: vi.fn().mockResolvedValue(persisted),
+        },
+        productVariant: {
+          findFirst: vi.fn().mockResolvedValue({ price: 0.05, product: { id: 'product-1' } }),
+        },
+        proformaItem: { create: vi.fn().mockResolvedValue({}) },
+      };
+      (prismaMock.organization.findUnique as any).mockResolvedValue({
+        id: organizationId, taxEnabled: true, taxRate: 0.18,
+      });
+      (prismaMock.$transaction as any).mockImplementation(async (callback: any) => callback(tx));
+
+      const result = await proformaService.create(organizationId, {
+        storeId: 'store-1',
+        proformaNumber: 'PF-ROUND-1',
+        subtotal: 0,
+        total: 0,
+        items: [{ variantId: 'variant-1', quantity: 2 }],
+      } as any);
+
+      expect(tx.proforma.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: { subtotal: 0.1, tax: 0.02, total: 0.12 },
+      }));
+      expect(result).toEqual(finalRecord);
+    });
+  });
+
   describe('Tax Rate Initialization', () => {
     it('should initialize tax rate from organization configuration', async () => {
       const mockOrganizationId = 'cmu8gsgwp0000fgqr0uckya14';

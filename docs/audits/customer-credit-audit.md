@@ -50,7 +50,7 @@ La finalisation de vente sait déjà tenir compte du paiement réel et du crédi
 1. Autorisation par autre utilisateur habilité, directement au POS, avec mot de passe ou PIN.
 2. Permission granulaire `credit.approve` (avec compatibilité/migration contrôlée depuis `sale.credit`).
 3. Hash et gestion sécurisée d'un PIN distinct, avec limitation des tentatives et réinitialisation.
-4. Liaison de l'approbation à un instantané de vente (client, montant, devise, magasin) et expiration courte/usage unique.
+4. Liaison de l'approbation à un instantané de vente (client, montant, devise, magasin), expiration après 15 minutes et usage unique.
 5. Paramètre d'organisation pour le délai standard de remboursement, modifiable par le responsable sur une vente.
 6. Plafond facultatif par client, calculé sur les créances ouvertes et protégé contre les approbations concurrentes.
 7. Registre de créance et remboursements partiels/totaux traçables, avec affectation à une vente et reçu.

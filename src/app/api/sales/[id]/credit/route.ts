@@ -62,6 +62,38 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid manager approval credentials' }, { status: 403 });
     }
 
+    // Check authorization before any credential comparison or lockout mutation.
+    if (!(await roleRepository.hasPermission(approver.id, 'credit.approve'))) {
+      return NextResponse.json({ error: 'Approver is not authorized to approve customer credit' }, { status: 403 });
+    }
+
+    if (!(await roleRepository.canAccessStore(approver.id, sale.storeId))) {
+      return NextResponse.json({ error: 'Approver is not authorized for this store' }, { status: 403 });
+    }
+
+    // Throttle each requester/approver pair independently. This prevents a cashier
+    // from repeatedly challenging one manager while keeping unrelated checkouts isolated.
+    const rateLimitIdentifier = `credit-approval:${organizationId}:${user.id}:${approver.id}`;
+    const rateLimitRows = await prisma.$queryRaw<Array<{ count: number }>>`
+      INSERT INTO rate_limit_buckets (id, identifier, count, "resetTime", "updatedAt")
+      VALUES (${rateLimitIdentifier}, ${rateLimitIdentifier}, 1, NOW() + INTERVAL '15 minutes', NOW())
+      ON CONFLICT (identifier) DO UPDATE
+      SET
+        count = CASE
+          WHEN rate_limit_buckets."resetTime" <= NOW() THEN 1
+          ELSE rate_limit_buckets.count + 1
+        END,
+        "resetTime" = CASE
+          WHEN rate_limit_buckets."resetTime" <= NOW() THEN NOW() + INTERVAL '15 minutes'
+          ELSE rate_limit_buckets."resetTime"
+        END,
+        "updatedAt" = NOW()
+      RETURNING count
+    `;
+    if ((rateLimitRows[0]?.count ?? 0) > 5) {
+      return NextResponse.json({ error: 'Too many credit approval attempts. Please wait 15 minutes.' }, { status: 429 });
+    }
+
     // Both password and PIN challenges share the same persistent lockout.
     // The row lock makes concurrent guesses count atomically.
     const credentialResult = await prisma.$transaction(async (tx) => {
@@ -111,14 +143,6 @@ export async function POST(
     }
     if (!credentialResult.valid) {
       return NextResponse.json({ error: 'Invalid manager approval credentials' }, { status: 403 });
-    }
-
-    if (!(await roleRepository.hasPermission(approver.id, 'credit.approve'))) {
-      return NextResponse.json({ error: 'Approver is not authorized to approve customer credit' }, { status: 403 });
-    }
-
-    if (!(await roleRepository.canAccessStore(approver.id, sale.storeId))) {
-      return NextResponse.json({ error: 'Approver is not authorized for this store' }, { status: 403 });
     }
 
     const credit = await saleService.authorizeCredit(

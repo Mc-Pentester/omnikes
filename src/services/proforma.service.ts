@@ -151,10 +151,10 @@ export class ProformaService {
 
           let tax = 0;
           if (updatedProforma.applyTax) {
-            tax = subtotal * initialTaxRate;
+            tax = roundMoney(subtotal * initialTaxRate);
           }
 
-          const total = subtotal + tax;
+          const total = roundMoney(subtotal + tax);
 
           await tx.proforma.update({
             where: { id: proforma.id },
@@ -167,7 +167,23 @@ export class ProformaService {
         }
       }
 
-      return proforma;
+      // Return the final persisted representation, including recalculated totals.
+      return tx.proforma.findUnique({
+        where: { id: proforma.id },
+        include: {
+          store: true,
+          customer: true,
+          items: {
+            include: {
+              variant: {
+                include: {
+                  product: true,
+                },
+              },
+            },
+          },
+        },
+      });
     });
   }
 
