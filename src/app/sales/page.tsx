@@ -67,6 +67,9 @@ export default function PendingSalesPage() {
   const [creditNote, setCreditNote] = useState('');
   const [approverEmail, setApproverEmail] = useState('');
   const [approverPassword, setApproverPassword] = useState('');
+  const [approverPin, setApproverPin] = useState('');
+  const [approvalMethod, setApprovalMethod] = useState<'password' | 'pin'>('password');
+  const [creditDueAt, setCreditDueAt] = useState('');
   const [compact, setCompact] = useState(false);
 
   const loadSales = useCallback(async () => {
@@ -300,7 +303,8 @@ export default function PendingSalesPage() {
           amount,
           note: creditNote.trim() || undefined,
           approverEmail: approverEmail.trim(),
-          approverPassword,
+          ...(approvalMethod === 'password' ? { approverPassword } : { approverPin }),
+          ...(creditDueAt ? { dueAt: new Date(creditDueAt + 'T23:59:59').toISOString() } : {}),
         }),
       });
 
@@ -311,6 +315,8 @@ export default function PendingSalesPage() {
       setCreditNote('');
       setApproverEmail('');
       setApproverPassword('');
+      setApproverPin('');
+      setCreditDueAt('');
       await refreshAfterMutation();
 
       const refreshed = await fetch('/api/sales/' + selectedSale.id);
@@ -576,7 +582,7 @@ export default function PendingSalesPage() {
                       </div>
                     </section>
 
-                  {user.canAuthorizeCredit === true && (
+                  {user.canRequestCredit === true && (
                     <section className="border rounded-lg p-4">
                       <h3 className="font-semibold text-foreground mb-3">Accorder un crédit</h3>
                       {!selectedSale.customer ? (
@@ -602,9 +608,16 @@ export default function PendingSalesPage() {
                             disabled={processing || totals.remaining <= 0}
                             maxLength={1000}
                           />
+                          <Input
+                            type="date"
+                            value={creditDueAt}
+                            onChange={(event) => setCreditDueAt(event.target.value)}
+                            placeholder="Date d'échéance (optionnelle)"
+                            disabled={processing || totals.remaining <= 0}
+                          />
                           <div className="rounded-md border border-border p-3 space-y-2">
                             <p className="text-sm font-medium text-foreground">Validation par un responsable</p>
-                            <p className="text-xs text-muted">Un autre utilisateur habilité doit confirmer sur place avec ses propres identifiants.</p>
+                            <p className="text-xs text-muted">Un autre utilisateur habilité doit confirmer sur place. Il peut utiliser son mot de passe ou son PIN personnel.</p>
                             <Input
                               type="email"
                               autoComplete="username"
@@ -613,18 +626,39 @@ export default function PendingSalesPage() {
                               placeholder="E-mail du responsable"
                               disabled={processing || totals.remaining <= 0}
                             />
-                            <Input
-                              type="password"
-                              autoComplete="current-password"
-                              value={approverPassword}
-                              onChange={(event) => setApproverPassword(event.target.value)}
-                              placeholder="Mot de passe du responsable"
+                            <select
+                              value={approvalMethod}
+                              onChange={(event) => setApprovalMethod(event.target.value as 'password' | 'pin')}
+                              className="w-full h-10 rounded-md border border-border-strong px-3 text-sm"
                               disabled={processing || totals.remaining <= 0}
-                            />
+                            >
+                              <option value="password">Mot de passe</option>
+                              <option value="pin">PIN confidentiel</option>
+                            </select>
+                            {approvalMethod === 'password' ? (
+                              <Input
+                                type="password"
+                                autoComplete="current-password"
+                                value={approverPassword}
+                                onChange={(event) => setApproverPassword(event.target.value)}
+                                placeholder="Mot de passe du responsable"
+                                disabled={processing || totals.remaining <= 0}
+                              />
+                            ) : (
+                              <Input
+                                type="password"
+                                inputMode="numeric"
+                                autoComplete="off"
+                                value={approverPin}
+                                onChange={(event) => setApproverPin(event.target.value.replace(/\\D/g, '').slice(0, 8))}
+                                placeholder="PIN (4 à 8 chiffres)"
+                                disabled={processing || totals.remaining <= 0}
+                              />
+                            )}
                           </div>
                           <Button
                             onClick={authorizeCredit}
-                            disabled={processing || totals.remaining <= 0 || !creditAmount || !approverEmail.trim() || !approverPassword}
+                            disabled={processing || totals.remaining <= 0 || !creditAmount || !approverEmail.trim() || (approvalMethod === 'password' ? !approverPassword : !/^\\d{4,8}$/.test(approverPin))}
                             variant="outline"
                             className="w-full"
                           >
