@@ -72,6 +72,7 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 -- Dedicated permissions for collection, customer limits, settings and reporting.
 INSERT INTO "permissions" ("id", "code", "description", "module", "createdAt")
 VALUES
+  ('credit-request-permission','credit.request','Request customer credit at POS','credit',CURRENT_TIMESTAMP),
   ('credit-payment-receive-permission','credit.payment.receive','Receive customer credit repayments','credit',CURRENT_TIMESTAMP),
   ('credit-view-permission','credit.view','View customer credit balances','credit',CURRENT_TIMESTAMP),
   ('credit-history-view-permission','credit.history.view','View customer credit repayment history','credit',CURRENT_TIMESTAMP),
@@ -86,6 +87,7 @@ SELECT 'credit-lifecycle-' || md5(r."id" || ':' || p."id"), r."id", p."id", CURR
 FROM "roles" r
 JOIN "permissions" p ON (
   (p."code" IN ('credit.payment.receive','credit.view','credit.history.view') AND r."name" IN ('ADMIN','MANAGER','SUPERVISOR','STORE_MANAGER','SALES_MANAGER','CASHIER'))
+  OR (p."code" = 'credit.request' AND r."name" IN ('ADMIN','MANAGER','SUPERVISOR','STORE_MANAGER','SALES_MANAGER','CASHIER','SELLER','SALES_ASSOCIATE'))
   OR (p."code" IN ('credit.report.view','credit.view','credit.history.view') AND r."name" IN ('ADMIN','MANAGER','SUPERVISOR','STORE_MANAGER','SALES_MANAGER','ACCOUNTANT','AUDITOR'))
   OR (p."code" = 'credit.limit.manage' AND r."name" IN ('ADMIN','MANAGER','STORE_MANAGER','SALES_MANAGER'))
   OR (p."code" = 'credit.settings.manage' AND r."name" IN ('ADMIN'))
