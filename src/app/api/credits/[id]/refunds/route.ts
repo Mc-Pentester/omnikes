@@ -9,7 +9,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     const user = await getAuthenticatedUser(request);
     if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    await requirePermission(request, 'payment.refund');
+    await requirePermission(request, 'credit.refund');
     await requireSubscriptionCapability(request, 'customers.credit', 'WRITE');
 
     const { id } = await params;
