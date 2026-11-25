@@ -27,6 +27,8 @@ interface Sale {
   total: string | number;
   createdAt: string;
   storeId: string;
+  currencyCode: string;
+  currencySymbol: string;
   store?: { id: string; name: string; code: string } | null;
   customer?: { id: string; name: string; phone?: string | null } | null;
   items: Array<{
@@ -65,6 +67,11 @@ export default function PendingSalesPage() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [creditAmount, setCreditAmount] = useState('');
   const [creditNote, setCreditNote] = useState('');
+  const [approverEmail, setApproverEmail] = useState('');
+  const [approverPassword, setApproverPassword] = useState('');
+  const [approverPin, setApproverPin] = useState('');
+  const [approvalMethod, setApprovalMethod] = useState<'password' | 'pin'>('password');
+  const [creditDueAt, setCreditDueAt] = useState('');
   const [compact, setCompact] = useState(false);
 
   const loadSales = useCallback(async () => {
@@ -125,7 +132,7 @@ export default function PendingSalesPage() {
     const paid = selectedSale.payments
       .filter((payment) => payment.status === 'COMPLETED' && payment.method !== 'CREDIT')
       .reduce((sum, payment) => sum + Number(payment.amount), 0);
-    const credit = selectedSale.saleCredit?.status === 'AUTHORIZED'
+    const credit = selectedSale.saleCredit?.status === 'AUTHORIZED' || selectedSale.saleCredit?.status === 'APPROVED_PENDING_COMPLETION'
       ? Number(selectedSale.saleCredit.amount)
       : 0;
     return {
@@ -219,7 +226,7 @@ export default function PendingSalesPage() {
     const outstandingBeforePayment = totals.remaining;
 
     if (!Number.isFinite(amount) || amount <= 0 || amount > outstandingBeforePayment) {
-      setError(`Montant invalide. Maximum autorisé: ${money(outstandingBeforePayment)} HTG.`);
+      setError(`Montant invalide. Maximum autorisé: ${money(outstandingBeforePayment)} ${selectedSale.currencyCode}.`);
       return;
     }
 
@@ -253,7 +260,7 @@ export default function PendingSalesPage() {
         const paid = sale.payments
           .filter((payment) => payment.status === 'COMPLETED' && payment.method !== 'CREDIT')
           .reduce((sum, payment) => sum + Number(payment.amount), 0);
-        const credit = sale.saleCredit?.status === 'AUTHORIZED' ? Number(sale.saleCredit.amount) : 0;
+        const credit = sale.saleCredit?.status === 'AUTHORIZED' || sale.saleCredit?.status === 'APPROVED_PENDING_COMPLETION' ? Number(sale.saleCredit.amount) : 0;
 
         if (paid + credit >= Number(sale.total)) {
           const completeResponse = await fetch('/api/sales/' + selectedSale.id + '/complete', { method: 'POST' });
@@ -282,7 +289,7 @@ export default function PendingSalesPage() {
     const remainingBeforeCredit = Math.max(0, Number(selectedSale.total) - totals.paid);
 
     if (!Number.isFinite(amount) || amount <= 0 || amount > remainingBeforeCredit) {
-      setError(`Crédit invalide. Maximum autorisé: ${money(remainingBeforeCredit)} HTG.`);
+      setError(`Crédit invalide. Maximum autorisé: ${money(remainingBeforeCredit)} ${selectedSale.currencyCode}.`);
       return;
     }
 
@@ -297,6 +304,9 @@ export default function PendingSalesPage() {
           customerId: selectedSale.customer.id,
           amount,
           note: creditNote.trim() || undefined,
+          approverEmail: approverEmail.trim(),
+          ...(approvalMethod === 'password' ? { approverPassword } : { approverPin }),
+          ...(creditDueAt ? { dueAt: new Date(creditDueAt + 'T23:59:59').toISOString() } : {}),
         }),
       });
 
@@ -305,6 +315,10 @@ export default function PendingSalesPage() {
 
       setCreditAmount('');
       setCreditNote('');
+      setApproverEmail('');
+      setApproverPassword('');
+      setApproverPin('');
+      setCreditDueAt('');
       await refreshAfterMutation();
 
       const refreshed = await fetch('/api/sales/' + selectedSale.id);
@@ -313,7 +327,7 @@ export default function PendingSalesPage() {
         const paid = sale.payments
           .filter((payment) => payment.status === 'COMPLETED' && payment.method !== 'CREDIT')
           .reduce((sum, payment) => sum + Number(payment.amount), 0);
-        const credit = sale.saleCredit?.status === 'AUTHORIZED' ? Number(sale.saleCredit.amount) : 0;
+        const credit = sale.saleCredit && ['AUTHORIZED', 'APPROVED_PENDING_COMPLETION'].includes(sale.saleCredit.status) ? Number(sale.saleCredit.amount) : 0;
 
         if (paid + credit >= Number(sale.total)) {
           const completeResponse = await fetch('/api/sales/' + selectedSale.id + '/complete', { method: 'POST' });
@@ -395,7 +409,7 @@ export default function PendingSalesPage() {
                     const paid = sale.payments
                       .filter((payment) => payment.status === 'COMPLETED' && payment.method !== 'CREDIT')
                       .reduce((sum, payment) => sum + Number(payment.amount), 0);
-                    const credit = sale.saleCredit?.status === 'AUTHORIZED' ? Number(sale.saleCredit.amount) : 0;
+                    const credit = sale.saleCredit && ['AUTHORIZED', 'APPROVED_PENDING_COMPLETION'].includes(sale.saleCredit.status) ? Number(sale.saleCredit.amount) : 0;
                     const remaining = Math.max(0, Number(sale.total) - paid - credit);
                     const fullyCovered = remaining <= 0;
 
@@ -407,12 +421,12 @@ export default function PendingSalesPage() {
                       >
                         <div className="flex justify-between gap-3">
                           <span className="font-semibold text-foreground">{sale.orderNumber}</span>
-                          <span className="font-bold text-foreground">{money(sale.total)} HTG</span>
+                          <span className="font-bold text-foreground">{money(sale.total)} {sale.currencyCode}</span>
                         </div>
                         <div className="flex justify-between gap-3 mt-2 text-sm">
                           <span className="text-muted">{sale.customer?.name || 'Client anonyme'}</span>
                           <span className={fullyCovered ? 'text-warning font-semibold' : 'text-warning font-medium'}>
-                            {fullyCovered ? 'Paiement complet — finalisation en attente' : 'Reste ' + money(remaining) + ' HTG'}
+                            {fullyCovered ? 'Paiement complet — finalisation en attente' : 'Reste ' + money(remaining) + ' ' + sale.currencyCode}
                           </span>
                         </div>
                         <p className="text-xs text-muted mt-2">
@@ -456,15 +470,15 @@ export default function PendingSalesPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 my-5">
                     <div className="p-4 rounded-lg bg-background">
                       <p className="text-xs text-muted">Total vente</p>
-                      <p className="text-xl font-bold">{money(selectedSale.total)} HTG</p>
+                      <p className="text-xl font-bold">{money(selectedSale.total)} {selectedSale.currencyCode}</p>
                     </div>
                     <div className="p-4 rounded-lg bg-background">
                       <p className="text-xs text-muted">Déjà encaissé</p>
-                      <p className="text-xl font-bold">{money(totals.paid)} HTG</p>
+                      <p className="text-xl font-bold">{money(totals.paid)} {selectedSale.currencyCode}</p>
                     </div>
                     <div className="p-4 rounded-lg bg-background">
                       <p className="text-xs text-muted">Crédit autorisé</p>
-                      <p className="text-xl font-bold">{money(totals.credit)} HTG</p>
+                      <p className="text-xl font-bold">{money(totals.credit)} {selectedSale.currencyCode}</p>
                     </div>
                   </div>
 
@@ -478,8 +492,8 @@ export default function PendingSalesPage() {
                             <p className="text-sm text-muted">{item.variant.name} · {item.variant.sku}</p>
                           </div>
                           <div className="text-right">
-                            <p className="font-medium">{item.quantity} × {money(item.unitPrice)} HTG</p>
-                            <p className="font-bold">{money(item.totalPrice)} HTG</p>
+                            <p className="font-medium">{item.quantity} × {money(item.unitPrice)} {selectedSale.currencyCode}</p>
+                            <p className="font-bold">{money(item.totalPrice)} {selectedSale.currencyCode}</p>
                           </div>
                         </div>
                       ))}
@@ -493,7 +507,7 @@ export default function PendingSalesPage() {
                         {selectedSale.payments.map((payment) => (
                           <div key={payment.id} className="p-3 flex justify-between text-sm">
                             <span>{paymentMethods.find((method) => method.value === payment.method)?.label || payment.method}</span>
-                            <span className="font-semibold">{money(payment.amount)} HTG</span>
+                            <span className="font-semibold">{money(payment.amount)} {selectedSale.currencyCode}</span>
                           </div>
                         ))}
                       </div>
@@ -503,7 +517,7 @@ export default function PendingSalesPage() {
                   {selectedSale.saleCredit && (
                     <div className="mb-6 p-4 rounded-lg border border-border bg-warning-soft">
                       <p className="font-semibold text-warning">Crédit autorisé</p>
-                      <p className="text-sm text-warning mt-1">{money(selectedSale.saleCredit.amount)} HTG pour {selectedSale.customer?.name || 'le client'}</p>
+                      <p className="text-sm text-warning mt-1">{money(selectedSale.saleCredit.amount)} {selectedSale.currencyCode} pour {selectedSale.customer?.name || 'le client'}</p>
                       {selectedSale.saleCredit.note && <p className="text-sm text-warning mt-1">{selectedSale.saleCredit.note}</p>}
                     </div>
                   )}
@@ -557,7 +571,7 @@ export default function PendingSalesPage() {
                           step="0.01"
                           value={paymentAmount}
                           onChange={(event) => setPaymentAmount(event.target.value)}
-                          placeholder={`Maximum ${money(totals.remaining)} HTG`}
+                          placeholder={`Maximum ${money(totals.remaining)} ${selectedSale.currencyCode}`}
                           disabled={processing || totals.remaining <= 0}
                         />
                         <Button
@@ -570,7 +584,7 @@ export default function PendingSalesPage() {
                       </div>
                     </section>
 
-                  {user.canAuthorizeCredit === true && (
+                  {user.canRequestCredit === true && (
                     <section className="border rounded-lg p-4">
                       <h3 className="font-semibold text-foreground mb-3">Accorder un crédit</h3>
                       {!selectedSale.customer ? (
@@ -586,19 +600,71 @@ export default function PendingSalesPage() {
                             step="0.01"
                             value={creditAmount}
                             onChange={(event) => setCreditAmount(event.target.value)}
-                            placeholder={`Maximum ${money(Math.max(0, Number(selectedSale.total) - totals.paid))} HTG`}
+                            placeholder={`Maximum ${money(Math.max(0, Number(selectedSale.total) - totals.paid))} ${selectedSale.currencyCode}`}
                             disabled={processing || totals.remaining <= 0}
                           />
-                          <Input
-                            value={creditNote}
-                            onChange={(event) => setCreditNote(event.target.value)}
-                            placeholder="Note facultative"
-                            disabled={processing || totals.remaining <= 0}
-                            maxLength={1000}
-                          />
+                          <div className="rounded-md border border-border p-3 space-y-2">
+                            <p className="text-sm font-medium text-foreground">Validation par un responsable</p>
+                            <p className="text-xs text-muted">Le responsable choisit l&apos;échéance, confirme le motif et autorise sur place avec son mot de passe ou son PIN personnel.</p>
+                            <label className="block text-xs font-medium text-muted">Motif / note (obligatoire si le plafond client est dépassé)
+                              <Input
+                                value={creditNote}
+                                onChange={(event) => setCreditNote(event.target.value)}
+                                placeholder="Motif de l&apos;exception ou note facultative"
+                                disabled={processing || totals.remaining <= 0}
+                                maxLength={1000}
+                              />
+                            </label>
+                            <label className="block text-xs font-medium text-muted">Date d&apos;échéance choisie par le responsable
+                              <Input
+                                type="date"
+                                value={creditDueAt}
+                                onChange={(event) => setCreditDueAt(event.target.value)}
+                                placeholder="Échéance par défaut de l'organisation"
+                                disabled={processing || totals.remaining <= 0}
+                              />
+                            </label>
+                            <Input
+                              type="email"
+                              autoComplete="username"
+                              value={approverEmail}
+                              onChange={(event) => setApproverEmail(event.target.value)}
+                              placeholder="E-mail du responsable"
+                              disabled={processing || totals.remaining <= 0}
+                            />
+                            <select
+                              value={approvalMethod}
+                              onChange={(event) => setApprovalMethod(event.target.value as 'password' | 'pin')}
+                              className="w-full h-10 rounded-md border border-border-strong px-3 text-sm"
+                              disabled={processing || totals.remaining <= 0}
+                            >
+                              <option value="password">Mot de passe</option>
+                              <option value="pin">PIN confidentiel</option>
+                            </select>
+                            {approvalMethod === 'password' ? (
+                              <Input
+                                type="password"
+                                autoComplete="current-password"
+                                value={approverPassword}
+                                onChange={(event) => setApproverPassword(event.target.value)}
+                                placeholder="Mot de passe du responsable"
+                                disabled={processing || totals.remaining <= 0}
+                              />
+                            ) : (
+                              <Input
+                                type="password"
+                                inputMode="numeric"
+                                autoComplete="off"
+                                value={approverPin}
+                                onChange={(event) => setApproverPin(event.target.value.replace(/\D/g, '').slice(0, 8))}
+                                placeholder="PIN (4 à 8 chiffres)"
+                                disabled={processing || totals.remaining <= 0}
+                              />
+                            )}
+                          </div>
                           <Button
                             onClick={authorizeCredit}
-                            disabled={processing || totals.remaining <= 0 || !creditAmount}
+                            disabled={processing || totals.remaining <= 0 || !creditAmount || !approverEmail.trim() || (approvalMethod === 'password' ? !approverPassword : !/^\d{4,8}$/.test(approverPin))}
                             variant="outline"
                             className="w-full"
                           >
@@ -612,7 +678,7 @@ export default function PendingSalesPage() {
                   <div className="mt-6 p-4 rounded-lg bg-foreground text-white flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div>
                       <p className="text-sm text-surface-muted">Reste à couvrir</p>
-                      <p className="text-2xl font-bold">{money(totals.remaining)} HTG</p>
+                      <p className="text-2xl font-bold">{money(totals.remaining)} {selectedSale.currencyCode}</p>
                     </div>
                     <p className="text-sm text-surface-muted max-w-xl">
                       La finalisation est exclusivement contrôlée par le serveur. Elle intervient seulement lorsque les paiements réels + le crédit explicitement autorisé couvrent le total et que le stock est disponible.

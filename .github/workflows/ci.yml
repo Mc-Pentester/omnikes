@@ -2,10 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop, feature/windows-webview2-desktop, feat/organization-tax-webview-print ]
+    branches: [ main, develop, feature/windows-webview2-desktop, feat/organization-tax-webview-print, feat/customer-credit-approval ]
   pull_request:
     # Include the stacked installer-feature branch so PRs targeting it receive full CI.
-    branches: [ main, develop, feat/omnikes-installer-license-acceptance ]
+    branches: [ main, develop, feat/omnikes-installer-license-acceptance, feat/organization-tax-webview-print ]
 
 jobs:
   validate:
@@ -121,7 +121,7 @@ jobs:
         run: npm run seed
 
       - name: Run real PostgreSQL runtime proof
-        run: npx vitest run --config vitest.integration.config.ts --no-file-parallelism src/tests/integration/sale-credit.postgres.test.ts src/tests/integration/sale-credit.api.postgres.test.ts src/tests/integration/cash-management.postgres.test.ts src/tests/integration/pos-cash-e2e.postgres.test.ts src/tests/integration/local-backup-restore.postgres.test.ts src/tests/integration/inventory-receipt-idempotency.postgres.test.ts src/tests/integration/product-opening-inventory.postgres.test.ts src/tests/integration/subscription-entitlements.postgres.test.ts src/tests/integration/platform-subscription-runtime.postgres.test.ts src/tests/integration/platform-subscription-rbac.postgres.test.ts src/tests/integration/platform-subscription-lifecycle.postgres.test.ts src/tests/integration/platform-subscription-access.postgres.test.ts
+        run: npx vitest run --config vitest.integration.config.ts --no-file-parallelism src/tests/integration/sale-credit.postgres.test.ts src/tests/integration/sale-credit.api.postgres.test.ts src/tests/integration/credit-refund.api.postgres.test.ts src/tests/integration/cash-management.postgres.test.ts src/tests/integration/pos-cash-e2e.postgres.test.ts src/tests/integration/local-backup-restore.postgres.test.ts src/tests/integration/inventory-receipt-idempotency.postgres.test.ts src/tests/integration/product-opening-inventory.postgres.test.ts src/tests/integration/subscription-entitlements.postgres.test.ts src/tests/integration/platform-subscription-runtime.postgres.test.ts src/tests/integration/platform-subscription-rbac.postgres.test.ts src/tests/integration/platform-subscription-lifecycle.postgres.test.ts src/tests/integration/platform-subscription-access.postgres.test.ts
 
       - name: Run tests
         run: npm test
@@ -145,6 +145,20 @@ jobs:
           E2E_CASHIER_EMAIL: cashier.a@omnikes.test
           E2E_CASHIER_PASSWORD: ${{ env.SEED_PASSWORD_CASHIER_A }}
         run: npx playwright test e2e/account-security.spec.ts --project=chromium
+
+      - name: Run customer credit security and collection end-to-end tests
+        env:
+          E2E_EMAIL: admin.a@omnikes.test
+          E2E_PASSWORD: ${{ env.SEED_PASSWORD_A }}
+        run: npx playwright test e2e/customer-credit.spec.ts --project=chromium
+
+      - name: Run full customer credit to return and refund end-to-end test
+        env:
+          E2E_EMAIL: admin.a@omnikes.test
+          E2E_PASSWORD: ${{ env.SEED_PASSWORD_A }}
+          E2E_CASHIER_EMAIL: cashier.a@omnikes.test
+          E2E_CASHIER_PASSWORD: ${{ env.SEED_PASSWORD_CASHIER_A }}
+        run: npx playwright test e2e/customer-credit-refund-flow.spec.ts --project=chromium
 
       - name: Lint
         shell: bash

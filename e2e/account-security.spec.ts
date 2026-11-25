@@ -21,7 +21,7 @@ test.describe('Account security', () => {
     await page.goto('/profile/security');
     await expect(page.getByRole('heading', { name: 'Profil et sécurité' })).toBeVisible();
 
-    await page.getByLabel('Mot de passe actuel').fill(originalPassword!);
+    await page.getByLabel('Mot de passe actuel', { exact: true }).fill(originalPassword!);
     await page.locator('#newPassword').fill(temporaryPassword);
     await page.locator('#confirmPassword').fill(temporaryPassword);
     await page.getByRole('button', { name: 'Modifier mon mot de passe' }).click();
@@ -29,7 +29,7 @@ test.describe('Account security', () => {
 
     await signIn(page, temporaryPassword);
     await page.goto('/profile/security');
-    await page.getByLabel('Mot de passe actuel').fill(temporaryPassword);
+    await page.getByLabel('Mot de passe actuel', { exact: true }).fill(temporaryPassword);
     await page.locator('#newPassword').fill(originalPassword!);
     await page.locator('#confirmPassword').fill(originalPassword!);
     await page.getByRole('button', { name: 'Modifier mon mot de passe' }).click();
@@ -72,7 +72,7 @@ test('a cashier can change their own password without administrator permissions'
   await expect(page.getByRole('heading', { name: 'Profil et sécurité' })).toBeVisible();
 
   const nextPassword = activePassword === cashierPassword ? temporaryPassword : cashierPassword!;
-  await page.getByLabel('Mot de passe actuel').fill(activePassword);
+  await page.getByLabel('Mot de passe actuel', { exact: true }).fill(activePassword);
   await page.locator('#newPassword').fill(nextPassword);
   await page.locator('#confirmPassword').fill(nextPassword);
   await page.getByRole('button', { name: 'Modifier mon mot de passe' }).click();
@@ -85,7 +85,7 @@ test('a cashier can change their own password without administrator permissions'
 
   // Restore the seed credential before the test exits.
   if (nextPassword !== cashierPassword) {
-    await page.getByLabel('Mot de passe actuel').fill(nextPassword);
+    await page.getByLabel('Mot de passe actuel', { exact: true }).fill(nextPassword);
     await page.locator('#newPassword').fill(cashierPassword!);
     await page.locator('#confirmPassword').fill(cashierPassword!);
     await page.getByRole('button', { name: 'Modifier mon mot de passe' }).click();

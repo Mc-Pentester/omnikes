@@ -13,6 +13,7 @@ export const organizationSchema = z.object({
   onlineStoreEnabled: z.boolean().default(false),
   taxEnabled: z.boolean().default(false),
   taxRate: z.number().finite().min(0).max(100).default(0),
+  creditDefaultDueDays: z.number().int().min(1).max(3650).default(30),
 });
 
 
@@ -28,6 +29,7 @@ export const adminOrganizationUpdateSchema = z.object({
   onlineStoreEnabled: z.boolean().optional(),
   taxEnabled: z.boolean().optional(),
   taxRate: z.number().finite().min(0).max(100).optional(),
+  creditDefaultDueDays: z.number().int().min(1).max(3650).optional(),
 });
 
 export type AdminOrganizationUpdateInput = z.infer<typeof adminOrganizationUpdateSchema>;
@@ -165,9 +167,18 @@ export const productUpdateSchema = productSchema.partial().omit({ organizationId
   barcode: z.string().trim().max(50).optional().or(z.literal('')),
   price: z.number().finite().nonnegative('Price must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Price must have at most 2 decimal places').optional(),
   cost: z.number().finite().nonnegative('Cost must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Cost must have at most 2 decimal places').optional(),
+  casePrice: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  dozenPrice: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  pack3Price: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  unitPrice: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  unitsPerCase: z.number().int().positive().max(1000000).optional(),
   variantId: z.string().cuid().optional(),
-}).refine((data) => (data.price === undefined && data.cost === undefined && data.barcode === undefined) || Boolean(data.variantId), {
-  message: 'A variant is required when updating variant prices or barcode',
+}).refine((data) => (
+  data.price === undefined && data.cost === undefined && data.barcode === undefined &&
+  data.casePrice === undefined && data.dozenPrice === undefined && data.pack3Price === undefined &&
+  data.unitPrice === undefined && data.unitsPerCase === undefined
+) || Boolean(data.variantId), {
+  message: 'A variant is required when updating variant prices, packaging or barcode',
   path: ['variantId'],
 });
 
@@ -337,7 +348,19 @@ export const saleCreditSchema = z.object({
   customerId: z.string().cuid(),
   amount: z.number().finite().positive('Credit amount must be positive').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Credit amount must have at most 2 decimal places'),
   note: z.string().max(1000).optional(),
+  dueAt: z.coerce.date().optional(),
 });
+
+export const creditPaymentSchema = z.object({
+  amount: z.number().finite().positive().max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces),
+  method: z.enum(['CASH', 'CARD', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CHECK']),
+  reference: z.string().trim().max(150).optional(),
+}).strict();
+
+export const creditPinSetupSchema = z.object({
+  currentPassword: z.string().min(1),
+  pin: z.string().regex(/^\d{4,8}$/, 'PIN must contain 4 to 8 digits'),
+}).strict();
 
 export type SaleCreditInput = z.infer<typeof saleCreditSchema>;
 
@@ -377,6 +400,14 @@ export const refundSchema = z.object({
 });
 
 export type RefundInput = z.infer<typeof refundSchema>;
+
+export const creditRefundSchema = z.object({
+  returnId: z.string().cuid('Return ID is required'),
+  paymentId: z.string().cuid('Credit payment ID is required'),
+  amount: z.number().finite().positive('Amount must be positive').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Amount must have at most 2 decimal places'),
+  reference: z.string().trim().max(200).optional(),
+});
+export type CreditRefundInput = z.infer<typeof creditRefundSchema>;
 
 // Proforma validation
 export const proformaSchema = z.object({
@@ -430,6 +461,7 @@ export const customerCreateSchema = z.object({
   city: z.string().trim().max(120).optional().or(z.literal('')),
   country: z.string().trim().length(2).toUpperCase().optional().or(z.literal('')),
   isActive: z.boolean().optional(),
+  creditLimit: z.number().finite().nonnegative().max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Credit limit must have at most two decimal places').nullable().optional(),
 }).strict();
 
 export const customerUpdateSchema = customerCreateSchema.partial().strict();

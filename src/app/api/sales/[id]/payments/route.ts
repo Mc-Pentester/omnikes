@@ -323,7 +323,7 @@ export async function POST(
           .reduce((sum: number, p) => sum + Number(p.amount), 0)
       );
 
-      const authorizedCredit = sale.saleCredit?.status === 'AUTHORIZED'
+      const authorizedCredit = sale.saleCredit && ['AUTHORIZED', 'APPROVED_PENDING_COMPLETION'].includes(sale.saleCredit.status)
         ? roundMoney(Number(sale.saleCredit.amount))
         : 0;
 
