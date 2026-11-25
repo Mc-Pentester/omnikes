@@ -69,7 +69,7 @@ test.describe('Initial organization fiscal configuration', () => {
     await page.getByLabel('Confirmer le mot de passe').fill('secure-password');
     await page.getByRole('button', { name: 'Créer un compte' }).click();
 
-    await expect(page.getByRole('alert')).toContainText('Le taux fiscal doit être compris entre 0 et 100 %.');
+    await expect(page.getByText('Le taux fiscal doit être compris entre 0 et 100 %.', { exact: true })).toBeVisible();
     expect(requestCount).toBe(0);
   });
 });
