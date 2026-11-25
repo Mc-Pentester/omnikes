@@ -69,13 +69,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (!locked.length) throw new Error('Credit not found');
       const credit = await tx.saleCredit.findFirst({
         where: { id, organizationId: user.organizationId },
-        include: { payments: true, sale: { select: { orderNumber: true, status: true, currencyCode: true } } },
+        include: { payments: true, adjustments: true, sale: { select: { orderNumber: true, status: true, currencyCode: true } } },
       });
       if (!credit) throw new Error('Credit not found');
       if (credit.status !== 'AUTHORIZED') throw new Error('Credit is not open for payment');
 
       const paid = roundMoney(credit.payments.reduce((sum, p) => sum + Number(p.amount), 0));
-      const outstanding = roundMoney(Number(credit.amount) - paid);
+      const adjusted = roundMoney(credit.adjustments.reduce((sum, item) => sum + Number(item.amount), 0));
+      const outstanding = roundMoney(Number(credit.amount) - paid - adjusted);
       if (data.amount > outstanding) throw new Error(`Payment exceeds outstanding credit balance: ${outstanding}`);
 
       let cashSessionId: string | null = null;
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         });
       }
 
-      if (roundMoney(paid + data.amount) >= Number(credit.amount)) {
+      if (roundMoney(paid + data.amount + adjusted) >= Number(credit.amount)) {
         await tx.saleCredit.update({ where: { id: credit.id }, data: { status: 'SETTLED' } });
       }
 
