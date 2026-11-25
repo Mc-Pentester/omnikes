@@ -282,6 +282,42 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     expect(Number(credit?.amount)).toBe(1000);
   });
 
+  it('rejects manager credentials that do not match the second authorized user', async () => {
+    const before = await prisma.saleCredit.count({ where: { saleId: sameStoreSaleId } });
+    const request = new NextRequest(`http://localhost/api/sales/${sameStoreSaleId}/credit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost' },
+      body: JSON.stringify({
+        customerId: customerA!.id,
+        amount: 1000,
+        approverEmail: managerUser!.email,
+        approverPassword: 'incorrect-manager-password',
+      }),
+    });
+    const response = await creditPost(request, { params: Promise.resolve({ id: sameStoreSaleId }) });
+    expect(response.status).toBe(403);
+    expect((await response.json()).error).toBe('Invalid manager approval credentials');
+    expect(await prisma.saleCredit.count({ where: { saleId: sameStoreSaleId } })).toBe(before);
+  });
+
+  it('rejects self-approval even when the requester supplies their own valid password', async () => {
+    const before = await prisma.saleCredit.count({ where: { saleId: sameStoreSaleId } });
+    const request = new NextRequest(`http://localhost/api/sales/${sameStoreSaleId}/credit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost' },
+      body: JSON.stringify({
+        customerId: customerA!.id,
+        amount: 1000,
+        approverEmail: scopedUser!.email,
+        approverPassword: 'P0F2D-Api-Test!2026',
+      }),
+    });
+    const response = await creditPost(request, { params: Promise.resolve({ id: sameStoreSaleId }) });
+    expect(response.status).toBe(403);
+    expect((await response.json()).error).toBe('Invalid manager approval credentials');
+    expect(await prisma.saleCredit.count({ where: { saleId: sameStoreSaleId } })).toBe(before);
+  });
+
   it('rejects the same scoped user on a different store through the real API route', async () => {
     const cookie = await createAuthenticatedCookie();
 
