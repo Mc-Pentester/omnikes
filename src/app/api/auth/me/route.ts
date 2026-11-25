@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
       canActivateStores,
       canDeactivateStores,
       canAuthorizeCredit,
+      canRequestCredit,
       canReadHardwareBridge,
     ] = await Promise.all([
       roleRepository.hasPermission(user.id, 'user.read'),
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest) {
       roleRepository.hasPermission(user.id, 'store.activate'),
       roleRepository.hasPermission(user.id, 'store.deactivate'),
       roleRepository.hasPermission(user.id, 'sale.credit'),
+      roleRepository.hasPermission(user.id, 'credit.request'),
       roleRepository.hasPermission(user.id, 'hardware.bridge.read'),
     ]);
 
@@ -51,6 +53,7 @@ export async function GET(request: NextRequest) {
         canActivateStores,
         canDeactivateStores,
         canAuthorizeCredit,
+        canRequestCredit,
         canReadHardwareBridge,
       },
     });
