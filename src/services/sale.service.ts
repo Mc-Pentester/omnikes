@@ -831,7 +831,7 @@ export class SaleService {
         .filter(p => p.status === 'COMPLETED' && p.method !== 'CREDIT')
         .reduce((sum: number, p: Payment) => sum + Number(p.amount), 0));
 
-      const authorizedCredit = sale.saleCredit?.status === 'AUTHORIZED'
+      const authorizedCredit = sale.saleCredit && ['AUTHORIZED', 'APPROVED_PENDING_COMPLETION'].includes(sale.saleCredit.status)
         ? roundMoney(Number(sale.saleCredit.amount))
         : 0;
 
