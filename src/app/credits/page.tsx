@@ -20,6 +20,7 @@ type CreditRow = {
   customer: { id: string; name: string; phone?: string | null; creditLimit?: string | number | null };
   sale: { id: string; orderNumber: string; currencyCode: string; currencySymbol: string; total: string | number };
   authorizedByUser?: { name?: string | null; email?: string };
+  adjustments?: Array<{ id: string; amount: string | number; reason: string; createdAt: string }>;
 };
 type CreditPayment = {
   id: string;
@@ -220,6 +221,19 @@ export default function CustomerCreditsPage() {
                             </li>
                           ))}
                         </ul>
+                      )}
+                      {credit.adjustments && credit.adjustments.length > 0 && (
+                        <div className="mt-3 border-t border-border pt-3">
+                          <h4 className="text-sm font-medium">Réductions de dette (retours / annulations)</h4>
+                          <ul className="mt-1 divide-y divide-border">
+                            {credit.adjustments.map((adjustment) => (
+                              <li key={adjustment.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
+                                <span>{new Date(adjustment.createdAt).toLocaleString()} · {adjustment.reason}</span>
+                                <strong>{Number(adjustment.amount).toFixed(2)} {credit.sale.currencyCode}</strong>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       )}
                     </div>
                   )}
