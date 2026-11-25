@@ -99,7 +99,7 @@ export default function CustomersPage() {
       setCustomers((current) => [data, ...current.filter((customer) => customer.id !== data.id)]);
       setSearch('');
       setShowCreateModal(false);
-      setNewCustomer({ name: '', phone: '', email: '', address: '', city: '' });
+      setNewCustomer({ name: '', phone: '', email: '', address: '', city: '', creditLimit: '' });
     } catch (cause) {
       setCreateError(cause instanceof Error ? cause.message : 'Erreur lors de la création du client.');
     } finally {
