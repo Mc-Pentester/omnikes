@@ -740,10 +740,10 @@ export class SaleService {
       if (customer.creditLimit !== null) {
         const activeCredits = await tx.saleCredit.findMany({
           where: { organizationId, customerId: customer.id, status: 'AUTHORIZED' },
-          select: { amount: true, payments: { select: { amount: true } } },
+          select: { amount: true, payments: { select: { amount: true } }, adjustments: { select: { amount: true } } },
         });
         const outstanding = roundMoney(activeCredits.reduce((sum, credit) =>
-          sum + Math.max(0, Number(credit.amount) - credit.payments.reduce((paid, payment) => paid + Number(payment.amount), 0)), 0));
+          sum + Math.max(0, Number(credit.amount) - credit.payments.reduce((paid, payment) => paid + Number(payment.amount), 0) - credit.adjustments.reduce((adjusted, adjustment) => adjusted + Number(adjustment.amount), 0)), 0));
         const projected = roundMoney(outstanding + validatedData.amount);
         if (projected > Number(customer.creditLimit) && !validatedData.note?.trim()) {
           throw new Error(`Customer credit limit exceeded. Outstanding: ${outstanding}, Limit: ${Number(customer.creditLimit)}. A reason is required for manager override.`);
