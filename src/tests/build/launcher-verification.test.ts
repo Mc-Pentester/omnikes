@@ -165,7 +165,8 @@ describe('Windows Launcher Verification', () => {
     expect(registrationPage).toContain("useState('fr-HT')");
     expect(registrationPage).toContain("useState('America/Port-au-Prince')");
     expect(validation).toContain("country: z.string().trim().length(2).default('HT')");
-    expect(validation).toContain("currency: z.string().default('USD')");\n    expect(validation).toContain("currency: z.string().trim().min(3).max(12)");
+    expect(validation).toContain("currency: z.string().default('USD')");
+    expect(validation).toContain("currency: z.string().trim().min(3).max(12)");
     expect(validation).toContain("locale: z.string().trim().min(2).max(20).default('fr-HT')");
     expect(validation).toContain("timezone: z.string().trim().min(1).max(100).default('America/Port-au-Prince')");
     expect(service).toContain('country,');
