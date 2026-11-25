@@ -1,0 +1,82 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { saleService } from '@omnikes/services/sale.service';
+import { requireAuthenticatedUser, requireCurrentOrganizationId, requirePermission, requireStoreAccess, requireSubscriptionCapability } from '@omnikes/lib/auth';
+
+/**
+ * POST /api/sales/[id]/cancel
+ * Cancel a sale (restores stock if completed)
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const organizationId = await requireCurrentOrganizationId(request);
+    await requirePermission(request, 'sale.cancel');
+    await requireSubscriptionCapability(request, 'pos.sales', 'WRITE');
+    const user = await requireAuthenticatedUser(request);
+
+    // Get sale to verify store access before cancellation
+    const sale = await saleService.getById(id, organizationId);
+    if (sale.storeId) {
+      await requireStoreAccess(request, sale.storeId);
+    }
+
+    const cancelledSale = await saleService.cancel(id, organizationId, user.id);
+
+    return NextResponse.json(cancelledSale);
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Subscription entitlement required:')) return NextResponse.json({ error: error.message }, { status: 402 });
+    if (error instanceof Error && (error.message === 'Authentication required' || error.message === 'Invalid or expired session')) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    if (error instanceof Error && (error.message === 'Permission required: sale.cancel' || error.message.startsWith('Permission required'))) {
+      return NextResponse.json(
+        { error: 'Permission required' },
+        { status: 403 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Not authorized to access this store') {
+      return NextResponse.json(
+        { error: 'Not authorized to access this store' },
+        { status: 403 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Sale not found or access denied') {
+      return NextResponse.json(
+        { error: 'Sale not found or access denied' },
+        { status: 404 }
+      );
+    }
+
+    if (error instanceof Error && (
+      error.message === 'Sale is already cancelled' ||
+      error.message.startsWith('Sale cannot be cancelled from status')
+    )) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 409 }
+      );
+    }
+
+    if (error instanceof Error && error.message.startsWith('Inventory not found for variant')) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 409 }
+      );
+    }
+
+    console.error('Error cancelling sale:', error);
+    return NextResponse.json(
+      { error: 'Failed to cancel sale' },
+      { status: 500 }
+    );
+  }
+}

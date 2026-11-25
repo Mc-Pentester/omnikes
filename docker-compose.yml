@@ -1,0 +1,38 @@
+version: '3.8'
+
+# This Docker Compose configuration is for DEVELOPMENT/LOCAL use only.
+# DO NOT use this configuration in production.
+# For production, use a managed PostgreSQL service or a properly secured deployment.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: omnikes-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-omnikes}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-omnikes}
+    ports:
+      - "127.0.0.1:5432:5432"  # Bind to localhost only, not public
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-omnikes}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: Redis for future real-time features
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: omnikes-redis
+  #   restart: unless-stopped
+  #   ports:
+  #     - "127.0.0.1:6379:6379"  # Bind to localhost only
+  #   volumes:
+  #     - redis_data:/data
+
+volumes:
+  postgres_data:
+  # redis_data:

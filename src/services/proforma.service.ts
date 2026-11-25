@@ -1,0 +1,737 @@
+import { proformaRepository } from '@omnikes/repositories/proforma.repository';
+import { productVariantRepository } from '@omnikes/repositories/product-variant.repository';
+import { storeService } from '@omnikes/services/store.service';
+import { proformaSchema, proformaUpdateSchema, proformaItemSchema, ProformaInput, ProformaUpdateInput, ProformaItemInput } from '@omnikes/lib/validation';
+import { prisma } from '@omnikes/lib/prisma';
+import { Prisma, ProformaItem } from '@prisma/client';
+import { roundMoney } from '@omnikes/lib/money';
+
+export class ProformaService {
+  /**
+   * Create a new proforma (DRAFT)
+   */
+  async create(organizationId: string, data: ProformaInput) {
+    const validatedData = proformaSchema.parse({
+      ...data,
+      organizationId,
+    });
+
+    // Enforce tenant boundary before any write: a proforma store must belong
+    // to the same organization as the proforma.
+    await storeService.validateStoreBelongsToOrganization(validatedData.storeId, organizationId);
+
+    // Generate proforma number if not provided
+    const proformaNumber = validatedData.proformaNumber || this.generateProformaNumber();
+
+    // Get organization's tax configuration for initial tax rate
+    const organization = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      include: { taxConfiguration: true },
+    });
+
+    const initialTaxRate = organization?.taxEnabled === true ? Number(organization.taxRate) : 0;
+    const applyTax = organization?.taxEnabled === true && validatedData.applyTax !== false;
+
+    // Verify customer belongs to organization if provided
+    if (validatedData.customerId) {
+      const customer = await prisma.customer.findFirst({
+        where: {
+          id: validatedData.customerId,
+          organizationId,
+        },
+      });
+
+      if (!customer) {
+        throw new Error('Invalid customer');
+      }
+    }
+
+    const { items } = validatedData;
+    const dataWithoutIds = {
+      status: validatedData.status,
+      applyTax,
+      validUntil: validatedData.validUntil,
+      notes: validatedData.notes,
+    };
+
+    // Create proforma and items in a transaction
+    return prisma.$transaction(async (tx) => {
+      const proforma = await tx.proforma.create({
+        data: {
+          ...dataWithoutIds,
+          proformaNumber,
+          subtotal: 0,
+          tax: 0,
+          total: 0,
+          discount: 0,
+          taxRate: initialTaxRate,
+          organization: {
+            connect: { id: organizationId },
+          },
+          store: {
+            connect: { id: validatedData.storeId },
+          },
+          ...(validatedData.customerId
+            ? {
+                customer: {
+                  connect: { id: validatedData.customerId },
+                },
+              }
+            : {}),
+        },
+        include: {
+          store: true,
+          customer: true,
+          items: {
+            include: {
+              variant: {
+                include: {
+                  product: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Create items if provided
+      if (items && items.length > 0) {
+        for (const item of items) {
+          // Verify variant belongs to organization using transaction client
+          const variant = await tx.productVariant.findFirst({
+            where: {
+              id: item.variantId,
+              product: {
+                organizationId,
+              },
+            },
+            include: {
+              product: true,
+            },
+          });
+
+          if (!variant) {
+            throw new Error('Product variant not found or access denied');
+          }
+
+          // Use server-side price
+          const serverPrice = roundMoney(Number(variant.price));
+          const totalPrice = roundMoney(serverPrice * item.quantity);
+
+          await tx.proformaItem.create({
+            data: {
+              proformaId: proforma.id,
+              variantId: item.variantId,
+              quantity: item.quantity,
+              unitPrice: serverPrice,
+              totalPrice,
+              discount: 0,
+            },
+          });
+        }
+
+        // Recalculate totals after items are added
+        const updatedProforma = await tx.proforma.findUnique({
+          where: { id: proforma.id },
+          include: {
+            items: true,
+          },
+        });
+
+        if (updatedProforma) {
+          const grossSubtotal = roundMoney(updatedProforma.items.reduce((sum: number, item: typeof updatedProforma.items[number]) => {
+            return sum + Number(item.unitPrice) * item.quantity;
+          }, 0));
+
+          const discount = roundMoney(updatedProforma.items.reduce((sum: number, item: typeof updatedProforma.items[number]) => {
+            return sum + Number(item.discount);
+          }, 0));
+
+          const subtotal = roundMoney(grossSubtotal - discount);
+
+          let tax = 0;
+          if (updatedProforma.applyTax) {
+            tax = subtotal * initialTaxRate;
+          }
+
+          const total = subtotal + tax;
+
+          await tx.proforma.update({
+            where: { id: proforma.id },
+            data: {
+              subtotal,
+              tax,
+              total,
+            },
+          });
+        }
+      }
+
+      return proforma;
+    });
+  }
+
+  /**
+   * Get a proforma by ID with organization check
+   */
+  async getById(id: string, organizationId: string) {
+    const proforma = await proformaRepository.findById(id, organizationId);
+    
+    if (!proforma) {
+      throw new Error('Proforma not found or access denied');
+    }
+
+    return proforma;
+  }
+
+  /**
+   * List proformas for an organization
+   */
+  async list(organizationId: string, options: {
+    storeId?: string;
+    authorizedStoreIds?: string[] | null;
+    status?: string;
+    customerId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    skip?: number;
+    take?: number;
+  } = {}) {
+    return proformaRepository.listByOrganization(organizationId, options);
+  }
+
+  /**
+   * Update a proforma
+   */
+  async update(id: string, organizationId: string, data: ProformaUpdateInput) {
+    const exists = await proformaRepository.belongsToOrganization(id, organizationId);
+
+    if (!exists) {
+      throw new Error('Proforma not found or access denied');
+    }
+
+    const proforma = await proformaRepository.findById(id, organizationId);
+
+    if (!proforma) {
+      throw new Error('Proforma not found or access denied');
+    }
+
+    // Check if proforma is modifiable
+    if (proforma.status !== 'DRAFT') {
+      throw new Error('Only DRAFT proformas can be modified');
+    }
+
+    const validatedData = proformaUpdateSchema.parse(data);
+
+    // A customer reference is tenant-scoped. Never allow an update to attach
+    // a customer belonging to another organization.
+    if (validatedData.customerId !== undefined && validatedData.customerId !== null) {
+      const customer = await prisma.customer.findFirst({
+        where: {
+          id: validatedData.customerId,
+          organizationId,
+        },
+        select: { id: true },
+      });
+
+      if (!customer) {
+        throw new Error('Invalid customer');
+      }
+    }
+
+    // Explicitly exclude status from update data
+    const { customerId, validUntil, notes, applyTax } = validatedData;
+
+    await proformaRepository.update(id, organizationId, {
+      ...(customerId !== undefined && { customerId }),
+      ...(validUntil !== undefined && { validUntil }),
+      ...(notes !== undefined && { notes }),
+      ...(applyTax !== undefined && { applyTax }),
+    } as Prisma.ProformaUpdateInput);
+
+    return proformaRepository.findById(id, organizationId);
+  }
+
+  /**
+   * Add an item to a proforma
+   */
+  async addItem(proformaId: string, organizationId: string, data: ProformaItemInput) {
+    const exists = await proformaRepository.belongsToOrganization(proformaId, organizationId);
+    
+    if (!exists) {
+      throw new Error('Proforma not found or access denied');
+    }
+
+    const proforma = await proformaRepository.findById(proformaId, organizationId);
+
+    if (!proforma) {
+      throw new Error('Proforma not found or access denied');
+    }
+
+    // Check if proforma is modifiable
+    if (proforma.status !== 'DRAFT') {
+      throw new Error('Only DRAFT proformas can be modified');
+    }
+
+    const validatedData = proformaItemSchema.parse({
+      ...data,
+      proformaId,
+    });
+
+    // Verify variant belongs to organization
+    const variant = await productVariantRepository.findByIdWithOrganizationCheck(
+      validatedData.variantId,
+      organizationId
+    );
+
+    if (!variant) {
+      throw new Error('Product variant not found or access denied');
+    }
+
+    // INVARIANT: quantity must be > 0
+    if (validatedData.quantity <= 0) {
+      throw new Error('Quantity must be greater than 0');
+    }
+
+    // INVARIANT: Use server-side price, do not trust client
+    const serverPrice = roundMoney(Number(variant.price));
+    const quantity = validatedData.quantity;
+    const discount = roundMoney(validatedData.discount || 0);
+
+    // INVARIANT: discount cannot exceed gross amount
+    const grossAmount = serverPrice * quantity;
+    if (discount > grossAmount) {
+      throw new Error('Discount cannot exceed gross amount');
+    }
+
+    // INVARIANT: line total must never be negative
+    const totalPrice = roundMoney(grossAmount - discount);
+    if (totalPrice < 0) {
+      throw new Error('Line total cannot be negative');
+    }
+
+    const item = await proformaRepository.createItem({
+      ...validatedData,
+      unitPrice: serverPrice, // Use server-side price
+      totalPrice,
+      proforma: {
+        connect: { id: proformaId },
+      },
+      variant: {
+        connect: { id: validatedData.variantId },
+      },
+    });
+
+    // Recalculate proforma totals
+    await this.recalculateTotals(proformaId, organizationId);
+
+    return item;
+  }
+
+  /**
+   * Update a proforma item
+   */
+  async updateItem(itemId: string, proformaId: string, organizationId: string, data: Partial<ProformaItemInput>) {
+    // Only quantity and discount are client-editable. The parent proforma,
+    // variant, unit price and line total must never be reassigned by request data.
+    const validatedData = proformaItemSchema.partial()
+      .omit({ proformaId: true, variantId: true, unitPrice: true, totalPrice: true })
+      .parse(data);
+
+    const item = await prisma.proformaItem.findFirst({
+      where: {
+        id: itemId,
+        proformaId,
+        proforma: { organizationId },
+      },
+      include: {
+        proforma: true,
+        variant: true,
+      },
+    });
+
+    if (!item || item.proforma.organizationId !== organizationId || item.proformaId !== proformaId) {
+      throw new Error('Proforma item not found or access denied');
+    }
+
+    const proforma = await proformaRepository.findById(proformaId, organizationId);
+    if (!proforma) {
+      throw new Error('Proforma not found or access denied');
+    }
+    if (proforma.status !== 'DRAFT') {
+      throw new Error('Only DRAFT proformas can be modified');
+    }
+
+    const quantity = validatedData.quantity ?? item.quantity;
+    if (quantity <= 0) {
+      throw new Error('Quantity must be greater than 0');
+    }
+
+    const unitPrice = roundMoney(Number(item.variant.price));
+    const discount = roundMoney(validatedData.discount ?? Number(item.discount));
+    const grossAmount = unitPrice * quantity;
+    if (discount > grossAmount) {
+      throw new Error('Discount cannot exceed gross amount');
+    }
+
+    const totalPrice = roundMoney(grossAmount - discount);
+    if (totalPrice < 0) {
+      throw new Error('Line total cannot be negative');
+    }
+
+    await proformaRepository.updateItem(itemId, organizationId, {
+      ...validatedData,
+      unitPrice,
+      totalPrice,
+    } as Prisma.ProformaItemUpdateInput);
+
+    await this.recalculateTotals(proformaId, organizationId);
+
+    return prisma.proformaItem.findFirst({
+      where: {
+        id: itemId,
+        proformaId,
+        proforma: { organizationId },
+      },
+      include: {
+        variant: {
+          include: {
+            product: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Remove an item from a proforma
+   */
+  async removeItem(itemId: string, proformaId: string, organizationId: string) {
+    const item = await prisma.proformaItem.findFirst({
+      where: {
+        id: itemId,
+        proformaId,
+        proforma: { organizationId },
+      },
+      include: {
+        proforma: true,
+      },
+    });
+
+    if (!item || item.proforma.organizationId !== organizationId || item.proformaId !== proformaId) {
+      throw new Error('Proforma item not found or access denied');
+    }
+
+    const proforma = await proformaRepository.findById(proformaId, organizationId);
+    if (!proforma) {
+      throw new Error('Proforma not found or access denied');
+    }
+
+    if (proforma.status !== 'DRAFT') {
+      throw new Error('Only DRAFT proformas can be modified');
+    }
+
+    await proformaRepository.deleteItem(itemId, organizationId);
+    await this.recalculateTotals(proformaId, organizationId);
+  }
+
+  /**
+   * Recalculate proforma totals from items
+   */
+  async recalculateTotals(proformaId: string, organizationId: string) {
+    const items = await proformaRepository.listItems(proformaId, organizationId);
+
+    // Calculate gross subtotal (before discounts)
+    const grossSubtotal = roundMoney(items.reduce((sum: number, item: ProformaItem) => {
+      const grossLineTotal = Number(item.unitPrice) * item.quantity;
+      return sum + grossLineTotal;
+    }, 0));
+
+    // Sum of all line discounts
+    const discount = roundMoney(items.reduce((sum: number, item: ProformaItem) => sum + Number(item.discount), 0));
+
+    // Subtotal after discounts
+    const subtotal = roundMoney(grossSubtotal - discount);
+
+    // Get proforma with organization's tax configuration
+    const proforma = await prisma.proforma.findFirst({
+      where: {
+        id: proformaId,
+        organizationId,
+      },
+      include: {
+        organization: {
+          include: {
+            taxConfiguration: true,
+          },
+        },
+      },
+    });
+
+    if (!proforma) throw new Error('Proforma not found or access denied');
+    if (proforma.status && proforma.status !== 'DRAFT') return proforma;
+
+    // Recalculate editable proformas from the organization's fiscal defaults.
+    let taxRate = 0;
+    let tax = 0;
+
+    if (proforma?.applyTax && proforma.organization?.taxEnabled === true) {
+      taxRate = Number(proforma.organization.taxRate);
+      tax = roundMoney(subtotal * taxRate);
+    }
+
+    const total = roundMoney(subtotal + tax);
+
+    await proformaRepository.update(proformaId, organizationId, {
+      subtotal,
+      discount,
+      tax,
+      taxRate,
+      total,
+    });
+  }
+
+  /**
+   * Validate a proforma (DRAFT -> SENT)
+   */
+  async validate(proformaId: string, organizationId: string) {
+    const exists = await proformaRepository.belongsToOrganization(proformaId, organizationId);
+    
+    if (!exists) {
+      throw new Error('Proforma not found or access denied');
+    }
+
+    const proforma = await proformaRepository.findById(proformaId, organizationId);
+
+    if (!proforma) {
+      throw new Error('Proforma not found or access denied');
+    }
+
+    if (proforma.status !== 'DRAFT') {
+      throw new Error('Only DRAFT proformas can be validated');
+    }
+
+    // Check if proforma has at least one item
+    const items = await proformaRepository.listItems(proformaId, organizationId);
+    if (items.length === 0) {
+      throw new Error('Proforma must have at least one item to be validated');
+    }
+
+    // Recalculate totals
+    await this.recalculateTotals(proformaId, organizationId);
+
+    // Update status to SENT
+    await proformaRepository.updateStatus(proformaId, organizationId, 'SENT');
+
+    return proformaRepository.findById(proformaId, organizationId);
+  }
+
+  /**
+   * Accept a proforma (SENT -> ACCEPTED)
+   */
+  async accept(proformaId: string, organizationId: string) {
+    const exists = await proformaRepository.belongsToOrganization(proformaId, organizationId);
+
+    if (!exists) {
+      throw new Error('Proforma not found or access denied');
+    }
+
+    const proforma = await proformaRepository.findById(proformaId, organizationId);
+
+    if (!proforma) {
+      throw new Error('Proforma not found or access denied');
+    }
+
+    // Only SENT proformas can be accepted
+    if (proforma.status !== 'SENT') {
+      throw new Error(`Cannot accept proforma with status ${proforma.status}. Only SENT proformas can be accepted.`);
+    }
+
+    // SENT proformas already contain the fiscal snapshot issued to the customer.
+    // Do not recalculate them from organization settings that may have changed later.
+
+    // Update status to ACCEPTED
+    await proformaRepository.updateStatus(proformaId, organizationId, 'ACCEPTED');
+
+    return proformaRepository.findById(proformaId, organizationId);
+  }
+
+  /**
+   * Cancel a proforma
+   */
+  async cancel(proformaId: string, organizationId: string) {
+    const exists = await proformaRepository.belongsToOrganization(proformaId, organizationId);
+    
+    if (!exists) {
+      throw new Error('Proforma not found or access denied');
+    }
+
+    const proforma = await proformaRepository.findById(proformaId, organizationId);
+
+    if (!proforma) {
+      throw new Error('Proforma not found or access denied');
+    }
+
+    if (proforma.status === 'CANCELLED') {
+      throw new Error('Proforma is already cancelled');
+    }
+
+    if (proforma.status === 'CONVERTED') {
+      throw new Error('Cannot cancel a converted proforma');
+    }
+
+    // Update status to CANCELLED
+    await proformaRepository.updateStatus(proformaId, organizationId, 'CANCELLED');
+
+    return proformaRepository.findById(proformaId, organizationId);
+  }
+
+  /**
+   * Convert a proforma to a sale (transactional)
+   */
+  async convert(proformaId: string, organizationId: string) {
+    return prisma.$transaction(async (tx) => {
+      // Load proforma with items, organization, store, customer
+      // Load the proforma through a tenant-scoped predicate. Do not fetch an
+      // arbitrary tenant row and check organizationId only after retrieval.
+      const proforma = await tx.proforma.findFirst({
+        where: {
+          id: proformaId,
+          organizationId,
+        },
+        include: {
+          organization: true,
+          store: true,
+          customer: true,
+          items: {
+            include: {
+              variant: true,
+            },
+          },
+        },
+      });
+
+      if (!proforma) {
+        throw new Error('Proforma not found or access denied');
+      }
+
+      // Status validation: only ACCEPTED can be converted
+      if (proforma.status !== 'ACCEPTED') {
+        throw new Error(`Cannot convert proforma with status ${proforma.status}. Only ACCEPTED proformas can be converted.`);
+      }
+
+      // Double conversion check - check if already converted by looking at convertedSale relation
+      const existingSale = await tx.sale.findFirst({
+        where: {
+          convertedFromProformaId: proformaId,
+          organizationId,
+        },
+      });
+
+      if (existingSale) {
+        throw new Error('Proforma has already been converted to a sale');
+      }
+
+      // Empty proforma check
+      if (proforma.items.length === 0) {
+        throw new Error('Cannot convert an empty proforma');
+      }
+
+      // Rebuild sale financials from the authoritative proforma items.
+      // Never copy client-controlled/stale aggregate totals as the source of truth.
+      const grossSubtotal = roundMoney(proforma.items.reduce((sum, item) => {
+        return sum + Number(item.unitPrice) * item.quantity;
+      }, 0));
+      const discount = roundMoney(proforma.items.reduce((sum, item) => {
+        return sum + Number(item.discount);
+      }, 0));
+      const subtotal = roundMoney(grossSubtotal - discount);
+
+      // Conversion must carry the tax rate issued on the accepted proforma,
+      // not a newer organization default configured after it was sent.
+      const taxRate = proforma.applyTax ? Number(proforma.taxRate) : 0;
+      const tax = proforma.applyTax ? roundMoney(subtotal * taxRate) : 0;
+      const total = roundMoney(subtotal + tax);
+
+      // Generate order number
+      const orderNumber = this.generateOrderNumber();
+
+      const sale = await tx.sale.create({
+        data: {
+          organizationId: proforma.organizationId,
+          storeId: proforma.storeId,
+          orderNumber,
+          customerId: proforma.customerId,
+          channel: 'POS',
+          status: 'PENDING',
+          subtotal,
+          tax,
+          taxRate,
+          total,
+          discount,
+          applyTax: proforma.applyTax,
+          notes: proforma.notes,
+          convertedFromProformaId: proforma.id,
+        },
+      });
+
+      // Create sale items
+      for (const item of proforma.items) {
+        await tx.saleItem.create({
+          data: {
+            saleId: sale.id,
+            variantId: item.variantId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            discount: item.discount,
+          },
+        });
+      }
+
+      // Update proforma status to CONVERTED
+      await tx.proforma.update({
+        where: { id: proformaId },
+        data: { status: 'CONVERTED' },
+      });
+
+      // Return the created sale with relations
+      return tx.sale.findUnique({
+        where: { id: sale.id },
+        include: {
+          store: true,
+          customer: true,
+          items: {
+            include: {
+              variant: {
+                include: {
+                  product: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+  }
+
+  /**
+   * Generate a unique proforma number
+   */
+  private generateProformaNumber(): string {
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+    return `PF-${timestamp}-${random}`;
+  }
+
+  /**
+   * Generate a unique order number for conversion
+   */
+  private generateOrderNumber(): string {
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+    return `SALE-${timestamp}-${random}`;
+  }
+}
+
+export const proformaService = new ProformaService();
