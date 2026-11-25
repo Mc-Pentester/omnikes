@@ -239,13 +239,13 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
   afterAll(async () => {
     if (scopedUser?.id) await prisma.session.deleteMany({ where: { userId: scopedUser!.id } });
     if (managerUser?.id) await prisma.session.deleteMany({ where: { userId: managerUser!.id } });
-    if (sameStoreSaleId || crossStoreSaleId) {
+    if (sameStoreSaleId || crossStoreSaleId || pinSaleId) {
       const saleIds = [sameStoreSaleId, crossStoreSaleId, pinSaleId].filter(Boolean);
       const creditIds = (await prisma.saleCredit.findMany({ where: { saleId: { in: saleIds } }, select: { id: true } })).map((item) => item.id);
       await prisma.creditPayment.deleteMany({ where: { saleCreditId: { in: creditIds } } });
       await prisma.saleCredit.deleteMany({ where: { saleId: { in: saleIds } } });
       await prisma.sale.deleteMany({
-        where: { id: { in: [sameStoreSaleId, crossStoreSaleId].filter(Boolean) } },
+        where: { id: { in: [sameStoreSaleId, crossStoreSaleId, pinSaleId].filter(Boolean) } },
       });
     }
     if (scopedUser?.id) {
