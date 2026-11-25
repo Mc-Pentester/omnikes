@@ -43,9 +43,6 @@ export class AdminOrganizationService {
   ) {
     await this.requirePermission(actorUserId, 'organization.update');
     const data = adminOrganizationUpdateSchema.parse(input);
-    if (data.creditDefaultDueDays !== undefined) {
-      await this.requirePermission(actorUserId, 'credit.settings.manage');
-    }
 
     if (data.timezone) {
       try {
@@ -73,6 +70,9 @@ export class AdminOrganizationService {
     });
 
     if (!existing) throw new Error('Organization not found');
+    if (data.creditDefaultDueDays !== undefined && data.creditDefaultDueDays !== existing.creditDefaultDueDays) {
+      await this.requirePermission(actorUserId, 'credit.settings.manage');
+    }
 
     const { taxRate, ...organizationData } = data;
     const updated = await prisma.organization.update({
