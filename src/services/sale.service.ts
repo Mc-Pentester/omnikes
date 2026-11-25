@@ -808,7 +808,7 @@ export class SaleService {
 
       if (customer.creditLimit !== null) {
         const activeCredits = await tx.saleCredit.findMany({
-          where: { organizationId, customerId: customer.id, status: 'AUTHORIZED' },
+          where: { organizationId, customerId: customer.id, status: { in: ['AUTHORIZED', 'APPROVED_PENDING_COMPLETION'] } },
           select: { amount: true, payments: { select: { amount: true } }, adjustments: { select: { amount: true } } },
         });
         const outstanding = roundMoney(activeCredits.reduce((sum, credit) =>
