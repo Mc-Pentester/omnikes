@@ -236,6 +236,12 @@ describe('P0-24-F.2-D - real PostgreSQL sale credit runtime', () => {
     const result = await prisma.sale.findUniqueOrThrow({ where: { id: sale.id } });
     expect(result.status).toBe('PENDING');
     expect(await prisma.inventoryMovement.count({ where: { referenceId: sale.id } })).toBe(0);
+
+    // Restore the shared fixture for the following credit-completion tests.
+    await prisma.inventory.update({
+      where: { id: inventory.id },
+      data: { quantity: inventory.quantity },
+    });
   });
 
   it('rejects insufficient payment plus insufficient credit', async () => {
