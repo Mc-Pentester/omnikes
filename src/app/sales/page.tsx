@@ -615,7 +615,7 @@ export default function PendingSalesPage() {
                                 maxLength={1000}
                               />
                             </label>
-                            <label className="block text-xs font-medium text-muted">Date d'échéance choisie par le responsable
+                            <label className="block text-xs font-medium text-muted">Date d&apos;échéance choisie par le responsable
                               <Input
                                 type="date"
                                 value={creditDueAt}
