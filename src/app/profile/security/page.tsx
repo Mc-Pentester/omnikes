@@ -84,7 +84,7 @@ export default function ProfileSecurityPage() {
       return;
     }
     if (!/^\d{4,8}$/.test(creditPin)) {
-    if (!/^\d{4,8}$/.test(creditPin)) {
+      setCreditPinError('Le PIN doit contenir de 4 à 8 chiffres.');
       return;
     }
     setCreditPinBusy(true);
