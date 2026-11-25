@@ -871,7 +871,7 @@ export class SaleService {
             status: 'APPROVED_PENDING_COMPLETION',
             amount: validatedData.amount,
             customerId: customer.id,
-            dueAt,
+            dueAt: dueAt.toISOString(),
             currencyCode: sale.currencyCode,
           },
           metadata: {
