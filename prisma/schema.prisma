@@ -151,8 +151,8 @@ model User {
   receivedCreditPayments CreditPayment[] @relation("CreditPaymentReceivedBy")
   processedCreditAdjustments CreditAdjustment[] @relation("CreditAdjustmentProcessedBy")
   creditPinHash String?
-  creditPinFailedAttempts Int @default(0)
-  creditPinLockedUntil DateTime?
+  creditApprovalFailedAttempts Int @default(0)
+  creditApprovalLockedUntil DateTime?
   openedCashSessions CashSession[] @relation("CashSessionOpenedBy")
   closedCashSessions CashSession[] @relation("CashSessionClosedBy")
   cashMovements CashMovement[] @relation("CashMovementCreatedBy")
