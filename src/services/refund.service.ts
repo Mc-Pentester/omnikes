@@ -109,10 +109,9 @@ export class RefundService {
         where: { returnId: validatedData.returnId },
         _sum: { amount: true },
       });
-      const returnCreditRefunds = await tx.creditRefund.aggregate({
-        where: { returnId: validatedData.returnId, organizationId },
-        _sum: { amount: true },
-      });
+      const returnCreditRefunds = tx.creditRefund?.aggregate
+        ? await tx.creditRefund.aggregate({ where: { returnId: validatedData.returnId, organizationId }, _sum: { amount: true } })
+        : { _sum: { amount: 0 } };
       const returnAlreadyRefunded = roundMoney(
         returnCashRefunded +
         Number(returnCreditAdjustments._sum.amount || 0) +
