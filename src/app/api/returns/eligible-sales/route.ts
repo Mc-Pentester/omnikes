@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   try {
     const user = await getAuthenticatedUser(request);
     if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    await requirePermission(request, 'sale.read');
+    await requirePermission(request, 'sale.return');
 
     const url = new URL(request.url);
     const search = url.searchParams.get('search')?.trim();
