@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server';
 import { generateToken } from '@omnikes/lib/crypto';
 import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { prisma } from '@omnikes/lib/prisma';
+import { saleService } from '@omnikes/services/sale.service';
 
 import { POST as creditPost } from '@omnikes/app/api/sales/[id]/credit/route';
 import { POST as creditPaymentPost } from '@omnikes/app/api/credits/[id]/payments/route';
@@ -183,10 +184,10 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
         orderNumber: `P0-24-F2-D-API-PIN-${suffix}`,
         customerId: customerA!.id,
         status: 'PENDING',
-        subtotal: 500,
+        subtotal: 200,
         tax: 0,
         taxRate: 0,
-        total: 500,
+        total: 200,
         discount: 0,
         applyTax: false,
       },
@@ -385,6 +386,10 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     const credit = await prisma.saleCredit.findUnique({ where: { saleId: pinSaleId } });
     expect(credit?.dueAt).toBeInstanceOf(Date);
     expect(credit?.authorizedBy).toBe(managerUser!.id);
+    expect(credit?.status).toBe('APPROVED_PENDING_COMPLETION');
+    await saleService.complete(pinSaleId, orgA!.id);
+    const finalizedCredit = await prisma.saleCredit.findUniqueOrThrow({ where: { saleId: pinSaleId } });
+    expect(finalizedCredit.status).toBe('AUTHORIZED');
   });
 
   it('records partial and final customer credit repayments', async () => {
