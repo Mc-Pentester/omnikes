@@ -58,6 +58,7 @@
     "sale.customer.assign",
     "sale.pos.sync",
     "credit.approve",
+    "credit.refund",
     "credit.request",
     "credit.payment.receive",
     "credit.view",
@@ -125,7 +126,8 @@
         "credit.view",
         "credit.history.view",
         "credit.report.view",
-        "credit.limit.manage"
+        "credit.limit.manage",
+        "credit.refund"
       ]
     },
     {
@@ -156,7 +158,8 @@
         "credit.payment.receive",
         "credit.view",
         "credit.history.view",
-        "credit.report.view"
+        "credit.report.view",
+        "credit.refund"
       ]
     },
     {
@@ -270,7 +273,6 @@
       "name": "SALES_MANAGER",
       "description": "Pilotage commercial, clients, ventes et proformas",
       "permissionCodes": [
-        "payment.refund",
         "sale.create",
         "sale.read",
         "sale.update",
@@ -296,7 +298,8 @@
         "credit.view",
         "credit.history.view",
         "credit.report.view",
-        "credit.limit.manage"
+        "credit.limit.manage",
+        "credit.refund"
       ]
     },
     {
@@ -355,7 +358,8 @@
         "credit.view",
         "credit.history.view",
         "credit.report.view",
-        "credit.limit.manage"
+        "credit.limit.manage",
+        "credit.refund"
       ]
     },
     {
