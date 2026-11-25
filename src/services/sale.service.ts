@@ -691,7 +691,7 @@ export class SaleService {
         }
       }
 
-      const cancelledSale = await tx.sale.update({
+      await tx.sale.update({
         where: { id: saleId },
         data: { status: 'CANCELLED' },
         include: {
