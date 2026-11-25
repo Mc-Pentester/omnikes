@@ -65,6 +65,8 @@ export default function PendingSalesPage() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [creditAmount, setCreditAmount] = useState('');
   const [creditNote, setCreditNote] = useState('');
+  const [approverEmail, setApproverEmail] = useState('');
+  const [approverPassword, setApproverPassword] = useState('');
   const [compact, setCompact] = useState(false);
 
   const loadSales = useCallback(async () => {
@@ -297,6 +299,8 @@ export default function PendingSalesPage() {
           customerId: selectedSale.customer.id,
           amount,
           note: creditNote.trim() || undefined,
+          approverEmail: approverEmail.trim(),
+          approverPassword,
         }),
       });
 
@@ -305,6 +309,8 @@ export default function PendingSalesPage() {
 
       setCreditAmount('');
       setCreditNote('');
+      setApproverEmail('');
+      setApproverPassword('');
       await refreshAfterMutation();
 
       const refreshed = await fetch('/api/sales/' + selectedSale.id);
@@ -592,13 +598,33 @@ export default function PendingSalesPage() {
                           <Input
                             value={creditNote}
                             onChange={(event) => setCreditNote(event.target.value)}
-                            placeholder="Note facultative"
+                            placeholder="Motif / note (facultatif)"
                             disabled={processing || totals.remaining <= 0}
                             maxLength={1000}
                           />
+                          <div className="rounded-md border border-border p-3 space-y-2">
+                            <p className="text-sm font-medium text-foreground">Validation par un responsable</p>
+                            <p className="text-xs text-muted">Un autre utilisateur habilité doit confirmer sur place avec ses propres identifiants.</p>
+                            <Input
+                              type="email"
+                              autoComplete="username"
+                              value={approverEmail}
+                              onChange={(event) => setApproverEmail(event.target.value)}
+                              placeholder="E-mail du responsable"
+                              disabled={processing || totals.remaining <= 0}
+                            />
+                            <Input
+                              type="password"
+                              autoComplete="current-password"
+                              value={approverPassword}
+                              onChange={(event) => setApproverPassword(event.target.value)}
+                              placeholder="Mot de passe du responsable"
+                              disabled={processing || totals.remaining <= 0}
+                            />
+                          </div>
                           <Button
                             onClick={authorizeCredit}
-                            disabled={processing || totals.remaining <= 0 || !creditAmount}
+                            disabled={processing || totals.remaining <= 0 || !creditAmount || !approverEmail.trim() || !approverPassword}
                             variant="outline"
                             className="w-full"
                           >
