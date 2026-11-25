@@ -191,6 +191,9 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
     await refundPanel.locator('input[type="number"]').fill('125');
     await refundPanel.getByRole('button', { name: 'Confirmer le remboursement' }).click();
     await expect(refundPanel.getByRole('status')).toContainText('Remboursement enregistré : 125.00 USD');
+    // A successful refund refreshes history and credit balances without unmounting
+    // the active refund workspace or losing its selected return context.
+    await expect(refundPanel).toBeVisible();
 
     // The first repayment is now fully refunded and disappears from the choices.
     await expect(originalPaymentSelect.locator('option')).toHaveCount(2);
