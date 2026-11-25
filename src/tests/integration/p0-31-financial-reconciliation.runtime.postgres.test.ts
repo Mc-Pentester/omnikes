@@ -95,6 +95,7 @@ describe('P0-31-A - real PostgreSQL financial reconciliation', () => {
         customerId,
         amount: 400,
         status: 'AUTHORIZED',
+        dueAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         authorizedBy: (await prisma.user.findUniqueOrThrow({
           where: { email: 'admin.a@omnikes.test' },
           select: { id: true },
