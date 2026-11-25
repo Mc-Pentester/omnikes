@@ -43,3 +43,6 @@ ALTER TABLE "credit_refunds"
     FOREIGN KEY ("returnId") REFERENCES "returns"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
   ADD CONSTRAINT "credit_refunds_processedBy_fkey"
     FOREIGN KEY ("processedBy") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "credit_payments" ADD CONSTRAINT "credit_payments_refundedAmount_check" CHECK ("refundedAmount" >= 0 AND "refundedAmount" <= "amount");
+ALTER TABLE "credit_refunds" ADD CONSTRAINT "credit_refunds_amount_positive_check" CHECK ("amount" > 0);
