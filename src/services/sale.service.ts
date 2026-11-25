@@ -763,7 +763,16 @@ export class SaleService {
         },
       });
 
-      return cancelledSale;
+      return tx.sale.findUnique({
+        where: { id: saleId },
+        include: {
+          store: true,
+          customer: true,
+          items: { include: { variant: { include: { product: true } } } },
+          payments: true,
+          saleCredit: true,
+        },
+      });
     });
   }
 
