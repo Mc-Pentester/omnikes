@@ -34,6 +34,13 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
 
     // Create an isolated customer with the manager account before starting the cashier flow.
     await login(page, managerEmail!, managerPassword!);
+    const managerPin = '529184';
+    const pinSetupResponse = await page.request.put('/api/users/me/credit-pin', {
+      data: { currentPassword: managerPassword!, pin: managerPin },
+    });
+    expect(pinSetupResponse.status(), await pinSetupResponse.text()).toBe(200);
+    expect(await pinSetupResponse.json()).toMatchObject({ success: true, configured: true });
+
     const customerResponse = await page.request.post('/api/customers', {
       data: { name: customerName, email: customerEmail, country: 'HT' },
     });
@@ -110,8 +117,19 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
     await expect(page.getByRole('heading', { name: 'Accorder un crédit' })).toBeVisible();
     await page.getByPlaceholder(/Maximum/).last().fill(String(unitPrice));
     await page.locator('input[type="email"]').fill(managerEmail!);
-    await page.getByPlaceholder('Mot de passe du responsable').fill(managerPassword!);
+    const approvalMethod = page.locator('select').filter({ has: page.locator('option[value="pin"]') });
+    await approvalMethod.selectOption('pin');
+    const pinInput = page.getByPlaceholder('PIN (4 à 8 chiffres)');
+    await pinInput.fill('000001');
 
+    const rejectedApprovalPromise = page.waitForResponse((response) =>
+      response.url().endsWith(`/api/sales/${sale.id}/credit`) && response.request().method() === 'POST',
+    );
+    await page.getByRole('button', { name: 'Accorder le crédit' }).click();
+    const rejectedApproval = await rejectedApprovalPromise;
+    expect(rejectedApproval.status(), await rejectedApproval.text()).toBe(403);
+
+    await pinInput.fill(managerPin);
     const approvalResponsePromise = page.waitForResponse((response) =>
       response.url().endsWith(`/api/sales/${sale.id}/credit`) && response.request().method() === 'POST',
     );
