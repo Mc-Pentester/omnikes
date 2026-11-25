@@ -462,7 +462,7 @@ export class SaleService {
         .filter(p => p.status === 'COMPLETED' && p.method !== 'CREDIT')
         .reduce((sum: number, p: Payment) => sum + Number(p.amount), 0));
 
-      const authorizedCredit = sale.saleCredit?.status === 'AUTHORIZED'
+      const authorizedCredit = sale.saleCredit && ['AUTHORIZED', 'APPROVED_PENDING_COMPLETION'].includes(sale.saleCredit.status)
         ? roundMoney(Number(sale.saleCredit.amount))
         : 0;
 
@@ -518,6 +518,15 @@ export class SaleService {
         where: { id: saleId },
         data: { status: 'COMPLETED' },
       });
+
+      // The approved credit becomes an actual receivable only in the same
+      // transaction that finalizes the sale and deducts stock.
+      if (sale.saleCredit?.status === 'APPROVED_PENDING_COMPLETION') {
+        await tx.saleCredit.update({
+          where: { id: sale.saleCredit.id },
+          data: { status: 'AUTHORIZED' },
+        });
+      }
 
       return tx.sale.findUnique({
         where: { id: saleId },
@@ -765,7 +774,7 @@ export class SaleService {
           saleId,
           customerId: customer.id,
           amount: validatedData.amount,
-          status: 'AUTHORIZED',
+          status: 'APPROVED_PENDING_COMPLETION',
           authorizedBy,
           note: validatedData.note,
           dueAt,
