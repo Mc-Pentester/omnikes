@@ -112,6 +112,23 @@ describe('customer credit repayment refunds - PostgreSQL API', () => {
     await prisma.$disconnect();
   });
 
+  it('requires credit.refund separately from ordinary payment.refund', async () => {
+    const key = 'credit-refund-permission-' + Date.now();
+    const makeRequest = () => new NextRequest(`http://localhost/api/credits/${creditId}/refunds`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: `auth_token=${rawToken}`, origin: 'http://localhost', 'Idempotency-Key': key },
+      body: JSON.stringify({ returnId, paymentId, amount: 100 }),
+    });
+    const denied = await creditRefundPost(makeRequest(), { params: Promise.resolve({ id: creditId }) });
+    expect(denied.status).toBe(403);
+    expect(await prisma.creditRefund.count({ where: { saleCreditId: creditId } })).toBe(0);
+
+    const creditRefundPermission = await prisma.permission.findUniqueOrThrow({ where: { code: 'credit.refund' } });
+    await prisma.rolePermission.create({ data: { roleId, permissionId: creditRefundPermission.id } });
+    const allowed = await creditRefundPost(makeRequest(), { params: Promise.resolve({ id: creditId }) });
+    expect(allowed.status).toBe(201);
+  });
+
   it('refunds only the returned and collected amount and replays idempotently', async () => {
     const key = 'credit-refund-api-' + Date.now();
     const request = () => new NextRequest(`http://localhost/api/credits/${creditId}/refunds`, {
