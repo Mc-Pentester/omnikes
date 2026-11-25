@@ -50,6 +50,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           (existing.reference ?? null) !== (data.reference ?? null)) {
         return NextResponse.json({ error: 'Idempotency-Key already used with different credit payment data' }, { status: 409 });
       }
+      await requireStoreAccess(request, existing.storeId);
       return NextResponse.json(existing);
     }
 
