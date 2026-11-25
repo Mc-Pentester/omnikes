@@ -43,6 +43,9 @@ export class AdminOrganizationService {
   ) {
     await this.requirePermission(actorUserId, 'organization.update');
     const data = adminOrganizationUpdateSchema.parse(input);
+    if (data.creditDefaultDueDays !== undefined) {
+      await this.requirePermission(actorUserId, 'credit.settings.manage');
+    }
 
     if (data.timezone) {
       try {
