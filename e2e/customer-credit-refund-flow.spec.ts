@@ -204,7 +204,15 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
     await expect(originalPaymentSelect.locator('option')).toHaveCount(2);
     await originalPaymentSelect.selectOption({ index: 1 });
     await refundPanel.locator('input[type="number"]').fill('125');
+    const secondRefundResponsePromise = page.waitForResponse((response) =>
+      response.url().endsWith(`/api/credits/${creditRow.id}/refunds`) && response.request().method() === 'POST',
+    );
     await refundPanel.getByRole('button', { name: 'Confirmer le remboursement' }).click();
+    const secondRefundResponse = await secondRefundResponsePromise;
+    expect(secondRefundResponse.status(), await secondRefundResponse.text()).toBe(201);
+    const secondRefund = await secondRefundResponse.json();
+    expect(Number(secondRefund.amount)).toBe(125);
+    expect(secondRefund.creditPaymentId).toBeTruthy();
 
     const historyResponse = await page.request.get(`/api/credits/${creditRow.id}/payments`);
     expect(historyResponse.status(), await historyResponse.text()).toBe(200);
