@@ -32,7 +32,7 @@ type CreditPayment = {
 export default function CustomerCreditsPage() {
   const { user, loading: authLoading } = useAuth();
   const [credits, setCredits] = useState<CreditRow[]>([]);
-  const [totals, setTotals] = useState<Record<string, { credit: number; paid: number; outstanding: number; overdue: number }>>({});
+  const [totals, setTotals] = useState<Record<string, { credit: number; paid: number; adjusted: number; outstanding: number; overdue: number }>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [storeId, setStoreId] = useState('');
@@ -142,7 +142,7 @@ export default function CustomerCreditsPage() {
                 <Card key={currency} className="p-4">
                   <p className="text-xs text-muted">Solde ouvert · {currency}</p>
                   <p className="mt-1 text-2xl font-semibold">{value.outstanding.toFixed(2)}</p>
-                  <p className="mt-1 text-xs text-muted">Accordé {value.credit.toFixed(2)} · encaissé {value.paid.toFixed(2)}</p>
+                  <p className="mt-1 text-xs text-muted">Accordé {value.credit.toFixed(2)} · encaissé {value.paid.toFixed(2)} · réduit {value.adjusted.toFixed(2)}</p>
                   <p className="text-xs text-danger">Échu : {value.overdue.toFixed(2)}</p>
                 </Card>
               ))}
