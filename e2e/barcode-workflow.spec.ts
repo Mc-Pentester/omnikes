@@ -45,7 +45,7 @@ test.describe('Barcode workflow', () => {
 
     await page.getByLabel(/nom du produit/i).fill(productName);
     await page.getByLabel(/^sku/i).fill(sku);
-    await page.getByLabel(/^Prix de vente \(.+\) \*$/i).fill('125');
+    await page.getByLabel('price').fill('125');
     await page.getByLabel(/coût d’acquisition unitaire/i).fill('75');
     await page.getByRole('button', { name: /^créer$/i }).click();
 
@@ -69,7 +69,7 @@ test.describe('Barcode workflow', () => {
     await expect(page.getByRole('heading', { name: /créer un produit/i })).toBeVisible();
     await page.getByLabel(/nom du produit/i).fill(secondProductName);
     await page.getByLabel(/^sku/i).fill(secondSku);
-    await page.getByLabel(/^Prix de vente \(.+\) \*$/i).fill('95');
+    await page.getByLabel('price').fill('95');
     await page.getByLabel(/coût d’acquisition unitaire/i).fill('50');
     await page.getByRole('button', { name: /^créer$/i }).click();
     const secondProductRow = page.getByRole('row').filter({ hasText: secondProductName });
