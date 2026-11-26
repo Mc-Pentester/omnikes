@@ -17,12 +17,16 @@ test.describe('Barcode workflow', () => {
     await page.getByLabel(/mot de passe|password/i).fill(password!);
     await page.getByRole('button', { name: /sign in|se connecter|connexion/i }).click();
     await page.waitForURL(/\/$|\/dashboard/);
+    const meResponse = await page.context().request.get('/api/auth/me');
+    expect(meResponse.ok()).toBeTruthy();
+    const { user: authUser } = await meResponse.json();
+    const currencyLabel = authUser.currencySymbol || authUser.currency || 'USD';
 
     await page.goto('/products');
     await page.getByRole('button', { name: /nouveau produit/i }).click();
     await page.getByLabel(/nom du produit/i).fill(productName);
     await page.getByLabel(/^sku/i).fill(sku);
-    await page.getByLabel(/prix/i).fill('125');
+    await page.getByLabel(/^Prix de vente \\(.+\\) \\*$/i).fill('125');
     await page.getByLabel(/coût d’acquisition unitaire/i).fill('75');
     await expect(page.getByLabel(/code-barres/i)).toBeVisible();
     await expect(page.getByLabel(/code-barres/i)).toHaveValue('');
@@ -32,13 +36,13 @@ test.describe('Barcode workflow', () => {
     const productRow = page.getByRole('row').filter({ hasText: productName });
     await expect(productRow.getByRole('cell').nth(5)).toHaveText('0');
     await productRow.getByRole('button', { name: /modifier/i }).click();
-    await page.getByLabel(/prix de vente/i).fill('175.50');
+    await page.getByLabel(/^Prix de vente \\(.+\\) \\*$/i).fill('175.50');
     await page.getByLabel(/coût d’acquisition unitaire/i).fill('82.25');
     await page.getByLabel(/code-barres/i).fill(barcode);
     await page.getByRole('button', { name: /enregistrer/i }).click();
     await expect(productRow.getByText(barcode)).toBeVisible();
-    await expect(productRow).toContainText('175.50 HTG');
-    await expect(productRow).toContainText('82.25 HTG');
+    await expect(productRow).toContainText(`175.50 ${currencyLabel}`);
+    await expect(productRow).toContainText(`82.25 ${currencyLabel}`);
 
     await productRow.getByRole('button', { name: /modifier/i }).click();
     await page.getByRole('button', { name: /gérer la quantité/i }).click();
