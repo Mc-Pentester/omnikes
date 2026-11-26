@@ -158,8 +158,12 @@ export default function ProductsPage() {
 
   useEffect(() => {
     if (!user) return;
-    const scannedBarcode = new URLSearchParams(window.location.search).get('newBarcode');
-    if (scannedBarcode) void handleCreate(scannedBarcode);
+    const url = new URL(window.location.href);
+    const scannedBarcode = url.searchParams.get('newBarcode');
+    if (!scannedBarcode) return;
+    url.searchParams.delete('newBarcode');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    void handleCreate(scannedBarcode);
   }, [user]);
 
   const handleEdit = (product: Product) => {
