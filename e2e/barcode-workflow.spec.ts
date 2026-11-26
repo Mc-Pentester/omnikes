@@ -84,11 +84,14 @@ test.describe('Barcode workflow', () => {
     await posSearch.focus();
     await posSearch.pressSequentially(barcode, { delay: 8 });
     await posSearch.press('Enter');
-    await expect(page.getByText(productName)).toHaveCount(2);
+    const cartPanel = page.getByRole('heading', { name: 'Panier' }).locator('xpath=../..');
+    await expect(cartPanel.getByText(productName)).toBeVisible();
+    await expect(cartPanel.getByText('1 article(s)')).toBeVisible();
     await posSearch.focus();
     await posSearch.pressSequentially(secondBarcode, { delay: 8 });
     await posSearch.press('Enter');
-    await expect(page.getByText(secondProductName)).toHaveCount(2);
+    await expect(cartPanel.getByText(secondProductName)).toBeVisible();
+    await expect(cartPanel.getByText('2 article(s)')).toBeVisible();
 
     // Cancelling creation for a third unknown code must not add anything to the cart.
     page.once('dialog', async (dialog) => {
@@ -99,7 +102,8 @@ test.describe('Barcode workflow', () => {
     await posSearch.pressSequentially(`UNKNOWN-${suffix}`, { delay: 8 });
     await posSearch.press('Enter');
     await expect(page).toHaveURL('/');
-    await expect(page.getByText(productName)).toHaveCount(2);
-    await expect(page.getByText(secondProductName)).toHaveCount(2);
+    await expect(cartPanel.getByText(productName)).toBeVisible();
+    await expect(cartPanel.getByText(secondProductName)).toBeVisible();
+    await expect(cartPanel.getByText('2 article(s)')).toBeVisible();
   });
 });
