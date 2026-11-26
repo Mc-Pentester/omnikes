@@ -38,8 +38,8 @@ test.describe('POS multi-packaging', () => {
         }],
       },
     });
-    expect(productResponse.status(), await productResponse.text()).toBe(201);
     const created = await productResponse.json();
+    expect(productResponse.status(), JSON.stringify(created)).toBe(201);
 
     try {
       await page.goto('/');
