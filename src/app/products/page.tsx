@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
@@ -125,7 +125,7 @@ export default function ProductsPage() {
   });
   const activeCount = products.filter((product) => product.isActive).length;
 
-  const handleCreate = async (scannedBarcode = '') => {
+  const handleCreate = useCallback(async (scannedBarcode = '') => {
     setModalMode('create');
     setInitialStock('0');
     setInitialStockStoreId('');
@@ -154,7 +154,7 @@ export default function ProductsPage() {
     });
     setFormError(null);
     setShowModal(true);
-  };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -164,7 +164,7 @@ export default function ProductsPage() {
     url.searchParams.delete('newBarcode');
     window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
     void handleCreate(scannedBarcode);
-  }, [user]);
+  }, [user, handleCreate]);
 
   const handleEdit = (product: Product) => {
     setModalMode('edit');
