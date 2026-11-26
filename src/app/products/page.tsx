@@ -52,6 +52,7 @@ interface ProductFormData {
 export default function ProductsPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const currencyLabel = user?.currencySymbol || user?.currency || 'USD';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -464,10 +465,10 @@ export default function ProductsPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{product.category || '-'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{product.variants[0]?.sku || '-'}<span className="block text-xs">{product.variants[0]?.barcode || 'Sans code-barres'}</span></td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
-                          {(product.variants[0]?.unitPrice ?? product.variants[0]?.price) != null ? `${parseFloat(String(product.variants[0].unitPrice ?? product.variants[0].price)).toFixed(2)} HTG` : '-'}
+                          {(product.variants[0]?.unitPrice ?? product.variants[0]?.price) != null ? `${parseFloat(String(product.variants[0].unitPrice ?? product.variants[0].price)).toFixed(2)} ${currencyLabel}` : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
-                          {product.variants[0]?.cost != null ? `${parseFloat(String(product.variants[0].cost)).toFixed(2)} HTG` : '-'}
+                          {product.variants[0]?.cost != null ? `${parseFloat(String(product.variants[0].cost)).toFixed(2)} ${currencyLabel}` : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                           <span className={`font-semibold ${product.variants[0]?.stock === 0 ? 'text-danger' : (product.variants[0]?.stock ?? 0) < 5 ? 'text-warning' : 'text-success'}`}>
@@ -634,7 +635,7 @@ export default function ProductsPage() {
               </div>
               <div>
                 <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">
-                  Prix de vente (HTG) *
+                  Prix de vente ({currencyLabel}) *
                 </label>
                 <Input
                   id="price"
@@ -647,7 +648,7 @@ export default function ProductsPage() {
                 />
               </div>
               <div>
-                <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">Coût d’acquisition unitaire (HTG) *</label>
+                <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">Coût d’acquisition unitaire ({currencyLabel}) *</label>
                 <Input id="cost" type="number" min="0" step="0.01" value={formData.cost} onChange={(e) => setFormData({ ...formData, cost: e.target.value })} placeholder="0.00" required />
                 <p className="mt-1 text-xs text-muted">Ce coût sert au calcul de la valeur du stock (quantité × coût unitaire).</p>
               </div>
@@ -689,12 +690,12 @@ export default function ProductsPage() {
             <div className="rounded-lg border border-border bg-surface-muted p-3 space-y-3">
               <p className="text-sm font-semibold text-foreground">Prix du produit</p>
               <div>
-                <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">Prix de vente (HTG) *</label>
+                <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">Prix de vente ({currencyLabel}) *</label>
                 <Input id="price" type="number" min="0" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="100.00" required />
                 <p className="mt-1 text-xs text-muted">Prix appliqué aux prochaines ventes.</p>
               </div>
               <div>
-                <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">Coût d’acquisition unitaire (HTG) *</label>
+                <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">Coût d’acquisition unitaire ({currencyLabel}) *</label>
                 <Input id="cost" type="number" min="0" step="0.01" value={formData.cost} onChange={(e) => setFormData({ ...formData, cost: e.target.value })} placeholder="0.00" required />
                 <p className="mt-1 text-xs text-muted">Utilisé pour calculer la valeur du stock, jamais le prix de vente.</p>
               </div>
@@ -704,11 +705,11 @@ export default function ProductsPage() {
             <p className="text-sm font-semibold text-foreground">Prix par conditionnement</p>
             <p className="text-xs text-muted">Le stock reste compté en unités de base. Laissez un prix vide pour désactiver ce conditionnement.</p>
             <div>
-              <label htmlFor="pack3-price" className="block text-sm font-medium text-foreground mb-1">Lot de 3 (HTG)</label>
+              <label htmlFor="pack3-price" className="block text-sm font-medium text-foreground mb-1">Lot de 3 ({currencyLabel})</label>
               <Input id="pack3-price" type="number" min="0" step="0.01" value={formData.pack3Price} onChange={(e) => setFormData({ ...formData, pack3Price: e.target.value })} placeholder="Prix du lot de 3" />
             </div>
             <div>
-              <label htmlFor="dozen-price" className="block text-sm font-medium text-foreground mb-1">Douzaine (HTG)</label>
+              <label htmlFor="dozen-price" className="block text-sm font-medium text-foreground mb-1">Douzaine ({currencyLabel})</label>
               <Input id="dozen-price" type="number" min="0" step="0.01" value={formData.dozenPrice} onChange={(e) => setFormData({ ...formData, dozenPrice: e.target.value })} placeholder="Prix de la douzaine" />
             </div>
             <div>
@@ -716,7 +717,7 @@ export default function ProductsPage() {
               <Input id="units-per-case" type="number" min="1" step="1" value={formData.unitsPerCase} onChange={(e) => setFormData({ ...formData, unitsPerCase: e.target.value })} />
             </div>
             <div>
-              <label htmlFor="case-price" className="block text-sm font-medium text-foreground mb-1">Prix de la caisse (HTG)</label>
+              <label htmlFor="case-price" className="block text-sm font-medium text-foreground mb-1">Prix de la caisse ({currencyLabel})</label>
               <Input id="case-price" type="number" min="0" step="0.01" value={formData.casePrice} onChange={(e) => setFormData({ ...formData, casePrice: e.target.value })} placeholder="Prix de la caisse" />
             </div>
           </div>
