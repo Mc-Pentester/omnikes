@@ -51,13 +51,13 @@ describe('POS CASH end-to-end PostgreSQL runtime proof', () => {
         id: ids.variant,
         productId: ids.product,
         sku: `POS-CASH-E2E-${suffix}`,
-        price: 125,
-        unitPrice: 125,
+        price: 1000,
+        unitPrice: 1000,
         casePrice: 2400,
         dozenPrice: 1300,
         pack3Price: 350,
         unitsPerCase: 24,
-        cost: 50,
+        cost: 500,
         saleUnit: 'UNIT',
         attributes: {},
       },
@@ -127,7 +127,7 @@ describe('POS CASH end-to-end PostgreSQL runtime proof', () => {
         { variantId: ids.variant, quantity: 1, packaging: 'UNIT' },
       ],
     });
-    expect(Number(pricedSale?.total)).toBe(6575);
+    expect(Number(pricedSale?.total)).toBe(7450);
     expect(pricedSale?.items.map((item) => [item.packaging, item.baseUnits])).toEqual([
       ['CASE', 24], ['DOZEN', 12], ['PACK3', 3], ['UNIT', 1],
     ]);
@@ -135,7 +135,7 @@ describe('POS CASH end-to-end PostgreSQL runtime proof', () => {
     const response = await checkout(new NextRequest(`http://localhost/api/sales/${sale.id}/checkout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `packaging-${sale.id}` },
-      body: JSON.stringify({ method: 'CARD', amount: 6575, reference: 'PACKAGING-E2E' }),
+      body: JSON.stringify({ method: 'CARD', amount: 7450, reference: 'PACKAGING-E2E' }),
     }), { params: Promise.resolve({ id: sale.id }) });
     expect(response.status).toBe(201);
 
