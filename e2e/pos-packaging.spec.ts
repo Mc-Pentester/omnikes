@@ -13,14 +13,14 @@ test.describe('POS multi-packaging', () => {
     await page.getByRole('button', { name: /sign in|se connecter|connexion/i }).click();
     await page.waitForURL((url) => url.pathname === '/' || url.pathname === '/dashboard');
 
-    const storesResponse = await page.request.get('/api/stores?isActive=true');
+    const storesResponse = await page.context().request.get('/api/stores?isActive=true');
     expect(storesResponse.ok()).toBeTruthy();
     const storesData = await storesResponse.json();
     expect(storesData.stores.length).toBeGreaterThan(0);
 
     const suffix = Date.now().toString(36);
     const productName = `Packaging E2E ${suffix}`;
-    const productResponse = await page.request.post('/api/products', {
+    const productResponse = await page.context().request.post('/api/products', {
       data: {
         name: productName,
         category: 'E2E',
@@ -64,7 +64,7 @@ test.describe('POS multi-packaging', () => {
       await expect(page.getByText('Douzaine', { exact: true })).toBeVisible();
       await expect(page.getByText('Lot de 3', { exact: true })).toBeVisible();
     } finally {
-      await page.request.delete(`/api/products/${created.id}`);
+      await page.context().request.delete(`/api/products/${created.id}`);
     }
   });
 });
