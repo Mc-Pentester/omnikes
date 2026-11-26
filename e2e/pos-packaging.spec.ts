@@ -8,10 +8,10 @@ test.describe('POS multi-packaging', () => {
 
   test('offers unit, pack of 3, dozen and case for one product', async ({ page }) => {
     await page.goto('/login');
-    await page.getByLabel('Email').fill(email!);
-    await page.getByLabel('Mot de passe').fill(password!);
-    await page.getByRole('button', { name: 'Se connecter' }).click();
-    await expect(page).toHaveURL(/\\/$/);
+    await page.getByLabel(/email/i).fill(email!);
+    await page.getByLabel(/mot de passe|password/i).fill(password!);
+    await page.getByRole('button', { name: /sign in|se connecter|connexion/i }).click();
+    await page.waitForURL(/\\/$|\\/dashboard/);
 
     const storesResponse = await page.request.get('/api/stores?isActive=true');
     expect(storesResponse.ok()).toBeTruthy();
