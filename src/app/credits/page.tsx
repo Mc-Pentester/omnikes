@@ -13,6 +13,8 @@ type CreditRow = {
   id: string;
   amount: string | number;
   paid: number;
+  refunded: number;
+  netPaid: number;
   adjusted?: number;
   outstanding: number;
   dueAt: string;
@@ -40,7 +42,7 @@ export default function CustomerCreditsPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [credits, setCredits] = useState<CreditRow[]>([]);
-  const [totals, setTotals] = useState<Record<string, { credit: number; paid: number; adjusted: number; outstanding: number; overdue: number }>>({});
+  const [totals, setTotals] = useState<Record<string, { credit: number; paid: number; refunded: number; netPaid: number; adjusted: number; outstanding: number; overdue: number }>>({});
   const [total, setTotal] = useState(0);
   const [skip, setSkip] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -54,6 +56,7 @@ export default function CustomerCreditsPage() {
   const [saving, setSaving] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [paymentMessage, setPaymentMessage] = useState('');
+  const [lastPaymentReceipt, setLastPaymentReceipt] = useState<{ creditId: string; paymentId: string } | null>(null);
   const [historyId, setHistoryId] = useState<string | null>(null);
   const [history, setHistory] = useState<CreditPayment[]>([]);
   const [historyError, setHistoryError] = useState('');
@@ -116,6 +119,7 @@ export default function CustomerCreditsPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Impossible d’enregistrer le remboursement.');
       setPaymentMessage('Paiement enregistré. Solde restant : ' + Number(data.outstandingAfter).toFixed(2) + ' ' + credit.sale.currencyCode);
+      setLastPaymentReceipt({ creditId: credit.id, paymentId: data.id });
       setPaymentIdempotencyKey(null);
       setAmount('');
       setReference('');
@@ -164,7 +168,8 @@ export default function CustomerCreditsPage() {
                 <Card key={currency} className="p-4">
                   <p className="text-xs text-muted">Solde ouvert · {currency}</p>
                   <p className="mt-1 text-2xl font-semibold">{value.outstanding.toFixed(2)}</p>
-                  <p className="mt-1 text-xs text-muted">Accordé {value.credit.toFixed(2)} · encaissé {value.paid.toFixed(2)} · réduit {value.adjusted.toFixed(2)}</p>
+                  <p className="mt-1 text-xs text-muted">Accordé {value.credit.toFixed(2)} · encaissé brut {value.paid.toFixed(2)} · remboursé {value.refunded.toFixed(2)}</p>
+                  <p className="text-xs text-muted">Encaissé net : {value.netPaid.toFixed(2)} · dette réduite : {value.adjusted.toFixed(2)}</p>
                   <p className="text-xs text-danger">Échu : {value.overdue.toFixed(2)}</p>
                 </Card>
               ))}
@@ -191,10 +196,11 @@ export default function CustomerCreditsPage() {
                       <p className="mt-1 text-sm text-muted">{credit.sale.orderNumber} · {credit.customer.phone || 'Sans téléphone'}</p>
                       <p className="mt-1 text-xs text-muted">Échéance : {new Date(credit.dueAt).toLocaleDateString()} · Autorisé par {credit.authorizedByUser?.name || credit.authorizedByUser?.email || 'Responsable'}</p>
                     </div>
-                    <div className="grid grid-cols-3 gap-3 text-right text-sm">
+                    <div className="grid grid-cols-2 gap-3 text-right text-sm sm:grid-cols-4">
                       <div><p className="text-xs text-muted">Crédit</p><p className="font-semibold">{Number(credit.amount).toFixed(2)}</p></div>
-                      <div><p className="text-xs text-muted">Payé</p><p className="font-semibold">{credit.paid.toFixed(2)}</p>{Boolean(credit.adjusted) && <p className="text-xs text-muted">Réduit {Number(credit.adjusted).toFixed(2)}</p>}</div>
-                      <div><p className="text-xs text-muted">Solde</p><p className="font-semibold">{credit.outstanding.toFixed(2)} {credit.sale.currencyCode}</p></div>
+                      <div><p className="text-xs text-muted">Encaissé brut</p><p className="font-semibold">{credit.paid.toFixed(2)}</p></div>
+                      <div><p className="text-xs text-muted">Remboursé</p><p className="font-semibold">{credit.refunded.toFixed(2)}</p><p className="text-xs text-muted">Net {credit.netPaid.toFixed(2)}</p></div>
+                      <div><p className="text-xs text-muted">Solde</p><p className="font-semibold">{credit.outstanding.toFixed(2)} {credit.sale.currencyCode}</p>{Boolean(credit.adjusted) && <p className="text-xs text-muted">Réduit {Number(credit.adjusted).toFixed(2)}</p>}</div>
                     </div>
                   </div>
 
@@ -222,7 +228,12 @@ export default function CustomerCreditsPage() {
                       </select>
                       <Input value={reference} onChange={(event) => { setReference(event.target.value); setPaymentIdempotencyKey(null); }} placeholder="Référence (facultative)" />
                       {paymentError && <p role="alert" className="text-sm text-danger">{paymentError}</p>}
-                      {paymentMessage && <p role="status" className="text-sm text-success">{paymentMessage}</p>}
+                      {paymentMessage && (
+                        <div role="status" className="space-y-2 text-sm text-success">
+                          <p>{paymentMessage}</p>
+                          {lastPaymentReceipt && <Button size="sm" variant="outline" onClick={() => window.open(`/credits/${encodeURIComponent(lastPaymentReceipt.creditId)}/payments/${encodeURIComponent(lastPaymentReceipt.paymentId)}/receipt`, '_blank', 'noopener,noreferrer')}>Imprimer le reçu d’encaissement</Button>}
+                        </div>
+                      )}
                       <Button disabled={saving || !amount} onClick={() => void receivePayment(credit)}>{saving ? 'Enregistrement…' : 'Confirmer le remboursement'}</Button>
                     </div>
                   )}
@@ -234,9 +245,12 @@ export default function CustomerCreditsPage() {
                         <ul className="mt-2 divide-y divide-border">
                           {history.map((payment) => (
                             <li key={payment.id} className="py-2 text-sm">
-                              <div className="flex flex-wrap justify-between gap-2">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
                                 <span>{new Date(payment.createdAt).toLocaleString()} · {payment.method} · {payment.reference || 'Sans référence'} · {payment.receivedByUser?.name || payment.receivedByUser?.email || 'Utilisateur'}</span>
-                                <strong>{Number(payment.amount).toFixed(2)} {credit.sale.currencyCode}</strong>
+                                <div className="flex items-center gap-2">
+                                  <strong>{Number(payment.amount).toFixed(2)} {credit.sale.currencyCode}</strong>
+                                  <Button size="sm" variant="outline" onClick={() => window.open(`/credits/${encodeURIComponent(credit.id)}/payments/${encodeURIComponent(payment.id)}/receipt`, '_blank', 'noopener,noreferrer')}>Réimprimer le reçu</Button>
+                                </div>
                               </div>
                               {Number(payment.refundedAmount || 0) > 0 && <p className="text-xs text-muted">Remboursé : {Number(payment.refundedAmount).toFixed(2)}</p>}
                               {payment.refunds?.map((refund) => <p key={refund.id} className="pl-3 text-xs text-muted">↳ Remboursement {Number(refund.amount).toFixed(2)} · {refund.reference || refund.method} · {new Date(refund.createdAt).toLocaleString()}</p>)}

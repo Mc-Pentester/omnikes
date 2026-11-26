@@ -236,6 +236,15 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
     expect(historyResponse.status(), await historyResponse.text()).toBe(200);
     const paymentHistory = await historyResponse.json();
     expect(paymentHistory).toHaveLength(2);
+    const receiptResponse = await page.request.get(`/api/credits/${creditRow.id}/payments/${paymentHistory[0].id}/receipt`);
+    expect(receiptResponse.status(), await receiptResponse.text()).toBe(200);
+    const receiptData = await receiptResponse.json();
+    expect(receiptData.payment.id).toBe(paymentHistory[0].id);
+    expect(receiptData.sale.orderNumber).toBe(sale.orderNumber);
+    await page.goto(`/credits/${creditRow.id}/payments/${paymentHistory[0].id}/receipt`);
+    await expect(page.getByRole('heading', { name: 'REÇU D’ENCAISSEMENT CRÉDIT' })).toBeVisible();
+    await expect(page.getByText(sale.orderNumber)).toBeVisible();
+    await page.goto('/credits');
     for (const payment of paymentHistory) {
       expect(Number(payment.amount)).toBe(125);
       expect(Number(payment.refundedAmount)).toBe(125);
@@ -244,11 +253,18 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
     }
 
     const finalCreditsResponse = await page.request.get('/api/credits?take=100');
-    const finalCredit = (await finalCreditsResponse.json()).credits.find(
+    const finalCreditsData = await finalCreditsResponse.json();
+    const finalCredit = finalCreditsData.credits.find(
       (item: { id: string }) => item.id === creditRow.id,
     );
     expect(finalCredit.status).toBe('SETTLED');
+    expect(finalCredit.paid).toBe(250);
+    expect(finalCredit.refunded).toBe(250);
+    expect(finalCredit.netPaid).toBe(0);
     expect(finalCredit.outstanding).toBe(0);
+    expect(finalCreditsData.totalsByCurrency.USD.netPaid).toBe(
+      finalCreditsData.totalsByCurrency.USD.paid - finalCreditsData.totalsByCurrency.USD.refunded,
+    );
     expect(finalCredit.sale.returns[0].refundableRemaining).toBe(0);
   });
 });
