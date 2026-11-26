@@ -50,6 +50,7 @@ test.describe('POS multi-packaging', () => {
       }
 
       const search = page.locator('#product-search');
+      await expect(search).toBeVisible();
       await search.fill(productName);
       const productCard = page.locator('[role="button"][aria-label^="Ajouter Packaging E2E"]');
       await expect(productCard).toBeVisible();
