@@ -64,7 +64,7 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
     const variant = product.variants[0];
     expect(variant).toBeTruthy();
 
-    const receiptResponse = await page.request.post('/api/inventory/receive', {
+    const stockReceiptResponse = await page.request.post('/api/inventory/receive', {
       data: {
         storeId: store.id,
         variantId: variant.id,
@@ -73,8 +73,8 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
         notes: 'Initial stock for customer-credit E2E scenario',
       },
     });
-    expect(receiptResponse.status(), await receiptResponse.text()).toBe(200);
-    const receivedInventory = await receiptResponse.json();
+    expect(stockReceiptResponse.status(), await stockReceiptResponse.text()).toBe(200);
+    const receivedInventory = await stockReceiptResponse.json();
     expect(receivedInventory.storeId).toBe(store.id);
     expect(receivedInventory.variantId).toBe(variant.id);
     expect(receivedInventory.quantity).toBeGreaterThanOrEqual(100);
