@@ -156,11 +156,11 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
     await page.locator('main select').first().selectOption('CARD');
     await page.locator('main input[type="number"]').first().fill('125');
     await page.getByRole('button', { name: 'Confirmer le remboursement' }).click();
-    await expect(page.getByRole('status')).toContainText('Solde restant : 125.00 ${currencyCode}');
+    await expect(page.getByRole('status')).toContainText(`Solde restant : 125.00 ${currencyCode}`);
 
     await page.locator('main input[type="number"]').first().fill('125');
     await page.getByRole('button', { name: 'Confirmer le remboursement' }).click();
-    await expect(page.getByRole('status')).toContainText('Solde restant : 0.00 ${currencyCode}');
+    await expect(page.getByRole('status')).toContainText(`Solde restant : 0.00 ${currencyCode}`);
 
     const creditsResponse = await page.request.get('/api/credits?take=100');
     expect(creditsResponse.status(), await creditsResponse.text()).toBe(200);
@@ -209,7 +209,7 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
     await originalPaymentSelect.selectOption({ index: 1 });
     await refundPanel.locator('input[type="number"]').fill('125');
     await refundPanel.getByRole('button', { name: 'Confirmer le remboursement' }).click();
-    await expect(refundPanel.getByRole('status')).toContainText('Remboursement enregistré : 125.00 ${currencyCode}');
+    await expect(refundPanel.getByRole('status')).toContainText(`Remboursement enregistré : 125.00 ${currencyCode}`);
     // A successful refund refreshes history and credit balances without unmounting
     // the active refund workspace or losing its selected return context.
     await expect(refundPanel).toBeVisible();
