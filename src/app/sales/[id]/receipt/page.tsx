@@ -38,6 +38,8 @@ interface Sale {
   total: number;
   discount: number;
   applyTax: boolean;
+  currencyCode?: string;
+  currencySymbol?: string;
   createdAt: string;
   organization?: { subscriptionStatus?: string; subscriptionExpiresAt?: string | null };
   store?: {
@@ -226,7 +228,7 @@ export default function ReceiptPrintPage() {
                 {item.variant?.name && <div>{item.variant.name}</div>}
                 {item.variant?.sku && <div className="text-[9px]">{item.variant.sku}</div>}
                 <div>{item.packaging === 'CASE' ? `Caisse de ${item.baseUnits ?? 1} unités` : item.packaging === 'DOZEN' ? 'Douzaine' : item.packaging === 'PACK3' ? 'Lot de 3' : 'Unité'}</div>
-                <div>{money(item.unitPrice)} HTG / conditionnement</div>
+                <div>{money(item.unitPrice)} {sale.currencySymbol || sale.currencyCode || 'USD'} / conditionnement</div>
               </td>
               <td className="text-right">{item.quantity}</td>
               <td className="text-right font-semibold">{money(Number(item.totalPrice))}</td>
@@ -236,19 +238,19 @@ export default function ReceiptPrintPage() {
       </table>
 
       <section className="border-t border-dashed border-gray-700 mt-2 pt-2">
-        <div className="flex justify-between"><span>Sous-total</span><span>{money(sale.subtotal)} HTG</span></div>
+        <div className="flex justify-between"><span>Sous-total</span><span>{money(sale.subtotal)} {sale.currencySymbol || sale.currencyCode || 'USD'}</span></div>
         {sale.discount > 0 && (
-          <div className="flex justify-between"><span>Remise</span><span>-{money(sale.discount)} HTG</span></div>
+          <div className="flex justify-between"><span>Remise</span><span>-{money(sale.discount)} {sale.currencySymbol || sale.currencyCode || 'USD'}</span></div>
         )}
         {sale.applyTax && (
           <div className="flex justify-between">
             <span>Taxe{taxRate > 0 ? ` (${taxRate.toFixed(2)}%)` : ''}</span>
-            <span>{money(sale.tax)} HTG</span>
+            <span>{money(sale.tax)} {sale.currencySymbol || sale.currencyCode || 'USD'}</span>
           </div>
         )}
         <div className="flex justify-between border-t border-gray-700 mt-2 pt-2 text-base font-bold">
           <span>TOTAL</span>
-          <span>{money(sale.total)} HTG</span>
+          <span>{money(sale.total)} {sale.currencySymbol || sale.currencyCode || 'USD'}</span>
         </div>
       </section>
 
@@ -260,18 +262,18 @@ export default function ReceiptPrintPage() {
           </div>
           <div className="flex justify-between">
             <span>Montant payé</span>
-            <span>{money(payment.amount)} HTG</span>
+            <span>{money(payment.amount)} {sale.currencySymbol || sale.currencyCode || 'USD'}</span>
           </div>
           {payment.method === 'CASH' && payment.cashReceived != null && (
             <div className="flex justify-between">
               <span>Montant reçu</span>
-              <span>{money(payment.cashReceived)} HTG</span>
+              <span>{money(payment.cashReceived)} {sale.currencySymbol || sale.currencyCode || 'USD'}</span>
             </div>
           )}
           {payment.method === 'CASH' && payment.changeGiven != null && (
             <div className="flex justify-between font-semibold">
               <span>Monnaie rendue</span>
-              <span>{money(payment.changeGiven)} HTG</span>
+              <span>{money(payment.changeGiven)} {sale.currencySymbol || sale.currencyCode || 'USD'}</span>
             </div>
           )}
           {payment.reference && <div className="break-all">Réf. : {payment.reference}</div>}
