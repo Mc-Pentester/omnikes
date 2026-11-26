@@ -402,7 +402,14 @@ export default function HomePage() {
           try {
             const response = await fetch(`/api/products?barcode=${encodeURIComponent(scannedBarcode)}`, { cache: 'no-store' });
             if (!response.ok) {
-              window.alert(response.status === 404 ? 'Code-barres inconnu. Aucun produit ajouté.' : 'Impossible de vérifier ce code-barres.');
+              if (response.status === 404) {
+                const createProduct = window.confirm('Code-barres inconnu. Voulez-vous créer un produit avec ce code-barres ?');
+                setSearchTerm('');
+                if (createProduct) router.push(`/products?newBarcode=${encodeURIComponent(scannedBarcode)}`);
+                else window.setTimeout(() => document.getElementById('product-search')?.focus(), 100);
+                return;
+              }
+              window.alert('Impossible de vérifier ce code-barres.');
               return;
             }
             const data = await response.json();
