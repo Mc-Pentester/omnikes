@@ -222,7 +222,7 @@ export function PosReceipt({ saleId, onNewSale }: PosReceiptProps) {
                     <div>{money(item.unitPrice)} HTG / conditionnement</div>
                   </td>
                   <td className="py-1 text-right align-top">{item.quantity}</td>
-                  <td className="py-1 text-right align-top font-semibold">{money(Number(item.unitPrice) * Number(item.quantity))}</td>
+                  <td className="py-1 text-right align-top font-semibold">{money(Number(item.totalPrice))}</td>
                 </tr>
               ))}
             </tbody>
