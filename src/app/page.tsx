@@ -771,7 +771,7 @@ export default function HomePage() {
                       <p className="text-xs text-[var(--muted)] mt-1">SKU: {variant.sku}</p>{variant.barcode && <p className="text-xs text-[var(--muted)]">Code-barres: {variant.barcode}</p>}
                     </div>
                     <p className="text-lg font-bold text-[var(--primary)] mt-3">{parseFloat(String(variant.unitPrice ?? variant.price)).toFixed(2)} HTG / unité</p>
-                    {(variant.pack3Price != null || variant.dozenPrice != null || variant.casePrice != null) && (
+                    {variant.saleUnit === 'UNIT' && (variant.pack3Price != null || variant.dozenPrice != null || variant.casePrice != null) && (
                       <div className="mt-3 grid grid-cols-2 gap-2" onClick={(event) => event.stopPropagation()}>
                         {variant.pack3Price != null && <button type="button" className="rounded border border-border px-2 py-2 text-xs font-semibold" onClick={(event) => { event.stopPropagation(); void addToCart(variant.id, product.id, product.name, variant.name, variant.sku, Number(variant.pack3Price), variant.saleUnit, 'PACK3', 3); }}>Lot de 3 · {Number(variant.pack3Price).toFixed(2)}</button>}
                         {variant.dozenPrice != null && <button type="button" className="rounded border border-border px-2 py-2 text-xs font-semibold" onClick={(event) => { event.stopPropagation(); void addToCart(variant.id, product.id, product.name, variant.name, variant.sku, Number(variant.dozenPrice), variant.saleUnit, 'DOZEN', 12); }}>Douzaine · {Number(variant.dozenPrice).toFixed(2)}</button>}
