@@ -163,7 +163,7 @@ export default function ProductsPage() {
     if (!scannedBarcode) return;
     url.searchParams.delete('newBarcode');
     window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
-    void handleCreate(scannedBarcode);
+    queueMicrotask(() => void handleCreate(scannedBarcode));
   }, [user, handleCreate]);
 
   const handleEdit = (product: Product) => {
