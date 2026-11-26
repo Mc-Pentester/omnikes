@@ -16,6 +16,7 @@ describe('customer credit repayment refunds - PostgreSQL API', () => {
   let creditId: string;
   let paymentId: string;
   let returnId: string;
+  let permissionReturnId: string;
   let sessionId: string;
   let rawToken: string;
 
@@ -98,7 +99,9 @@ describe('customer credit repayment refunds - PostgreSQL API', () => {
   afterAll(async () => {
     if (sessionId) await prisma.session.deleteMany({ where: { id: sessionId } });
     if (creditId) await prisma.creditRefund.deleteMany({ where: { saleCreditId: creditId } });
-    if (returnId) await prisma.return.deleteMany({ where: { id: returnId } });
+    if (returnId || permissionReturnId) {
+      await prisma.return.deleteMany({ where: { id: { in: [returnId, permissionReturnId].filter(Boolean) as string[] } } });
+    }
     if (paymentId) await prisma.creditPayment.deleteMany({ where: { id: paymentId } });
     if (creditId) await prisma.saleCredit.deleteMany({ where: { id: creditId } });
     if (saleId) await prisma.sale.deleteMany({ where: { id: saleId } });
@@ -113,11 +116,17 @@ describe('customer credit repayment refunds - PostgreSQL API', () => {
   });
 
   it('requires credit.refund separately from ordinary payment.refund', async () => {
+    // Keep this authorization test's refund on its own return so it cannot
+    // consume the refundable amount used by the idempotency test below.
+    const permissionReturn = await prisma.return.create({
+      data: { organizationId, storeId, saleId, status: 'COMPLETED', totalRefunded: 100, reason: 'Permission API test', returnedBy: userId },
+    });
+    permissionReturnId = permissionReturn.id;
     const key = 'credit-refund-permission-' + Date.now();
     const makeRequest = () => new NextRequest(`http://localhost/api/credits/${creditId}/refunds`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', cookie: `auth_token=${rawToken}`, origin: 'http://localhost', 'Idempotency-Key': key },
-      body: JSON.stringify({ returnId, paymentId, amount: 100 }),
+      body: JSON.stringify({ returnId: permissionReturnId, paymentId, amount: 100 }),
     });
     const denied = await creditRefundPost(makeRequest(), { params: Promise.resolve({ id: creditId }) });
     expect(denied.status).toBe(403);
@@ -149,7 +158,7 @@ describe('customer credit repayment refunds - PostgreSQL API', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json', cookie: `auth_token=${rawToken}`, origin: 'http://localhost', 'Idempotency-Key': 'credit-refund-too-much-' + Date.now() },
       body: JSON.stringify({ returnId, paymentId, amount: 101 }),
-    }), { params: Promise.resolve({ id: creditId }) });
+    }), { params: Promise.resolve({ id: creditId }) }); 
     expect(excessive.status).toBe(409);
     expect(Number((await prisma.creditPayment.findUniqueOrThrow({ where: { id: paymentId } })).refundedAmount)).toBe(100);
   });
