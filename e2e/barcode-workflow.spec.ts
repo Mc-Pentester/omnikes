@@ -26,7 +26,7 @@ test.describe('Barcode workflow', () => {
     await page.getByRole('button', { name: /nouveau produit/i }).click();
     await page.getByLabel(/nom du produit/i).fill(productName);
     await page.getByLabel(/^sku/i).fill(sku);
-    await page.getByLabel(/^Prix de vente \\(.+\\) \\*$/i).fill('125');
+    await page.locator('#price').fill('125');
     await page.getByLabel(/coût d’acquisition unitaire/i).fill('75');
     await expect(page.getByLabel(/code-barres/i)).toBeVisible();
     await expect(page.getByLabel(/code-barres/i)).toHaveValue('');
