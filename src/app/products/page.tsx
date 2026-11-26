@@ -421,7 +421,7 @@ export default function ProductsPage() {
             </div>
             <div className="flex items-center gap-2">
               {returnToOnboarding && <Button variant="outline" onClick={() => router.push('/onboarding?step=products')}>Retour à l&apos;assistant</Button>}
-              <Button onClick={handleCreate}>+ Nouveau produit</Button>
+              <Button onClick={() => void handleCreate()}>+ Nouveau produit</Button>
             </div>
           </div>
         </header>
@@ -432,7 +432,7 @@ export default function ProductsPage() {
               title="Votre catalogue est prêt à commencer"
               description="Ajoutez votre premier produit pour construire votre catalogue et pouvoir passer vos premières ventes."
               actionLabel="Créer un produit"
-              onAction={handleCreate}
+              onAction={() => void handleCreate()}
               icon="box"
               tone="primary"
             />
