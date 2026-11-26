@@ -93,6 +93,7 @@ export default function HomePage() {
   const [applyTax, setApplyTax] = useState(false);
   const [pendingScaleReading, setPendingScaleReading] = useState<{ weightGrams: number; stable: boolean } | null>(null);
   const barcodeLookupInProgress = useRef(false);
+  const barcodeQueueRef = useRef<string[]>([]);
 
   const generateOrderNumber = useCallback(() => `SALE-${Date.now()}`, []);
   const generatePaymentReference = useCallback(() => `PAY-${Date.now()}`, []);
@@ -398,53 +399,72 @@ export default function HomePage() {
       const activeElement = document.activeElement;
       if (event.key !== 'Enter' || !(activeElement instanceof HTMLInputElement) || activeElement.id !== 'product-search') return;
 
-      // Read the live input value because scanner keystrokes can arrive before React commits state.
       const scannedBarcode = activeElement.value.trim();
-      if (!scannedBarcode || barcodeLookupInProgress.current) return;
+      if (!scannedBarcode) return;
 
       event.preventDefault();
+      // Clear the controlled input immediately. If another scan arrives while the
+      // current lookup/cart update is pending, its Enter event queues the full code.
+      activeElement.value = '';
+      setSearchTerm('');
+
+      if (barcodeLookupInProgress.current) {
+        barcodeQueueRef.current.push(scannedBarcode);
+        return;
+      }
+
       barcodeLookupInProgress.current = true;
-
       void (async () => {
+        let nextBarcode: string | undefined = scannedBarcode;
         try {
-          const response = await fetch(`/api/products?barcode=${encodeURIComponent(scannedBarcode)}`, { cache: 'no-store' });
+          while (nextBarcode) {
+            const currentBarcode = nextBarcode;
+            nextBarcode = undefined;
 
-          if (response.status === 404) {
-            activeElement.value = '';
-            setSearchTerm('');
-            const createProduct = window.confirm('Code-barres inconnu. Voulez-vous créer un produit avec ce code-barres ?');
-            if (createProduct) {
-              router.push(`/products?newBarcode=${encodeURIComponent(scannedBarcode)}`);
-            } else {
-              window.setTimeout(() => document.getElementById('product-search')?.focus(), 100);
+            try {
+              const response = await fetch(`/api/products?barcode=${encodeURIComponent(currentBarcode)}`, { cache: 'no-store' });
+
+              if (response.status === 404) {
+                const createProduct = window.confirm('Code-barres inconnu. Voulez-vous créer un produit avec ce code-barres ?');
+                if (createProduct) {
+                  barcodeQueueRef.current = [];
+                  router.push(`/products?newBarcode=${encodeURIComponent(currentBarcode)}`);
+                  break;
+                }
+                nextBarcode = barcodeQueueRef.current.shift();
+                continue;
+              }
+
+              if (!response.ok) {
+                window.alert(response.status === 401 || response.status === 403 || response.status === 402
+                  ? 'Vous n’êtes pas autorisé à consulter ce produit ou cette fonctionnalité.'
+                  : 'Impossible de vérifier ce code-barres. Réessayez.');
+                nextBarcode = barcodeQueueRef.current.shift();
+                continue;
+              }
+
+              const data = await response.json();
+              const product = data.product as Product | undefined;
+              const variant = product?.variants?.[0];
+              if (!product || !variant) {
+                window.alert('Aucune variante disponible ne correspond à ce code-barres.');
+                nextBarcode = barcodeQueueRef.current.shift();
+                continue;
+              }
+
+              await addToCart(variant.id, product.id, product.name, variant.name, variant.sku, variant.unitPrice ?? variant.price, variant.saleUnit);
+              nextBarcode = barcodeQueueRef.current.shift();
+            } catch (err) {
+              console.error('Barcode lookup failed:', err);
+              window.alert('Impossible de vérifier ce code-barres. Vérifiez la connexion puis réessayez.');
+              nextBarcode = barcodeQueueRef.current.shift();
             }
-            return;
           }
-
-          if (!response.ok) {
-            window.alert(response.status === 401 || response.status === 403 || response.status === 402
-              ? 'Vous n’êtes pas autorisé à consulter ce produit ou cette fonctionnalité.'
-              : 'Impossible de vérifier ce code-barres. Réessayez.');
-            return;
-          }
-
-          const data = await response.json();
-          const product = data.product as Product | undefined;
-          const variant = product?.variants?.[0];
-          if (!product || !variant) {
-            window.alert('Aucune variante disponible ne correspond à ce code-barres.');
-            return;
-          }
-
-          await addToCart(variant.id, product.id, product.name, variant.name, variant.sku, variant.unitPrice ?? variant.price, variant.saleUnit);
-          activeElement.value = '';
-          setSearchTerm('');
-          window.setTimeout(() => document.getElementById('product-search')?.focus(), 100);
-        } catch (err) {
-          console.error('Barcode lookup failed:', err);
-          window.alert('Impossible de vérifier ce code-barres. Vérifiez la connexion puis réessayez.');
         } finally {
           barcodeLookupInProgress.current = false;
+          if (document.getElementById('product-search')) {
+            window.setTimeout(() => document.getElementById('product-search')?.focus(), 0);
+          }
         }
       })();
     };
