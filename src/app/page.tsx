@@ -253,6 +253,10 @@ export default function HomePage() {
     }
   }, [storesValidated, pendingScaleReading, cart, currentSaleId, currentStoreId, generateOrderNumber, selectedCustomer, applyTax]);
 
+  // Keep queued scanner events bound to the latest cart/sale state after React rerenders.
+  const addToCartRef = useRef(addToCart);
+  addToCartRef.current = addToCart;
+
   useEffect(() => {
     if (!user) return;
     const controller = new AbortController();
@@ -452,7 +456,7 @@ export default function HomePage() {
                 continue;
               }
 
-              await addToCart(variant.id, product.id, product.name, variant.name, variant.sku, variant.unitPrice ?? variant.price, variant.saleUnit);
+              await addToCartRef.current(variant.id, product.id, product.name, variant.name, variant.sku, variant.unitPrice ?? variant.price, variant.saleUnit);
               nextBarcode = barcodeQueueRef.current.shift();
             } catch (err) {
               console.error('Barcode lookup failed:', err);
