@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@omnikes/components/ui/button';
 import { Input } from '@omnikes/components/ui/input';
@@ -92,6 +92,7 @@ export default function HomePage() {
   const [serverTotals, setServerTotals] = useState<{ subtotal: number; tax: number; total: number } | null>(null);
   const [applyTax, setApplyTax] = useState(false);
   const [pendingScaleReading, setPendingScaleReading] = useState<{ weightGrams: number; stable: boolean } | null>(null);
+  const barcodeLookupInProgress = useRef(false);
 
   const generateOrderNumber = useCallback(() => `SALE-${Date.now()}`, []);
   const generatePaymentReference = useCallback(() => `PAY-${Date.now()}`, []);
@@ -380,59 +381,77 @@ export default function HomePage() {
   }, [stores, currentStoreId, currentStore, setCurrentStore, clearCurrentStore]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F1') {
-        e.preventDefault();
-        const searchInput = document.getElementById('product-search') as HTMLInputElement;
-        searchInput?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'F1') {
+        event.preventDefault();
+        document.getElementById('product-search')?.focus();
       }
-      if (e.key === 'F12') {
-        e.preventDefault();
+      if (event.key === 'F12') {
+        event.preventDefault();
         handlePayment();
       }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        if (showPaymentModal) setShowPaymentModal(false);
+      if (event.key === 'Escape' && showPaymentModal) {
+        event.preventDefault();
+        setShowPaymentModal(false);
       }
-      if (e.key === 'Enter' && document.activeElement?.id === 'product-search') {
-        const scannedBarcode = searchTerm.trim();
-        if (!scannedBarcode) return;
-        e.preventDefault();
-        void (async () => {
-          try {
-            const response = await fetch(`/api/products?barcode=${encodeURIComponent(scannedBarcode)}`, { cache: 'no-store' });
-            if (!response.ok) {
-              if (response.status === 404) {
-                const createProduct = window.confirm('Code-barres inconnu. Voulez-vous créer un produit avec ce code-barres ?');
-                setSearchTerm('');
-                if (createProduct) router.push(`/products?newBarcode=${encodeURIComponent(scannedBarcode)}`);
-                else window.setTimeout(() => document.getElementById('product-search')?.focus(), 100);
-                return;
-              }
-              window.alert('Impossible de vérifier ce code-barres.');
-              return;
-            }
-            const data = await response.json();
-            const product = data.product as Product | undefined;
-            const variant = product?.variants?.[0];
-            if (!product || !variant) {
-              window.alert('Aucune variante active ne correspond à ce code-barres.');
-              return;
-            }
-            await addToCart(variant.id, product.id, product.name, variant.name, variant.sku, (variant.unitPrice ?? variant.price), variant.saleUnit);
+
+      const activeElement = document.activeElement;
+      if (event.key !== 'Enter' || !(activeElement instanceof HTMLInputElement) || activeElement.id !== 'product-search') return;
+
+      // Read the live input value because scanner keystrokes can arrive before React commits state.
+      const scannedBarcode = activeElement.value.trim();
+      if (!scannedBarcode || barcodeLookupInProgress.current) return;
+
+      event.preventDefault();
+      barcodeLookupInProgress.current = true;
+
+      void (async () => {
+        try {
+          const response = await fetch(`/api/products?barcode=${encodeURIComponent(scannedBarcode)}`, { cache: 'no-store' });
+
+          if (response.status === 404) {
+            activeElement.value = '';
             setSearchTerm('');
-            window.setTimeout(() => document.getElementById('product-search')?.focus(), 100);
-          } catch (err) {
-            console.error('Barcode lookup failed:', err);
-            window.alert('Impossible de vérifier ce code-barres.');
+            const createProduct = window.confirm('Code-barres inconnu. Voulez-vous créer un produit avec ce code-barres ?');
+            if (createProduct) {
+              router.push(`/products?newBarcode=${encodeURIComponent(scannedBarcode)}`);
+            } else {
+              window.setTimeout(() => document.getElementById('product-search')?.focus(), 100);
+            }
+            return;
           }
-        })();
-      }
+
+          if (!response.ok) {
+            window.alert(response.status === 401 || response.status === 403 || response.status === 402
+              ? 'Vous n’êtes pas autorisé à consulter ce produit ou cette fonctionnalité.'
+              : 'Impossible de vérifier ce code-barres. Réessayez.');
+            return;
+          }
+
+          const data = await response.json();
+          const product = data.product as Product | undefined;
+          const variant = product?.variants?.[0];
+          if (!product || !variant) {
+            window.alert('Aucune variante disponible ne correspond à ce code-barres.');
+            return;
+          }
+
+          await addToCart(variant.id, product.id, product.name, variant.name, variant.sku, variant.unitPrice ?? variant.price, variant.saleUnit);
+          activeElement.value = '';
+          setSearchTerm('');
+          window.setTimeout(() => document.getElementById('product-search')?.focus(), 100);
+        } catch (err) {
+          console.error('Barcode lookup failed:', err);
+          window.alert('Impossible de vérifier ce code-barres. Vérifiez la connexion puis réessayez.');
+        } finally {
+          barcodeLookupInProgress.current = false;
+        }
+      })();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePayment, searchTerm, showPaymentModal, addToCart, router]);
+  }, [handlePayment, showPaymentModal, addToCart, router]);
 
   if (authLoading || storeLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted">Chargement...</p></div>;
