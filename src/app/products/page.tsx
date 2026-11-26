@@ -112,13 +112,8 @@ export default function ProductsPage() {
 
   useEffect(() => {
     queueMicrotask(() => {
-      const params = new URLSearchParams(window.location.search);
-      setReturnToOnboarding(params.get('returnTo') === 'onboarding');
-      if (user) {
-        void fetchProducts();
-        const scannedBarcode = params.get('newBarcode');
-        if (scannedBarcode) void handleCreate(scannedBarcode);
-      }
+      setReturnToOnboarding(new URLSearchParams(window.location.search).get('returnTo') === 'onboarding');
+      if (user) void fetchProducts();
     });
   }, [user]);
 
@@ -160,6 +155,12 @@ export default function ProductsPage() {
     setFormError(null);
     setShowModal(true);
   };
+
+  useEffect(() => {
+    if (!user) return;
+    const scannedBarcode = new URLSearchParams(window.location.search).get('newBarcode');
+    if (scannedBarcode) void handleCreate(scannedBarcode);
+  }, [user]);
 
   const handleEdit = (product: Product) => {
     setModalMode('edit');
