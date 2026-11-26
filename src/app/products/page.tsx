@@ -112,20 +112,25 @@ export default function ProductsPage() {
 
   useEffect(() => {
     queueMicrotask(() => {
-      setReturnToOnboarding(new URLSearchParams(window.location.search).get('returnTo') === 'onboarding');
-      if (user) void fetchProducts();
+      const params = new URLSearchParams(window.location.search);
+      setReturnToOnboarding(params.get('returnTo') === 'onboarding');
+      if (user) {
+        void fetchProducts();
+        const scannedBarcode = params.get('newBarcode');
+        if (scannedBarcode) void handleCreate(scannedBarcode);
+      }
     });
   }, [user]);
 
   const categories = Array.from(new Set(products.map((product) => product.category).filter(Boolean))) as string[];
   const filteredProducts = products.filter((product) => {
     const q = search.trim().toLowerCase();
-    const matchesSearch = !q || product.name.toLowerCase().includes(q) || product.variants.some((variant) => variant.sku.toLowerCase().includes(q));
+    const matchesSearch = !q || product.name.toLowerCase().includes(q) || product.variants.some((variant) => variant.sku.toLowerCase().includes(q) || (variant.barcode || '').toLowerCase().includes(q));
     return matchesSearch && (!categoryFilter || product.category === categoryFilter);
   });
   const activeCount = products.filter((product) => product.isActive).length;
 
-  const handleCreate = async () => {
+  const handleCreate = async (scannedBarcode = '') => {
     setModalMode('create');
     setInitialStock('0');
     setInitialStockStoreId('');
@@ -144,7 +149,7 @@ export default function ProductsPage() {
       description: '',
       category: '',
       sku: '',
-      barcode: '',
+      barcode: scannedBarcode,
       price: '',
       cost: '',
       casePrice: '',
@@ -630,8 +635,8 @@ export default function ProductsPage() {
 
               <div>
                 <label htmlFor="barcode" className="block text-sm font-medium text-foreground mb-1">Code-barres (facultatif)</label>
-                <Input id="barcode" value={formData.barcode} onChange={(e) => setFormData({ ...formData, barcode: e.target.value })} placeholder="Scanner ou saisir le code-barres" autoComplete="off" />
-                <p className="mt-1 text-xs text-muted">Le produit peut être enregistré sans code-barres. Vous pourrez l’ajouter plus tard.</p>
+                <Input id="barcode" value={formData.barcode} onChange={(e) => setFormData({ ...formData, barcode: e.target.value })} onKeyDown={(event) => { if (event.key === 'Enter') event.preventDefault(); }} placeholder="Scanner ou saisir le code-barres" autoComplete="off" autoFocus={modalMode === 'create'} />
+                <p className="mt-1 text-xs text-muted">Scannez ici le code-barres (scanner USB/Bluetooth en mode clavier), puis complétez les informations avant d’enregistrer. Entrée ne soumet pas le formulaire.</p>
               </div>
               <div>
                 <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">
