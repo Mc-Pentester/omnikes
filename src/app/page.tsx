@@ -255,7 +255,9 @@ export default function HomePage() {
 
   // Keep queued scanner events bound to the latest cart/sale state after React rerenders.
   const addToCartRef = useRef(addToCart);
-  addToCartRef.current = addToCart;
+  useEffect(() => {
+    addToCartRef.current = addToCart;
+  }, [addToCart]);
 
   useEffect(() => {
     if (!user) return;
