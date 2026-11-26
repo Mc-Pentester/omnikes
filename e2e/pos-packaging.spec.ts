@@ -43,7 +43,7 @@ test.describe('POS multi-packaging', () => {
 
     try {
       await page.goto('/');
-      const storeSelector = page.getByLabel('Sélectionner un magasin');
+      const storeSelector = page.getByRole('combobox').first();
       if (await storeSelector.count()) {
         const selected = await storeSelector.inputValue();
         if (!selected) await storeSelector.selectOption(storesData.stores[0].id);
