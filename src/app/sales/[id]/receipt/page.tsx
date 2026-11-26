@@ -229,7 +229,7 @@ export default function ReceiptPrintPage() {
                 <div>{money(item.unitPrice)} HTG / conditionnement</div>
               </td>
               <td className="text-right">{item.quantity}</td>
-              <td className="text-right font-semibold">{money(Number(item.unitPrice) * Number(item.quantity))}</td>
+              <td className="text-right font-semibold">{money(Number(item.totalPrice))}</td>
             </tr>
           ))}
         </tbody>
