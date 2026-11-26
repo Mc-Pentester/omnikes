@@ -11,7 +11,7 @@ test.describe('POS multi-packaging', () => {
     await page.getByLabel(/email/i).fill(email!);
     await page.getByLabel(/mot de passe|password/i).fill(password!);
     await page.getByRole('button', { name: /sign in|se connecter|connexion/i }).click();
-    await page.waitForURL(/\\/$|\\/dashboard/);
+    await page.waitForURL((url) => url.pathname === '/' || url.pathname === '/dashboard');
 
     const storesResponse = await page.request.get('/api/stores?isActive=true');
     expect(storesResponse.ok()).toBeTruthy();
