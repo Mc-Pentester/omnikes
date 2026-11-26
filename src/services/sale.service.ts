@@ -61,6 +61,12 @@ export class SaleService {
 
     const initialTaxRate = organization?.taxEnabled === true ? Number(organization.taxRate) : 0;
     const applyTax = organization?.taxEnabled === true && validatedData.applyTax !== false;
+    const currencyCode = organization?.currency || 'USD';
+    const currencyDefinition = await prisma.currency.findUnique({
+      where: { code: currencyCode },
+      select: { symbol: true },
+    });
+    const currencySymbol = organization?.currencySymbol?.trim() || currencyDefinition?.symbol || currencyCode;
 
     // Financial totals are server-owned. A newly created sale has no trusted
     // line totals yet; they are recalculated from server-priced items as items are added.
@@ -75,6 +81,8 @@ export class SaleService {
       tax: initialTax,
       taxRate: initialTaxRate,
       applyTax,
+      currencyCode,
+      currencySymbol,
       total: initialTotal,
       organization: {
         connect: { id: organizationId },
