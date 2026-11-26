@@ -432,7 +432,7 @@ export default function HomePage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePayment, searchTerm, showPaymentModal, addToCart]);
+  }, [handlePayment, searchTerm, showPaymentModal, addToCart, router]);
 
   if (authLoading || storeLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted">Chargement...</p></div>;
