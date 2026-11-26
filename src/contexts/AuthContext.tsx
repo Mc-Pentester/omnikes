@@ -9,6 +9,8 @@ interface User {
   name: string | null;
   organizationId: string;
   organizationName: string;
+  currency?: string;
+  currencySymbol?: string;
   canManageUsers?: boolean;
   canManageStores?: boolean;
   canManageRoles?: boolean;
