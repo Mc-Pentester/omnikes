@@ -131,6 +131,18 @@ export default function CustomerCreditsPage() {
     }
   };
 
+  const openCreditReceipt = (creditId: string, paymentId: string) => {
+    // Open a blank same-origin popup synchronously from the click. The native
+    // WebView2 launcher captures this popup and hosts it in an OmniKès window.
+    const receiptWindow = window.open('', '_blank');
+    if (!receiptWindow) {
+      setPaymentError('La fenêtre du reçu a été bloquée. Autorisez les fenêtres contextuelles pour OmniKès.');
+      return;
+    }
+    receiptWindow.location.href = `/credits/${encodeURIComponent(creditId)}/payments/${encodeURIComponent(paymentId)}/receipt`;
+    receiptWindow.focus();
+  };
+
   const loadHistory = async (creditId: string) => {
     setHistoryError('');
     setHistoryId(creditId);
@@ -231,7 +243,7 @@ export default function CustomerCreditsPage() {
                       {paymentMessage && (
                         <div role="status" className="space-y-2 text-sm text-success">
                           <p>{paymentMessage}</p>
-                          {lastPaymentReceipt && <Button size="sm" variant="outline" onClick={() => window.open(`/credits/${encodeURIComponent(lastPaymentReceipt.creditId)}/payments/${encodeURIComponent(lastPaymentReceipt.paymentId)}/receipt`, '_blank', 'noopener,noreferrer')}>Imprimer le reçu d’encaissement</Button>}
+                          {lastPaymentReceipt && <Button size="sm" variant="outline" onClick={() => openCreditReceipt(lastPaymentReceipt.creditId, lastPaymentReceipt.paymentId)}>Imprimer le reçu d’encaissement</Button>}
                         </div>
                       )}
                       <Button disabled={saving || !amount} onClick={() => void receivePayment(credit)}>{saving ? 'Enregistrement…' : 'Confirmer le remboursement'}</Button>
@@ -249,7 +261,7 @@ export default function CustomerCreditsPage() {
                                 <span>{new Date(payment.createdAt).toLocaleString()} · {payment.method} · {payment.reference || 'Sans référence'} · {payment.receivedByUser?.name || payment.receivedByUser?.email || 'Utilisateur'}</span>
                                 <div className="flex items-center gap-2">
                                   <strong>{Number(payment.amount).toFixed(2)} {credit.sale.currencyCode}</strong>
-                                  <Button size="sm" variant="outline" onClick={() => window.open(`/credits/${encodeURIComponent(credit.id)}/payments/${encodeURIComponent(payment.id)}/receipt`, '_blank', 'noopener,noreferrer')}>Réimprimer le reçu</Button>
+                                  <Button size="sm" variant="outline" onClick={() => openCreditReceipt(credit.id, payment.id)}>Réimprimer le reçu</Button>
                                 </div>
                               </div>
                               {Number(payment.refundedAmount || 0) > 0 && <p className="text-xs text-muted">Remboursé : {Number(payment.refundedAmount).toFixed(2)}</p>}
