@@ -80,9 +80,10 @@ export default function HomePage() {
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [amountReceived, setAmountReceived] = useState('');
   const [isSidebarCompact, setIsSidebarCompact] = useState(false);
+  const [taxEnabled, setTaxEnabled] = useState(false);
   const [taxRate, setTaxRate] = useState<number | null>(null);
   const [serverTotals, setServerTotals] = useState<{ subtotal: number; tax: number; total: number } | null>(null);
-  const [applyTax, setApplyTax] = useState(true);
+  const [applyTax, setApplyTax] = useState(false);
   const [pendingScaleReading, setPendingScaleReading] = useState<{ weightGrams: number; stable: boolean } | null>(null);
 
   const generateOrderNumber = useCallback(() => `SALE-${Date.now()}`, []);
@@ -304,12 +305,19 @@ export default function HomePage() {
       const response = await fetch('/api/tax');
       if (response.ok) {
         const data = await response.json();
-        setTaxRate(data.taxRate);
+        const enabled = data.enabled === true;
+        setTaxEnabled(enabled);
+        setTaxRate(enabled ? Number(data.taxRate) : 0);
+        setApplyTax(enabled);
       } else {
+        setTaxEnabled(false);
         setTaxRate(null);
+        setApplyTax(false);
       }
     } catch {
+      setTaxEnabled(false);
       setTaxRate(null);
+      setApplyTax(false);
     }
   }, [user]);
 
@@ -474,8 +482,8 @@ export default function HomePage() {
   const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
   const discountValue = Math.max(0, Number(discountAmount) || 0);
   const discountedSubtotal = Math.max(0, subtotal - discountValue);
-  const displayTax = serverTotals?.tax ?? (applyTax && taxRate !== null ? discountedSubtotal * taxRate : 0);
-  const displayTotal = serverTotals?.total ?? (applyTax ? discountedSubtotal + displayTax : discountedSubtotal);
+  const displayTax = serverTotals?.tax ?? (taxEnabled && applyTax && taxRate !== null ? discountedSubtotal * taxRate : 0);
+  const displayTotal = serverTotals?.total ?? (taxEnabled && applyTax ? discountedSubtotal + displayTax : discountedSubtotal);
   const change = paymentMethod === 'CASH' ? (parseFloat(amountReceived) || 0) - displayTotal : 0;
 
   const syncCartToSale = async () => {
@@ -851,9 +859,10 @@ export default function HomePage() {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={applyTax}
+                    checked={taxEnabled && applyTax}
+                    disabled={!taxEnabled}
                     onChange={(e) => { setServerTotals(null); setApplyTax(e.target.checked); }}
-                    className="w-4 h-4 text-primary rounded"
+                    className="w-4 h-4 text-primary rounded disabled:opacity-50"
                   />
                   <span className="text-muted">Appliquer la taxe</span>
                 </label>

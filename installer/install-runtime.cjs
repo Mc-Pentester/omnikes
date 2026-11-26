@@ -82,6 +82,29 @@ function serviceState() {
   }
 }
 
+function grantStandardUsersServiceStart() {
+  // The installer runs elevated. Grant local standard users only SERVICE_START
+  // (RP) so the launcher can recover a stopped PostgreSQL service without
+  // running the whole POS as administrator. Existing service ACL entries stay intact.
+  const systemRoot = process.env.SystemRoot || 'C:\\Windows';
+  const sc = path.join(systemRoot, 'System32', 'sc.exe');
+  const descriptor = execFileSync(sc, ['sdshow', serviceName], {
+    encoding: 'utf8',
+    windowsHide: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+  const match = descriptor.match(/D:.*?(?=S:|$)/);
+  if (!match) throw new Error('Unable to read the PostgreSQL service security descriptor.');
+  const dacl = match[0];
+  if (/\(A;;RP;;;BU\)/.test(dacl)) {
+    writeLog('Standard Users already have SERVICE_START permission on PostgreSQL.');
+    return;
+  }
+  const updated = descriptor.replace(/^D:/, 'D:(A;;RP;;;BU)');
+  run(sc, ['sdset', serviceName, updated]);
+  writeLog('Granted BUILTIN\\Users SERVICE_START only on the OmniKes PostgreSQL service.');
+}
+
 function portIsListening(candidate) {
   try {
     const output = execFileSync('netstat.exe', ['-ano', '-p', 'tcp'], {
@@ -247,6 +270,8 @@ if (mustRegister) {
   if (!state) throw new Error('PostgreSQL service registration did not create Windows service OmniKesPostgreSQL.');
   fs.writeFileSync(portFile, String(port) + '\n', { flag: 'w' });
 }
+
+grantStandardUsersServiceStart();
 
 try {
   run('sc.exe', ['start', serviceName]);

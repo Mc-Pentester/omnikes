@@ -156,7 +156,7 @@ describe('Windows Launcher Verification', () => {
   });
 
 
-  it('should make organization country, currency, locale and timezone editable with Haiti defaults', () => {
+  it('should keep Haiti registration defaults while allowing a configurable organization currency', () => {
     const registrationPage = readFileSync(path.join(root, 'src', 'app', 'register', 'page.tsx'), 'utf8');
     const validation = readFileSync(path.join(root, 'src', 'lib', 'validation.ts'), 'utf8');
     const service = readFileSync(path.join(root, 'src', 'services', 'registration.service.ts'), 'utf8');
@@ -165,13 +165,16 @@ describe('Windows Launcher Verification', () => {
     expect(registrationPage).toContain("useState('fr-HT')");
     expect(registrationPage).toContain("useState('America/Port-au-Prince')");
     expect(validation).toContain("country: z.string().trim().length(2).default('HT')");
-    expect(validation).toContain("currency: z.string().trim().length(3).default('HTG')");
+    expect(validation).toContain("currency: z.string().default('USD')");
+    expect(validation).toContain("currency: z.string().trim().min(3).max(12)");
     expect(validation).toContain("locale: z.string().trim().min(2).max(20).default('fr-HT')");
     expect(validation).toContain("timezone: z.string().trim().min(1).max(100).default('America/Port-au-Prince')");
     expect(service).toContain('country,');
     expect(service).toContain('currency,');
     expect(service).toContain('locale,');
-    expect(service).toContain('locale, timezone }');
+    expect(service).toContain('locale, timezone, taxEnabled = false, taxRate = 0 }');
+    expect(service).toContain('taxEnabled,');
+    expect(service).toContain('taxRate: taxRate / 100');
   });
 
   it('should retain the first-launch environment preparation script', () => {

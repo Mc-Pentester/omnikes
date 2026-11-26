@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saleService } from '@omnikes/services/sale.service';
-import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, requireSubscriptionCapability } from '@omnikes/lib/auth';
+import { requireCurrentOrganizationId, requirePermission, requireStoreAccess, requireSubscriptionCapability, requireAuthenticatedUser } from '@omnikes/lib/auth';
 
 /**
  * POST /api/sales/[id]/complete
@@ -13,6 +13,7 @@ export async function POST(
   try {
     const { id } = await params;
     const organizationId = await requireCurrentOrganizationId(request);
+    const actor = await requireAuthenticatedUser(request);
     await requirePermission(request, 'sale.complete');
     await requireSubscriptionCapability(request, 'pos.sales', 'WRITE');
 
@@ -22,7 +23,7 @@ export async function POST(
       await requireStoreAccess(request, sale.storeId);
     }
 
-    const completedSale = await saleService.complete(id, organizationId);
+    const completedSale = await saleService.complete(id, organizationId, actor.id);
 
     return NextResponse.json(completedSale);
   } catch (error) {

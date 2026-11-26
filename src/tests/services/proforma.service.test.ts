@@ -82,7 +82,7 @@ describe('ProformaService - Acceptance', () => {
       (prismaMock.proforma.findFirst as any).mockResolvedValue({
         ...mockProforma,
         organization: {
-          taxConfiguration: { taxRate: 0.1 },
+          taxEnabled: true, taxRate: 0.1 ,
         },
       });
 
@@ -259,7 +259,7 @@ describe('ProformaService - Conversion', () => {
       (prismaMock.sale.findFirst as any).mockResolvedValue(null);
       (prismaMock.organization.findUnique as any).mockResolvedValue({
         id: mockOrganizationId,
-        taxConfiguration: { taxRate: 0.1 },
+        taxEnabled: true, taxRate: 0.1 ,
       });
       (prismaMock.sale.create as any).mockResolvedValue(mockSale);
       (prismaMock.saleItem.create as any).mockResolvedValue({});
@@ -425,7 +425,7 @@ describe('ProformaService - Conversion', () => {
       (prismaMock.sale.findFirst as any).mockResolvedValue(null);
       (prismaMock.organization.findUnique as any).mockResolvedValue({
         id: mockOrganizationId,
-        taxConfiguration: { taxRate: 0.1 },
+        taxEnabled: true, taxRate: 0.1 ,
       });
       (prismaMock.sale.create as any).mockResolvedValue({ id: 'sale-123' });
       (prismaMock.saleItem.create as any).mockResolvedValue({});
@@ -485,7 +485,7 @@ describe('ProformaService - Conversion', () => {
       (prismaMock.sale.findFirst as any).mockResolvedValue(null);
       (prismaMock.organization.findUnique as any).mockResolvedValue({
         id: mockOrganizationId,
-        taxConfiguration: { taxRate: 0.1 },
+        taxEnabled: true, taxRate: 0.1 ,
       });
       (prismaMock.sale.create as any).mockResolvedValue({ id: 'sale-123' });
       (prismaMock.saleItem.create as any).mockResolvedValue({});
@@ -508,6 +508,54 @@ describe('ProformaService - Conversion', () => {
     });
   });
 
+  describe('Create returns persisted totals', () => {
+    it('returns the recalculated and rounded database record', async () => {
+      // Use schema-valid CUIDs because create() validates its input before
+      // reaching the mocked Prisma transaction.
+      const organizationId = 'cmu8gsgwp0000fgqr0uckya14';
+      const storeId = 'cmubhviiu000i0sqr92jnxdrs';
+      const variantId = 'cmubhviiu000i0sqr92jnxdrt';
+      const created = { id: 'proforma-created', applyTax: true };
+      const persisted = {
+        id: created.id,
+        applyTax: true,
+        subtotal: 0.1,
+        tax: 0.02,
+        total: 0.12,
+        items: [{ unitPrice: 0.05, quantity: 2, discount: 0 }],
+      };
+      const finalRecord = { ...persisted, store: { id: 'store-1' }, customer: null };
+      const tx = {
+        proforma: {
+          create: vi.fn().mockResolvedValue(created),
+          findUnique: vi.fn().mockResolvedValueOnce(persisted).mockResolvedValueOnce(finalRecord),
+          update: vi.fn().mockResolvedValue(persisted),
+        },
+        productVariant: {
+          findFirst: vi.fn().mockResolvedValue({ price: 0.05, product: { id: 'product-1' } }),
+        },
+        proformaItem: { create: vi.fn().mockResolvedValue({}) },
+      };
+      (prismaMock.organization.findUnique as any).mockResolvedValue({
+        id: organizationId, taxEnabled: true, taxRate: 0.18,
+      });
+      (prismaMock.$transaction as any).mockImplementation(async (callback: any) => callback(tx));
+
+      const result = await proformaService.create(organizationId, {
+        storeId,
+        proformaNumber: 'PF-ROUND-1',
+        subtotal: 0,
+        total: 0,
+        items: [{ variantId, quantity: 2 }],
+      } as any);
+
+      expect(tx.proforma.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: { subtotal: 0.1, tax: 0.02, total: 0.12 },
+      }));
+      expect(result).toEqual(finalRecord);
+    });
+  });
+
   describe('Tax Rate Initialization', () => {
     it('should initialize tax rate from organization configuration', async () => {
       const mockOrganizationId = 'cmu8gsgwp0000fgqr0uckya14';
@@ -515,9 +563,7 @@ describe('ProformaService - Conversion', () => {
 
       (prismaMock.organization.findUnique as any).mockResolvedValue({
         id: mockOrganizationId,
-        taxConfiguration: {
-          taxRate: 0.1,
-        },
+        taxEnabled: true, taxRate: 0.1,
       });
 
       (prismaMock.proforma.create as any).mockResolvedValue({ id: 'proforma-123' });
@@ -571,9 +617,7 @@ describe('ProformaService - Conversion', () => {
         id: mockProformaId,
         applyTax: false,
         organization: {
-          taxConfiguration: {
-            taxRate: 0.1,
-          },
+          taxEnabled: true, taxRate: 0.1,
         },
       });
 
@@ -635,7 +679,7 @@ describe('P0-29 conversion financial authority', () => {
     (prismaMock.sale.findFirst as any).mockResolvedValue(null);
     (prismaMock.organization.findUnique as any).mockResolvedValue({
       id: organizationId,
-      taxConfiguration: { taxRate: 0.18 },
+      taxEnabled: true, taxRate: 0.18 ,
     });
     (prismaMock.sale.create as any).mockResolvedValue({ id: 'sale-123' });
     (prismaMock.saleItem.create as any).mockResolvedValue({});
@@ -648,9 +692,9 @@ describe('P0-29 conversion financial authority', () => {
       data: expect.objectContaining({
         subtotal: 100,
         discount: 0,
-        taxRate: 0.18,
-        tax: 18,
-        total: 118,
+        taxRate: 0.01,
+        tax: 1,
+        total: 101,
       }),
     }));
   });

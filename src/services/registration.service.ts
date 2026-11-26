@@ -14,8 +14,11 @@ export interface RegisterInput {
   password: string;
   country: string;
   currency: string;
+  currencySymbol?: string;
   locale: string;
   timezone: string;
+  taxEnabled?: boolean;
+  taxRate?: number;
 }
 
 export interface RegisterResult {
@@ -62,7 +65,7 @@ export class RegistrationService {
    * that same organization; an administrator must assign roles and activate them.
    */
   async register(data: RegisterInput, ipAddress?: string, userAgent?: string): Promise<RegisterResult> {
-    const { organizationName, name, email, password, country, currency, locale, timezone } = data;
+    const { organizationName, name, email, password, country, currency, currencySymbol, locale, timezone, taxEnabled = false, taxRate = 0 } = data;
     const normalizedEmail = this.normalizeEmail(email);
 
     if (ipAddress) {
@@ -108,8 +111,11 @@ export class RegistrationService {
           slug,
           country,
           currency,
+          currencySymbol: currencySymbol || null,
           locale,
           timezone,
+          taxEnabled,
+          taxRate: taxRate / 100,
           subscriptionStatus: 'TRIAL',
           subscriptionPlan: 'OMNIKES_249',
           subscriptionTrialStartedAt: new Date(),

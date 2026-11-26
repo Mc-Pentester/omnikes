@@ -18,7 +18,8 @@ model Organization {
   name     String
   slug     String @unique
   country  String // ISO country code
-  currency String @default("USD") // ISO currency code
+  currency String @default("USD") // ISO 4217 code or organization-defined code
+  currencySymbol String? // Display symbol override, e.g. $HT
   locale   String @default("en-US")
   timezone String @default("UTC")
 
@@ -37,7 +38,14 @@ model Organization {
   cloudEnabled       Boolean @default(false)
   onlineStoreEnabled Boolean @default(false)
 
-  // Fiscal configuration
+  // Organization-owned fiscal defaults; sale/proforma tax fields are historical snapshots.
+  taxEnabled Boolean @default(false)
+  taxRate    Decimal @default(0) @db.Decimal(5, 4)
+
+  // Customer credit policy defaults; per-sale due dates remain immutable snapshots.
+  creditDefaultDueDays Int @default(30)
+
+  // Legacy country tax configuration retained for backward compatibility.
   taxConfigurationId String?
 
   createdAt DateTime @default(now())
@@ -59,6 +67,9 @@ model Organization {
   suppliers        Supplier[]
   purchases        Purchase[]
   supplierPayments SupplierPayment[]
+  creditPayments CreditPayment[]
+  creditAdjustments CreditAdjustment[]
+  creditRefunds CreditRefund[]
   supplierPaymentIdempotency SupplierPaymentIdempotency[]
   taxConfiguration TaxConfiguration? @relation(fields: [taxConfigurationId], references: [id])
 
@@ -94,6 +105,9 @@ model Store {
   sales        Sale[]
   proformas    Proforma[]
   saleCredits  SaleCredit[]
+  creditPayments CreditPayment[]
+  creditAdjustments CreditAdjustment[]
+  creditRefunds CreditRefund[]
   returns      Return[]
   purchases    Purchase[]
   payments     SupplierPayment[]
@@ -136,6 +150,12 @@ model User {
   sessions           Session[]
   auditLogs             AuditLog[]
   authorizedSaleCredits SaleCredit[] @relation("SaleCreditAuthorizedBy")
+  receivedCreditPayments CreditPayment[] @relation("CreditPaymentReceivedBy")
+  processedCreditAdjustments CreditAdjustment[] @relation("CreditAdjustmentProcessedBy")
+  processedCreditRefunds CreditRefund[] @relation("CreditRefundProcessedBy")
+  creditPinHash String?
+  creditApprovalFailedAttempts Int @default(0)
+  creditApprovalLockedUntil DateTime?
   openedCashSessions CashSession[] @relation("CashSessionOpenedBy")
   closedCashSessions CashSession[] @relation("CashSessionClosedBy")
   cashMovements CashMovement[] @relation("CashMovementCreatedBy")
@@ -464,8 +484,13 @@ model ProductVariant {
   sku        String  @unique
   barcode    String?
   organizationId String?
-  price      Decimal @db.Decimal(10, 2)
-  cost       Decimal @db.Decimal(10, 2)
+  price      Decimal  @db.Decimal(10, 2) // Legacy/default unit price, retained for compatibility
+  cost       Decimal? @db.Decimal(10, 2)
+  casePrice  Decimal? @db.Decimal(10, 2)
+  dozenPrice Decimal? @db.Decimal(10, 2)
+  pack3Price Decimal? @db.Decimal(10, 2)
+  unitPrice  Decimal? @db.Decimal(10, 2)
+  unitsPerCase Int?
   /// UNIT keeps the existing semantics. Weight-based variants use G/KG/LB/OZ.
   /// Inventory quantity for weight-based variants is stored in grams.
   saleUnit   String  @default("UNIT")
@@ -593,6 +618,7 @@ model CashSession {
   closedByUser User?        @relation("CashSessionClosedBy", fields: [closedBy], references: [id], onDelete: Restrict)
   movements    CashMovement[]
   supplierPayments SupplierPayment[]
+  creditPayments CreditPayment[]
 
   @@index([organizationId])
   @@index([storeId])
@@ -658,6 +684,7 @@ model Customer {
   sales        Sale[]
   proformas    Proforma[]
   saleCredits  SaleCredit[]
+  creditLimit Decimal? @db.Decimal(12, 2)
 
   @@index([organizationId])
   @@index([email])
@@ -841,6 +868,8 @@ model Sale {
   total          Decimal @db.Decimal(12, 2)
   discount       Decimal @default(0) @db.Decimal(12, 2)
   applyTax       Boolean @default(true) // Whether tax was applied to this sale
+  currencyCode   String  @default("USD")
+  currencySymbol String  @default("$")
   notes          String?
 
   createdAt DateTime @default(now())
@@ -877,10 +906,12 @@ model SaleCredit {
   saleId         String
   customerId     String
   amount         Decimal  @db.Decimal(12, 2)
-  status         String   @default("AUTHORIZED") // AUTHORIZED, SETTLED, CANCELLED
+  status         String   @default("AUTHORIZED") // APPROVED_PENDING_COMPLETION, INVALIDATED, AUTHORIZED, SETTLED, CANCELLED
   authorizedBy   String
   authorizedAt   DateTime @default(now())
+  expiresAt      DateTime?
   note           String?
+  dueAt          DateTime
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -889,6 +920,9 @@ model SaleCredit {
   sale              Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
   customer          Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
   authorizedByUser  User         @relation("SaleCreditAuthorizedBy", fields: [authorizedBy], references: [id], onDelete: Restrict)
+  payments          CreditPayment[]
+  adjustments       CreditAdjustment[]
+  refunds           CreditRefund[]
 
   @@unique([saleId])
   @@index([organizationId])
@@ -897,6 +931,100 @@ model SaleCredit {
   @@index([authorizedBy])
   @@index([status])
   @@map("sale_credits")
+}
+
+// ============================================================
+// CREDIT_PAYMENT (Customer credit collection ledger)
+// ============================================================
+
+model CreditPayment {
+  id             String   @id @default(cuid())
+  organizationId String
+  storeId        String
+  saleCreditId   String
+  receivedBy     String
+  cashSessionId  String?
+  amount         Decimal  @db.Decimal(12, 2)
+  refundedAmount Decimal  @default(0) @db.Decimal(12, 2)
+  method         String
+  reference      String?
+  idempotencyKey String
+  createdAt      DateTime @default(now())
+  refunds        CreditRefund[]
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  store        Store        @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  saleCredit   SaleCredit   @relation(fields: [saleCreditId], references: [id], onDelete: Restrict)
+  receivedByUser User       @relation("CreditPaymentReceivedBy", fields: [receivedBy], references: [id], onDelete: Restrict)
+  cashSession  CashSession? @relation(fields: [cashSessionId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, storeId, createdAt])
+  @@index([saleCreditId, createdAt])
+  @@index([receivedBy])
+  @@map("credit_payments")
+}
+
+// ============================================================
+// CREDIT_REFUND (Refunds of repayments after merchandise returns)
+// ============================================================
+
+model CreditRefund {
+  id             String   @id @default(cuid())
+  organizationId String
+  storeId        String
+  saleCreditId   String
+  creditPaymentId String
+  returnId       String
+  processedBy    String
+  amount         Decimal  @db.Decimal(12, 2)
+  method         String
+  reference      String?
+  idempotencyKey String
+  status         String   @default("COMPLETED")
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  store        Store        @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  saleCredit   SaleCredit   @relation(fields: [saleCreditId], references: [id], onDelete: Restrict)
+  creditPayment CreditPayment @relation(fields: [creditPaymentId], references: [id], onDelete: Restrict)
+  returnRecord Return @relation(fields: [returnId], references: [id], onDelete: Restrict)
+  processedByUser User @relation("CreditRefundProcessedBy", fields: [processedBy], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, storeId, createdAt])
+  @@index([saleCreditId, createdAt])
+  @@index([creditPaymentId, createdAt])
+  @@index([returnId])
+  @@index([processedBy])
+  @@map("credit_refunds")
+}
+
+// ============================================================
+// CREDIT_ADJUSTMENT (Traceable debt reductions from returns/credits)
+// ============================================================
+
+model CreditAdjustment {
+  id             String   @id @default(cuid())
+  organizationId String
+  storeId        String
+  saleCreditId   String
+  returnId       String?  @unique
+  processedBy    String
+  amount         Decimal  @db.Decimal(12, 2)
+  reason         String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  store        Store        @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  saleCredit   SaleCredit   @relation(fields: [saleCreditId], references: [id], onDelete: Restrict)
+  returnRecord Return?      @relation(fields: [returnId], references: [id], onDelete: Restrict)
+  processedByUser User      @relation("CreditAdjustmentProcessedBy", fields: [processedBy], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, storeId, createdAt])
+  @@index([saleCreditId, createdAt])
+  @@index([processedBy])
+  @@map("credit_adjustments")
 }
 
 // ============================================================
@@ -912,6 +1040,8 @@ model SaleItem {
   unitPrice       Decimal @db.Decimal(10, 2)
   totalPrice      Decimal @db.Decimal(12, 2)
   discount        Decimal @default(0) @db.Decimal(10, 2)
+  packaging       String  @default("UNIT")
+  baseUnits       Int     @default(1)
 
   createdAt DateTime @default(now())
 
@@ -978,6 +1108,8 @@ model Return {
   returnedByUser User         @relation("ReturnReturnedBy", fields: [returnedBy], references: [id], onDelete: Restrict)
   items           ReturnItem[]
   refunds         Refund[]
+  creditAdjustments CreditAdjustment[]
+  creditRefunds CreditRefund[]
 
   @@index([organizationId])
   @@index([storeId])
@@ -1055,6 +1187,8 @@ model Proforma {
   total          Decimal   @db.Decimal(12, 2)
   discount       Decimal   @default(0) @db.Decimal(12, 2)
   applyTax       Boolean   @default(true) // Whether tax was applied to this proforma
+  currencyCode   String    @default("USD")
+  currencySymbol String    @default("$")
   validUntil     DateTime?
   notes          String?
 
@@ -1088,6 +1222,8 @@ model ProformaItem {
   unitPrice  Decimal @db.Decimal(10, 2)
   totalPrice Decimal @db.Decimal(12, 2)
   discount   Decimal @default(0) @db.Decimal(10, 2)
+  packaging  String  @default("UNIT")
+  baseUnits  Int     @default(1)
 
   createdAt DateTime @default(now())
 

@@ -104,7 +104,19 @@ export class RefundService {
         where: { returnId: validatedData.returnId },
         select: { amount: true },
       });
-      const returnAlreadyRefunded = returnRefunds.reduce((sum, r) => sum + Number(r.amount), 0);
+      const returnCashRefunded = returnRefunds.reduce((sum, r) => sum + Number(r.amount), 0);
+      const returnCreditAdjustments = await tx.creditAdjustment.aggregate({
+        where: { returnId: validatedData.returnId },
+        _sum: { amount: true },
+      });
+      const returnCreditRefunds = tx.creditRefund?.aggregate
+        ? await tx.creditRefund.aggregate({ where: { returnId: validatedData.returnId, organizationId }, _sum: { amount: true } })
+        : { _sum: { amount: 0 } };
+      const returnAlreadyRefunded = roundMoney(
+        returnCashRefunded +
+        Number(returnCreditAdjustments._sum.amount || 0) +
+        Number(returnCreditRefunds._sum.amount || 0)
+      );
       const returnRemainingRefundable = roundMoney(returnTotal - returnAlreadyRefunded);
 
       // Apply the minimum of the two limits

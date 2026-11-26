@@ -78,6 +78,7 @@ export async function PATCH(
 
     const body = await request.json();
     const validatedData = customerUpdateSchema.parse(body);
+    if (validatedData.creditLimit !== undefined) await requirePermission(request, 'credit.limit.manage');
 
     if (Object.keys(validatedData).length === 0) {
       return NextResponse.json(

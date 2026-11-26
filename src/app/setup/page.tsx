@@ -10,6 +10,8 @@ import { Input } from '@omnikes/components/ui/input';
 export default function SetupPage() {
   const router = useRouter();
   const [organizationName, setOrganizationName] = useState('');
+  const [taxEnabled, setTaxEnabled] = useState(false);
+  const [taxRate, setTaxRate] = useState('0');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -66,6 +68,8 @@ export default function SetupPage() {
           email,
           password,
           confirmPassword,
+          taxEnabled,
+          taxRate: Number(taxRate || 0),
         }),
       });
 
@@ -121,6 +125,18 @@ export default function SetupPage() {
               required
               disabled={submitting}
             />
+          </div>
+
+          <div className="space-y-3 rounded-lg border border-border p-4">
+            <label className="flex items-center gap-3 text-sm font-medium text-foreground">
+              <input type="checkbox" checked={taxEnabled} onChange={(event) => setTaxEnabled(event.target.checked)} disabled={submitting} />
+              Activer la taxe pour cette organisation
+            </label>
+            <label htmlFor="taxRate" className="block text-sm text-foreground">
+              Taux de taxe (%)
+              <Input id="taxRate" type="number" min="0" max="100" step="0.01" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} disabled={submitting || !taxEnabled} />
+            </label>
+            <p className="text-xs text-muted">Ce taux sera proposé par défaut sur les ventes et proformas. Il pourra être désactivé pour chaque vente.</p>
           </div>
 
           <div>

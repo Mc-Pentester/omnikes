@@ -56,7 +56,16 @@
     "supplier.payment.manage",
     "supplier.payment.read",
     "sale.customer.assign",
-    "sale.pos.sync"
+    "sale.pos.sync",
+    "credit.approve",
+    "credit.refund",
+    "credit.request",
+    "credit.payment.receive",
+    "credit.view",
+    "credit.history.view",
+    "credit.report.view",
+    "credit.limit.manage",
+    "credit.settings.manage"
   ],
   "standardRoles": [
     {
@@ -111,7 +120,14 @@
         "proforma.accept",
         "proforma.cancel",
         "proforma.convert",
-        "organization.read"
+        "organization.read",
+        "credit.approve",
+        "credit.payment.receive",
+        "credit.view",
+        "credit.history.view",
+        "credit.report.view",
+        "credit.limit.manage",
+        "credit.refund"
       ]
     },
     {
@@ -137,7 +153,13 @@
         "report.read",
         "user.read",
         "audit.read",
-        "proforma.read"
+        "proforma.read",
+        "credit.approve",
+        "credit.payment.receive",
+        "credit.view",
+        "credit.history.view",
+        "credit.report.view",
+        "credit.refund"
       ]
     },
     {
@@ -158,7 +180,11 @@
         "cash.movement",
         "customer.read",
         "sale.customer.assign",
-        "sale.pos.sync"
+        "sale.pos.sync",
+        "credit.request",
+        "credit.payment.receive",
+        "credit.view",
+        "credit.history.view"
       ]
     },
     {
@@ -178,7 +204,8 @@
         "proforma.accept",
         "store.read",
         "sale.customer.assign",
-        "sale.pos.sync"
+        "sale.pos.sync",
+        "credit.request"
       ]
     },
     {
@@ -236,7 +263,10 @@
         "supplier.payment.read",
         "customer.read",
         "audit.read",
-        "store.read"
+        "store.read",
+        "credit.report.view",
+        "credit.view",
+        "credit.history.view"
       ]
     },
     {
@@ -262,7 +292,14 @@
         "product.read",
         "inventory.read",
         "store.read",
-        "sale.pos.sync"
+        "sale.pos.sync",
+        "credit.approve",
+        "credit.payment.receive",
+        "credit.view",
+        "credit.history.view",
+        "credit.report.view",
+        "credit.limit.manage",
+        "credit.refund"
       ]
     },
     {
@@ -315,7 +352,14 @@
         "report.read",
         "supplier.read",
         "purchase.read",
-        "purchase.receive"
+        "purchase.receive",
+        "credit.approve",
+        "credit.payment.receive",
+        "credit.view",
+        "credit.history.view",
+        "credit.report.view",
+        "credit.limit.manage",
+        "credit.refund"
       ]
     },
     {
@@ -336,7 +380,8 @@
         "sale.complete",
         "payment.create",
         "payment.read",
-        "inventory.read"
+        "inventory.read",
+        "credit.request"
       ]
     },
     {
@@ -358,7 +403,10 @@
         "audit.read",
         "supplier.read",
         "purchase.read",
-        "supplier.payment.read"
+        "supplier.payment.read",
+        "credit.report.view",
+        "credit.view",
+        "credit.history.view"
       ]
     }
   ],

@@ -2,6 +2,7 @@ import { prisma } from '@omnikes/lib/prisma';
 import { returnSchema, ReturnInput } from '@omnikes/lib/validation';
 import { recordInventoryMovement, updateInventoryQuantity } from '@omnikes/services/inventory.service';
 import { roundMoney } from '@omnikes/lib/money';
+import { calculateCreditReturnAllocation } from '@omnikes/lib/credit-return-allocation';
 
 export class ReturnService {
   /**
@@ -59,6 +60,7 @@ export class ReturnService {
             },
           },
           store: true,
+          saleCredit: { include: { payments: true, adjustments: true } },
         },
       });
 
@@ -69,6 +71,20 @@ export class ReturnService {
       // Verify store belongs to organization
       if (sale.store.organizationId !== organizationId) {
         throw new Error('Store does not belong to the organization');
+      }
+
+      // Serialize debt reductions against concurrent repayment collection.
+      let lockedSaleCredit = sale.saleCredit;
+      if (sale.saleCredit) {
+        await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM sale_credits
+          WHERE id = ${sale.saleCredit.id} AND "organizationId" = ${organizationId}
+          FOR UPDATE
+        `;
+        lockedSaleCredit = await tx.saleCredit.findFirst({
+          where: { id: sale.saleCredit.id, organizationId },
+          include: { payments: true, adjustments: true },
+        });
       }
 
       // Only COMPLETED sales can be returned
@@ -228,6 +244,36 @@ export class ReturnService {
         },
       });
 
+      // A merchandise return first reduces the outstanding customer debt.
+      // The adjustment is a separate immutable record; the original credit amount
+      // and repayment history are never rewritten.
+      let creditAdjustmentAmount = 0;
+      let creditRefundDue = 0;
+      if (lockedSaleCredit && ['AUTHORIZED', 'SETTLED'].includes(lockedSaleCredit.status)) {
+        const creditPaid = roundMoney(lockedSaleCredit.payments.reduce((sum, payment) => sum + Number(payment.amount), 0));
+        const previouslyAdjusted = roundMoney(lockedSaleCredit.adjustments.reduce((sum, adjustment) => sum + Number(adjustment.amount), 0));
+        const allocation = calculateCreditReturnAllocation(Number(lockedSaleCredit.amount), creditPaid, previouslyAdjusted, totalRefunded);
+        const outstandingCredit = allocation.outstandingBefore;
+        creditAdjustmentAmount = allocation.debtAdjustment;
+        creditRefundDue = allocation.repaymentRefundDue;
+        if (creditAdjustmentAmount > 0) {
+          await tx.creditAdjustment.create({
+            data: {
+              organizationId,
+              storeId: sale.storeId,
+              saleCreditId: lockedSaleCredit.id,
+              returnId: createdReturn.id,
+              processedBy: userId,
+              amount: creditAdjustmentAmount,
+              reason: validatedData.reason?.trim() || `Debt reduction from return ${sale.orderNumber}`,
+            },
+          });
+        }
+        if (roundMoney(outstandingCredit - creditAdjustmentAmount) <= 0 && lockedSaleCredit.status !== 'SETTLED') {
+          await tx.saleCredit.update({ where: { id: lockedSaleCredit.id }, data: { status: 'SETTLED' } });
+        }
+      }
+
       // Create audit log
       await tx.auditLog.create({
         data: {
@@ -242,6 +288,8 @@ export class ReturnService {
             returnId: createdReturn.id,
             orderNumber: sale.orderNumber,
             totalRefunded,
+            creditAdjustmentAmount,
+            creditRefundDue,
             itemCount: returnItemsData.length,
           },
         },

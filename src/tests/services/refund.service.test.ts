@@ -64,7 +64,7 @@ describe('RefundService', () => {
       },
     };
 
-    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback({ creditAdjustment: { aggregate: vi.fn().mockResolvedValue({ _sum: { amount: 0 } }) }, ...tx } as never));
 
     await refundService.process('clh1234567890ef', 'clh1234567890mn', {
       returnId: 'clh1234567890op',
@@ -101,7 +101,7 @@ describe('RefundService', () => {
       },
     };
 
-    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback({ creditAdjustment: { aggregate: vi.fn().mockResolvedValue({ _sum: { amount: 0 } }) }, ...tx } as never));
 
     await expect(
       refundService.process('clh1234567890ef', 'clh1234567890mn', {
@@ -125,7 +125,7 @@ describe('RefundService', () => {
       },
     };
 
-    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback({ creditAdjustment: { aggregate: vi.fn().mockResolvedValue({ _sum: { amount: 0 } }) }, ...tx } as never));
 
     await expect(
       refundService.process('clh1234567890ef', 'clh1234567890mn', {
@@ -141,7 +141,7 @@ describe('RefundService', () => {
       $queryRaw: vi.fn().mockResolvedValue([]),
     };
 
-    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback({ creditAdjustment: { aggregate: vi.fn().mockResolvedValue({ _sum: { amount: 0 } }) }, ...tx } as never));
 
     await expect(
       refundService.process('clh1234567890ef', 'clh1234567890mn', {
@@ -175,7 +175,7 @@ describe('RefundService', () => {
       },
     };
 
-    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback({ creditAdjustment: { aggregate: vi.fn().mockResolvedValue({ _sum: { amount: 0 } }) }, ...tx } as never));
 
     await refundService.process('clh1234567890ef', 'clh1234567890mn', {
       returnId: 'clh1234567890op',
@@ -213,7 +213,7 @@ describe('RefundService', () => {
       },
     };
 
-    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback({ creditAdjustment: { aggregate: vi.fn().mockResolvedValue({ _sum: { amount: 0 } }) }, ...tx } as never));
 
     await expect(
       refundService.process('clh1234567890ef', 'clh1234567890mn', {
@@ -231,7 +231,7 @@ describe('RefundService', () => {
         .mockResolvedValueOnce([]),
     };
 
-    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback({ creditAdjustment: { aggregate: vi.fn().mockResolvedValue({ _sum: { amount: 0 } }) }, ...tx } as never));
 
     await expect(
       refundService.process('clh1234567890ef', 'clh1234567890mn', {
@@ -267,7 +267,7 @@ describe('RefundService', () => {
       },
     };
 
-    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback({ creditAdjustment: { aggregate: vi.fn().mockResolvedValue({ _sum: { amount: 0 } }) }, ...tx } as never));
 
     const result = await refundService.process(
       'clh1234567890ef',
@@ -307,7 +307,7 @@ describe('RefundService', () => {
       },
     };
 
-    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback({ creditAdjustment: { aggregate: vi.fn().mockResolvedValue({ _sum: { amount: 0 } }) }, ...tx } as never));
 
     await expect(
       refundService.process(
@@ -339,7 +339,7 @@ describe('RefundService', () => {
       },
     };
 
-    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback(tx as never));
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback) => callback({ creditAdjustment: { aggregate: vi.fn().mockResolvedValue({ _sum: { amount: 0 } }) }, ...tx } as never));
 
     await expect(
       refundService.process(

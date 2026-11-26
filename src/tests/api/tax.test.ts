@@ -2,114 +2,66 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET } from '@omnikes/app/api/tax/route';
 import { NextRequest } from 'next/server';
 
-// Mock dependencies
 vi.mock('@omnikes/lib/auth', () => ({
   requireCurrentOrganizationId: vi.fn(),
 }));
 
 vi.mock('@omnikes/lib/prisma', () => ({
-  prisma: {
-    organization: {
-      findUnique: vi.fn(),
-    },
-  },
+  prisma: { organization: { findUnique: vi.fn() } },
 }));
 
 import { requireCurrentOrganizationId } from '@omnikes/lib/auth';
 import { prisma } from '@omnikes/lib/prisma';
 
 describe('GET /api/tax', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+  beforeEach(() => vi.clearAllMocks());
 
-  it('should return tax configuration when organization has one', async () => {
-    const mockOrganizationId = 'org-123';
-    const mockTaxRate = 0.18;
-    const mockCountry = 'HT';
-
-    (requireCurrentOrganizationId as any).mockResolvedValue(mockOrganizationId);
+  it('returns the current organization fiscal settings', async () => {
+    (requireCurrentOrganizationId as any).mockResolvedValue('org-123');
     (prisma.organization.findUnique as any).mockResolvedValue({
-      id: mockOrganizationId,
-      taxConfiguration: {
-        taxRate: mockTaxRate,
-        country: mockCountry,
-      },
+      id: 'org-123', country: 'HT', taxEnabled: true, taxRate: 0.18,
     });
 
     const request = new NextRequest('http://localhost/api/tax');
     const response = await GET(request);
-    const data = await response.json();
-
     expect(response.status).toBe(200);
-    expect(data).toEqual({
-      taxRate: mockTaxRate,
-      country: mockCountry,
-    });
-    expect(requireCurrentOrganizationId).toHaveBeenCalledWith(request);
+    expect(await response.json()).toEqual({ enabled: true, taxRate: 0.18, country: 'HT' });
     expect(prisma.organization.findUnique).toHaveBeenCalledWith({
-      where: { id: mockOrganizationId },
-      include: { taxConfiguration: true },
+      where: { id: 'org-123' },
+      select: { id: true, country: true, taxEnabled: true, taxRate: true },
     });
   });
 
-  it('should return null tax rate when organization has no configuration', async () => {
-    const mockOrganizationId = 'org-123';
-
-    (requireCurrentOrganizationId as any).mockResolvedValue(mockOrganizationId);
+  it('returns a disabled zero-rate configuration when taxation is disabled', async () => {
+    (requireCurrentOrganizationId as any).mockResolvedValue('org-123');
     (prisma.organization.findUnique as any).mockResolvedValue({
-      id: mockOrganizationId,
-      taxConfiguration: null,
+      id: 'org-123', country: 'HT', taxEnabled: false, taxRate: 0,
     });
 
-    const request = new NextRequest('http://localhost/api/tax');
-    const response = await GET(request);
-    const data = await response.json();
-
+    const response = await GET(new NextRequest('http://localhost/api/tax'));
     expect(response.status).toBe(200);
-    expect(data).toEqual({
-      taxRate: null,
-      country: null,
-    });
+    expect(await response.json()).toEqual({ enabled: false, taxRate: 0, country: 'HT' });
   });
 
-  it('should return 404 when organization not found', async () => {
-    const mockOrganizationId = 'org-123';
-
-    (requireCurrentOrganizationId as any).mockResolvedValue(mockOrganizationId);
+  it('returns 404 when organization is missing', async () => {
+    (requireCurrentOrganizationId as any).mockResolvedValue('org-123');
     (prisma.organization.findUnique as any).mockResolvedValue(null);
-
-    const request = new NextRequest('http://localhost/api/tax');
-    const response = await GET(request);
-    const data = await response.json();
-
+    const response = await GET(new NextRequest('http://localhost/api/tax'));
     expect(response.status).toBe(404);
-    expect(data).toEqual({ error: 'Organization not found' });
+    expect(await response.json()).toEqual({ error: 'Organization not found' });
   });
 
-  it('should return 401 when authentication fails', async () => {
-    (requireCurrentOrganizationId as any).mockRejectedValue(
-      new Error('Authentication required')
-    );
-
-    const request = new NextRequest('http://localhost/api/tax');
-    const response = await GET(request);
-    const data = await response.json();
-
+  it('returns 401 when authentication fails', async () => {
+    (requireCurrentOrganizationId as any).mockRejectedValue(new Error('Authentication required'));
+    const response = await GET(new NextRequest('http://localhost/api/tax'));
     expect(response.status).toBe(401);
-    expect(data).toEqual({ error: 'Authentication required' });
+    expect(await response.json()).toEqual({ error: 'Authentication required' });
   });
 
-  it('should return 500 on unexpected error', async () => {
-    (requireCurrentOrganizationId as any).mockRejectedValue(
-      new Error('Database connection failed')
-    );
-
-    const request = new NextRequest('http://localhost/api/tax');
-    const response = await GET(request);
-    const data = await response.json();
-
+  it('returns 500 on unexpected errors', async () => {
+    (requireCurrentOrganizationId as any).mockRejectedValue(new Error('Database connection failed'));
+    const response = await GET(new NextRequest('http://localhost/api/tax'));
     expect(response.status).toBe(500);
-    expect(data).toEqual({ error: 'Failed to get tax configuration' });
+    expect(await response.json()).toEqual({ error: 'Failed to get tax configuration' });
   });
 });

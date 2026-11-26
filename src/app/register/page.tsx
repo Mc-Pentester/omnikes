@@ -21,6 +21,8 @@ export default function RegisterPage() {
   const [currency, setCurrency] = useState('HTG');
   const [locale, setLocale] = useState('fr-HT');
   const [timezone, setTimezone] = useState('America/Port-au-Prince');
+  const [taxEnabled, setTaxEnabled] = useState(false);
+  const [taxRate, setTaxRate] = useState('0');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -47,13 +49,18 @@ export default function RegisterPage() {
       setError('Les mots de passe ne correspondent pas.');
       return;
     }
+    const parsedTaxRate = Number(taxRate);
+    if (mode === 'initial' && taxEnabled && (!Number.isFinite(parsedTaxRate) || parsedTaxRate < 0 || parsedTaxRate > 100)) {
+      setError('Le taux fiscal doit être compris entre 0 et 100 %.');
+      return;
+    }
     setLoading(true);
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...(mode === 'initial' ? { organizationName, country, currency, locale, timezone } : {}),
+          ...(mode === 'initial' ? { organizationName, country, currency, locale, timezone, taxEnabled, taxRate: taxEnabled ? parsedTaxRate : 0 } : {}),
           name, email, password, confirmPassword,
         }),
       });
@@ -109,6 +116,23 @@ export default function RegisterPage() {
                     <label htmlFor="organizationName" className="mb-2 block text-sm font-medium text-foreground">Nom de l’organisation</label>
                     <Input id="organizationName" value={organizationName} onChange={(e) => setOrganizationName(e.target.value)} placeholder="Ma Boutique" required disabled={loading} />
                   </div>
+                  <section aria-labelledby="tax-settings-title" className="rounded-lg border border-border p-4 space-y-3">
+                    <div>
+                      <h2 id="tax-settings-title" className="text-sm font-semibold text-foreground">Fiscalité de l’organisation</h2>
+                      <p className="mt-1 text-xs text-muted">Ces paramètres seront appliqués par défaut aux nouvelles ventes. Vous pourrez les modifier plus tard.</p>
+                    </div>
+                    <label htmlFor="taxEnabled" className="flex items-start gap-3 text-sm font-medium text-foreground">
+                      <input id="taxEnabled" type="checkbox" checked={taxEnabled} onChange={(event) => setTaxEnabled(event.target.checked)} disabled={loading} className="mt-0.5 h-4 w-4 rounded border-border" />
+                      Activer la taxe pour cette organisation
+                    </label>
+                    {taxEnabled && (
+                      <div>
+                        <label htmlFor="taxRate" className="mb-1 block text-sm font-medium text-foreground">Taux fiscal (%)</label>
+                        <Input id="taxRate" type="number" inputMode="decimal" step="0.01" value={taxRate} onChange={(event) => setTaxRate(event.target.value)} required disabled={loading} />
+                        <p className="mt-1 text-xs text-muted">Saisissez un taux entre 0 et 100. Exemple : 10 pour 10 %.</p>
+                      </div>
+                    )}
+                  </section>
                   <details className="rounded-lg border border-border p-3">
                     <summary className="cursor-pointer text-sm font-medium">Paramètres régionaux de l’organisation</summary>
                     <p className="mt-2 text-xs text-muted">Les valeurs haïtiennes sont proposées par défaut.</p>
@@ -127,7 +151,7 @@ export default function RegisterPage() {
               <div><label htmlFor="password" className="mb-2 block text-sm font-medium text-foreground">Mot de passe</label><Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" minLength={8} required disabled={loading} /></div>
               <div><label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-foreground">Confirmer le mot de passe</label><Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" minLength={8} required disabled={loading} /></div>
 
-              {error && <div className="text-sm text-danger">{error}</div>}
+              {error && <div role="alert" className="text-sm text-danger">{error}</div>}
               <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Création…' : 'Créer un compte'}</Button>
             </form>
           </>

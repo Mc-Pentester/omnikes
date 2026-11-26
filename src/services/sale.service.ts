@@ -59,10 +59,8 @@ export class SaleService {
       include: { taxConfiguration: true },
     });
 
-    const configuredRate = organization?.taxConfiguration?.taxRate;
-    const initialTaxRate = (validatedData.applyTax !== false && configuredRate !== null && configuredRate !== undefined)
-      ? Number(configuredRate)
-      : 0;
+    const initialTaxRate = organization?.taxEnabled === true ? Number(organization.taxRate) : 0;
+    const applyTax = organization?.taxEnabled === true && validatedData.applyTax !== false;
 
     // Financial totals are server-owned. A newly created sale has no trusted
     // line totals yet; they are recalculated from server-priced items as items are added.
@@ -76,6 +74,7 @@ export class SaleService {
       discount: 0,
       tax: initialTax,
       taxRate: initialTaxRate,
+      applyTax,
       total: initialTotal,
       organization: {
         connect: { id: organizationId },
@@ -125,6 +124,7 @@ export class SaleService {
     tx: Prisma.TransactionClient,
     saleId: string,
     organizationId: string,
+    invalidateCreditApproval = true,
   ) {
     const rows = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM sales
@@ -142,6 +142,25 @@ export class SaleService {
     if (!sale) throw new Error('Sale not found or access denied');
     if (sale.status !== 'PENDING') {
       throw new Error('Sale can only be modified while PENDING');
+    }
+
+    // Any edit to a pending sale invalidates its prior manager approval.
+    // The sale can be re-approved after the cashier finishes the edits.
+    const invalidated = invalidateCreditApproval ? await tx.saleCredit.updateMany({
+      where: { saleId, status: 'APPROVED_PENDING_COMPLETION' },
+      data: { status: 'INVALIDATED' },
+    }) : { count: 0 };
+    if (invalidated.count > 0) {
+      await tx.auditLog.create({
+        data: {
+          organizationId,
+          action: 'CUSTOMER_CREDIT_APPROVAL_INVALIDATED',
+          module: 'credit',
+          entityId: saleId,
+          entityType: 'Sale',
+          metadata: { reason: 'PENDING_SALE_MODIFIED' },
+        },
+      });
     }
   }
 
@@ -163,7 +182,9 @@ export class SaleService {
     }
 
     return prisma.$transaction(async (tx) => {
-      await this.lockPendingSale(tx, id, organizationId);
+      const invalidatesCreditApproval = ['customerId', 'storeId', 'applyTax', 'discount', 'subtotal', 'tax', 'total']
+        .some((field) => Object.prototype.hasOwnProperty.call(validatedData, field));
+      await this.lockPendingSale(tx, id, organizationId, invalidatesCreditApproval);
       await tx.sale.update({
         where: { id },
         data: validatedData as Prisma.SaleUpdateInput,
@@ -370,9 +391,8 @@ export class SaleService {
       include: { organization: { include: { taxConfiguration: true } } },
     });
 
-    const configuredRate = sale?.organization?.taxConfiguration?.taxRate;
-    const effectiveRate = (sale?.applyTax !== false && configuredRate !== null && configuredRate !== undefined)
-      ? Number(configuredRate)
+    const effectiveRate = sale?.applyTax && sale.organization?.taxEnabled === true
+      ? Number(sale.organization.taxRate)
       : 0;
     const taxableSubtotal = roundMoney(subtotal - discount);
     const tax = roundMoney(taxableSubtotal * effectiveRate);
@@ -402,10 +422,7 @@ export class SaleService {
     });
     if (!sale) throw new Error('Sale not found or access denied');
 
-    const configuredRate = sale.organization?.taxConfiguration?.taxRate;
-    const effectiveRate = (sale.applyTax !== false && configuredRate !== null && configuredRate !== undefined)
-      ? Number(configuredRate)
-      : 0;
+    const effectiveRate = sale.applyTax && sale.organization?.taxEnabled === true ? Number(sale.organization.taxRate) : 0;
     const taxableSubtotal = roundMoney(subtotal - discount);
     const tax = roundMoney(taxableSubtotal * effectiveRate);
     const total = roundMoney(taxableSubtotal + tax);
@@ -426,7 +443,7 @@ export class SaleService {
   /**
    * Complete a sale (transactional - deducts stock)
    */
-  async complete(saleId: string, organizationId: string) {
+  async complete(saleId: string, organizationId: string, completedBy?: string) {
     return prisma.$transaction(async (tx) => {
       // Lock the sale row so payment/credit/finalization decisions are serialized.
       const lockedSaleRows = await tx.$queryRaw<Array<{ id: string }>>`
@@ -460,6 +477,11 @@ export class SaleService {
         throw new Error(`Sale cannot be completed from status ${sale.status}`);
       }
 
+      if (sale.saleCredit?.status === 'APPROVED_PENDING_COMPLETION'
+        && (!sale.saleCredit.expiresAt || sale.saleCredit.expiresAt <= new Date())) {
+        throw new Error('Credit approval has expired; request a new approval');
+      }
+
       // Only real completed payments count as money received.
       // Historical Payment.method=CREDIT records are intentionally excluded;
       // new credit must be represented by SaleCredit.
@@ -467,7 +489,7 @@ export class SaleService {
         .filter(p => p.status === 'COMPLETED' && p.method !== 'CREDIT')
         .reduce((sum: number, p: Payment) => sum + Number(p.amount), 0));
 
-      const authorizedCredit = sale.saleCredit?.status === 'AUTHORIZED'
+      const authorizedCredit = sale.saleCredit && ['AUTHORIZED', 'APPROVED_PENDING_COMPLETION'].includes(sale.saleCredit.status)
         ? roundMoney(Number(sale.saleCredit.amount))
         : 0;
 
@@ -524,6 +546,37 @@ export class SaleService {
         data: { status: 'COMPLETED' },
       });
 
+      // The approved credit becomes an actual receivable only in the same
+      // transaction that finalizes the sale and deducts stock.
+      if (sale.saleCredit?.status === 'APPROVED_PENDING_COMPLETION') {
+        await tx.saleCredit.update({
+          where: { id: sale.saleCredit.id },
+          data: { status: 'AUTHORIZED' },
+        });
+        await tx.auditLog.create({
+          data: {
+            userId: completedBy ?? sale.saleCredit.authorizedBy,
+            organizationId,
+            storeId: sale.storeId,
+            action: 'CUSTOMER_CREDIT_RECEIVABLE_CREATED',
+            module: 'credit',
+            entityId: sale.saleCredit.id,
+            entityType: 'SaleCredit',
+            newValues: {
+              status: 'AUTHORIZED',
+              amount: Number(sale.saleCredit.amount),
+              dueAt: sale.saleCredit.dueAt.toISOString(),
+            },
+            metadata: {
+              saleId,
+              orderNumber: sale.orderNumber,
+              approvedBy: sale.saleCredit.authorizedBy,
+              finalizedBy: completedBy ?? null,
+            },
+          },
+        });
+      }
+
       return tx.sale.findUnique({
         where: { id: saleId },
         include: {
@@ -572,7 +625,7 @@ export class SaleService {
             },
           },
           payments: true,
-          saleCredit: true,
+          saleCredit: { include: { payments: true, adjustments: true } },
         },
       });
 
@@ -589,6 +642,19 @@ export class SaleService {
       }
 
       const oldStatus = sale.status;
+      let cancellationCreditAdjustment = 0;
+      let cancellationCredit = sale.saleCredit;
+      if (oldStatus === 'COMPLETED' && sale.saleCredit?.status === 'AUTHORIZED') {
+        await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM sale_credits
+          WHERE id = ${sale.saleCredit.id} AND "organizationId" = ${organizationId}
+          FOR UPDATE
+        `;
+        cancellationCredit = await tx.saleCredit.findFirst({
+          where: { id: sale.saleCredit.id, organizationId },
+          include: { payments: true, adjustments: true },
+        });
+      }
 
       // Only a COMPLETED sale has previously deducted stock.
       // Lock every affected inventory row before restoring quantities.
@@ -630,7 +696,7 @@ export class SaleService {
         }
       }
 
-      const cancelledSale = await tx.sale.update({
+      await tx.sale.update({
         where: { id: saleId },
         data: { status: 'CANCELLED' },
         include: {
@@ -647,6 +713,33 @@ export class SaleService {
           saleCredit: true,
         },
       });
+
+      if (oldStatus === 'PENDING' && sale.saleCredit?.status === 'APPROVED_PENDING_COMPLETION') {
+        await tx.saleCredit.update({
+          where: { id: sale.saleCredit.id },
+          data: { status: 'CANCELLED' },
+        });
+      } else if (oldStatus === 'COMPLETED' && cancellationCredit?.status === 'AUTHORIZED') {
+        const paidOnCredit = roundMoney(cancellationCredit.payments.reduce((sum, payment) => sum + Number(payment.amount), 0));
+        const alreadyAdjusted = roundMoney(cancellationCredit.adjustments.reduce((sum, adjustment) => sum + Number(adjustment.amount), 0));
+        cancellationCreditAdjustment = roundMoney(Math.max(0, Number(cancellationCredit.amount) - paidOnCredit - alreadyAdjusted));
+        if (cancellationCreditAdjustment > 0) {
+          await tx.creditAdjustment.create({
+            data: {
+              organizationId,
+              storeId: sale.storeId,
+              saleCreditId: cancellationCredit.id,
+              processedBy: cancelledBy,
+              amount: cancellationCreditAdjustment,
+              reason: `Full cancellation of sale ${sale.orderNumber}`,
+            },
+          });
+          await tx.saleCredit.update({
+            where: { id: cancellationCredit.id },
+            data: { status: 'SETTLED' },
+          });
+        }
+      }
 
       await tx.auditLog.create({
         data: {
@@ -667,6 +760,7 @@ export class SaleService {
             orderNumber: sale.orderNumber,
             stockRestored: oldStatus === 'COMPLETED',
             paymentCount: sale.payments.length,
+            creditDebtAdjustment: cancellationCreditAdjustment,
             authorizedCredit: sale.saleCredit?.status === 'AUTHORIZED'
               ? Number(sale.saleCredit.amount)
               : 0,
@@ -674,14 +768,23 @@ export class SaleService {
         },
       });
 
-      return cancelledSale;
+      return tx.sale.findUnique({
+        where: { id: saleId },
+        include: {
+          store: true,
+          customer: true,
+          items: { include: { variant: { include: { product: true } } } },
+          payments: true,
+          saleCredit: true,
+        },
+      });
     });
   }
 
   /**
    * Authorize explicit customer credit for a pending sale.
    */
-  async authorizeCredit(saleId: string, organizationId: string, authorizedBy: string, data: SaleCreditInput) {
+  async authorizeCredit(saleId: string, organizationId: string, authorizedBy: string, data: SaleCreditInput, expectedStoreId?: string) {
     const validatedData = saleCreditSchema.parse(data);
 
     return prisma.$transaction(async (tx) => {
@@ -703,19 +806,33 @@ export class SaleService {
       if (!sale) {
         throw new Error('Sale not found or access denied');
       }
+      if (expectedStoreId && sale.storeId !== expectedStoreId) {
+        throw new Error('Sale store changed during credit approval; please retry');
+      }
       if (sale.status !== 'PENDING') {
         throw new Error('Credit can only be authorized for a PENDING sale');
       }
       if (!sale.customerId) {
         throw new Error('A customer is required to authorize credit');
       }
-      if (sale.saleCredit) {
+      const expiredPendingApproval = sale.saleCredit?.status === 'APPROVED_PENDING_COMPLETION'
+        && (!sale.saleCredit.expiresAt || sale.saleCredit.expiresAt <= new Date());
+      if (sale.saleCredit && sale.saleCredit.status !== 'INVALIDATED' && !expiredPendingApproval) {
         throw new Error('Credit is already authorized for this sale');
       }
 
+      // Serialize all credit admissions for the same customer so concurrent
+      // sales cannot race past an optional customer credit limit.
+      const customerLocks = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM customers
+        WHERE id = ${validatedData.customerId} AND "organizationId" = ${organizationId}
+        FOR UPDATE
+      `;
+      if (customerLocks.length === 0) throw new Error('Customer not found or access denied');
+
       const customer = await tx.customer.findFirst({
         where: { id: validatedData.customerId, organizationId },
-        select: { id: true },
+        select: { id: true, creditLimit: true },
       });
       if (!customer) {
         throw new Error('Customer not found or access denied');
@@ -733,19 +850,82 @@ export class SaleService {
         throw new Error(`Credit amount exceeds remaining balance. Remaining: ${remaining}, Attempted: ${validatedData.amount}`);
       }
 
-      return tx.saleCredit.create({
+      if (customer.creditLimit !== null) {
+        const activeCredits = await tx.saleCredit.findMany({
+          where: { organizationId, customerId: customer.id, status: { in: ['AUTHORIZED', 'APPROVED_PENDING_COMPLETION'] } },
+          select: { amount: true, payments: { select: { amount: true } }, adjustments: { select: { amount: true } } },
+        });
+        const outstanding = roundMoney(activeCredits.reduce((sum, credit) =>
+          sum + Math.max(0, Number(credit.amount) - credit.payments.reduce((paid, payment) => paid + Number(payment.amount), 0) - credit.adjustments.reduce((adjusted, adjustment) => adjusted + Number(adjustment.amount), 0)), 0));
+        const projected = roundMoney(outstanding + validatedData.amount);
+        if (projected > Number(customer.creditLimit) && !validatedData.note?.trim()) {
+          throw new Error(`Customer credit limit exceeded. Outstanding: ${outstanding}, Limit: ${Number(customer.creditLimit)}. A reason is required for manager override.`);
+        }
+      }
+
+      const organization = await tx.organization.findUnique({
+        where: { id: organizationId },
+        select: { creditDefaultDueDays: true },
+      });
+      if (!organization) throw new Error('Organization not found');
+      const dueAt = validatedData.dueAt ?? new Date(Date.now() + organization.creditDefaultDueDays * 24 * 60 * 60 * 1000);
+      if (dueAt.getTime() <= Date.now()) throw new Error('Credit due date must be in the future');
+
+      const creditData = {
+        organizationId,
+        storeId: sale.storeId,
+        saleId,
+        customerId: customer.id,
+        amount: validatedData.amount,
+        status: 'APPROVED_PENDING_COMPLETION',
+        authorizedBy,
+        authorizedAt: new Date(),
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+        note: validatedData.note,
+        dueAt,
+      };
+      const credit = sale.saleCredit && (sale.saleCredit.status === 'INVALIDATED' || expiredPendingApproval)
+        ? await tx.saleCredit.update({
+            where: { id: sale.saleCredit.id },
+            data: creditData,
+            include: { customer: true },
+          })
+        : await tx.saleCredit.create({
+            data: creditData,
+            include: { customer: true },
+          });
+
+      await tx.auditLog.create({
         data: {
+          userId: authorizedBy,
           organizationId,
           storeId: sale.storeId,
-          saleId,
-          customerId: customer.id,
-          amount: validatedData.amount,
-          status: 'AUTHORIZED',
-          authorizedBy,
-          note: validatedData.note,
+          action: 'CUSTOMER_CREDIT_APPROVED',
+          module: 'credit',
+          entityId: credit.id,
+          entityType: 'SaleCredit',
+          oldValues: sale.saleCredit ? {
+            status: sale.saleCredit.status,
+            amount: Number(sale.saleCredit.amount),
+            authorizedBy: sale.saleCredit.authorizedBy,
+          } : undefined,
+          newValues: {
+            status: 'APPROVED_PENDING_COMPLETION',
+            amount: validatedData.amount,
+            customerId: customer.id,
+            dueAt: dueAt.toISOString(),
+            currencyCode: sale.currencyCode,
+          },
+          metadata: {
+            saleId,
+            orderNumber: sale.orderNumber,
+            note: validatedData.note ?? null,
+            receivableCreated: false,
+          },
         },
-        include: { customer: true },
       });
+
+      return credit;
     });
   }
 
@@ -796,7 +976,7 @@ export class SaleService {
         .filter(p => p.status === 'COMPLETED' && p.method !== 'CREDIT')
         .reduce((sum: number, p: Payment) => sum + Number(p.amount), 0));
 
-      const authorizedCredit = sale.saleCredit?.status === 'AUTHORIZED'
+      const authorizedCredit = sale.saleCredit && ['AUTHORIZED', 'APPROVED_PENDING_COMPLETION'].includes(sale.saleCredit.status)
         ? roundMoney(Number(sale.saleCredit.amount))
         : 0;
 

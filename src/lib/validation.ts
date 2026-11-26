@@ -11,6 +11,9 @@ export const organizationSchema = z.object({
   timezone: z.string().default('UTC'),
   cloudEnabled: z.boolean().default(false),
   onlineStoreEnabled: z.boolean().default(false),
+  taxEnabled: z.boolean().default(false),
+  taxRate: z.number().finite().min(0).max(100).default(0),
+  creditDefaultDueDays: z.number().int().min(1).max(3650).default(30),
 });
 
 
@@ -18,11 +21,15 @@ export const organizationSchema = z.object({
 export const adminOrganizationUpdateSchema = z.object({
   name: z.string().trim().min(1, 'Organization name is required').max(255).optional(),
   country: z.string().trim().length(2, 'Country must be an ISO 3166-1 alpha-2 code').transform((value) => value.toUpperCase()).optional(),
-  currency: z.string().trim().length(3, 'Currency must be an ISO 4217 code').transform((value) => value.toUpperCase()).optional(),
+  currency: z.string().trim().min(3).max(12).regex(/^[A-Za-z0-9_-]+$/).transform((value) => value.toUpperCase()).optional(),
+  currencySymbol: z.string().trim().min(1).max(12).optional(),
   locale: z.string().trim().min(2).max(20).optional(),
   timezone: z.string().trim().min(1).max(100).optional(),
   cloudEnabled: z.boolean().optional(),
   onlineStoreEnabled: z.boolean().optional(),
+  taxEnabled: z.boolean().optional(),
+  taxRate: z.number().finite().min(0).max(100).optional(),
+  creditDefaultDueDays: z.number().int().min(1).max(3650).optional(),
 });
 
 export type AdminOrganizationUpdateInput = z.infer<typeof adminOrganizationUpdateSchema>;
@@ -160,9 +167,18 @@ export const productUpdateSchema = productSchema.partial().omit({ organizationId
   barcode: z.string().trim().max(50).optional().or(z.literal('')),
   price: z.number().finite().nonnegative('Price must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Price must have at most 2 decimal places').optional(),
   cost: z.number().finite().nonnegative('Cost must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Cost must have at most 2 decimal places').optional(),
+  casePrice: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  dozenPrice: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  pack3Price: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  unitPrice: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  unitsPerCase: z.number().int().positive().max(1000000).optional(),
   variantId: z.string().cuid().optional(),
-}).refine((data) => (data.price === undefined && data.cost === undefined && data.barcode === undefined) || Boolean(data.variantId), {
-  message: 'A variant is required when updating variant prices or barcode',
+}).refine((data) => (
+  data.price === undefined && data.cost === undefined && data.barcode === undefined &&
+  data.casePrice === undefined && data.dozenPrice === undefined && data.pack3Price === undefined &&
+  data.unitPrice === undefined && data.unitsPerCase === undefined
+) || Boolean(data.variantId), {
+  message: 'A variant is required when updating variant prices, packaging or barcode',
   path: ['variantId'],
 });
 
@@ -175,7 +191,12 @@ export const productVariantSchema = z.object({
   sku: z.string().min(1, 'SKU is required').max(100, 'SKU must be less than 100 characters'),
   barcode: z.string().trim().max(50).optional().or(z.literal('')),
   price: z.number().finite().nonnegative('Price must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Price must have at most 2 decimal places'),
-  cost: z.number().finite().nonnegative('Cost must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Cost must have at most 2 decimal places'),
+  cost: z.number().finite().nonnegative('Cost must be non-negative').max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces, 'Cost must have at most 2 decimal places').optional(),
+  casePrice: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  dozenPrice: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  pack3Price: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  unitPrice: z.number().finite().nonnegative().max(MAX_MONEY_10_2).refine(hasAtMostTwoDecimalPlaces).optional(),
+  unitsPerCase: z.number().int().positive().max(1000000).optional(),
   saleUnit: productSaleUnitSchema.default('UNIT'),
   attributes: z.any().optional(),
   isActive: z.boolean().default(true),
@@ -327,7 +348,19 @@ export const saleCreditSchema = z.object({
   customerId: z.string().cuid(),
   amount: z.number().finite().positive('Credit amount must be positive').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Credit amount must have at most 2 decimal places'),
   note: z.string().max(1000).optional(),
+  dueAt: z.coerce.date().optional(),
 });
+
+export const creditPaymentSchema = z.object({
+  amount: z.number().finite().positive().max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces),
+  method: z.enum(['CASH', 'CARD', 'MOBILE_MONEY', 'BANK_TRANSFER', 'CHECK']),
+  reference: z.string().trim().max(150).optional(),
+}).strict();
+
+export const creditPinSetupSchema = z.object({
+  currentPassword: z.string().min(1),
+  pin: z.string().regex(/^\d{4,8}$/, 'PIN must contain 4 to 8 digits'),
+}).strict();
 
 export type SaleCreditInput = z.infer<typeof saleCreditSchema>;
 
@@ -367,6 +400,14 @@ export const refundSchema = z.object({
 });
 
 export type RefundInput = z.infer<typeof refundSchema>;
+
+export const creditRefundSchema = z.object({
+  returnId: z.string().cuid('Return ID is required'),
+  paymentId: z.string().cuid('Credit payment ID is required'),
+  amount: z.number().finite().positive('Amount must be positive').max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Amount must have at most 2 decimal places'),
+  reference: z.string().trim().max(200).optional(),
+});
+export type CreditRefundInput = z.infer<typeof creditRefundSchema>;
 
 // Proforma validation
 export const proformaSchema = z.object({
@@ -420,6 +461,7 @@ export const customerCreateSchema = z.object({
   city: z.string().trim().max(120).optional().or(z.literal('')),
   country: z.string().trim().length(2).toUpperCase().optional().or(z.literal('')),
   isActive: z.boolean().optional(),
+  creditLimit: z.number().finite().nonnegative().max(MAX_MONEY_12_2).refine(hasAtMostTwoDecimalPlaces, 'Credit limit must have at most two decimal places').nullable().optional(),
 }).strict();
 
 export const customerUpdateSchema = customerCreateSchema.partial().strict();
@@ -565,9 +607,12 @@ export const registrationSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   confirmPassword: z.string().min(8, 'Password confirmation is required'),
   country: z.string().trim().length(2).default('HT').transform((value) => value.toUpperCase()),
-  currency: z.string().trim().length(3).default('HTG').transform((value) => value.toUpperCase()),
+  currency: z.string().trim().min(3).max(12).regex(/^[A-Za-z0-9_-]+$/).default('HTG').transform((value) => value.toUpperCase()),
+  currencySymbol: z.string().trim().min(1).max(12).optional(),
   locale: z.string().trim().min(2).max(20).default('fr-HT'),
   timezone: z.string().trim().min(1).max(100).default('America/Port-au-Prince'),
+  taxEnabled: z.boolean().default(false),
+  taxRate: z.number().finite().min(0).max(100).default(0),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
   path: ['confirmPassword'],

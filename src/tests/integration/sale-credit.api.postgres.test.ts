@@ -4,8 +4,11 @@ import { NextRequest } from 'next/server';
 import { generateToken } from '@omnikes/lib/crypto';
 import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { prisma } from '@omnikes/lib/prisma';
+import { saleService } from '@omnikes/services/sale.service';
+import { roleRepository } from '@omnikes/repositories/role.repository';
 
 import { POST as creditPost } from '@omnikes/app/api/sales/[id]/credit/route';
+import { POST as creditPaymentPost } from '@omnikes/app/api/credits/[id]/payments/route';
 
 describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
   let orgA: { id: string } | undefined;
@@ -14,10 +17,17 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
   let customerA: { id: string } | undefined;
   let temporaryCustomerA = false;
   let scopedUser: { id: string; email: string } | undefined;
+  let managerUser: { id: string; email: string } | undefined;
   let scopedRole: { id: string } | undefined;
+  let managerRole: { id: string } | undefined;
   let permission: { id: string } | undefined;
+  let approvalPermission: { id: string } | undefined;
+  let repaymentPermission: { id: string } | undefined;
+  const managerPassword = 'P0F2D-Manager-Approval!2026';
   let sameStoreSaleId: string;
   let crossStoreSaleId: string;
+  let pinSaleId: string;
+  const managerTestPin = ['7', '3', '9', '1', '8', '4'].join('');
 
   beforeAll(async () => {
     orgA = await prisma.organization.findUniqueOrThrow({
@@ -70,7 +80,15 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     temporaryCustomerA = true;
 
     permission = await prisma.permission.findUniqueOrThrow({
-      where: { code: 'sale.credit' },
+      where: { code: 'credit.request' },
+      select: { id: true },
+    });
+    approvalPermission = await prisma.permission.findUniqueOrThrow({
+      where: { code: 'credit.approve' },
+      select: { id: true },
+    });
+    repaymentPermission = await prisma.permission.findUniqueOrThrow({
+      where: { code: 'credit.payment.receive' },
       select: { id: true },
     });
 
@@ -107,6 +125,37 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
         roleId: scopedRole!.id,
       },
     });
+    await prisma.rolePermission.create({
+      data: { roleId: scopedRole!.id, permissionId: repaymentPermission!.id },
+    });
+
+    managerUser = await prisma.user.create({
+      data: {
+        organizationId: orgA!.id,
+        email: `p0-24-f2-d-manager-${suffix}@omnikes.test`,
+        name: 'P0-24-F.2-D Credit Manager',
+        password: await bcrypt.hash(managerPassword, 10),
+        isActive: true,
+      },
+      select: { id: true, email: true },
+    });
+
+    managerRole = await prisma.role.create({
+      data: {
+        organizationId: orgA!.id,
+        name: `P0-F2-D-MANAGER-${suffix}`,
+        description: 'Temporary credit approval role',
+        isGlobal: false,
+        storeId: storeA!.id,
+        rolePermissions: { create: { permissionId: approvalPermission!.id } },
+      },
+      select: { id: true },
+    });
+    await prisma.userRole.create({ data: { userId: managerUser.id, roleId: managerRole.id } });
+    await prisma.user.update({
+      where: { id: managerUser.id },
+      data: { creditPinHash: await bcrypt.hash(managerTestPin, 12) },
+    });
 
     const sameStoreSale = await prisma.sale.create({
       data: {
@@ -128,6 +177,24 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
       throw new Error('Credit API fixture failed to persist the expected customer on the authorized-store sale');
     }
     sameStoreSaleId = sameStoreSale.id;
+
+    const pinSale = await prisma.sale.create({
+      data: {
+        organizationId: orgA!.id,
+        storeId: storeA!.id,
+        orderNumber: `P0-24-F2-D-API-PIN-${suffix}`,
+        customerId: customerA!.id,
+        status: 'PENDING',
+        subtotal: 200,
+        tax: 0,
+        taxRate: 0,
+        total: 200,
+        discount: 0,
+        applyTax: false,
+      },
+      select: { id: true },
+    });
+    pinSaleId = pinSale.id;
 
     const crossStoreSale = await prisma.sale.create({
       data: {
@@ -172,15 +239,15 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
   }
 
   afterAll(async () => {
-    if (scopedUser?.id) {
-      await prisma.session.deleteMany({ where: { userId: scopedUser!.id } });
-    }
-    if (sameStoreSaleId || crossStoreSaleId) {
-      await prisma.saleCredit.deleteMany({
-        where: { saleId: { in: [sameStoreSaleId, crossStoreSaleId].filter(Boolean) } },
-      });
+    if (scopedUser?.id) await prisma.session.deleteMany({ where: { userId: scopedUser!.id } });
+    if (managerUser?.id) await prisma.session.deleteMany({ where: { userId: managerUser!.id } });
+    if (sameStoreSaleId || crossStoreSaleId || pinSaleId) {
+      const saleIds = [sameStoreSaleId, crossStoreSaleId, pinSaleId].filter(Boolean);
+      const creditIds = (await prisma.saleCredit.findMany({ where: { saleId: { in: saleIds } }, select: { id: true } })).map((item) => item.id);
+      await prisma.creditPayment.deleteMany({ where: { saleCreditId: { in: creditIds } } });
+      await prisma.saleCredit.deleteMany({ where: { saleId: { in: saleIds } } });
       await prisma.sale.deleteMany({
-        where: { id: { in: [sameStoreSaleId, crossStoreSaleId].filter(Boolean) } },
+        where: { id: { in: [sameStoreSaleId, crossStoreSaleId, pinSaleId].filter(Boolean) } },
       });
     }
     if (scopedUser?.id) {
@@ -190,6 +257,12 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
       await prisma.rolePermission.deleteMany({ where: { roleId: scopedRole!.id } });
       await prisma.role.delete({ where: { id: scopedRole!.id } }).catch(() => undefined);
     }
+    if (managerRole?.id) {
+      await prisma.rolePermission.deleteMany({ where: { roleId: managerRole!.id } });
+      await prisma.userRole.deleteMany({ where: { roleId: managerRole!.id } });
+      await prisma.role.delete({ where: { id: managerRole!.id } }).catch(() => undefined);
+    }
+    if (managerUser?.id) await prisma.user.delete({ where: { id: managerUser!.id } }).catch(() => undefined);
     if (scopedUser?.id) {
       await prisma.user.delete({ where: { id: scopedUser!.id } }).catch(() => undefined);
     }
@@ -210,6 +283,22 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     await prisma.$disconnect();
   });
 
+  it('provisions the seeded ADMIN with credit management and keeps CASHIER approval restricted', async () => {
+    const admin = await prisma.user.findUniqueOrThrow({
+      where: { email: 'admin.a@omnikes.test' }, select: { id: true },
+    });
+    const cashier = await prisma.user.findUniqueOrThrow({
+      where: { email: 'cashier.a@omnikes.test' }, select: { id: true },
+    });
+
+    expect(await roleRepository.hasPermission(admin.id, 'credit.approve')).toBe(true);
+    expect(await roleRepository.hasPermission(admin.id, 'credit.view')).toBe(true);
+    expect(await roleRepository.hasPermission(admin.id, 'credit.settings.manage')).toBe(true);
+    expect(await roleRepository.hasPermission(cashier.id, 'credit.request')).toBe(true);
+    expect(await roleRepository.hasPermission(cashier.id, 'credit.approve')).toBe(false);
+    expect(await roleRepository.hasPermission(cashier.id, 'credit.settings.manage')).toBe(false);
+  });
+
   it('allows the scoped user to authorize credit on the authorized store through the real API route', async () => {
     const cookie = await createAuthenticatedCookie();
 
@@ -225,6 +314,8 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
         body: JSON.stringify({
           customerId: customerA!.id,
           amount: 1000,
+          approverEmail: managerUser!.email,
+          approverPassword: managerPassword,
         }),
       },
     );
@@ -241,6 +332,173 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
     });
     expect(credit).not.toBeNull();
     expect(Number(credit?.amount)).toBe(1000);
+  });
+
+  it('rejects manager credentials that do not match the second authorized user', async () => {
+    const before = await prisma.saleCredit.count({ where: { saleId: sameStoreSaleId } });
+    const request = new NextRequest(`http://localhost/api/sales/${sameStoreSaleId}/credit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost' },
+      body: JSON.stringify({
+        customerId: customerA!.id,
+        amount: 1000,
+        approverEmail: managerUser!.email,
+        approverPassword: 'incorrect-manager-password',
+      }),
+    });
+    const response = await creditPost(request, { params: Promise.resolve({ id: sameStoreSaleId }) });
+    expect(response.status).toBe(403);
+    expect((await response.json()).error).toBe('Invalid manager approval credentials');
+    expect(await prisma.saleCredit.count({ where: { saleId: sameStoreSaleId } })).toBe(before);
+  });
+
+  it('checks approver permission before credentials and never increments an unauthorized approver lockout', async () => {
+    await prisma.rolePermission.deleteMany({
+      where: { roleId: managerRole!.id, permissionId: approvalPermission!.id },
+    });
+    const before = await prisma.user.findUniqueOrThrow({
+      where: { id: managerUser!.id },
+      select: { creditApprovalFailedAttempts: true, creditApprovalLockedUntil: true },
+    });
+    const request = new NextRequest(`http://localhost/api/sales/${sameStoreSaleId}/credit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost' },
+      body: JSON.stringify({
+        customerId: customerA!.id,
+        amount: 1000,
+        approverEmail: managerUser!.email,
+        approverPassword: 'wrong-password-must-not-be-checked',
+      }),
+    });
+    const response = await creditPost(request, { params: Promise.resolve({ id: sameStoreSaleId }) });
+    expect(response.status).toBe(403);
+    expect((await response.json()).error).toBe('Approver is not authorized to approve customer credit');
+    const after = await prisma.user.findUniqueOrThrow({
+      where: { id: managerUser!.id },
+      select: { creditApprovalFailedAttempts: true, creditApprovalLockedUntil: true },
+    });
+    expect(after).toEqual(before);
+    await prisma.rolePermission.create({
+      data: { roleId: managerRole!.id, permissionId: approvalPermission!.id },
+    });
+  });
+
+  it('rejects self-approval even when the requester supplies their own valid password', async () => {
+    const before = await prisma.saleCredit.count({ where: { saleId: sameStoreSaleId } });
+    const request = new NextRequest(`http://localhost/api/sales/${sameStoreSaleId}/credit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost' },
+      body: JSON.stringify({
+        customerId: customerA!.id,
+        amount: 1000,
+        approverEmail: scopedUser!.email,
+        approverPassword: 'P0F2D-Api-Test!2026',
+      }),
+    });
+    const response = await creditPost(request, { params: Promise.resolve({ id: sameStoreSaleId }) });
+    expect(response.status).toBe(403);
+    expect((await response.json()).error).toBe('Invalid manager approval credentials');
+    expect(await prisma.saleCredit.count({ where: { saleId: sameStoreSaleId } })).toBe(before);
+  });
+
+  it('supports manager PIN approval and requires a reason when the customer limit is exceeded', async () => {
+    await prisma.customer.update({ where: { id: customerA!.id }, data: { creditLimit: 100 } });
+    const request = new NextRequest(`http://localhost/api/sales/${pinSaleId}/credit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost' },
+      body: JSON.stringify({
+        customerId: customerA!.id,
+        amount: 200,
+        approverEmail: managerUser!.email,
+        approverPin: managerTestPin,
+      }),
+    });
+    const response = await creditPost(request, { params: Promise.resolve({ id: pinSaleId }) });
+    expect(response.status).toBe(409);
+    expect((await response.json()).error).toContain('Customer credit limit exceeded');
+    expect(await prisma.saleCredit.count({ where: { saleId: pinSaleId } })).toBe(0);
+
+    const overrideRequest = new NextRequest(`http://localhost/api/sales/${pinSaleId}/credit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost' },
+      body: JSON.stringify({
+        customerId: customerA!.id,
+        amount: 200,
+        note: 'Test de dépassement de plafond autorisé',
+        approverEmail: managerUser!.email,
+        approverPin: managerTestPin,
+      }),
+    });
+    const overrideResponse = await creditPost(overrideRequest, { params: Promise.resolve({ id: pinSaleId }) });
+    expect(overrideResponse.status).toBe(201);
+    const credit = await prisma.saleCredit.findUnique({ where: { saleId: pinSaleId } });
+    expect(credit?.dueAt).toBeInstanceOf(Date);
+    expect(credit?.authorizedBy).toBe(managerUser!.id);
+    expect(credit?.status).toBe('APPROVED_PENDING_COMPLETION');
+    expect(credit?.expiresAt).toBeInstanceOf(Date);
+    expect(credit!.expiresAt!.getTime()).toBeGreaterThan(Date.now());
+    await prisma.saleCredit.update({
+      where: { id: credit!.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    await expect(saleService.complete(pinSaleId, orgA!.id))
+      .rejects.toThrow('Credit approval has expired; request a new approval');
+
+    const renewedApproval = new NextRequest(`http://localhost/api/sales/${pinSaleId}/credit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost' },
+      body: JSON.stringify({
+        customerId: customerA!.id,
+        amount: 200,
+        note: 'Test de dépassement de plafond autorisé',
+        approverEmail: managerUser!.email,
+        approverPin: managerTestPin,
+      }),
+    });
+    const renewedResponse = await creditPost(renewedApproval, { params: Promise.resolve({ id: pinSaleId }) });
+    expect(renewedResponse.status).toBe(201);
+    const renewedCredit = await prisma.saleCredit.findUniqueOrThrow({ where: { saleId: pinSaleId } });
+    expect(renewedCredit.expiresAt!.getTime()).toBeGreaterThan(Date.now());
+
+    await saleService.complete(pinSaleId, orgA!.id);
+    const finalizedCredit = await prisma.saleCredit.findUniqueOrThrow({ where: { saleId: pinSaleId } });
+    expect(finalizedCredit.status).toBe('AUTHORIZED');
+  });
+
+  it('records partial and final customer credit repayments', async () => {
+    const credit = await prisma.saleCredit.findUniqueOrThrow({ where: { saleId: pinSaleId } });
+    const firstKey = 'credit-payment-part-1-' + Date.now();
+    const firstRequest = new NextRequest(`http://localhost/api/credits/${credit.id}/payments`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost', 'Idempotency-Key': firstKey },
+      body: JSON.stringify({ amount: 50, method: 'CARD', reference: 'CARD-REF-1' }),
+    });
+    const firstResponse = await creditPaymentPost(firstRequest, { params: Promise.resolve({ id: credit.id }) });
+    expect(firstResponse.status).toBe(201);
+    const firstBody = await firstResponse.json();
+    expect(firstBody.outstandingAfter).toBe(150);
+
+    const replayRequest = new NextRequest(`http://localhost/api/credits/${credit.id}/payments`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost', 'Idempotency-Key': firstKey },
+      body: JSON.stringify({ amount: 50, method: 'CARD', reference: 'CARD-REF-1' }),
+    });
+    const replayResponse = await creditPaymentPost(replayRequest, { params: Promise.resolve({ id: credit.id }) });
+    expect(replayResponse.status).toBe(200);
+    expect((await replayResponse.json()).id).toBe(firstBody.id);
+    expect(await prisma.creditPayment.count({ where: { saleCreditId: credit.id } })).toBe(1);
+
+    const secondRequest = new NextRequest(`http://localhost/api/credits/${credit.id}/payments`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: await createAuthenticatedCookie(), origin: 'http://localhost', 'Idempotency-Key': 'credit-payment-part-2-' + Date.now() },
+      body: JSON.stringify({ amount: 150, method: 'CARD', reference: 'CARD-REF-2' }),
+    });
+    const secondResponse = await creditPaymentPost(secondRequest, { params: Promise.resolve({ id: credit.id }) });
+    expect(secondResponse.status).toBe(201);
+    expect((await secondResponse.json()).outstandingAfter).toBe(0);
+    const updatedCredit = await prisma.saleCredit.findUniqueOrThrow({ where: { id: credit.id } });
+    expect(updatedCredit.status).toBe('SETTLED');
+    expect(await prisma.creditPayment.count({ where: { saleCreditId: credit.id } })).toBe(2);
   });
 
   it('rejects the same scoped user on a different store through the real API route', async () => {
@@ -262,6 +520,8 @@ describe('P0-24-F.2-D.1 - real PostgreSQL credit API cross-store proof', () => {
         body: JSON.stringify({
           customerId: customerA!.id,
           amount: 1000,
+          approverEmail: managerUser!.email,
+          approverPassword: managerPassword,
         }),
       },
     );

@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const validatedData = customerCreateSchema.parse(body);
+    if (validatedData.creditLimit !== undefined) await requirePermission(request, 'credit.limit.manage');
 
     const customer = await customerRepository.create({
       ...validatedData,

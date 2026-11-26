@@ -2,10 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop, feature/windows-webview2-desktop ]
+    branches: [ main, develop, feature/windows-webview2-desktop, feat/organization-tax-webview-print, feat/customer-credit-approval ]
   pull_request:
     # Include the stacked installer-feature branch so PRs targeting it receive full CI.
-    branches: [ main, develop, feat/omnikes-installer-license-acceptance ]
+    branches: [ main, develop, feat/omnikes-installer-license-acceptance, feat/organization-tax-webview-print ]
 
 jobs:
   validate:
@@ -114,6 +114,37 @@ jobs:
       - name: Apply PostgreSQL migrations
         run: npx prisma migrate deploy
 
+      - name: Verify first-registration fiscal settings against isolated PostgreSQL databases
+        shell: bash
+        env:
+          PG_ADMIN_URL: postgresql://ci:ci@127.0.0.1:5432/postgres
+        run: |
+          set -euo pipefail
+
+          for scenario in enabled disabled; do
+            database="omnikes_registration_${scenario}"
+            if [ "$scenario" = "enabled" ]; then
+              tax_enabled=true
+              tax_rate=10
+            else
+              tax_enabled=false
+              tax_rate=0
+            fi
+
+            psql "$PG_ADMIN_URL" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"$database\""
+            registration_database_url="postgresql://ci:ci@127.0.0.1:5432/$database"
+
+            echo "Applying all production migrations to isolated database: $database"
+            DATABASE_URL="$registration_database_url" npx prisma migrate deploy
+
+            echo "Testing actual first-registration persistence: taxEnabled=$tax_enabled, taxRate=$tax_rate"
+            DATABASE_URL="$registration_database_url" \
+              REGISTRATION_EXPECTED_TAX_ENABLED="$tax_enabled" \
+              REGISTRATION_EXPECTED_TAX_RATE="$tax_rate" \
+              npx vitest run --config vitest.integration.config.ts --no-file-parallelism \
+                src/tests/integration/organization-tax-registration.postgres.test.ts
+          done
+
       - name: Verify organization-scoped barcode uniqueness
         run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-barcode-organization-scope.sql
 
@@ -121,7 +152,7 @@ jobs:
         run: npm run seed
 
       - name: Run real PostgreSQL runtime proof
-        run: npx vitest run --config vitest.integration.config.ts --no-file-parallelism src/tests/integration/sale-credit.postgres.test.ts src/tests/integration/sale-credit.api.postgres.test.ts src/tests/integration/cash-management.postgres.test.ts src/tests/integration/pos-cash-e2e.postgres.test.ts src/tests/integration/local-backup-restore.postgres.test.ts src/tests/integration/inventory-receipt-idempotency.postgres.test.ts src/tests/integration/product-opening-inventory.postgres.test.ts src/tests/integration/subscription-entitlements.postgres.test.ts src/tests/integration/platform-subscription-runtime.postgres.test.ts src/tests/integration/platform-subscription-rbac.postgres.test.ts src/tests/integration/platform-subscription-lifecycle.postgres.test.ts src/tests/integration/platform-subscription-access.postgres.test.ts
+        run: npx vitest run --config vitest.integration.config.ts --no-file-parallelism src/tests/integration/sale-credit.postgres.test.ts src/tests/integration/sale-credit.api.postgres.test.ts src/tests/integration/credit-refund.api.postgres.test.ts src/tests/integration/cash-management.postgres.test.ts src/tests/integration/pos-cash-e2e.postgres.test.ts src/tests/integration/local-backup-restore.postgres.test.ts src/tests/integration/inventory-receipt-idempotency.postgres.test.ts src/tests/integration/product-opening-inventory.postgres.test.ts src/tests/integration/subscription-entitlements.postgres.test.ts src/tests/integration/platform-subscription-runtime.postgres.test.ts src/tests/integration/platform-subscription-rbac.postgres.test.ts src/tests/integration/platform-subscription-lifecycle.postgres.test.ts src/tests/integration/platform-subscription-access.postgres.test.ts
 
       - name: Run tests
         run: npm test
@@ -138,6 +169,9 @@ jobs:
       - name: Run platform subscription administration end-to-end test
         run: npx playwright test e2e/platform-subscriptions.spec.ts --project=chromium
 
+      - name: Run initial organization tax configuration end-to-end test
+        run: npx playwright test e2e/organization-tax-registration.spec.ts --project=chromium
+
       - name: Run account security end-to-end tests
         env:
           E2E_EMAIL: admin.a@omnikes.test
@@ -145,6 +179,20 @@ jobs:
           E2E_CASHIER_EMAIL: cashier.a@omnikes.test
           E2E_CASHIER_PASSWORD: ${{ env.SEED_PASSWORD_CASHIER_A }}
         run: npx playwright test e2e/account-security.spec.ts --project=chromium
+
+      - name: Run customer credit security and collection end-to-end tests
+        env:
+          E2E_EMAIL: admin.a@omnikes.test
+          E2E_PASSWORD: ${{ env.SEED_PASSWORD_A }}
+        run: npx playwright test e2e/customer-credit.spec.ts --project=chromium
+
+      - name: Run full customer credit to return and refund end-to-end test
+        env:
+          E2E_EMAIL: admin.a@omnikes.test
+          E2E_PASSWORD: ${{ env.SEED_PASSWORD_A }}
+          E2E_CASHIER_EMAIL: cashier.a@omnikes.test
+          E2E_CASHIER_PASSWORD: ${{ env.SEED_PASSWORD_CASHIER_A }}
+        run: npx playwright test e2e/customer-credit-refund-flow.spec.ts --project=chromium
 
       - name: Lint
         shell: bash

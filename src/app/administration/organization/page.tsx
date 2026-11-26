@@ -14,6 +14,9 @@ interface Organization {
   timezone: string | null;
   cloudEnabled: boolean;
   onlineStoreEnabled: boolean;
+  taxEnabled: boolean;
+  taxRate: number;
+  creditDefaultDueDays: number;
   taxConfigurationId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -27,6 +30,9 @@ interface FormState {
   timezone: string;
   cloudEnabled: boolean;
   onlineStoreEnabled: boolean;
+  taxEnabled: boolean;
+  taxRate: number;
+  creditDefaultDueDays: number;
 }
 
 export default function AdministrationOrganizationPage() {
@@ -40,6 +46,9 @@ export default function AdministrationOrganizationPage() {
     timezone: '',
     cloudEnabled: false,
     onlineStoreEnabled: false,
+    taxEnabled: false,
+    taxRate: 0,
+    creditDefaultDueDays: 30,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -63,6 +72,9 @@ export default function AdministrationOrganizationPage() {
         timezone: item.timezone ?? '',
         cloudEnabled: item.cloudEnabled,
         onlineStoreEnabled: item.onlineStoreEnabled,
+        taxEnabled: item.taxEnabled,
+        taxRate: Number(item.taxRate ?? 0),
+        creditDefaultDueDays: Number(item.creditDefaultDueDays ?? 30),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
@@ -95,6 +107,9 @@ export default function AdministrationOrganizationPage() {
           timezone: form.timezone,
           cloudEnabled: form.cloudEnabled,
           onlineStoreEnabled: form.onlineStoreEnabled,
+          taxEnabled: form.taxEnabled,
+          taxRate: form.taxRate,
+          creditDefaultDueDays: form.creditDefaultDueDays,
         }),
       });
       const data = await response.json();
@@ -110,6 +125,9 @@ export default function AdministrationOrganizationPage() {
         timezone: item.timezone ?? '',
         cloudEnabled: item.cloudEnabled,
         onlineStoreEnabled: item.onlineStoreEnabled,
+        taxEnabled: item.taxEnabled,
+        taxRate: Number(item.taxRate ?? 0),
+        creditDefaultDueDays: Number(item.creditDefaultDueDays ?? 30),
       });
       setMessage('Paramètres de l’organisation enregistrés.');
     } catch (err) {
@@ -219,6 +237,38 @@ export default function AdministrationOrganizationPage() {
                     className="mt-1 w-full rounded-lg border px-3 py-2"
                   />
                 </label>
+              </div>
+
+              <div className="space-y-3 rounded-lg border p-4">
+                <h3 className="font-medium">Fiscalité</h3>
+                <label className="flex items-center gap-3">
+                  <input type="checkbox" checked={form.taxEnabled} onChange={(event) => setForm({ ...form, taxEnabled: event.target.checked })} />
+                  <span className="text-sm font-medium">Activer la taxe pour cette organisation</span>
+                </label>
+                <label className="block">
+                  <span className="text-sm font-medium">Taux de taxe (%)</span>
+                  <input type="number" min="0" max="100" step="0.01" value={form.taxRate} disabled={!form.taxEnabled} onChange={(event) => setForm({ ...form, taxRate: Number(event.target.value) })} className="mt-1 w-full rounded-lg border px-3 py-2 disabled:opacity-50" />
+                </label>
+                <p className="text-xs text-muted">Le taux est proposé par défaut sur les nouvelles ventes et proformas. Il reste possible de désactiver la taxe sur chaque vente.</p>
+              </div>
+
+              <div className="space-y-3 rounded-lg border p-4">
+                <h3 className="font-medium">Politique de crédit client</h3>
+                <label className="block">
+                  <span className="text-sm font-medium">Délai standard d&apos;échéance (jours)</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="3650"
+                    step="1"
+                    required
+                    disabled={!user?.canManageCreditSettings}
+                    value={form.creditDefaultDueDays}
+                    onChange={(event) => setForm({ ...form, creditDefaultDueDays: Number(event.target.value) })}
+                    className="mt-1 w-full rounded-lg border px-3 py-2 disabled:opacity-50"
+                  />
+                </label>
+                <p className="text-xs text-muted">Ce délai est appliqué par défaut aux nouveaux crédits. Le responsable peut choisir une autre date d&apos;échéance pour chaque vente. Les crédits existants conservent leur échéance.</p>
               </div>
 
               <div className="space-y-3 rounded-lg border p-4">

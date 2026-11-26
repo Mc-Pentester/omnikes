@@ -8,6 +8,7 @@ import { Card } from '@omnikes/components/ui/card';
 import { EmptyState } from '@omnikes/components/ui/empty-state';
 import { Input } from '@omnikes/components/ui/input';
 import { Modal } from '@omnikes/components/ui/modal';
+import { useAuth } from '@omnikes/contexts/AuthContext';
 
 type Customer = {
   id: string;
@@ -16,17 +17,23 @@ type Customer = {
   email?: string | null;
   address?: string | null;
   isActive: boolean;
+  creditLimit?: string | number | null;
 };
 
 export default function CustomersPage() {
+  const { user } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '', address: '', city: '' });
+  const [newCustomer, setNewCustomer] = useState({ name: '', phone: '', email: '', address: '', city: '', creditLimit: '' });
   const [isSidebarCompact, setIsSidebarCompact] = useState(false);
+  const [editingLimitId, setEditingLimitId] = useState<string | null>(null);
+  const [limitValue, setLimitValue] = useState('');
+  const [limitSaving, setLimitSaving] = useState(false);
+  const [limitError, setLimitError] = useState('');
 
   const fetchCustomers = useCallback(async () => {
     try {
@@ -56,7 +63,7 @@ export default function CustomersPage() {
 
   const openCreateModal = () => {
     setCreateError(null);
-    setNewCustomer({ name: '', phone: '', email: '', address: '', city: '' });
+    setNewCustomer({ name: '', phone: '', email: '', address: '', city: '', creditLimit: '' });
     setShowCreateModal(true);
   };
 
@@ -79,6 +86,7 @@ export default function CustomersPage() {
           email: newCustomer.email.trim(),
           address: newCustomer.address.trim(),
           city: newCustomer.city.trim(),
+          ...(user?.canManageCreditLimit && newCustomer.creditLimit.trim() ? { creditLimit: Number(newCustomer.creditLimit) } : {}),
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -91,11 +99,31 @@ export default function CustomersPage() {
       setCustomers((current) => [data, ...current.filter((customer) => customer.id !== data.id)]);
       setSearch('');
       setShowCreateModal(false);
-      setNewCustomer({ name: '', phone: '', email: '', address: '', city: '' });
+      setNewCustomer({ name: '', phone: '', email: '', address: '', city: '', creditLimit: '' });
     } catch (cause) {
       setCreateError(cause instanceof Error ? cause.message : 'Erreur lors de la création du client.');
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const saveCreditLimit = async (customer: Customer) => {
+    setLimitSaving(true);
+    setLimitError('');
+    try {
+      const response = await fetch('/api/customers/' + customer.id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creditLimit: limitValue.trim() ? Number(limitValue) : null }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Impossible de modifier le plafond.');
+      setCustomers((current) => current.map((item) => item.id === customer.id ? { ...item, creditLimit: data.creditLimit } : item));
+      setEditingLimitId(null);
+    } catch (cause) {
+      setLimitError(cause instanceof Error ? cause.message : 'Impossible de modifier le plafond.');
+    } finally {
+      setLimitSaving(false);
     }
   };
 
@@ -120,6 +148,7 @@ export default function CustomersPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {user?.canViewCredit && <a href="/credits" className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-surface-muted">Crédits clients</a>}
             <Button variant="outline" onClick={() => void fetchCustomers()}>Actualiser</Button>
             <Button onClick={openCreateModal}>Créer un client</Button>
           </div>
@@ -158,11 +187,23 @@ export default function CustomersPage() {
               <div className="divide-y divide-border">
                 {customers.map((customer) => (
                   <div key={customer.id} className="flex items-center justify-between gap-4 p-4">
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-medium text-foreground">{customer.name}</p>
                       <p className="text-sm text-muted">{customer.phone || customer.email || 'Aucune coordonnée'}</p>
+                      <p className="text-xs text-muted">Plafond crédit : {customer.creditLimit === null || customer.creditLimit === undefined ? 'Sans plafond' : Number(customer.creditLimit).toFixed(2)}</p>
+                      {user?.canManageCreditLimit && editingLimitId === customer.id && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <Input type="number" min="0" step="0.01" value={limitValue} onChange={(event) => setLimitValue(event.target.value)} placeholder="Vide = sans plafond" />
+                          <Button size="sm" disabled={limitSaving} onClick={() => void saveCreditLimit(customer)}>{limitSaving ? 'Enregistrement…' : 'Enregistrer'}</Button>
+                          <Button size="sm" variant="outline" disabled={limitSaving} onClick={() => setEditingLimitId(null)}>Annuler</Button>
+                        </div>
+                      )}
+                      {user?.canManageCreditLimit && editingLimitId !== customer.id && (
+                        <Button size="sm" variant="outline" className="mt-2" onClick={() => { setEditingLimitId(customer.id); setLimitValue(customer.creditLimit === null || customer.creditLimit === undefined ? '' : String(customer.creditLimit)); setLimitError(''); }}>Modifier le plafond</Button>
+                      )}
+                      {editingLimitId === customer.id && limitError && <p className="mt-1 text-xs text-danger">{limitError}</p>}
                     </div>
-                    <span className="text-sm">{customer.isActive ? 'Actif' : 'Inactif'}</span>
+                    <span className="shrink-0 text-sm">{customer.isActive ? 'Actif' : 'Inactif'}</span>
                   </div>
                 ))}
               </div>
@@ -194,6 +235,12 @@ export default function CustomersPage() {
             <label htmlFor="customer-city" className="mb-1 block text-sm font-medium text-foreground">Ville</label>
             <Input id="customer-city" value={newCustomer.city} onChange={(event) => setNewCustomer((current) => ({ ...current, city: event.target.value }))} maxLength={120} placeholder="Ville" />
           </div>
+          {user?.canManageCreditLimit && (
+            <div>
+              <label htmlFor="customer-credit-limit" className="mb-1 block text-sm font-medium text-foreground">Plafond de crédit (facultatif)</label>
+              <Input id="customer-credit-limit" type="number" min="0" step="0.01" value={newCustomer.creditLimit} onChange={(event) => setNewCustomer((current) => ({ ...current, creditLimit: event.target.value }))} placeholder="Sans plafond" />
+            </div>
+          )}
           {createError ? <p role="alert" className="text-sm text-danger">{createError}</p> : null}
           <div className="flex justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="outline" onClick={closeCreateModal} disabled={isCreating}>Annuler</Button>

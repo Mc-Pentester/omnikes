@@ -31,7 +31,36 @@ describe('standard tenant RBAC roles', () => {
       expect(STANDARD_TENANT_ROLES.find((role) => role.name === roleName)?.permissions).toContain('sale.pos.sync');
     }
     expect(accountant.permissions).not.toContain('sale.update');
-    expect(auditor.permissions.every((code) => code.endsWith('.read') || code === 'audit.read')).toBe(true);
+    expect(auditor.permissions.every((code) => code.endsWith('.read') || code.endsWith('.view') || code === 'audit.read')).toBe(true);
+  });
+  it('grants customer-credit capabilities according to the least-privilege role matrix', () => {
+    const role = (name: string) => name === 'CASHIER' ? CASHIER_ROLE.permissions : STANDARD_TENANT_ROLES.find((item) => item.name === name)!.permissions;
+    const creditPermissions = [
+      'credit.approve', 'credit.refund', 'credit.request', 'credit.payment.receive', 'credit.view',
+      'credit.history.view', 'credit.report.view', 'credit.limit.manage', 'credit.settings.manage',
+    ];
+    for (const code of creditPermissions) expect(TENANT_PERMISSION_CODES).toContain(code);
+
+    for (const name of ['MANAGER', 'SUPERVISOR', 'SALES_MANAGER', 'STORE_MANAGER']) {
+      expect(role(name)).toContain('credit.approve');
+      expect(role(name)).toContain('credit.view');
+      expect(role(name)).toContain('credit.refund');
+    }
+    for (const name of ['CASHIER', 'SELLER', 'SALES_ASSOCIATE']) {
+      expect(role(name)).toContain('credit.request');
+      expect(role(name)).not.toContain('credit.approve');
+    }
+    for (const name of ['ACCOUNTANT', 'AUDITOR']) {
+      expect(role(name)).toContain('credit.view');
+      expect(role(name)).toContain('credit.history.view');
+      expect(role(name)).toContain('credit.report.view');
+      expect(role(name)).not.toContain('credit.approve');
+      expect(role(name)).not.toContain('credit.payment.receive');
+    }
+    expect(role('SALES_MANAGER')).not.toContain('payment.refund');
+    expect(role('MANAGER')).toContain('payment.refund');
+    expect(role('MANAGER')).not.toContain('credit.settings.manage');
+    expect(role('CASHIER')).not.toContain('credit.limit.manage');
   });
   it('does not grant tenant roles platform subscription permissions', () => {
     for (const role of [CASHIER_ROLE, ...STANDARD_TENANT_ROLES]) expect(role.permissions).not.toContain('organization.subscription.manage');

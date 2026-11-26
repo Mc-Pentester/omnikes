@@ -29,9 +29,8 @@ export class ProformaService {
       include: { taxConfiguration: true },
     });
 
-    const initialTaxRate = organization?.taxConfiguration?.taxRate
-      ? Number(organization.taxConfiguration.taxRate)
-      : 0;
+    const initialTaxRate = organization?.taxEnabled === true ? Number(organization.taxRate) : 0;
+    const applyTax = organization?.taxEnabled === true && validatedData.applyTax !== false;
 
     // Verify customer belongs to organization if provided
     if (validatedData.customerId) {
@@ -50,7 +49,7 @@ export class ProformaService {
     const { items } = validatedData;
     const dataWithoutIds = {
       status: validatedData.status,
-      applyTax: validatedData.applyTax,
+      applyTax,
       validUntil: validatedData.validUntil,
       notes: validatedData.notes,
     };
@@ -152,10 +151,10 @@ export class ProformaService {
 
           let tax = 0;
           if (updatedProforma.applyTax) {
-            tax = subtotal * initialTaxRate;
+            tax = roundMoney(subtotal * initialTaxRate);
           }
 
-          const total = subtotal + tax;
+          const total = roundMoney(subtotal + tax);
 
           await tx.proforma.update({
             where: { id: proforma.id },
@@ -168,7 +167,23 @@ export class ProformaService {
         }
       }
 
-      return proforma;
+      // Return the final persisted representation, including recalculated totals.
+      return tx.proforma.findUnique({
+        where: { id: proforma.id },
+        include: {
+          store: true,
+          customer: true,
+          items: {
+            include: {
+              variant: {
+                include: {
+                  product: true,
+                },
+              },
+            },
+          },
+        },
+      });
     });
   }
 
@@ -469,12 +484,15 @@ export class ProformaService {
       },
     });
 
-    // Apply tax only if applyTax is true and tax configuration exists
+    if (!proforma) throw new Error('Proforma not found or access denied');
+    if (proforma.status && proforma.status !== 'DRAFT') return proforma;
+
+    // Recalculate editable proformas from the organization's fiscal defaults.
     let taxRate = 0;
     let tax = 0;
 
-    if (proforma?.applyTax && proforma?.organization?.taxConfiguration?.taxRate) {
-      taxRate = Number(proforma.organization.taxConfiguration.taxRate);
+    if (proforma?.applyTax && proforma.organization?.taxEnabled === true) {
+      taxRate = Number(proforma.organization.taxRate);
       tax = roundMoney(subtotal * taxRate);
     }
 
@@ -545,8 +563,8 @@ export class ProformaService {
       throw new Error(`Cannot accept proforma with status ${proforma.status}. Only SENT proformas can be accepted.`);
     }
 
-    // Recalculate totals before accepting
-    await this.recalculateTotals(proformaId, organizationId);
+    // SENT proformas already contain the fiscal snapshot issued to the customer.
+    // Do not recalculate them from organization settings that may have changed later.
 
     // Update status to ACCEPTED
     await proformaRepository.updateStatus(proformaId, organizationId, 'ACCEPTED');
@@ -645,13 +663,9 @@ export class ProformaService {
       }, 0));
       const subtotal = roundMoney(grossSubtotal - discount);
 
-      const organizationWithTax = await tx.organization.findUnique({
-        where: { id: organizationId },
-        include: { taxConfiguration: true },
-      });
-      const taxRate = proforma.applyTax && organizationWithTax?.taxConfiguration?.taxRate
-        ? Number(organizationWithTax.taxConfiguration.taxRate)
-        : 0;
+      // Conversion must carry the tax rate issued on the accepted proforma,
+      // not a newer organization default configured after it was sent.
+      const taxRate = proforma.applyTax ? Number(proforma.taxRate) : 0;
       const tax = proforma.applyTax ? roundMoney(subtotal * taxRate) : 0;
       const total = roundMoney(subtotal + tax);
 

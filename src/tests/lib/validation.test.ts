@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { organizationSchema, userSchema, saleSchema, paymentSchema, saleCreditSchema, proformaSchema, proformaItemSchema } from '@omnikes/lib/validation';
+import { organizationSchema, userSchema, saleSchema, paymentSchema, saleCreditSchema, proformaSchema, proformaItemSchema, registrationSchema } from '@omnikes/lib/validation';
 
 describe('Validation Schemas', () => {
   describe('organizationSchema', () => {
@@ -196,5 +196,47 @@ describe('P0-28-B proforma monetary precision', () => {
     expect(() => proformaItemSchema.parse(base)).not.toThrow();
     expect(() => proformaItemSchema.parse({ ...base, unitPrice: 10.001 })).toThrow();
     expect(() => proformaItemSchema.parse({ ...base, totalPrice: Number.POSITIVE_INFINITY })).toThrow();
+  });
+});
+
+
+describe('Initial organization registration fiscal settings', () => {
+  const validRegistration = {
+    organizationName: 'Commerce Haiti',
+    name: 'Admin',
+    email: 'admin@example.test',
+    password: 'secure-password',
+    confirmPassword: 'secure-password',
+    country: 'HT',
+    currency: 'HTG',
+    locale: 'fr-HT',
+    timezone: 'America/Port-au-Prince',
+  };
+
+  it('accepts an enabled tax and a custom percentage rate', () => {
+    const result = registrationSchema.safeParse({ ...validRegistration, taxEnabled: true, taxRate: 10 });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.taxEnabled).toBe(true);
+      expect(result.data.taxRate).toBe(10);
+    }
+  });
+
+  it('defaults tax to disabled and zero rate when not supplied', () => {
+    const result = registrationSchema.safeParse(validRegistration);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.taxEnabled).toBe(false);
+      expect(result.data.taxRate).toBe(0);
+    }
+  });
+
+  it.each([-0.01, 100.01, Number.NaN, Number.POSITIVE_INFINITY])('rejects invalid tax rate %s', (taxRate) => {
+    expect(registrationSchema.safeParse({ ...validRegistration, taxEnabled: true, taxRate }).success).toBe(false);
+  });
+
+  it('accepts the boundary tax rates 0 and 100 percent', () => {
+    expect(registrationSchema.safeParse({ ...validRegistration, taxEnabled: true, taxRate: 0 }).success).toBe(true);
+    expect(registrationSchema.safeParse({ ...validRegistration, taxEnabled: true, taxRate: 100 }).success).toBe(true);
   });
 });
