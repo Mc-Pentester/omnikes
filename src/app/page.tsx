@@ -811,7 +811,7 @@ export default function HomePage() {
           )}
         </div>
 
-        <div className="w-full lg:w-[390px] xl:w-[430px] bg-[var(--surface)] border-t lg:border-t-0 lg:border-l border-[var(--border)] flex flex-col shrink-0">
+        <div data-testid="pos-cart" className="w-full lg:w-[390px] xl:w-[430px] bg-[var(--surface)] border-t lg:border-t-0 lg:border-l border-[var(--border)] flex flex-col shrink-0">
           <div className="p-4 md:p-5 border-b border-[var(--border)]">
             <h2 className="text-lg font-bold text-[var(--foreground)]">Panier</h2>
             <p className="text-sm text-[var(--muted)]">{cart.length} article(s)</p>
