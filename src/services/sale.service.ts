@@ -306,19 +306,33 @@ export class SaleService {
       items: z.array(z.object({
         variantId: z.string().cuid(),
         quantity: z.number().int().positive(),
+        packaging: z.enum(['UNIT', 'PACK3', 'DOZEN', 'CASE']).default('UNIT'),
       }).strict()).max(500),
     }).strict().superRefine((data, ctx) => {
-      const ids = data.items.map((item) => item.variantId);
+      const ids = data.items.map((item) => `${item.variantId}:${item.packaging}`);
       if (new Set(ids).size !== ids.length) {
-        ctx.addIssue({ code: 'custom', path: ['items'], message: 'Duplicate product variants are not allowed' });
+        ctx.addIssue({ code: 'custom', path: ['items'], message: 'Duplicate product packaging lines are not allowed' });
       }
     });
     const data = schema.parse(input);
     const pricedItems = await Promise.all(data.items.map(async (item) => {
       const variant = await productVariantRepository.findByIdWithOrganizationCheck(item.variantId, organizationId);
       if (!variant) throw new Error('Product variant not found or access denied');
-      const unitPrice = roundMoney(getStoredUnitPrice(Number(variant.price), variant.saleUnit ?? 'UNIT'));
-      return { variantId: item.variantId, quantity: item.quantity, unitPrice, grossTotal: roundMoney(unitPrice * item.quantity) };
+      const packaging = item.packaging;
+      if (packaging !== 'UNIT' && (variant.saleUnit ?? 'UNIT') !== 'UNIT') {
+        throw new Error('Packaging sales are only available for count-based products');
+      }
+      const baseUnits = packaging === 'CASE' ? Number(variant.unitsPerCase ?? 0)
+        : packaging === 'DOZEN' ? 12 : packaging === 'PACK3' ? 3 : 1;
+      const configuredPrice = packaging === 'CASE' ? variant.casePrice
+        : packaging === 'DOZEN' ? variant.dozenPrice
+        : packaging === 'PACK3' ? variant.pack3Price
+        : getStoredUnitPrice(Number(variant.unitPrice ?? variant.price), variant.saleUnit ?? 'UNIT');
+      if (!Number.isInteger(baseUnits) || baseUnits < 1 || configuredPrice == null || Number(configuredPrice) < 0) {
+        throw new Error(`Packaging ${packaging} is not configured for ${variant.sku}`);
+      }
+      const unitPrice = roundMoney(Number(configuredPrice));
+      return { variantId: item.variantId, quantity: item.quantity, packaging, baseUnits, unitPrice, grossTotal: roundMoney(unitPrice * item.quantity) };
     }));
 
     const grossSubtotal = roundMoney(pricedItems.reduce((sum, item) => sum + item.grossTotal, 0));
@@ -363,6 +377,8 @@ export class SaleService {
             saleId,
             variantId: item.variantId,
             quantity: item.quantity,
+            packaging: item.packaging,
+            baseUnits: item.baseUnits,
             unitPrice: item.unitPrice,
             discount: lineDiscount,
             totalPrice: lineNetCents / 100,
@@ -519,21 +535,22 @@ export class SaleService {
         const currentInventory = inventory[0];
         const available = currentInventory.quantity - currentInventory.reservedQuantity;
 
-        if (available < item.quantity) {
-          throw new Error(`Insufficient stock for ${item.variant.sku}. Available: ${available}, Required: ${item.quantity}`);
+        const requiredBaseUnits = item.quantity * item.baseUnits;
+        if (available < requiredBaseUnits) {
+          throw new Error(`Insufficient stock for ${item.variant.sku}. Available: ${available}, Required: ${requiredBaseUnits}`);
         }
 
         await updateInventoryQuantity(
           tx,
           currentInventory.id,
-          currentInventory.quantity - item.quantity,
+          currentInventory.quantity - requiredBaseUnits,
         );
 
         await recordInventoryMovement(tx,{
           data: {
             inventoryId: currentInventory.id,
             type: 'SALE',
-            quantity: item.quantity,
+            quantity: requiredBaseUnits,
             referenceId: saleId,
             referenceType: 'SALE',
             notes: `Sale ${sale.orderNumber}`,
@@ -680,14 +697,14 @@ export class SaleService {
           await updateInventoryQuantity(
             tx,
             inventory.id,
-            inventory.quantity + item.quantity,
+            inventory.quantity + item.quantity * item.baseUnits,
           );
 
           await recordInventoryMovement(tx,{
             data: {
               inventoryId: inventory.id,
               type: 'RETURN',
-              quantity: item.quantity,
+              quantity: item.quantity * item.baseUnits,
               referenceId: saleId,
               referenceType: 'SALE',
               notes: `Cancelled sale ${sale.orderNumber}`,

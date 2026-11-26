@@ -87,7 +87,7 @@ export class SalesReportRepository {
         WHERE ${where}
       ),
       item_totals AS (
-        SELECT COALESCE(SUM(si."quantity"), 0)::double precision AS "itemsSold"
+        SELECT COALESCE(SUM(si."quantity" * si."baseUnits"), 0)::double precision AS "itemsSold"
         FROM "sale_items" si
         INNER JOIN filtered_sales fs ON fs."id" = si."saleId"
       ),
@@ -189,7 +189,7 @@ export class SalesReportRepository {
         WHERE ${where}
       ),
       item_totals AS (
-        SELECT fs."id" AS "saleId", COALESCE(SUM(si."quantity"), 0)::int AS "itemsSold"
+        SELECT fs."id" AS "saleId", COALESCE(SUM(si."quantity" * si."baseUnits"), 0)::int AS "itemsSold"
         FROM filtered_sales fs
         LEFT JOIN "sale_items" si ON si."saleId" = fs."id"
         GROUP BY fs."id"
@@ -352,7 +352,7 @@ export class SalesReportRepository {
         WHERE ${where}
       ),
       item_totals AS (
-        SELECT fs."id" AS "saleId", COALESCE(SUM(si."quantity"), 0)::int AS "itemsSold"
+        SELECT fs."id" AS "saleId", COALESCE(SUM(si."quantity" * si."baseUnits"), 0)::int AS "itemsSold"
         FROM filtered_sales fs
         LEFT JOIN "sale_items" si ON si."saleId" = fs."id"
         GROUP BY fs."id"

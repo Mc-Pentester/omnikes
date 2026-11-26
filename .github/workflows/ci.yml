@@ -166,6 +166,12 @@ jobs:
           E2E_PASSWORD: ${{ env.SEED_PASSWORD_A }}
         run: npx playwright test e2e/barcode-workflow.spec.ts --project=chromium
 
+      - name: Run POS multi-packaging end-to-end test
+        env:
+          E2E_EMAIL: admin.a@omnikes.test
+          E2E_PASSWORD: ${{ env.SEED_PASSWORD_A }}
+        run: npx playwright test e2e/pos-packaging.spec.ts --project=chromium
+
       - name: Run platform subscription administration end-to-end test
         run: npx playwright test e2e/platform-subscriptions.spec.ts --project=chromium
 

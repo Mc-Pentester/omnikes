@@ -12,6 +12,8 @@ type ReturnSaleItem = {
   id: string;
   quantity: number;
   returnedQuantity: number;
+  packaging?: string;
+  baseUnits?: number;
   totalPrice: string | number;
   variant: { id: string; sku: string; product: { name: string } };
 };

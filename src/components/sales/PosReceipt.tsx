@@ -25,6 +25,8 @@ interface ReceiptSale {
   items: Array<{
     id: string;
     quantity: number;
+    packaging?: string;
+    baseUnits?: number;
     unitPrice: number;
     totalPrice: number;
     variant?: {
@@ -216,7 +218,8 @@ export function PosReceipt({ saleId, onNewSale }: PosReceiptProps) {
                     <div className="font-semibold">{item.variant?.product?.name || 'Produit'}</div>
                     {item.variant?.name && <div>{item.variant.name}</div>}
                     {item.variant?.sku && <div className="text-[9px]">{item.variant.sku}</div>}
-                    <div>{money(item.unitPrice)} HTG/u</div>
+                    <div>{item.packaging === 'CASE' ? `Caisse de ${item.baseUnits ?? 1} unités` : item.packaging === 'DOZEN' ? 'Douzaine' : item.packaging === 'PACK3' ? 'Lot de 3' : 'Unité'}</div>
+                    <div>{money(item.unitPrice)} HTG / conditionnement</div>
                   </td>
                   <td className="py-1 text-right align-top">{item.quantity}</td>
                   <td className="py-1 text-right align-top font-semibold">{money(Number(item.unitPrice) * Number(item.quantity))}</td>
