@@ -35,7 +35,7 @@ test.describe('Barcode workflow', () => {
     await search.press('Enter');
 
     // The page consumes newBarcode and removes it after opening the creation form.
-    await expect(page).toHaveURL(/\\/products(?:\\?.*)?$/);
+    await expect(page).toHaveURL(/\/products(?:\?.*)?$/);
     await expect(page).not.toHaveURL(/newBarcode=/);
     await expect(page.getByRole('heading', { name: /créer un produit/i })).toBeVisible();
     const barcodeField = page.getByLabel(/code-barres/i);
