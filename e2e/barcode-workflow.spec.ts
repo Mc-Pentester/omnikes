@@ -84,7 +84,7 @@ test.describe('Barcode workflow', () => {
     await posSearch.focus();
     await posSearch.pressSequentially(barcode, { delay: 8 });
     await posSearch.press('Enter');
-    const cartPanel = page.getByRole('heading', { name: 'Panier' }).locator('xpath=../..');
+    const cartPanel = page.getByTestId('pos-cart');
     await expect(cartPanel.getByText(productName)).toBeVisible();
     await expect(cartPanel.getByText('1 article(s)')).toBeVisible();
     await posSearch.focus();
