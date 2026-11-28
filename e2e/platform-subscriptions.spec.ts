@@ -93,12 +93,12 @@ test.describe('Platform subscription administration', () => {
     await page.getByRole('button', { name: /accorder une licence gratuite/i }).click();
 
     await expect(page.getByText('Licence gratuite accordée. Les droits sont actifs sans paiement.', { exact: true })).toBeVisible();
-    await expect(page.getByText('FREE', { exact: true })).toBeVisible();
+    await expect(page.locator('dd').filter({ hasText: 'FREE' }).first()).toBeVisible();
     await expect(page.getByText('Partenaire pilote OmniKes', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: /révoquer la licence gratuite/i }).click();
     await expect(page.getByText('Licence gratuite révoquée. Les données historiques restent consultables.', { exact: true })).toBeVisible();
-    await expect(page.getByText('EXPIRED', { exact: true })).toBeVisible();
+    await expect(page.locator('dd').filter({ hasText: 'EXPIRED' }).first()).toBeVisible();
   });
 
   test('requires a justification before granting a free license', async ({ page }) => {
