@@ -27,6 +27,7 @@ interface User {
   canReceiveCreditPayment?: boolean;
   canRefundCreditPayment?: boolean;
   canReturnSale?: boolean;
+  canManagePlatformSubscriptions?: boolean;
 }
 
 interface AuthContextType {
