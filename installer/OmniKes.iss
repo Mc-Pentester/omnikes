@@ -49,6 +49,10 @@ Name: "{autodesktop}\OmniKès"; Filename: "{app}\installer\omnikes.exe"; Working
 [Run]
 Filename: "{app}\installer\omnikes.exe"; WorkingDir: "{app}"; StatusMsg: "Démarrage d'OmniKès..."; Flags: nowait postinstall skipifsilent
 
+[Registry]
+; Start the local POS automatically for every Windows user at sign-in.
+Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "OmniKes"; ValueData: """{app}\installer\omnikes.exe"""; Flags: uninsdeletevalue
+
 [Code]
 function HasExplicitLicenseAcceptanceSwitch(): Boolean;
 var
