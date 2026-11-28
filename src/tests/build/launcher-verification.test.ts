@@ -20,6 +20,9 @@ describe('Windows Launcher Verification', () => {
     expect(source).toContain('Préparation du démarrage d’OmniKès...');
     expect(source).toContain('ProgressBar');
     expect(source).toContain('animationTimer');
+    expect(source).toContain('omnikes-logo.jpeg');
+    expect(source).toContain('new Bitmap(sourceLogo)');
+    expect(source).toContain('PictureBoxSizeMode.Zoom');
     expect(source).toContain('splash.Shown += BeginStartup');
     expect(source).toContain('splash.Close()');
     expect(source).toContain('window.PrepareAsync()');
@@ -42,6 +45,10 @@ describe('Windows Launcher Verification', () => {
     const packaging = readFileSync(path.join(root, 'scripts', 'package-windows.ps1'), 'utf8');
     expect(packaging).toContain('target:winexe');
     expect(packaging).toContain('omnikes.exe');
+    expect(packaging).toContain('public/branding/omnikes-logo.jpeg');
+    expect(packaging).toContain('High-resolution OmniKes splash logo verified');
+    expect(packaging).toContain('$logoImage.Width -lt 1000');
+    expect(packaging).toContain('$logoImage.Height -lt 400');
     expect(packaging).toContain('Microsoft.Web.WebView2');
     expect(packaging).toContain('MicrosoftEdgeWebView2RuntimeInstallerX64.exe');
     expect(packaging).toContain('WebView2Loader.dll');

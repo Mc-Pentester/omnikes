@@ -71,6 +71,7 @@
     "@next/eslint-plugin-next": "16.4.6",
     "fast-glob": "3.3.3",
     "micromatch": "4.0.8",
-    "browserslist": "4.29.3"
+    "browserslist": "4.29.3",
+    "effect": "3.22.1"
   }
 }

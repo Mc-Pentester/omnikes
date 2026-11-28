@@ -52,6 +52,23 @@ $launcherIcon = Join-Path $installer "omnikes.ico"
 [System.IO.File]::WriteAllBytes($launcherIcon, $iconBytes)
 if ((Get-Item $launcherIcon).Length -lt 1000) { throw "OmniKes Windows icon asset is invalid or incomplete." }
 
+# Ship the full-resolution logo separately from the small Windows ICO.
+# The splash screen renders this original artwork at a larger size for crisp branding.
+$logoSource = Join-Path $root "public/branding/omnikes-logo.jpeg"
+$logoTarget = Join-Path $installer "omnikes-logo.jpeg"
+if (-not (Test-Path $logoSource)) { throw "High-resolution OmniKes splash logo is missing: $logoSource" }
+Copy-Item $logoSource $logoTarget -Force
+$logoImage = [System.Drawing.Image]::FromFile($logoTarget)
+try {
+  if ($logoImage.Width -lt 1000 -or $logoImage.Height -lt 400) {
+    throw "OmniKes splash logo must be at least 1000x700 pixels; found $($logoImage.Width)x$($logoImage.Height)."
+  }
+  Write-Host "High-resolution OmniKes splash logo verified: $($logoImage.Width)x$($logoImage.Height)."
+}
+finally {
+  $logoImage.Dispose()
+}
+
 Copy-Item (Join-Path $standalone "*") $app -Recurse -Force
 if (Test-Path ".next\static") { Copy-Item ".next\static" (Join-Path $app ".next") -Recurse -Force }
 if (Test-Path "public") { Copy-Item "public" (Join-Path $app "public") -Recurse -Force }
