@@ -120,6 +120,9 @@ export class PlatformSubscriptionService {
         subscriptionCancelAtPeriodEnd: false,
         subscriptionPendingPlan: null,
         subscriptionPendingBillingInterval: null,
+        freeLicenseReason: null,
+        freeLicenseGrantedAt: null,
+        freeLicenseGrantedBy: null,
       };
     } else if (data.action === 'CANCEL') {
       next = { subscriptionCancelAtPeriodEnd: true };
