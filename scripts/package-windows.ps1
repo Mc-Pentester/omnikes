@@ -82,7 +82,7 @@ Copy-Item "prisma.config.ts" (Join-Path $app "prisma.config.ts") -Force
 
 $stagedPackage = Get-Content (Join-Path $app "package.json") -Raw | ConvertFrom-Json
 $stagedLock = Get-Content (Join-Path $app "package-lock.json") -Raw | ConvertFrom-Json
-if ($stagedPackage.version -ne $appVersion -or $stagedLock.version -ne $appVersion -or $stagedLock.packages."".version -ne $appVersion) {
+if ($stagedPackage.version -ne $appVersion -or $stagedLock.version -ne $appVersion -or $stagedLock.packages[''].version -ne $appVersion) {
   throw "Staged application npm metadata does not match release version $appVersion."
 }
 
