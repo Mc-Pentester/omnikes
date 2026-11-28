@@ -17,6 +17,9 @@ type Organization = {
   subscriptionCancelAtPeriodEnd: boolean;
   subscriptionPendingPlan: string | null;
   subscriptionPendingBillingInterval: 'MONTHLY' | 'ANNUAL' | null;
+  freeLicenseReason: string | null;
+  freeLicenseGrantedAt: string | null;
+  freeLicenseGrantedBy: string | null;
 };
 
 const PLANS = [
@@ -52,6 +55,8 @@ export default function PlatformSubscriptionsPage() {
   const [plan, setPlan] = useState<Plan>('OMNIKES_249');
   const [expiresAt, setExpiresAt] = useState('');
   const [billingInterval, setBillingInterval] = useState<'MONTHLY' | 'ANNUAL'>('ANNUAL');
+  const [freeLicenseReason, setFreeLicenseReason] = useState('');
+  const [freeLicenseExpiresAt, setFreeLicenseExpiresAt] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -65,6 +70,8 @@ export default function PlatformSubscriptionsPage() {
     setPlan(normalizePlan(organization.subscriptionPlan));
     setExpiresAt(toDateInputValue(organization.subscriptionExpiresAt));
     setBillingInterval(organization.subscriptionBillingInterval ?? 'ANNUAL');
+    setFreeLicenseReason(organization.freeLicenseReason ?? '');
+    setFreeLicenseExpiresAt(toDateInputValue(organization.subscriptionStatus === 'FREE' ? organization.subscriptionExpiresAt : null));
     setError('');
     setMessage('');
   };
@@ -87,6 +94,8 @@ export default function PlatformSubscriptionsPage() {
           setPlan(normalizePlan(first.subscriptionPlan));
           setExpiresAt(toDateInputValue(first.subscriptionExpiresAt));
           setBillingInterval(first.subscriptionBillingInterval ?? 'ANNUAL');
+          setFreeLicenseReason(first.freeLicenseReason ?? '');
+          setFreeLicenseExpiresAt(toDateInputValue(first.subscriptionStatus === 'FREE' ? first.subscriptionExpiresAt : null));
         }
       })
       .catch((err) => {
@@ -101,8 +110,12 @@ export default function PlatformSubscriptionsPage() {
     };
   }, [authLoading, user?.id]);
 
-  const save = async (action: 'ACTIVATE' | 'CHANGE_PLAN' | 'CANCEL') => {
+  const save = async (action: 'ACTIVATE' | 'CHANGE_PLAN' | 'CANCEL' | 'GRANT_FREE' | 'REVOKE_FREE') => {
     if (!selectedId) return;
+    if (action === 'GRANT_FREE' && freeLicenseReason.trim().length < 5) {
+      setError('Le motif doit contenir au moins 5 caractères.');
+      return;
+    }
     if (action === 'ACTIVATE' && !expiresAt) {
       setError('La date d’expiration est obligatoire.');
       return;
@@ -118,7 +131,9 @@ export default function PlatformSubscriptionsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(action === 'ACTIVATE'
           ? { action, plan, billingInterval, expiresAt }
-          : action === 'CHANGE_PLAN' ? { action, plan, billingInterval } : { action }),
+          : action === 'CHANGE_PLAN' ? { action, plan, billingInterval }
+            : action === 'GRANT_FREE' ? { action, reason: freeLicenseReason.trim(), expiresAt: freeLicenseExpiresAt || null }
+              : { action }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || 'Opération refusée');
@@ -131,7 +146,11 @@ export default function PlatformSubscriptionsPage() {
           ? 'Abonnement activé/renouvelé après confirmation manuelle du paiement.'
           : action === 'CANCEL'
             ? 'Annulation programmée à la fin de la période déjà payée. Les droits restent actifs jusqu’à cette échéance.'
-            : body.organization.subscriptionPendingPlan ? 'Rétrogradation programmée au renouvellement. Le forfait actuel reste actif jusque-là.' : 'Changement de forfait appliqué immédiatement.',
+            : action === 'GRANT_FREE'
+              ? 'Licence gratuite accordée. Les droits sont actifs sans paiement.'
+              : action === 'REVOKE_FREE'
+                ? 'Licence gratuite révoquée. Les données historiques restent consultables.'
+                : body.organization.subscriptionPendingPlan ? 'Rétrogradation programmée au renouvellement. Le forfait actuel reste actif jusque-là.' : 'Changement de forfait appliqué immédiatement.',
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Opération impossible');
@@ -192,6 +211,13 @@ export default function PlatformSubscriptionsPage() {
                 <div><dt className="text-muted">Expiration</dt><dd>{formatDate(selected.subscriptionExpiresAt)}</dd></div>
                 <div><dt className="text-muted">Annulation</dt><dd>{selected.subscriptionCancelAtPeriodEnd ? 'À l’échéance' : 'Non programmée'}</dd></div>
                 <div><dt className="text-muted">Prochain forfait</dt><dd>{selected.subscriptionPendingPlan ?? 'Aucun changement programmé'}</dd></div>
+                {selected.subscriptionStatus === 'FREE' && (
+                  <>
+                    <div><dt className="text-muted">Licence gratuite</dt><dd>Accès complet</dd></div>
+                    <div><dt className="text-muted">Motif</dt><dd>{selected.freeLicenseReason ?? '—'}</dd></div>
+                    <div><dt className="text-muted">Accordée le</dt><dd>{formatDate(selected.freeLicenseGrantedAt)}</dd></div>
+                  </>
+                )}
               </dl>
 
               <div className="mt-6 space-y-4">
@@ -225,6 +251,27 @@ export default function PlatformSubscriptionsPage() {
                 >
                   {saving ? 'Traitement…' : 'Activer / renouveler'}
                 </button>
+
+                <div className="border-t pt-4 space-y-3">
+                  <h3 className="font-semibold">Licence gratuite</h3>
+                  <p className="text-sm text-muted">Débloque toutes les fonctionnalités enregistrées, sans paiement. Laisser la date vide pour une licence sans expiration.</p>
+                  <div className="block text-sm font-medium">
+                    <label htmlFor="free-license-reason">Motif obligatoire</label>
+                    <textarea id="free-license-reason" value={freeLicenseReason} onChange={(event) => setFreeLicenseReason(event.target.value)} maxLength={500} rows={3} className="mt-1 w-full rounded-lg border px-3 py-2" placeholder="Ex. partenaire pilote, geste commercial..." />
+                  </div>
+                  <div className="block text-sm font-medium">
+                    <label htmlFor="free-license-expires-at">Date d’expiration (facultative)</label>
+                    <input id="free-license-expires-at" type="date" value={freeLicenseExpiresAt} onChange={(event) => setFreeLicenseExpiresAt(event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
+                  </div>
+                  <button type="button" disabled={saving} onClick={() => void save('GRANT_FREE')} className="w-full rounded-lg bg-primary px-4 py-2.5 text-white disabled:opacity-50">
+                    {saving ? 'Traitement…' : selected.subscriptionStatus === 'FREE' ? 'Mettre à jour la licence gratuite' : 'Accorder une licence gratuite'}
+                  </button>
+                  {selected.subscriptionStatus === 'FREE' && (
+                    <button type="button" disabled={saving} onClick={() => void save('REVOKE_FREE')} className="w-full rounded-lg border border-danger px-4 py-2.5 text-danger disabled:opacity-50">
+                      Révoquer la licence gratuite
+                    </button>
+                  )}
+                </div>
 
                 {selected.subscriptionStatus === 'ACTIVE' && !selected.subscriptionCancelAtPeriodEnd && (
                   <button
