@@ -10,6 +10,7 @@ describe('Windows Launcher Verification', () => {
   const installerPath = path.join(root, 'installer');
   const launcherPath = path.join(installerPath, 'OmniKesLauncher.cmd');
   const runtimeInstallerPath = path.join(installerPath, 'install-runtime.cjs');
+  const recoveryScriptPath = path.join(installerPath, 'ensure-postgres-service.ps1');
   const issPath = path.join(installerPath, 'OmniKes.iss');
   const uninstall = readFileSync(path.join(installerPath, 'uninstall-runtime.ps1'), 'utf8');
 
@@ -36,6 +37,7 @@ describe('Windows Launcher Verification', () => {
     expect(packaging).toContain('omnikes.exe');
     expect(packaging).toContain('Microsoft.Web.WebView2');
     expect(packaging).toContain('MicrosoftEdgeWebView2RuntimeInstallerX64.exe');
+    expect(packaging).toContain('Copy-Item "installer\\ensure-postgres-service.ps1" $installer -Force');
     expect(packaging).toContain('WebView2Loader.dll');
     expect(packaging).toContain('$nodeVersion = "22.22.2"');
     expect(packaging).toContain('node-v$nodeVersion-win-x64');
@@ -71,8 +73,11 @@ describe('Windows Launcher Verification', () => {
   it('should verify the packaged PostgreSQL readiness executable', () => {
     const content = readFileSync(launcherPath, 'utf8');
     expect(content).toContain('runtime\\postgresql\\bin\\pg_isready.exe');
-    expect(content).toContain('sc.exe query OmniKesPostgreSQL');
-    expect(content).toContain('sc.exe start OmniKesPostgreSQL');
+    expect(content).toContain('SERVICE_RECOVERY=%OMNIKES_HOME%\\installer\\ensure-postgres-service.ps1');
+    expect(content).toContain('powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%SERVICE_RECOVERY%"');
+    expect(content).toContain('PostgreSQL service recovery failed');
+    expect(content).not.toContain('sc.exe query OmniKesPostgreSQL');
+    expect(content).not.toContain('sc.exe start OmniKesPostgreSQL');
     expect(content).toContain(':postgres_wait');
     expect(content).toContain('PG_PORT_FILE=%ProgramData%\\OmniKes\\postgresql-port.txt');
     expect(content).toContain('APP_PORT_FILE=%ProgramData%\\OmniKes\\app-port.txt');
@@ -106,6 +111,8 @@ describe('Windows Launcher Verification', () => {
     const content = readFileSync(runtimeInstallerPath, 'utf8');
     expect(content).toContain("['register', '-D', data, '-N', serviceName, '-S', 'auto'");
     expect(content).toContain("['start', serviceName]");
+    expect(content).toContain("['config', serviceName, 'start=', 'delayed-auto']");
+    expect(content).toContain("['failure', serviceName, 'reset=', '86400', 'actions=', 'restart/5000/restart/15000/restart/30000']");
     expect(content).toContain('waitForPostgres(password, port)');
     expect(content).toContain('serviceState()');
   });
@@ -179,6 +186,21 @@ describe('Windows Launcher Verification', () => {
 
   it('should retain the first-launch environment preparation script', () => {
     expect(existsSync(path.join(installerPath, 'prepare-user-env.cjs'))).toBe(true);
+  });
+
+  it('should recover PostgreSQL without depending on localized Windows service output', () => {
+    const recovery = readFileSync(recoveryScriptPath, 'utf8');
+    expect(recovery).toContain("Get-Service -Name $serviceName");
+    for (const state of ['Running', 'Stopped', 'StartPending', 'StopPending']) expect(recovery).toContain(state);
+    expect(recovery).toContain('Start-Service -Name $serviceName');
+    expect(recovery).toContain('existing database files are preserved');
+  });
+
+  it('should configure automatic launch at Windows sign-in and remove it on uninstall', () => {
+    const content = readFileSync(issPath, 'utf8');
+    expect(content).toContain('[Registry]');
+    expect(content).toContain('ValueName: "OmniKes"');
+    expect(content).toContain('Flags: uninsdeletevalue');
   });
 
   it('should retain the Inno Setup launcher and runtime installation configuration', () => {

@@ -273,6 +273,13 @@ if (mustRegister) {
 
 grantStandardUsersServiceStart();
 
+// Configure delayed automatic startup and SCM recovery after PostgreSQL crashes.
+const systemRoot = process.env.SystemRoot || 'C:\\Windows';
+const scExe = path.join(systemRoot, 'System32', 'sc.exe');
+run(scExe, ['config', serviceName, 'start=', 'delayed-auto']);
+run(scExe, ['failure', serviceName, 'reset=', '86400', 'actions=', 'restart/5000/restart/15000/restart/30000']);
+
+
 try {
   run('sc.exe', ['start', serviceName]);
 } catch (error) {

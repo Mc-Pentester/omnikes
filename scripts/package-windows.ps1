@@ -162,6 +162,7 @@ if (-not (Test-Path (Join-Path $pgRoot "bin\postgres.exe"))) { throw "Prepared P
 Copy-Item (Join-Path $pgRoot "*") $postgres -Recurse -Force
 
 Copy-Item "installer\OmniKesLauncher.cmd" $installer -Force
+Copy-Item "installer\ensure-postgres-service.ps1" $installer -Force
 Copy-Item "installer\install-runtime.cmd" $installer -Force
 Copy-Item "installer\install-runtime.cjs" $installer -Force
 Copy-Item "installer\initialize-rbac.cjs" $installer -Force
