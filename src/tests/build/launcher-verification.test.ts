@@ -73,8 +73,11 @@ describe('Windows Launcher Verification', () => {
   it('should verify the packaged PostgreSQL readiness executable', () => {
     const content = readFileSync(launcherPath, 'utf8');
     expect(content).toContain('runtime\\postgresql\\bin\\pg_isready.exe');
-    expect(content).toContain('sc.exe query OmniKesPostgreSQL');
-    expect(content).toContain('sc.exe start OmniKesPostgreSQL');
+    expect(content).toContain('SERVICE_RECOVERY=%OMNIKES_HOME%\\installer\\ensure-postgres-service.ps1');
+    expect(content).toContain('powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%SERVICE_RECOVERY%"');
+    expect(content).toContain('PostgreSQL service recovery failed');
+    expect(content).not.toContain('sc.exe query OmniKesPostgreSQL');
+    expect(content).not.toContain('sc.exe start OmniKesPostgreSQL');
     expect(content).toContain(':postgres_wait');
     expect(content).toContain('PG_PORT_FILE=%ProgramData%\\OmniKes\\postgresql-port.txt');
     expect(content).toContain('APP_PORT_FILE=%ProgramData%\\OmniKes\\app-port.txt');
