@@ -17,6 +17,11 @@ describe('Windows Launcher Verification', () => {
   it('should provide the native omnikes.exe launcher source', () => {
     const source = readFileSync(path.join(installerPath, 'OmniKesLauncher.cs'), 'utf8');
     expect(source).toContain('ProcessWindowStyle.Hidden');
+    expect(source).toContain('omnikes-logo.jpeg');
+    expect(source).toContain('new Bitmap(sourceLogo)');
+    expect(source).toContain('mark.Image == null');
+    expect(source).toContain('PictureBoxSizeMode.Zoom');
+    expect(existsSync(path.join(root, 'public', 'branding', 'omnikes-logo.jpeg'))).toBe(true);
     expect(source).toContain('ReadApplicationUrl');
     expect(source).toContain('application');
     expect(source).toContain('app-port.txt');
@@ -35,6 +40,11 @@ describe('Windows Launcher Verification', () => {
     const packaging = readFileSync(path.join(root, 'scripts', 'package-windows.ps1'), 'utf8');
     expect(packaging).toContain('target:winexe');
     expect(packaging).toContain('omnikes.exe');
+    expect(packaging).toContain('public/branding/omnikes-logo.jpeg');
+    expect(packaging).toContain('Copy-Item $logoSource $logoTarget -Force');
+    expect(packaging).toContain('$logoImage.Width -lt 1000');
+    expect(packaging).toContain('$logoImage.Height -lt 400');
+    expect(packaging).toContain('1000x400 pixels');
     expect(packaging).toContain('Microsoft.Web.WebView2');
     expect(packaging).toContain('MicrosoftEdgeWebView2RuntimeInstallerX64.exe');
     expect(packaging).toContain('Copy-Item "installer\\ensure-postgres-service.ps1" $installer -Force');
