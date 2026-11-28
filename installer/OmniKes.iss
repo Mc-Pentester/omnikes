@@ -1,5 +1,7 @@
 #define MyAppName "OmniKès"
-#define MyAppVersion "0.1.1"
+#ifndef MyAppVersion
+  #error "MyAppVersion must be supplied by scripts/package-windows.ps1 from the release tag."
+#endif
 #define MyAppPublisher "Kodyra Technologies"
 #define MyAppExeName "omnikes.exe"
 #define LicenseVersion "1.0"
