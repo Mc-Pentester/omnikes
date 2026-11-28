@@ -48,7 +48,7 @@ describe('Windows Launcher Verification', () => {
     expect(packaging).toContain('public/branding/omnikes-logo.jpeg');
     expect(packaging).toContain('High-resolution OmniKes splash logo verified');
     expect(packaging).toContain('$logoImage.Width -lt 1000');
-    expect(packaging).toContain('$logoImage.Height -lt 700');
+    expect(packaging).toContain('$logoImage.Height -lt 400');
     expect(packaging).toContain('Microsoft.Web.WebView2');
     expect(packaging).toContain('MicrosoftEdgeWebView2RuntimeInstallerX64.exe');
     expect(packaging).toContain('WebView2Loader.dll');
