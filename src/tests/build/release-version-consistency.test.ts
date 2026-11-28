@@ -19,8 +19,14 @@ describe('release tag application version consistency', () => {
   it('synchronizes npm metadata and embeds the version in the production build', () => {
     expect(packaging).toContain('npm.cmd version $appVersion --no-git-tag-version --allow-same-version');
     expect(packaging).toContain('$env:NEXT_PUBLIC_APP_VERSION = $appVersion');
-    expect(packaging).toContain('$stagedPackage.version -ne $appVersion');
-    expect(packaging).toContain("$stagedLock.packages[''].version -ne $appVersion");
+    expect(packaging).toContain('Windows PowerShell 5.1 ConvertFrom-Json can reject valid npm lockfiles');
+    expect(packaging).toContain('const packageMetadata = JSON.parse(fs.readFileSync(packagePath, "utf8"));');
+    expect(packaging).toContain('const lockMetadata = JSON.parse(fs.readFileSync(lockPath, "utf8"));');
+    expect(packaging).toContain('lockMetadata.packages[""]');
+    expect(packaging).toContain('OMNIKES_EXPECTED_APP_VERSION');
+    expect(packaging).toContain('if (version !== expectedVersion)');
+    expect(packaging).toContain('process.exit(1)');
+    expect(packaging).toContain('Staged npm metadata verified:');
     expect(packaging).toContain('OmniKes-Setup-$appVersion-x64.exe');
   });
 
