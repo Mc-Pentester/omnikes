@@ -112,26 +112,18 @@ if not errorlevel 1 (
     exit /b 1
 )
 
-REM Require the Windows service to exist, then request startup if it is stopped.
-set "PG_SERVICE_STATE="
-for /f "tokens=3" %%S in ('%SystemRoot%\System32\sc.exe query OmniKesPostgreSQL ^| %SystemRoot%\System32\findstr.exe /C:"STATE"') do set "PG_SERVICE_STATE=%%S"
-if not defined PG_SERVICE_STATE (
-    echo [%time%] ERROR: Windows service OmniKesPostgreSQL is not registered or cannot be queried. >> "%LOG_FILE%"
-    echo ERREUR: Le service PostgreSQL OmniKesPostgreSQL est introuvable.
-    echo Reexecutez le programme d'installation OmniKes en administrateur.
+REM Recover PostgreSQL through service objects, never localized sc.exe output.
+set "SERVICE_RECOVERY=%OMNIKES_HOME%\installer\ensure-postgres-service.ps1"
+if not exist "%SERVICE_RECOVERY%" (
+    echo [%time%] ERROR: PostgreSQL recovery script is missing: %SERVICE_RECOVERY% >> "%LOG_FILE%"
+    echo ERREUR: Le composant de récupération PostgreSQL est absent. Reinstallez OmniKes.
     exit /b 1
 )
-REM A standard Windows user can query a running service without SERVICE_START rights.
-REM Do not issue sc start when PostgreSQL is already running.
-if "%PG_SERVICE_STATE%"=="4" (
-    echo [%time%] PostgreSQL service is already running; no service-start privilege required. >> "%LOG_FILE%"
-) else (
-    %SystemRoot%\System32\sc.exe start OmniKesPostgreSQL >> "%LOG_FILE%" 2>&1
-    if errorlevel 1 (
-        echo [%time%] ERROR: PostgreSQL is stopped and this Windows account cannot start its service. >> "%LOG_FILE%"
-        echo ERREUR: PostgreSQL est arrêté. Relancez Windows ou demandez à l'administrateur de démarrer le service OmniKesPostgreSQL.
-        exit /b 1
-    )
+%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%SERVICE_RECOVERY%" -LogFile "%LOG_FILE%"
+if errorlevel 1 (
+    echo [%time%] ERROR: PostgreSQL service recovery failed. >> "%LOG_FILE%"
+    echo ERREUR: Impossible de démarrer PostgreSQL. Consultez le journal: %LOG_FILE%
+    exit /b 1
 )
 
 REM Wait up to 45 seconds for PostgreSQL itself, not merely an open TCP port.
