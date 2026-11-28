@@ -182,7 +182,7 @@ test.describe('Customer credit to repayment, return and refund - full E2E', () =
     await expect(saleToReturn).toBeVisible();
     const saleRow = saleToReturn.locator('..').locator('..');
     await saleRow.getByRole('button', { name: 'Traiter le retour' }).click();
-    await page.getByLabel('Quantité à retourner - ' + productName).fill('1');
+    await page.getByLabel('Conditionnements à retourner - ' + productName).fill('1');
     await page.getByLabel('Motif du retour (facultatif)').fill('E2E full return after credit settlement');
     const returnResponsePromise = page.waitForResponse((response) =>
       response.url().endsWith(`/api/sales/${sale.id}/returns`) && response.request().method() === 'POST',
