@@ -325,9 +325,10 @@ export default function ProductsPage() {
             price: parseFloat(formData.price),
             cost: parseFloat(formData.cost),
             unitPrice: parseFloat(formData.price),
-            casePrice: formData.casePrice.trim() ? Number(formData.casePrice) : undefined,
-            dozenPrice: formData.dozenPrice.trim() ? Number(formData.dozenPrice) : undefined,
-            pack3Price: formData.pack3Price.trim() ? Number(formData.pack3Price) : undefined,
+            // null explicitly clears an optional packaging price in PATCH requests.
+            casePrice: formData.casePrice.trim() ? Number(formData.casePrice) : null,
+            dozenPrice: formData.dozenPrice.trim() ? Number(formData.dozenPrice) : null,
+            pack3Price: formData.pack3Price.trim() ? Number(formData.pack3Price) : null,
             unitsPerCase: Number(formData.unitsPerCase || 1),
           };
 
