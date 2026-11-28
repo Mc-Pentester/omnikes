@@ -8,6 +8,7 @@ import { platformRoleRepository } from '@omnikes/repositories/platform-role.repo
 import { platformSubscriptionService } from '@omnikes/services/platform-subscription.service';
 import { PATCH } from '@omnikes/app/api/platform/subscriptions/[organizationId]/route';
 import { GET as LIST } from '@omnikes/app/api/platform/subscriptions/route';
+import { GET as AUTH_ME } from '@omnikes/app/api/auth/me/route';
 
 describe('P0-Platform-RBAC - strict platform/tenant separation', () => {
   let tenantAdminId = '';
@@ -96,6 +97,26 @@ describe('P0-Platform-RBAC - strict platform/tenant separation', () => {
 
     return `auth_token=${rawToken}`;
   }
+
+  it('exposes subscription navigation only to the platform operator', async () => {
+    const tenantResponse = await AUTH_ME(
+      new NextRequest('http://localhost/api/auth/me', {
+        headers: { cookie: await cookieFor(tenantAdminId) },
+      }),
+    );
+    expect(tenantResponse.status).toBe(200);
+    const tenantBody = await tenantResponse.json();
+    expect(tenantBody.user.canManagePlatformSubscriptions).toBe(false);
+
+    const platformResponse = await AUTH_ME(
+      new NextRequest('http://localhost/api/auth/me', {
+        headers: { cookie: await cookieFor(platformUserId) },
+      }),
+    );
+    expect(platformResponse.status).toBe(200);
+    const platformBody = await platformResponse.json();
+    expect(platformBody.user.canManagePlatformSubscriptions).toBe(true);
+  });
 
   it('denies unauthenticated platform subscription access', async () => {
     const listResponse = await LIST(

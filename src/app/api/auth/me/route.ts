@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@omnikes/lib/auth';
 import { roleRepository } from '@omnikes/repositories/role.repository';
+import { platformRoleRepository } from '@omnikes/repositories/platform-role.repository';
 import { errorLogger } from '@omnikes/lib/error-logger';
 import { prisma } from '@omnikes/lib/prisma';
 
@@ -42,6 +43,7 @@ export async function GET(request: NextRequest) {
       canRefundCreditPayment,
       canReturnSale,
       canReadHardwareBridge,
+      canManagePlatformSubscriptions,
     ] = await Promise.all([
       roleRepository.hasPermission(user.id, 'user.read'),
       roleRepository.hasPermission(user.id, 'store.read'),
@@ -60,6 +62,7 @@ export async function GET(request: NextRequest) {
       roleRepository.hasPermission(user.id, 'credit.refund'),
       roleRepository.hasPermission(user.id, 'sale.return'),
       roleRepository.hasPermission(user.id, 'hardware.bridge.read'),
+      platformRoleRepository.hasPermission(user.id, 'organization.subscription.manage'),
     ]);
 
     return NextResponse.json({
@@ -84,6 +87,7 @@ export async function GET(request: NextRequest) {
         canRefundCreditPayment,
         canReturnSale,
         canReadHardwareBridge,
+        canManagePlatformSubscriptions,
       },
     });
   } catch (error) {

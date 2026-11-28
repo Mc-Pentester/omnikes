@@ -167,7 +167,9 @@ export default function AdministrationOrganizationPage() {
         <a href="/administration/roles" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">Rôles & permissions</a>
         <a href="/administration/stores" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">Magasins</a>
         <a href="/administration/organization" className="rounded-lg bg-info-soft px-4 py-2 text-sm font-medium text-info">Organisation</a>
-        <a href="/administration/platform-subscriptions" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">Abonnement</a>
+        {user?.canManagePlatformSubscriptions === true && (
+          <a href="/administration/platform-subscriptions" className="rounded-lg border px-4 py-2 text-sm hover:bg-surface-muted">Abonnement</a>
+        )}
       </nav>
 
       {error && <div className="rounded-lg bg-danger-soft p-3 text-danger">{error}</div>}
