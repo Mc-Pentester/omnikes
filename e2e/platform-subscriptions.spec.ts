@@ -10,9 +10,27 @@ async function selectOrganization(page: import('@playwright/test').Page, name: s
   await expect(planSelect(page)).toBeVisible();
 }
 
+type MockOrganization = {
+  id: string;
+  name: string;
+  slug: string;
+  country: string;
+  currency: string;
+  subscriptionStatus: string;
+  subscriptionPlan: string | null;
+  subscriptionExpiresAt: string | null;
+  subscriptionBillingInterval: string | null;
+  subscriptionCancelAtPeriodEnd: boolean;
+  subscriptionPendingPlan: string | null;
+  subscriptionPendingBillingInterval: string | null;
+  freeLicenseReason: string | null;
+  freeLicenseGrantedAt: string | null;
+  freeLicenseGrantedBy: string | null;
+};
+
 test.describe('Platform subscription administration', () => {
   test.beforeEach(async ({ page }) => {
-    let organizations = [
+    let organizations: MockOrganization[] = [
       { id: 'tenant-essential', name: 'Tenant Essential', slug: 'tenant-essential', country: 'HT', currency: 'HTG', subscriptionStatus: 'NONE', subscriptionPlan: null, subscriptionExpiresAt: null, subscriptionBillingInterval: null, subscriptionCancelAtPeriodEnd: false, subscriptionPendingPlan: null, subscriptionPendingBillingInterval: null, freeLicenseReason: null, freeLicenseGrantedAt: null, freeLicenseGrantedBy: null },
       { id: 'tenant-professional', name: 'Tenant Professional', slug: 'tenant-professional', country: 'HT', currency: 'HTG', subscriptionStatus: 'NONE', subscriptionPlan: null, subscriptionExpiresAt: null, subscriptionBillingInterval: null, subscriptionCancelAtPeriodEnd: false, subscriptionPendingPlan: null, subscriptionPendingBillingInterval: null, freeLicenseReason: null, freeLicenseGrantedAt: null, freeLicenseGrantedBy: null },
       { id: 'tenant-enterprise', name: 'Tenant Enterprise', slug: 'tenant-enterprise', country: 'HT', currency: 'HTG', subscriptionStatus: 'ACTIVE', subscriptionPlan: 'OMNIKES_299', subscriptionExpiresAt: '2030-12-31T23:59:59.999Z', subscriptionBillingInterval: 'ANNUAL', subscriptionCancelAtPeriodEnd: false, subscriptionPendingPlan: null, subscriptionPendingBillingInterval: null, freeLicenseReason: null, freeLicenseGrantedAt: null, freeLicenseGrantedBy: null },
@@ -85,6 +103,7 @@ test.describe('Platform subscription administration', () => {
     await expect(page.getByText('À l’échéance', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /annuler l’abonnement/i })).toHaveCount(0);
   });
+
   test('grants and revokes a perpetual free license from platform administration', async ({ page }) => {
     await page.goto('/administration/platform-subscriptions');
     await selectOrganization(page, 'Tenant Essential');
@@ -107,5 +126,4 @@ test.describe('Platform subscription administration', () => {
     await page.getByRole('button', { name: /accorder une licence gratuite/i }).click();
     await expect(page.getByText('Le motif doit contenir au moins 5 caractères.', { exact: true })).toBeVisible();
   });
-
 });
