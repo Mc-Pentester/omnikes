@@ -64,6 +64,29 @@ test.describe('POS multi-packaging', () => {
       await expect(page.getByText('Caisse (24 unités)', { exact: true })).toBeVisible();
       await expect(page.getByText('Douzaine', { exact: true })).toBeVisible();
       await expect(page.getByText('Lot de 3', { exact: true })).toBeVisible();
+
+      // Each packaging price is the price of that package, not a per-unit price.
+      await expect(page.getByText('2400.00 HTG / caisse', { exact: true })).toBeVisible();
+      await expect(page.getByText('1300.00 HTG / douzaine', { exact: true })).toBeVisible();
+      await expect(page.getByText('350.00 HTG / lot de 3', { exact: true })).toBeVisible();
+
+      // Quantity controls must update the selected packaging line exactly once.
+      await page.getByRole('button', { name: /Augmenter la quantité.*CASE/ }).click();
+      await expect(page.getByText('4800.00 HTG', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: /Réduire la quantité.*CASE/ }).click();
+      await expect(page.getByText('2400.00 HTG', { exact: true })).toBeVisible();
+
+      // Clearing optional prices in the product editor/API must persist as null.
+      const variantId = created.variants?.[0]?.id;
+      expect(variantId, 'created product should return its variant id').toBeTruthy();
+      const clearPrices = await page.context().request.patch(`/api/products/${created.id}`, {
+        data: { variantId, casePrice: null, dozenPrice: null, pack3Price: null },
+      });
+      expect(clearPrices.ok()).toBeTruthy();
+      const updatedProduct = await clearPrices.json();
+      expect(updatedProduct.variants[0].casePrice).toBeNull();
+      expect(updatedProduct.variants[0].dozenPrice).toBeNull();
+      expect(updatedProduct.variants[0].pack3Price).toBeNull();
     } finally {
       await page.context().request.delete(`/api/products/${created.id}`);
     }
