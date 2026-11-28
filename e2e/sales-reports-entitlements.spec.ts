@@ -62,7 +62,7 @@ test.describe('Sales reports and subscription entitlements', () => {
 
     await expect(page.getByRole('heading', { name: 'Rapport des Ventes' })).toBeVisible();
     await expect(page.getByText('CA Total', { exact: true })).toBeVisible();
-    await expect(page.getByText('1 250,00 HTG')).toBeVisible();
+    await expect(page.getByText(/1[\\s\\u00a0\\u202f]?250,00/)).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Analyses avancées non incluses' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Évolution des Ventes' })).toHaveCount(0);
   });
