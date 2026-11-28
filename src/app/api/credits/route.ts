@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
             } },
           } },
           payments: { select: { id: true, amount: true, method: true, reference: true, createdAt: true, receivedBy: true } },
+          refunds: { where: { status: 'COMPLETED' }, select: { amount: true } },
           adjustments: { select: { id: true, amount: true, reason: true, createdAt: true, processedByUser: { select: { id: true, name: true, email: true } } } },
           authorizedByUser: { select: { id: true, name: true, email: true } },
         },
@@ -79,6 +80,7 @@ export async function GET(request: NextRequest) {
           status: true,
           dueAt: true,
           payments: { select: { amount: true } },
+          refunds: { where: { status: 'COMPLETED' }, select: { amount: true } },
           adjustments: { select: { amount: true } },
           sale: { select: { currencyCode: true } },
         },
@@ -86,10 +88,13 @@ export async function GET(request: NextRequest) {
     ]);
 
     const rows = credits.map((credit) => {
-      const paid = roundMoney(credit.payments.reduce((sum, payment) => sum + Number(payment.amount), 0));
-      const adjusted = roundMoney(credit.adjustments.reduce((sum, adjustment) => sum + Number(adjustment.amount), 0));
+      const { payments, refunds, adjustments, ...rest } = credit;
+      const paid = roundMoney(payments.reduce((sum, payment) => sum + Number(payment.amount), 0));
+      const refunded = roundMoney(refunds.reduce((sum, refund) => sum + Number(refund.amount), 0));
+      const netPaid = roundMoney(Math.max(0, paid - refunded));
+      const adjusted = roundMoney(adjustments.reduce((sum, adjustment) => sum + Number(adjustment.amount), 0));
+      // Refunds are reported separately; gross repayments continue to settle the receivable.
       const outstanding = roundMoney(Math.max(0, Number(credit.amount) - paid - adjusted));
-      const { payments, adjustments, ...rest } = credit;
       const returns = credit.sale.returns.map((returnRecord) => {
         const normalRefunds = returnRecord.refunds.reduce((sum, item) => sum + Number(item.amount), 0);
         const debtAdjustments = returnRecord.creditAdjustments.reduce((sum, item) => sum + Number(item.amount), 0);
@@ -105,6 +110,8 @@ export async function GET(request: NextRequest) {
         ...rest,
         sale: { ...credit.sale, returns },
         paid,
+        refunded,
+        netPaid,
         adjusted,
         outstanding,
         overdue: credit.status === 'AUTHORIZED' && outstanding > 0 && credit.dueAt < new Date(),
@@ -112,15 +119,20 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const totalsByCurrency = reportCredits.reduce<Record<string, { credit: number; paid: number; adjusted: number; outstanding: number; overdue: number }>>((acc, credit) => {
+    const totalsByCurrency = reportCredits.reduce<Record<string, { credit: number; paid: number; refunded: number; netPaid: number; adjusted: number; outstanding: number; overdue: number }>>((acc, credit) => {
       const currency = credit.sale.currencyCode;
       const paid = roundMoney(credit.payments.reduce((sum, payment) => sum + Number(payment.amount), 0));
+      const refunded = roundMoney(credit.refunds.reduce((sum, refund) => sum + Number(refund.amount), 0));
+      const netPaid = roundMoney(Math.max(0, paid - refunded));
       const adjusted = roundMoney(credit.adjustments.reduce((sum, adjustment) => sum + Number(adjustment.amount), 0));
+      // Keep debt balance based on gross repayments; refunds remain separately visible.
       const outstanding = roundMoney(Math.max(0, Number(credit.amount) - paid - adjusted));
       const overdue = credit.status === 'AUTHORIZED' && outstanding > 0 && credit.dueAt < new Date();
-      acc[currency] ??= { credit: 0, paid: 0, adjusted: 0, outstanding: 0, overdue: 0 };
+      acc[currency] ??= { credit: 0, paid: 0, refunded: 0, netPaid: 0, adjusted: 0, outstanding: 0, overdue: 0 };
       acc[currency].credit = roundMoney(acc[currency].credit + Number(credit.amount));
       acc[currency].paid = roundMoney(acc[currency].paid + paid);
+      acc[currency].refunded = roundMoney(acc[currency].refunded + refunded);
+      acc[currency].netPaid = roundMoney(acc[currency].netPaid + netPaid);
       acc[currency].adjusted = roundMoney(acc[currency].adjusted + adjusted);
       acc[currency].outstanding = roundMoney(acc[currency].outstanding + outstanding);
       if (overdue) acc[currency].overdue = roundMoney(acc[currency].overdue + outstanding);

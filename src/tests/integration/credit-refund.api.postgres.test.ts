@@ -5,6 +5,8 @@ import { prisma } from '@omnikes/lib/prisma';
 import { generateToken } from '@omnikes/lib/crypto';
 import { sessionRepository } from '@omnikes/repositories/session.repository';
 import { POST as creditRefundPost } from '@omnikes/app/api/credits/[id]/refunds/route';
+import { GET as creditsGet } from '@omnikes/app/api/credits/route';
+import { GET as creditPaymentReceiptGet } from '@omnikes/app/api/credits/[id]/payments/[paymentId]/receipt/route';
 
 describe('customer credit repayment refunds - PostgreSQL API', () => {
   let organizationId: string;
@@ -55,6 +57,9 @@ describe('customer credit repayment refunds - PostgreSQL API', () => {
       },
     });
     roleId = role.id;
+    const readPermissions = await prisma.permission.findMany({ where: { code: { in: ['credit.view', 'credit.history.view', 'credit.report.view'] } }, select: { id: true } });
+    expect(readPermissions).toHaveLength(3);
+    await prisma.rolePermission.createMany({ data: readPermissions.map((permission) => ({ roleId, permissionId: permission.id })) });
     await prisma.userRole.create({ data: { userId, roleId } });
 
     const sale = await prisma.sale.create({
@@ -151,5 +156,29 @@ describe('customer credit repayment refunds - PostgreSQL API', () => {
     }), { params: Promise.resolve({ id: creditId }) });
     expect(excessive.status).toBe(409);
     expect(Number((await prisma.creditPayment.findUniqueOrThrow({ where: { id: paymentId } })).refundedAmount)).toBe(100);
+
+    const secondRefund = await creditRefundPost(new NextRequest(`http://localhost/api/credits/${creditId}/refunds`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie: `auth_token=${rawToken}`, origin: 'http://localhost', 'Idempotency-Key': 'credit-refund-second-' + Date.now() },
+      body: JSON.stringify({ returnId, paymentId, amount: 100, reference: 'REFUND-CARD-SECOND-100' }),
+    }), { params: Promise.resolve({ id: creditId }) });
+    expect(secondRefund.status).toBe(201);
+    expect(Number((await prisma.creditPayment.findUniqueOrThrow({ where: { id: paymentId } })).refundedAmount)).toBe(200);
+
+    const reportResponse = await creditsGet(new NextRequest(`http://localhost/api/credits?customerId=${customerId}&take=100`, { headers: { cookie: `auth_token=${rawToken}` } }));
+    expect(reportResponse.status).toBe(200);
+    const report = await reportResponse.json();
+    const creditRow = report.credits.find((item: { id: string }) => item.id === creditId);
+    expect(creditRow).toMatchObject({ paid: 200, refunded: 200, netPaid: 0, outstanding: 0 });
+    expect(report.totalsByCurrency.USD).toMatchObject({ credit: 200, paid: 200, refunded: 200, netPaid: 0, outstanding: 0 });
+
+    const receiptResponse = await creditPaymentReceiptGet(new NextRequest(`http://localhost/api/credits/${creditId}/payments/${paymentId}/receipt`, { headers: { cookie: `auth_token=${rawToken}` } }), { params: Promise.resolve({ id: creditId, paymentId }) });
+    expect(receiptResponse.status).toBe(200);
+    const receipt = await receiptResponse.json();
+    expect(receipt.payment.id).toBe(paymentId);
+    expect(Number(receipt.payment.amount)).toBe(200);
+    expect(receipt.sale.orderNumber).toContain('CREDIT-REFUND-');
+    expect(receipt.customer.name).toBe('Credit refund API test');
+    expect(receipt.credit.outstanding).toBe(0);
   });
 });
