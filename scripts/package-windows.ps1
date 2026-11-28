@@ -80,11 +80,46 @@ Copy-Item "package.json" (Join-Path $app "package.json") -Force
 Copy-Item "package-lock.json" (Join-Path $app "package-lock.json") -Force
 Copy-Item "prisma.config.ts" (Join-Path $app "prisma.config.ts") -Force
 
-$stagedPackage = Get-Content (Join-Path $app "package.json") -Raw | ConvertFrom-Json
-$stagedLock = Get-Content (Join-Path $app "package-lock.json") -Raw | ConvertFrom-Json
-if ($stagedPackage.version -ne $appVersion -or $stagedLock.version -ne $appVersion -or $stagedLock.packages[''].version -ne $appVersion) {
-  throw "Staged application npm metadata does not match release version $appVersion."
+# Windows PowerShell 5.1 ConvertFrom-Json can reject valid npm lockfiles
+# containing property names that collide case-insensitively. Node's JSON.parse
+# validates the original JSON without changing or normalizing its contents.
+$env:OMNIKES_STAGED_PACKAGE_JSON = Join-Path $app "package.json"
+$env:OMNIKES_STAGED_LOCK_JSON = Join-Path $app "package-lock.json"
+$env:OMNIKES_EXPECTED_APP_VERSION = $appVersion
+@'
+const fs = require("node:fs");
+
+const packagePath = process.env.OMNIKES_STAGED_PACKAGE_JSON;
+const lockPath = process.env.OMNIKES_STAGED_LOCK_JSON;
+const expectedVersion = process.env.OMNIKES_EXPECTED_APP_VERSION;
+
+const packageMetadata = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+const lockMetadata = JSON.parse(fs.readFileSync(lockPath, "utf8"));
+const lockRootVersion = lockMetadata.packages && lockMetadata.packages[""]
+  ? lockMetadata.packages[""].version
+  : undefined;
+
+const versions = {
+  package: packageMetadata.version,
+  lock: lockMetadata.version,
+  lockRoot: lockRootVersion
+};
+
+for (const [source, version] of Object.entries(versions)) {
+  if (version !== expectedVersion) {
+    console.error(
+      `Staged ${source} version mismatch: expected ${expectedVersion}, received ${version ?? "missing"}.`
+    );
+    process.exit(1);
+  }
 }
+
+console.log(`Staged npm metadata verified: ${expectedVersion}`);
+'@ | node
+if ($LASTEXITCODE -ne 0) {
+  throw "Staged application npm metadata is invalid or does not match release version $appVersion."
+}
+Remove-Item Env:OMNIKES_STAGED_PACKAGE_JSON,Env:OMNIKES_STAGED_LOCK_JSON,Env:OMNIKES_EXPECTED_APP_VERSION -ErrorAction SilentlyContinue
 
 
 # Remove repository-only documentation and audit artifacts copied by Next standalone tracing.
