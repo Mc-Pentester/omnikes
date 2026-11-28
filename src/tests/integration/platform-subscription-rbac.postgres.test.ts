@@ -171,6 +171,30 @@ describe('P0-Platform-RBAC - strict platform/tenant separation', () => {
     expect(result.subscriptionPlan).toBe('OMNIKES_149');
   });
 
+  it('denies tenant ADMIN from granting a free license', async () => {
+    const request = new NextRequest(
+      `http://localhost/api/platform/subscriptions/${orgBId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          cookie: await cookieFor(tenantAdminId),
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'GRANT_FREE',
+          reason: 'Unauthorized free license attempt',
+        }),
+      },
+    );
+
+    const response = await PATCH(
+      request as never,
+      { params: Promise.resolve({ organizationId: orgBId }) },
+    );
+
+    expect(response.status).toBe(403);
+  });
+
   it('denies tenant ADMIN from changing another tenant subscription', async () => {
     const request = new NextRequest(
       `http://localhost/api/platform/subscriptions/${orgBId}`,
