@@ -864,7 +864,7 @@ export default function HomePage() {
                       <button
                         onClick={() => updateQuantity(item.variantId, item.quantity - 1, item.packaging)}
                         className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-surface-muted rounded-lg hover:bg-border text-lg md:text-xl font-bold transition-colors focus:ring-2 focus:ring-primary focus:outline-none"
-                        aria-label={`Réduire la quantité de ${item.productName}`}
+                        aria-label={`Réduire la quantité de ${item.productName} (${item.packaging})`}
                         tabIndex={0}
                       >
                         -
@@ -873,7 +873,7 @@ export default function HomePage() {
                       <button
                         onClick={() => updateQuantity(item.variantId, item.quantity + 1, item.packaging)}
                         className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-surface-muted rounded-lg hover:bg-border text-lg md:text-xl font-bold transition-colors focus:ring-2 focus:ring-primary focus:outline-none"
-                        aria-label={`Augmenter la quantité de ${item.productName}`}
+                        aria-label={`Augmenter la quantité de ${item.productName} (${item.packaging})`}
                         tabIndex={0}
                       >
                         +
