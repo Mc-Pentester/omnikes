@@ -175,6 +175,9 @@ jobs:
       - name: Run platform subscription administration end-to-end test
         run: npx playwright test e2e/platform-subscriptions.spec.ts --project=chromium
 
+      - name: Run sales report entitlement end-to-end tests
+        run: npx playwright test e2e/sales-reports-entitlements.spec.ts --project=chromium
+
       - name: Run initial organization tax configuration end-to-end test
         run: npx playwright test e2e/organization-tax-registration.spec.ts --project=chromium
 
