@@ -58,11 +58,13 @@ export function evaluateSubscriptionEntitlement(
   now: Date = new Date(),
 ): EntitlementDecision {
   const legacyEssential = subscription.subscriptionStatus === 'LEGACY';
-  const activeStatus = legacyEssential || subscription.subscriptionStatus === 'TRIAL' || subscription.subscriptionStatus === 'ACTIVE';
+  const freeLicense = subscription.subscriptionStatus === 'FREE';
+  const activeStatus = legacyEssential || freeLicense || subscription.subscriptionStatus === 'TRIAL' || subscription.subscriptionStatus === 'ACTIVE';
   const expiresAt = subscription.subscriptionExpiresAt
     ? new Date(subscription.subscriptionExpiresAt)
     : null;
-  const validUntil = legacyEssential || Boolean(expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() > now.getTime());
+  const expirationIsValid = Boolean(expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() > now.getTime());
+  const validUntil = legacyEssential || (freeLicense ? !expiresAt || expirationIsValid : expirationIsValid);
 
   // Once access expires, historical data remains readable and exportable.
   // This is a read-only exception, not permission to create or mutate records.
@@ -75,6 +77,11 @@ export function evaluateSubscriptionEntitlement(
       allowed: false,
       reason: activeStatus ? 'SUBSCRIPTION_EXPIRED' : 'SUBSCRIPTION_REQUIRED',
     };
+  }
+
+  if (freeLicense) {
+    // A platform-granted free license unlocks all registered capabilities.
+    return { allowed: true, reason: 'PLAN_INCLUDED' };
   }
 
   if (legacyEssential) {
