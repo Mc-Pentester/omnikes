@@ -79,8 +79,11 @@ export function evaluateSubscriptionEntitlement(
     };
   }
 
+  const requiredLevel = CAPABILITY_LEVEL[capability];
+  if (!requiredLevel) return { allowed: false, reason: 'CAPABILITY_NOT_INCLUDED' };
+
   if (freeLicense) {
-    // A platform-granted free license unlocks all registered capabilities.
+    // A platform-granted free license unlocks every registered capability.
     return { allowed: true, reason: 'PLAN_INCLUDED' };
   }
 
@@ -94,9 +97,6 @@ export function evaluateSubscriptionEntitlement(
   if (!isPlan(subscription.subscriptionPlan)) {
     return { allowed: false, reason: 'UNKNOWN_PLAN' };
   }
-
-  const requiredLevel = CAPABILITY_LEVEL[capability];
-  if (!requiredLevel) return { allowed: false, reason: 'CAPABILITY_NOT_INCLUDED' };
 
   if (PLAN_LEVEL[subscription.subscriptionPlan] < requiredLevel) {
     return { allowed: false, reason: 'CAPABILITY_NOT_INCLUDED' };
