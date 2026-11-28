@@ -35,7 +35,7 @@ describe('SaleService - explicit credit and completion coverage', () => {
     status: string;
     total: number;
     customerId: string | null;
-    items: Array<{ quantity: number; variant: { sku: string }; variantId: string }>;
+    items: Array<{ quantity: number; baseUnits: number; variant: { sku: string }; variantId: string }>;
     payments: Array<{ status: string; method: string; amount: number }>;
     saleCredit: { amount: number; status: string } | null;
   } = {
@@ -46,7 +46,7 @@ describe('SaleService - explicit credit and completion coverage', () => {
     status: 'PENDING',
     total: 1000,
     customerId: 'c123456789',
-    items: [{ quantity: 1, variant: { sku: 'SKU-1' }, variantId: 'variant-1' }],
+    items: [{ quantity: 1, baseUnits: 1, variant: { sku: 'SKU-1' }, variantId: 'variant-1' }],
     payments: [],
     saleCredit: null,
   };

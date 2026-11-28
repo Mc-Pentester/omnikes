@@ -30,6 +30,8 @@ interface CartItem {
   unitPrice: number;
   totalPrice: number;
   saleUnit: 'UNIT' | 'G' | 'KG' | 'LB' | 'OZ';
+  packaging: 'UNIT' | 'PACK3' | 'DOZEN' | 'CASE';
+  baseUnits: number;
 }
 
 interface Product {
@@ -42,6 +44,11 @@ interface Product {
     name: string;
     price: number;
     saleUnit: 'UNIT' | 'G' | 'KG' | 'LB' | 'OZ';
+    casePrice?: number | null;
+    dozenPrice?: number | null;
+    pack3Price?: number | null;
+    unitPrice?: number | null;
+    unitsPerCase?: number | null;
   }[];
 }
 
@@ -169,7 +176,7 @@ export default function HomePage() {
     product.variants.some(v => v.sku.toLowerCase().includes(searchTerm.toLowerCase()) || (v.barcode || '').toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const addToCart = useCallback(async (variantId: string, productId: string, productName: string, variantName: string, sku: string, price: number, saleUnit: CartItem['saleUnit'] = 'UNIT') => {
+  const addToCart = useCallback(async (variantId: string, productId: string, productName: string, variantName: string, sku: string, price: number, saleUnit: CartItem['saleUnit'] = 'UNIT', packaging: CartItem['packaging'] = 'UNIT', baseUnits = 1) => {
     // Prevent adding to cart before stores are validated
     if (!storesValidated) {
       return;
@@ -185,11 +192,11 @@ export default function HomePage() {
     }
     const quantity = isWeighted ? Math.max(1, Math.round(pendingScaleReading!.weightGrams)) : 1;
     const effectiveUnitPrice = isWeighted ? numericPrice / gramsPerSaleUnit[saleUnit] : numericPrice;
-    const existingItem = cart.find(item => item.variantId === variantId);
+    const existingItem = cart.find(item => item.variantId === variantId && item.packaging === packaging);
     
     if (existingItem) {
       setCart(cart.map(item =>
-        item.variantId === variantId
+        item.variantId === variantId && item.packaging === packaging
           ? { ...item, quantity: isWeighted ? quantity : item.quantity + 1, totalPrice: (isWeighted ? quantity : item.quantity + 1) * parseFloat(String(item.unitPrice)) }
           : item
       ));
@@ -204,6 +211,8 @@ export default function HomePage() {
         unitPrice: effectiveUnitPrice,
         totalPrice: quantity * effectiveUnitPrice,
         saleUnit,
+        packaging,
+        baseUnits,
       }]);
       if (isWeighted) setPendingScaleReading(null);
     }
@@ -403,7 +412,7 @@ export default function HomePage() {
               window.alert('Aucune variante active ne correspond à ce code-barres.');
               return;
             }
-            await addToCart(variant.id, product.id, product.name, variant.name, variant.sku, variant.price, variant.saleUnit);
+            await addToCart(variant.id, product.id, product.name, variant.name, variant.sku, (variant.unitPrice ?? variant.price), variant.saleUnit);
             setSearchTerm('');
             window.setTimeout(() => document.getElementById('product-search')?.focus(), 100);
           } catch (err) {
@@ -461,19 +470,19 @@ export default function HomePage() {
     );
   }
 
-  const removeFromCart = (variantId: string) => {
+  const removeFromCart = (variantId: string, packaging: CartItem['packaging'] = 'UNIT') => {
     setServerTotals(null);
-    setCart(cart.filter(item => item.variantId !== variantId));
+    setCart(cart.filter(item => !(item.variantId === variantId && item.packaging === packaging)));
   };
 
-  const updateQuantity = (variantId: string, quantity: number) => {
+  const updateQuantity = (variantId: string, quantity: number, packaging: CartItem['packaging'] = 'UNIT') => {
     setServerTotals(null);
     if (quantity <= 0) {
-      removeFromCart(variantId);
+      removeFromCart(variantId, packaging);
       return;
     }
     setCart(cart.map(item =>
-      item.variantId === variantId
+      item.variantId === variantId && item.packaging === packaging
         ? { ...item, quantity, totalPrice: quantity * parseFloat(String(item.unitPrice)) }
         : item
     ));
@@ -494,7 +503,7 @@ export default function HomePage() {
       body: JSON.stringify({
         applyTax,
         discount: discountValue,
-        items: cart.map((item) => ({ variantId: item.variantId, quantity: item.quantity })),
+        items: cart.map((item) => ({ variantId: item.variantId, quantity: item.quantity, packaging: item.packaging })),
       }),
     });
     if (!response.ok) {
@@ -743,7 +752,7 @@ export default function HomePage() {
                       product.name,
                       variant.name,
                       variant.sku,
-                      variant.price,
+                      (variant.unitPrice ?? variant.price),
                       variant.saleUnit
                     )}
                     role="button"
@@ -751,7 +760,7 @@ export default function HomePage() {
                     onKeyDown={(e) => {
                       if (storesValidated && (e.key === 'Enter' || e.key === ' ')) {
                         e.preventDefault();
-                        addToCart(variant.id, product.id, product.name, variant.name, variant.sku, variant.price, variant.saleUnit);
+                        addToCart(variant.id, product.id, product.name, variant.name, variant.sku, (variant.unitPrice ?? variant.price), variant.saleUnit);
                       }
                     }}
                     aria-label={`Ajouter ${product.name} - ${variant.name} au panier`}
@@ -761,7 +770,14 @@ export default function HomePage() {
                       <p className="text-sm text-[var(--muted)]">{variant.name}</p>
                       <p className="text-xs text-[var(--muted)] mt-1">SKU: {variant.sku}</p>{variant.barcode && <p className="text-xs text-[var(--muted)]">Code-barres: {variant.barcode}</p>}
                     </div>
-                    <p className="text-lg font-bold text-[var(--primary)] mt-3">{parseFloat(String(variant.price)).toFixed(2)} HTG</p>
+                    <p className="text-lg font-bold text-[var(--primary)] mt-3">{parseFloat(String(variant.unitPrice ?? variant.price)).toFixed(2)} HTG / unité</p>
+                    {variant.saleUnit === 'UNIT' && (variant.pack3Price != null || variant.dozenPrice != null || variant.casePrice != null) && (
+                      <div className="mt-3 grid grid-cols-2 gap-2" onClick={(event) => event.stopPropagation()}>
+                        {variant.pack3Price != null && <button type="button" className="rounded border border-border px-2 py-2 text-xs font-semibold" onClick={(event) => { event.stopPropagation(); void addToCart(variant.id, product.id, product.name, variant.name, variant.sku, Number(variant.pack3Price), variant.saleUnit, 'PACK3', 3); }}>Lot de 3 · {Number(variant.pack3Price).toFixed(2)}</button>}
+                        {variant.dozenPrice != null && <button type="button" className="rounded border border-border px-2 py-2 text-xs font-semibold" onClick={(event) => { event.stopPropagation(); void addToCart(variant.id, product.id, product.name, variant.name, variant.sku, Number(variant.dozenPrice), variant.saleUnit, 'DOZEN', 12); }}>Douzaine · {Number(variant.dozenPrice).toFixed(2)}</button>}
+                        {variant.casePrice != null && Number(variant.unitsPerCase) > 0 && <button type="button" className="rounded border border-border px-2 py-2 text-xs font-semibold" onClick={(event) => { event.stopPropagation(); void addToCart(variant.id, product.id, product.name, variant.name, variant.sku, Number(variant.casePrice), variant.saleUnit, 'CASE', Number(variant.unitsPerCase)); }}>Caisse ({variant.unitsPerCase}) · {Number(variant.casePrice).toFixed(2)}</button>}
+                      </div>
+                    )}
                   </Card>
                 ))
               )}
@@ -781,17 +797,18 @@ export default function HomePage() {
             ) : (
               <div className="space-y-3 md:space-y-4">
                 {cart.map(item => (
-                  <div key={item.variantId} className="flex items-center justify-between gap-2 p-3 md:p-4 bg-[var(--surface-muted)] border border-[var(--border)] rounded-[var(--radius-md)]">
+                  <div key={`${item.variantId}:${item.packaging}`} className="flex items-center justify-between gap-2 p-3 md:p-4 bg-[var(--surface-muted)] border border-[var(--border)] rounded-[var(--radius-md)]">
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium text-foreground text-sm md:text-base truncate">{item.productName}</h4>
                       <p className="text-xs md:text-sm text-muted truncate">{item.variantName}</p>
                       <p className="text-xs text-muted">{item.sku}</p>
+                      <p className="text-xs font-semibold text-primary">{item.packaging === 'CASE' ? `Caisse (${item.baseUnits} unités)` : item.packaging === 'DOZEN' ? 'Douzaine' : item.packaging === 'PACK3' ? 'Lot de 3' : 'Unité'}</p>
                       <p className="text-sm font-medium text-foreground">{(item.unitPrice * SALE_UNIT_TO_GRAMS[item.saleUnit]).toFixed(2)} HTG/{item.saleUnit === 'UNIT' ? 'unité' : item.saleUnit}</p>
                     </div>
                     
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button
-                        onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
+                        onClick={() => updateQuantity(item.variantId, item.quantity - 1, item.packaging)}
                         className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-surface-muted rounded-lg hover:bg-border text-lg md:text-xl font-bold transition-colors focus:ring-2 focus:ring-primary focus:outline-none"
                         aria-label={`Réduire la quantité de ${item.productName}`}
                         tabIndex={0}
@@ -806,7 +823,7 @@ export default function HomePage() {
                       </button>
                       <span className="w-16 md:w-20 text-center font-medium text-base md:text-lg" aria-live="polite">{formatCartQuantity(item.quantity, item.saleUnit)}</span>
                       <button
-                        onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
+                        onClick={() => updateQuantity(item.variantId, item.quantity + 1, item.packaging)}
                         className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-surface-muted rounded-lg hover:bg-border text-lg md:text-xl font-bold transition-colors focus:ring-2 focus:ring-primary focus:outline-none"
                         aria-label={`Augmenter la quantité de ${item.productName}`}
                         tabIndex={0}
@@ -824,14 +841,14 @@ export default function HomePage() {
                     <div className="ml-2 md:ml-4 text-right flex-shrink-0">
                       <p className="font-bold text-foreground text-base md:text-lg">{parseFloat(String(item.totalPrice)).toFixed(2)} HTG</p>
                       <button
-                        onClick={() => removeFromCart(item.variantId)}
+                        onClick={() => removeFromCart(item.variantId, item.packaging)}
                         className="text-xs md:text-sm text-danger hover:text-danger font-medium py-1 px-2 rounded hover:bg-danger-soft transition-colors focus:ring-2 focus:ring-danger focus:outline-none"
                         aria-label={`Supprimer ${item.productName} du panier`}
                         tabIndex={0}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            removeFromCart(item.variantId);
+                            removeFromCart(item.variantId, item.packaging);
                           }
                         }}
                       >

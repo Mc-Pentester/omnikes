@@ -155,7 +155,7 @@ export class ReturnService {
         await updateInventoryQuantity(
           tx,
           inventory.id,
-          inventory.quantity + itemData.quantity,
+          inventory.quantity + itemData.quantity * saleItem.baseUnits,
         );
 
         // Record inventory movement
@@ -163,7 +163,7 @@ export class ReturnService {
           data: {
             inventoryId: inventory.id,
             type: 'RETURN',
-            quantity: itemData.quantity,
+            quantity: itemData.quantity * saleItem.baseUnits,
             referenceId: validatedData.saleId,
             referenceType: 'SALE',
             notes: `Return for sale ${sale.orderNumber}`,

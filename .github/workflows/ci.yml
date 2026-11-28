@@ -5,7 +5,7 @@ on:
     branches: [ main, develop, feature/windows-webview2-desktop, feat/organization-tax-webview-print, feat/customer-credit-approval ]
   pull_request:
     # Include the stacked installer-feature branch so PRs targeting it receive full CI.
-    branches: [ main, develop, feat/omnikes-installer-license-acceptance, feat/organization-tax-webview-print ]
+    branches: [ main, develop, feat/omnikes-installer-license-acceptance, feat/organization-tax-webview-print, feat/pos-multi-packaging-sales ]
 
 jobs:
   validate:
@@ -165,6 +165,12 @@ jobs:
           E2E_EMAIL: admin.a@omnikes.test
           E2E_PASSWORD: ${{ env.SEED_PASSWORD_A }}
         run: npx playwright test e2e/barcode-workflow.spec.ts --project=chromium
+
+      - name: Run POS multi-packaging end-to-end test
+        env:
+          E2E_EMAIL: admin.a@omnikes.test
+          E2E_PASSWORD: ${{ env.SEED_PASSWORD_A }}
+        run: npx playwright test e2e/pos-packaging.spec.ts --project=chromium
 
       - name: Run platform subscription administration end-to-end test
         run: npx playwright test e2e/platform-subscriptions.spec.ts --project=chromium

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@omnikes/lib/auth';
 import { roleRepository } from '@omnikes/repositories/role.repository';
 import { errorLogger } from '@omnikes/lib/error-logger';
+import { prisma } from '@omnikes/lib/prisma';
 
 /**
  * GET /api/auth/me
@@ -17,6 +18,11 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    const organization = await prisma.organization.findUnique({ where: { id: user.organizationId }, select: { currency: true, currencySymbol: true } });
+    const currency = organization?.currency || 'USD';
+    const currencyDefinition = await prisma.currency.findUnique({ where: { code: currency }, select: { symbol: true } });
+    const currencySymbol = organization?.currencySymbol?.trim() || currencyDefinition?.symbol || currency;
 
     const [
       canManageUsers,
@@ -59,6 +65,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       user: {
         ...user,
+        currency,
+        currencySymbol,
         canManageUsers,
         canManageStores,
         canManageRoles,

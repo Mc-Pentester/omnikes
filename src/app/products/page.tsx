@@ -28,6 +28,11 @@ interface ProductVariant {
   price: number;
   cost: number;
   stock: number;
+  casePrice?: number | null;
+  dozenPrice?: number | null;
+  pack3Price?: number | null;
+  unitPrice?: number | null;
+  unitsPerCase?: number | null;
 }
 
 interface ProductFormData {
@@ -38,11 +43,16 @@ interface ProductFormData {
   barcode: string;
   price: string;
   cost: string;
+  casePrice: string;
+  dozenPrice: string;
+  pack3Price: string;
+  unitsPerCase: string;
 }
 
 export default function ProductsPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const currencyLabel = user?.currencySymbol || user?.currency || 'USD';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -58,6 +68,10 @@ export default function ProductsPage() {
     barcode: '',
     price: '',
     cost: '',
+    casePrice: '',
+    dozenPrice: '',
+    pack3Price: '',
+    unitsPerCase: '1',
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -133,6 +147,10 @@ export default function ProductsPage() {
       barcode: '',
       price: '',
       cost: '',
+      casePrice: '',
+      dozenPrice: '',
+      pack3Price: '',
+      unitsPerCase: '1',
     });
     setFormError(null);
     setShowModal(true);
@@ -148,8 +166,12 @@ export default function ProductsPage() {
       category: product.category || '',
       sku: product.variants[0]?.sku || '',
       barcode: product.variants[0]?.barcode || '',
-      price: product.variants[0]?.price?.toString() || '',
+      price: product.variants[0]?.unitPrice?.toString() || product.variants[0]?.price?.toString() || '',
       cost: product.variants[0]?.cost?.toString() || '0',
+      casePrice: product.variants[0]?.casePrice?.toString() || '',
+      dozenPrice: product.variants[0]?.dozenPrice?.toString() || '',
+      pack3Price: product.variants[0]?.pack3Price?.toString() || '',
+      unitsPerCase: product.variants[0]?.unitsPerCase?.toString() || '1',
     });
     setFormError(null);
     setShowModal(true);
@@ -273,6 +295,11 @@ export default function ProductsPage() {
                 barcode: formData.barcode.trim() || undefined,
                 price: parseFloat(formData.price),
                 cost: parseFloat(formData.cost),
+                unitPrice: parseFloat(formData.price),
+                casePrice: formData.casePrice.trim() ? Number(formData.casePrice) : undefined,
+                dozenPrice: formData.dozenPrice.trim() ? Number(formData.dozenPrice) : undefined,
+                pack3Price: formData.pack3Price.trim() ? Number(formData.pack3Price) : undefined,
+                unitsPerCase: Number(formData.unitsPerCase || 1),
               }
             ],
             ...(requestedInitialStock > 0
@@ -287,6 +314,11 @@ export default function ProductsPage() {
             barcode: formData.barcode.trim(),
             price: parseFloat(formData.price),
             cost: parseFloat(formData.cost),
+            unitPrice: parseFloat(formData.price),
+            casePrice: formData.casePrice.trim() ? Number(formData.casePrice) : undefined,
+            dozenPrice: formData.dozenPrice.trim() ? Number(formData.dozenPrice) : undefined,
+            pack3Price: formData.pack3Price.trim() ? Number(formData.pack3Price) : undefined,
+            unitsPerCase: Number(formData.unitsPerCase || 1),
           };
 
       const response = await fetch(url, {
@@ -433,10 +465,10 @@ export default function ProductsPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{product.category || '-'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{product.variants[0]?.sku || '-'}<span className="block text-xs">{product.variants[0]?.barcode || 'Sans code-barres'}</span></td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
-                          {product.variants[0]?.price != null ? `${parseFloat(String(product.variants[0].price)).toFixed(2)} HTG` : '-'}
+                          {(product.variants[0]?.unitPrice ?? product.variants[0]?.price) != null ? `${parseFloat(String(product.variants[0].unitPrice ?? product.variants[0].price)).toFixed(2)} ${currencyLabel}` : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
-                          {product.variants[0]?.cost != null ? `${parseFloat(String(product.variants[0].cost)).toFixed(2)} HTG` : '-'}
+                          {product.variants[0]?.cost != null ? `${parseFloat(String(product.variants[0].cost)).toFixed(2)} ${currencyLabel}` : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                           <span className={`font-semibold ${product.variants[0]?.stock === 0 ? 'text-danger' : (product.variants[0]?.stock ?? 0) < 5 ? 'text-warning' : 'text-success'}`}>
@@ -603,7 +635,7 @@ export default function ProductsPage() {
               </div>
               <div>
                 <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">
-                  Prix de vente (HTG) *
+                  Prix de vente ({currencyLabel}) *
                 </label>
                 <Input
                   id="price"
@@ -616,7 +648,7 @@ export default function ProductsPage() {
                 />
               </div>
               <div>
-                <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">Coût d’acquisition unitaire (HTG) *</label>
+                <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">Coût d’acquisition unitaire ({currencyLabel}) *</label>
                 <Input id="cost" type="number" min="0" step="0.01" value={formData.cost} onChange={(e) => setFormData({ ...formData, cost: e.target.value })} placeholder="0.00" required />
                 <p className="mt-1 text-xs text-muted">Ce coût sert au calcul de la valeur du stock (quantité × coût unitaire).</p>
               </div>
@@ -648,7 +680,7 @@ export default function ProductsPage() {
               <select id="barcode-variant" value={selectedVariantId} onChange={(e) => {
                 const variant = selectedProduct.variants.find((item) => item.id === e.target.value);
                 setSelectedVariantId(e.target.value);
-                setFormData((current) => ({ ...current, barcode: variant?.barcode || '', price: variant?.price?.toString() || '', cost: variant?.cost?.toString() || '0' }));
+                setFormData((current) => ({ ...current, barcode: variant?.barcode || '', price: variant?.unitPrice?.toString() || variant?.price?.toString() || '', cost: variant?.cost?.toString() || '0', casePrice: variant?.casePrice?.toString() || '', dozenPrice: variant?.dozenPrice?.toString() || '', pack3Price: variant?.pack3Price?.toString() || '', unitsPerCase: variant?.unitsPerCase?.toString() || '1' }));
               }} className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground">
                 {selectedProduct.variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.sku}</option>)}
               </select>
@@ -658,17 +690,37 @@ export default function ProductsPage() {
             <div className="rounded-lg border border-border bg-surface-muted p-3 space-y-3">
               <p className="text-sm font-semibold text-foreground">Prix du produit</p>
               <div>
-                <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">Prix de vente (HTG) *</label>
+                <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">Prix de vente ({currencyLabel}) *</label>
                 <Input id="price" type="number" min="0" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="100.00" required />
                 <p className="mt-1 text-xs text-muted">Prix appliqué aux prochaines ventes.</p>
               </div>
               <div>
-                <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">Coût d’acquisition unitaire (HTG) *</label>
+                <label htmlFor="cost" className="block text-sm font-medium text-foreground mb-1">Coût d’acquisition unitaire ({currencyLabel}) *</label>
                 <Input id="cost" type="number" min="0" step="0.01" value={formData.cost} onChange={(e) => setFormData({ ...formData, cost: e.target.value })} placeholder="0.00" required />
                 <p className="mt-1 text-xs text-muted">Utilisé pour calculer la valeur du stock, jamais le prix de vente.</p>
               </div>
             </div>
           )}
+          <div className="rounded-lg border border-border bg-surface-muted p-3 space-y-3">
+            <p className="text-sm font-semibold text-foreground">Prix par conditionnement</p>
+            <p className="text-xs text-muted">Le stock reste compté en unités de base. Laissez un prix vide pour désactiver ce conditionnement.</p>
+            <div>
+              <label htmlFor="pack3-price" className="block text-sm font-medium text-foreground mb-1">Lot de 3 ({currencyLabel})</label>
+              <Input id="pack3-price" type="number" min="0" step="0.01" value={formData.pack3Price} onChange={(e) => setFormData({ ...formData, pack3Price: e.target.value })} placeholder="Prix du lot de 3" />
+            </div>
+            <div>
+              <label htmlFor="dozen-price" className="block text-sm font-medium text-foreground mb-1">Douzaine ({currencyLabel})</label>
+              <Input id="dozen-price" type="number" min="0" step="0.01" value={formData.dozenPrice} onChange={(e) => setFormData({ ...formData, dozenPrice: e.target.value })} placeholder="Prix de la douzaine" />
+            </div>
+            <div>
+              <label htmlFor="units-per-case" className="block text-sm font-medium text-foreground mb-1">Unités par caisse</label>
+              <Input id="units-per-case" type="number" min="1" step="1" value={formData.unitsPerCase} onChange={(e) => setFormData({ ...formData, unitsPerCase: e.target.value })} />
+            </div>
+            <div>
+              <label htmlFor="case-price" className="block text-sm font-medium text-foreground mb-1">Prix de la caisse ({currencyLabel})</label>
+              <Input id="case-price" type="number" min="0" step="0.01" value={formData.casePrice} onChange={(e) => setFormData({ ...formData, casePrice: e.target.value })} placeholder="Prix de la caisse" />
+            </div>
+          </div>
           {modalMode === 'edit' && selectedProduct && (
             <div className="rounded-lg border border-border p-3 space-y-2">
               <div className="flex items-center justify-between gap-3">

@@ -292,15 +292,16 @@ export async function POST(
         const currentInventory = inventory[0];
         const available = currentInventory.quantity - currentInventory.reservedQuantity;
 
-        if (available < item.quantity) {
-          throw new Error(`Insufficient stock for ${item.variant.sku}. Available: ${available}, Required: ${item.quantity}`);
+        const requiredBaseUnits = item.quantity * item.baseUnits;
+        if (available < requiredBaseUnits) {
+          throw new Error(`Insufficient stock for ${item.variant.sku}. Available: ${available}, Required: ${requiredBaseUnits}`);
         }
 
         // Deduct stock
         await updateInventoryQuantity(
           tx,
           currentInventory.id,
-          currentInventory.quantity - item.quantity,
+          currentInventory.quantity - requiredBaseUnits,
         );
 
         // Create SALE movement
@@ -308,7 +309,7 @@ export async function POST(
           data: {
             inventoryId: currentInventory.id,
             type: 'SALE',
-            quantity: item.quantity,
+            quantity: requiredBaseUnits,
             referenceId: checkoutSaleId,
             referenceType: 'SALE',
             notes: `Sale ${sale.orderNumber}`,

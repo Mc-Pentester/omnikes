@@ -7,7 +7,8 @@ describe('SaleService - Financial authority at creation', () => {
     (storeService.validateStoreBelongsToOrganization as any).mockResolvedValue(undefined);
     (prisma.organization.findUnique as any).mockResolvedValue({
       id: 'corg1234567',
-      taxEnabled: true, taxRate: 0.10 ,
+      taxEnabled: true, taxRate: 0.10,
+      currency: 'HTG', currencySymbol: 'G',
     });
     (saleRepository.create as any).mockResolvedValue({ id: 'sale-123' });
 
@@ -31,6 +32,8 @@ describe('SaleService - Financial authority at creation', () => {
       taxRate: 0.10,
       total: 0,
       applyTax: true,
+      currencyCode: 'HTG',
+      currencySymbol: 'G',
     }));
   });
 });
@@ -50,6 +53,9 @@ vi.mock('@omnikes/lib/prisma', () => ({
       findFirst: vi.fn(),
     },
     organization: {
+      findUnique: vi.fn(),
+    },
+    currency: {
       findUnique: vi.fn(),
     },
     customer: {
