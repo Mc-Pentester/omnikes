@@ -79,6 +79,8 @@ describe('evaluateSubscriptionEntitlement', () => {
       .toEqual({ allowed: true, reason: 'PLAN_INCLUDED' });
     expect(evaluateSubscriptionEntitlement(free, 'data.export', 'EXPORT', now))
       .toEqual({ allowed: true, reason: 'PLAN_INCLUDED' });
+    expect(evaluateSubscriptionEntitlement(free, 'unregistered.feature' as never, 'WRITE', now))
+      .toEqual({ allowed: false, reason: 'CAPABILITY_NOT_INCLUDED' });
   });
 
   it('expires a time-limited free license while retaining historical reads', () => {
