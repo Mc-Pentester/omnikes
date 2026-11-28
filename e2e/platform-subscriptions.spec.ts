@@ -113,7 +113,7 @@ test.describe('Platform subscription administration', () => {
 
     await expect(page.getByText('Licence gratuite accordée. Les droits sont actifs sans paiement.', { exact: true })).toBeVisible();
     await expect(page.locator('dd').filter({ hasText: 'FREE' }).first()).toBeVisible();
-    await expect(page.getByText('Partenaire pilote OmniKes', { exact: true })).toBeVisible();
+    await expect(page.locator('dd').filter({ hasText: 'Partenaire pilote OmniKes' })).toBeVisible();
 
     await page.getByRole('button', { name: /révoquer la licence gratuite/i }).click();
     await expect(page.getByText('Licence gratuite révoquée. Les données historiques restent consultables.', { exact: true })).toBeVisible();
