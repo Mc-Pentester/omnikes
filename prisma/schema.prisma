@@ -33,6 +33,9 @@ model Organization {
   subscriptionCancelAtPeriodEnd Boolean   @default(false)
   subscriptionPendingPlan String?
   subscriptionPendingBillingInterval String?
+  freeLicenseReason String?
+  freeLicenseGrantedAt DateTime?
+  freeLicenseGrantedBy String?
 
   // Configuration flags
   cloudEnabled       Boolean @default(false)

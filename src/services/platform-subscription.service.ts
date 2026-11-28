@@ -39,6 +39,9 @@ export class PlatformSubscriptionService {
         subscriptionCancelAtPeriodEnd: true,
         subscriptionPendingPlan: true,
         subscriptionPendingBillingInterval: true,
+        freeLicenseReason: true,
+        freeLicenseGrantedAt: true,
+        freeLicenseGrantedBy: true,
       },
       orderBy: { name: 'asc' },
     });
@@ -64,6 +67,9 @@ export class PlatformSubscriptionService {
         subscriptionCancelAtPeriodEnd: true,
         subscriptionPendingPlan: true,
         subscriptionPendingBillingInterval: true,
+        freeLicenseReason: true,
+        freeLicenseGrantedAt: true,
+        freeLicenseGrantedBy: true,
       },
     });
 
@@ -93,6 +99,9 @@ export class PlatformSubscriptionService {
         subscriptionCancelAtPeriodEnd: true,
         subscriptionPendingPlan: true,
         subscriptionPendingBillingInterval: true,
+        freeLicenseReason: true,
+        freeLicenseGrantedAt: true,
+        freeLicenseGrantedBy: true,
       },
     });
 
@@ -111,9 +120,36 @@ export class PlatformSubscriptionService {
         subscriptionCancelAtPeriodEnd: false,
         subscriptionPendingPlan: null,
         subscriptionPendingBillingInterval: null,
+        freeLicenseReason: null,
+        freeLicenseGrantedAt: null,
+        freeLicenseGrantedBy: null,
       };
     } else if (data.action === 'CANCEL') {
       next = { subscriptionCancelAtPeriodEnd: true };
+    } else if (data.action === 'GRANT_FREE') {
+      next = {
+        subscriptionStatus: 'FREE',
+        subscriptionPlan: null,
+        subscriptionBillingInterval: null,
+        subscriptionExpiresAt: data.expiresAt ? parseExpirationDate(data.expiresAt) : null,
+        subscriptionCancelAtPeriodEnd: false,
+        subscriptionPendingPlan: null,
+        subscriptionPendingBillingInterval: null,
+        freeLicenseReason: data.reason,
+        freeLicenseGrantedAt: new Date(),
+        freeLicenseGrantedBy: actorUserId,
+      };
+    } else if (data.action === 'REVOKE_FREE') {
+      if (existing.subscriptionStatus !== 'FREE') {
+        throw new Error('Only a free license can be revoked');
+      }
+      next = {
+        subscriptionStatus: 'EXPIRED',
+        subscriptionExpiresAt: new Date(),
+        freeLicenseReason: null,
+        freeLicenseGrantedAt: null,
+        freeLicenseGrantedBy: null,
+      };
     } else {
       if (!existing.subscriptionPlan || !(existing.subscriptionPlan in PLAN_LEVEL)) {
         throw new Error('Current subscription plan is unknown; renew it before changing plans');
@@ -146,6 +182,9 @@ export class PlatformSubscriptionService {
           subscriptionCancelAtPeriodEnd: true,
         subscriptionPendingPlan: true,
         subscriptionPendingBillingInterval: true,
+        freeLicenseReason: true,
+        freeLicenseGrantedAt: true,
+        freeLicenseGrantedBy: true,
         },
       });
 
@@ -157,7 +196,11 @@ export class PlatformSubscriptionService {
             ? 'ORGANIZATION_SUBSCRIPTION_ACTIVATED'
             : data.action === 'CANCEL'
               ? 'ORGANIZATION_SUBSCRIPTION_CANCELLATION_SCHEDULED'
-              : 'ORGANIZATION_SUBSCRIPTION_PLAN_CHANGED_OR_SCHEDULED',
+              : data.action === 'GRANT_FREE'
+                ? 'ORGANIZATION_FREE_LICENSE_GRANTED'
+                : data.action === 'REVOKE_FREE'
+                  ? 'ORGANIZATION_FREE_LICENSE_REVOKED'
+                  : 'ORGANIZATION_SUBSCRIPTION_PLAN_CHANGED_OR_SCHEDULED',
           module: 'subscription',
           entityId: organizationId,
           entityType: 'Organization',
@@ -169,6 +212,9 @@ export class PlatformSubscriptionService {
             subscriptionCancelAtPeriodEnd: existing.subscriptionCancelAtPeriodEnd,
             subscriptionPendingPlan: existing.subscriptionPendingPlan,
             subscriptionPendingBillingInterval: existing.subscriptionPendingBillingInterval,
+            freeLicenseReason: existing.freeLicenseReason,
+            freeLicenseGrantedAt: existing.freeLicenseGrantedAt,
+            freeLicenseGrantedBy: existing.freeLicenseGrantedBy,
           },
           newValues: {
             subscriptionStatus: organization.subscriptionStatus,
@@ -178,6 +224,9 @@ export class PlatformSubscriptionService {
             subscriptionCancelAtPeriodEnd: organization.subscriptionCancelAtPeriodEnd,
             subscriptionPendingPlan: organization.subscriptionPendingPlan,
             subscriptionPendingBillingInterval: organization.subscriptionPendingBillingInterval,
+            freeLicenseReason: organization.freeLicenseReason,
+            freeLicenseGrantedAt: organization.freeLicenseGrantedAt,
+            freeLicenseGrantedBy: organization.freeLicenseGrantedBy,
           },
           metadata: {
             authorizationScope: 'PLATFORM',

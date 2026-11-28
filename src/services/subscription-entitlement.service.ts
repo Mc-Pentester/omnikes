@@ -58,13 +58,16 @@ export function evaluateSubscriptionEntitlement(
   now: Date = new Date(),
 ): EntitlementDecision {
   const legacyEssential = subscription.subscriptionStatus === 'LEGACY';
-  const activeStatus = legacyEssential || subscription.subscriptionStatus === 'TRIAL' || subscription.subscriptionStatus === 'ACTIVE';
+  const freeLicense = subscription.subscriptionStatus === 'FREE';
+  const activeStatus = legacyEssential || freeLicense || subscription.subscriptionStatus === 'TRIAL' || subscription.subscriptionStatus === 'ACTIVE';
+  const explicitlyExpired = subscription.subscriptionStatus === 'EXPIRED';
   const expiresAt = subscription.subscriptionExpiresAt
     ? new Date(subscription.subscriptionExpiresAt)
     : null;
-  const validUntil = legacyEssential || Boolean(expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() > now.getTime());
+  const expirationIsValid = Boolean(expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() > now.getTime());
+  const validUntil = legacyEssential || (freeLicense ? !expiresAt || expirationIsValid : expirationIsValid);
 
-  // Once access expires, historical data remains readable and exportable.
+  // Once access expires or is revoked, historical data remains readable and exportable.
   // This is a read-only exception, not permission to create or mutate records.
   if (!activeStatus || !validUntil) {
     if (operation === 'READ') return { allowed: true, reason: 'HISTORICAL_READ_ONLY' };
@@ -73,8 +76,16 @@ export function evaluateSubscriptionEntitlement(
     }
     return {
       allowed: false,
-      reason: activeStatus ? 'SUBSCRIPTION_EXPIRED' : 'SUBSCRIPTION_REQUIRED',
+      reason: activeStatus || explicitlyExpired ? 'SUBSCRIPTION_EXPIRED' : 'SUBSCRIPTION_REQUIRED',
     };
+  }
+
+  const requiredLevel = CAPABILITY_LEVEL[capability];
+  if (!requiredLevel) return { allowed: false, reason: 'CAPABILITY_NOT_INCLUDED' };
+
+  if (freeLicense) {
+    // A platform-granted free license unlocks every registered capability.
+    return { allowed: true, reason: 'PLAN_INCLUDED' };
   }
 
   if (legacyEssential) {
@@ -87,9 +98,6 @@ export function evaluateSubscriptionEntitlement(
   if (!isPlan(subscription.subscriptionPlan)) {
     return { allowed: false, reason: 'UNKNOWN_PLAN' };
   }
-
-  const requiredLevel = CAPABILITY_LEVEL[capability];
-  if (!requiredLevel) return { allowed: false, reason: 'CAPABILITY_NOT_INCLUDED' };
 
   if (PLAN_LEVEL[subscription.subscriptionPlan] < requiredLevel) {
     return { allowed: false, reason: 'CAPABILITY_NOT_INCLUDED' };

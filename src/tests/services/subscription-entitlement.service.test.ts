@@ -67,4 +67,32 @@ describe('evaluateSubscriptionEntitlement', () => {
     expect(evaluateSubscriptionEntitlement(active('OMNIKES_299'), 'unregistered.feature' as never, 'WRITE', now))
       .toEqual({ allowed: false, reason: 'CAPABILITY_NOT_INCLUDED' });
   });
+  it('grants all registered capabilities through a perpetual free license', () => {
+    const free: SubscriptionSnapshot = {
+      subscriptionStatus: 'FREE',
+      subscriptionPlan: null,
+      subscriptionExpiresAt: null,
+    };
+    expect(evaluateSubscriptionEntitlement(free, 'pos.sales', 'WRITE', now))
+      .toEqual({ allowed: true, reason: 'PLAN_INCLUDED' });
+    expect(evaluateSubscriptionEntitlement(free, 'analytics.consolidated', 'WRITE', now))
+      .toEqual({ allowed: true, reason: 'PLAN_INCLUDED' });
+    expect(evaluateSubscriptionEntitlement(free, 'data.export', 'EXPORT', now))
+      .toEqual({ allowed: true, reason: 'PLAN_INCLUDED' });
+    expect(evaluateSubscriptionEntitlement(free, 'unregistered.feature' as never, 'WRITE', now))
+      .toEqual({ allowed: false, reason: 'CAPABILITY_NOT_INCLUDED' });
+  });
+
+  it('expires a time-limited free license while retaining historical reads', () => {
+    const free: SubscriptionSnapshot = {
+      subscriptionStatus: 'FREE',
+      subscriptionPlan: null,
+      subscriptionExpiresAt: new Date('2029-11-30T23:59:59.999Z'),
+    };
+    expect(evaluateSubscriptionEntitlement(free, 'pos.sales', 'WRITE', now))
+      .toEqual({ allowed: false, reason: 'SUBSCRIPTION_EXPIRED' });
+    expect(evaluateSubscriptionEntitlement(free, 'data.read', 'READ', now))
+      .toEqual({ allowed: true, reason: 'HISTORICAL_READ_ONLY' });
+  });
+
 });
