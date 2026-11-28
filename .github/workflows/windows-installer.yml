@@ -266,12 +266,16 @@ jobs:
             Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "## Workflow artifacts`n`nInstaller and lifecycle diagnostics were uploaded successfully."
           }
 
-      - name: Publish installer and SHA-256 to GitHub Release
+      - name: Publish installer and SHA-256 to public distribution repository
         shell: powershell
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
           $tag = $env:RELEASE_TAG
+          $releaseRepo = "Mc-Pentester/omnikes-releases"
+          if (-not $env:GH_TOKEN) {
+            throw "RELEASES_TOKEN is required to publish to $releaseRepo."
+          }
           $installer = Get-ChildItem "dist\installer\OmniKes-Setup-*-x64.exe" -File | Select-Object -First 1
           if (-not $installer -or $installer.Length -le 0) {
             throw "A non-empty Windows installer is required before publishing."
@@ -281,35 +285,32 @@ jobs:
           $checksumPath = "$($installer.FullName).sha256"
           "$hash  $($installer.Name)" | Set-Content -LiteralPath $checksumPath -Encoding ascii
 
-          # gh release list only accepts fields supported by the installed gh CLI.
-          # In particular, "url" is not a valid JSON field and makes the command fail.
-          $releasesJson = gh release list --limit 100 --json tagName,isDraft
-          if ($LASTEXITCODE -ne 0) { throw "Could not list GitHub Releases." }
+          $releasesJson = gh release list --repo $releaseRepo --limit 100 --json tagName,isDraft
+          if ($LASTEXITCODE -ne 0) { throw "Could not list releases in $releaseRepo." }
           $releases = @($releasesJson | ConvertFrom-Json)
           $release = $releases | Where-Object { $_.tagName -eq $tag } | Select-Object -First 1
           $publishAfterUpload = $false
 
           if (-not $release) {
-            gh release create $tag --draft --title "OmniKes $tag" --generate-notes --verify-tag
-            if ($LASTEXITCODE -ne 0) { throw "Could not create draft GitHub Release '$tag'." }
+            # The distribution repository contains no application source. Its
+            # release tag is created on its README-only main branch.
+            gh release create $tag --repo $releaseRepo --target main --draft --title "OmniKes $tag" --generate-notes
+            if ($LASTEXITCODE -ne 0) { throw "Could not create draft release '$tag' in $releaseRepo." }
             $publishAfterUpload = $true
           } elseif ($release.isDraft) {
-            # Complete an existing draft after its assets have been uploaded.
             $publishAfterUpload = $true
           } else {
-            # A published release with no assets (such as v1.0.1) can safely
-            # receive the installer and checksum without being unpublished.
-            Write-Host "Release '$tag' is already published; attaching installer assets."
+            Write-Host "Release '$tag' already exists in $releaseRepo; attaching installer assets."
           }
 
-          gh release upload $tag $installer.FullName $checksumPath --clobber
-          if ($LASTEXITCODE -ne 0) { throw "Could not upload installer assets to release '$tag'." }
+          gh release upload $tag $installer.FullName $checksumPath --repo $releaseRepo --clobber
+          if ($LASTEXITCODE -ne 0) { throw "Could not upload installer assets to $releaseRepo release '$tag'." }
 
           if ($publishAfterUpload) {
-            gh release edit $tag --draft=false --title "OmniKes $tag"
-            if ($LASTEXITCODE -ne 0) { throw "Assets were uploaded, but GitHub could not publish release '$tag'. Inspect the draft before retrying." }
+            gh release edit $tag --repo $releaseRepo --draft=false --title "OmniKes $tag"
+            if ($LASTEXITCODE -ne 0) { throw "Assets uploaded, but release '$tag' could not be published. Inspect the draft before retrying." }
           }
 
-          Write-Host "Release updated: https://github.com/Mc-Pentester/omnikes/releases/tag/$tag"
+          Write-Host "Public release: https://github.com/$releaseRepo/releases/tag/$tag"
           Write-Host "Installer: $($installer.Name)"
           Write-Host "SHA-256: $hash"
