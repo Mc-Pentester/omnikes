@@ -205,7 +205,7 @@ export default function ReturnsPage() {
             ) : (
               <div className="divide-y divide-border">
                 {sales.map((sale) => {
-                  const remainingUnits = sale.items.reduce((sum, item) => sum + Math.max(0, item.quantity - (item.returnedQuantity || 0)), 0);
+                  const remainingUnits = sale.items.reduce((sum, item) => sum + Math.max(0, item.quantity - (item.returnedQuantity || 0)) * (item.baseUnits || 1), 0);
                   return (
                     <div key={sale.id} className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0">
@@ -235,16 +235,20 @@ export default function ReturnsPage() {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[620px] text-sm">
-                  <thead><tr className="border-b border-border text-left text-muted"><th className="py-2 pr-3">Article / SKU</th><th className="py-2 pr-3">Vendu</th><th className="py-2 pr-3">Déjà retourné</th><th className="py-2 pr-3">Disponible</th><th className="py-2">Quantité à retourner</th></tr></thead>
+                  <thead><tr className="border-b border-border text-left text-muted"><th className="py-2 pr-3">Article / SKU</th><th className="py-2 pr-3">Vendu</th><th className="py-2 pr-3">Déjà retourné</th><th className="py-2 pr-3">Disponible</th><th className="py-2">Conditionnements à retourner</th></tr></thead>
                   <tbody>
                     {selectedSale.items.map((item) => {
                       const available = item.quantity - (item.returnedQuantity || 0);
                       return <tr key={item.id} className="border-b border-border last:border-0">
-                        <td className="py-3 pr-3"><p className="font-medium">{item.variant.product.name}</p><p className="text-xs text-muted">{item.variant.sku}</p></td>
-                        <td className="py-3 pr-3">{item.quantity}</td>
+                        <td className="py-3 pr-3">
+                          <p className="font-medium">{item.variant.product.name}</p>
+                          <p className="text-xs text-muted">{item.variant.sku}</p>
+                          <p className="text-xs font-semibold text-primary">{item.packaging === 'CASE' ? `Caisse (${item.baseUnits || 1} unités)` : item.packaging === 'DOZEN' ? 'Douzaine (12 unités)' : item.packaging === 'PACK3' ? 'Lot de 3 unités' : 'Unité'}</p>
+                        </td>
+                        <td className="py-3 pr-3">{item.quantity} conditionnement(s)</td>
                         <td className="py-3 pr-3">{item.returnedQuantity || 0}</td>
                         <td className="py-3 pr-3">{available}</td>
-                        <td className="py-3"><Input aria-label={'Quantité à retourner - ' + item.variant.product.name} type="number" min="0" max={available} step="1" value={quantities[item.id] || 0} disabled={available <= 0} onChange={(event) => updateQuantity(item, Number(event.target.value))} /></td>
+                        <td className="py-3"><Input aria-label={'Conditionnements à retourner - ' + item.variant.product.name} type="number" min="0" max={available} step="1" value={quantities[item.id] || 0} disabled={available <= 0} onChange={(event) => updateQuantity(item, Number(event.target.value))} /></td>
                       </tr>;
                     })}
                   </tbody>
