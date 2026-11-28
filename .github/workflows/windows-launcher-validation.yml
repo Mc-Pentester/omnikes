@@ -56,6 +56,11 @@ jobs:
           foreach ($key in @('["PATH"]', '["NODE_OPTIONS"]', '["DATABASE_URL"]', '["PORT"]', '["HOSTNAME"]')) {
             if (-not $cs.Contains($key)) { throw "Native launcher does not isolate inherited environment variable $key." }
           }
-          if (-not $cmd.Contains('"%PG_SERVICE_STATE%"=="4"')) { throw "Launcher does not avoid requesting SERVICE_START when PostgreSQL is already running." }
+          if (-not $cmd.Contains('ensure-postgres-service.ps1')) { throw "Launcher does not invoke the language-independent PostgreSQL recovery helper." }
+          if ($cmd -match 'findstr.exe /C:"STATE"') { throw "Launcher still parses localized sc.exe service output." }
+          $recovery = Get-Content installer\ensure-postgres-service.ps1 -Raw
+          foreach ($state in @('Running', 'Stopped', 'StartPending', 'StopPending')) { if (-not $recovery.Contains($state)) { throw "PostgreSQL recovery helper does not handle $state." } }
+          $iss = Get-Content installer\OmniKes.iss -Raw
+          if (-not $iss.Contains('ValueName: "OmniKes"')) { throw "Installer does not register automatic launch at Windows sign-in." }
           if (-not $lifecycle.Contains("NATIVE LAUNCHER CLICK-TO-RESTART AFTER SERVER STOP")) { throw "Windows lifecycle suite does not exercise native executable restart after stopping the server." }
           Write-Host "Launcher startup contract checks: PASS"
