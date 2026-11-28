@@ -21,6 +21,26 @@ if (-not $iscc -or -not (Test-Path $iscc)) {
   throw "ISCC.exe not found. Set ISCC or install Inno Setup 7/6."
 }
 
+# The release tag is the single source of truth for every distributed version.
+$appVersion = $env:APP_VERSION
+if (-not $appVersion -and $env:RELEASE_TAG) {
+  $appVersion = $env:RELEASE_TAG -replace '^[vV]', ''
+}
+if (-not $appVersion) {
+  $packageMetadata = Get-Content (Join-Path $root "package.json") -Raw | ConvertFrom-Json
+  $appVersion = [string]$packageMetadata.version
+}
+if ($appVersion -cnotmatch '^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$') {
+  throw "Invalid application version '$appVersion'. Set APP_VERSION or RELEASE_TAG to a valid version."
+}
+$env:APP_VERSION = $appVersion
+$env:NEXT_PUBLIC_APP_VERSION = $appVersion
+
+# Keep npm metadata, the compiled Next.js application, and Inno Setup aligned.
+npm.cmd version $appVersion --no-git-tag-version --allow-same-version
+if ($LASTEXITCODE -ne 0) { throw "Could not synchronize package.json and package-lock.json to version $appVersion." }
+Write-Host "Packaging OmniKes application version: $appVersion"
+
 $dist = Join-Path $root "dist\windows"
 if (Test-Path $dist) { Remove-Item $dist -Recurse -Force }
 New-Item -ItemType Directory -Path $dist -Force | Out-Null
@@ -59,6 +79,12 @@ if (Test-Path "prisma") { Copy-Item "prisma" (Join-Path $app "prisma") -Recurse 
 Copy-Item "package.json" (Join-Path $app "package.json") -Force
 Copy-Item "package-lock.json" (Join-Path $app "package-lock.json") -Force
 Copy-Item "prisma.config.ts" (Join-Path $app "prisma.config.ts") -Force
+
+$stagedPackage = Get-Content (Join-Path $app "package.json") -Raw | ConvertFrom-Json
+$stagedLock = Get-Content (Join-Path $app "package-lock.json") -Raw | ConvertFrom-Json
+if ($stagedPackage.version -ne $appVersion -or $stagedLock.version -ne $appVersion -or $stagedLock.packages[''].version -ne $appVersion) {
+  throw "Staged application npm metadata does not match release version $appVersion."
+}
 
 
 # Remove repository-only documentation and audit artifacts copied by Next standalone tracing.
@@ -212,4 +238,9 @@ Write-Host "Native Windows launcher built: $launcherExe"
 & $iscc "installer\OmniKes.iss"
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
 
+$expectedInstaller = Join-Path $root "dist\installer\OmniKes-Setup-$appVersion-x64.exe"
+if (-not (Test-Path $expectedInstaller)) {
+  throw "Versioned installer was not produced. Expected: $expectedInstaller"
+}
+Write-Host "Verified application, npm metadata, and Windows installer version: $appVersion"
 Write-Host "OmniKes Windows offline Setup: PASS"
