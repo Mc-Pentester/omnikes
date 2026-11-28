@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@omnikes/components/branding/Logo';
 import { Button } from '@omnikes/components/ui/button';
@@ -120,12 +120,12 @@ export default function ProductsPage() {
   const categories = Array.from(new Set(products.map((product) => product.category).filter(Boolean))) as string[];
   const filteredProducts = products.filter((product) => {
     const q = search.trim().toLowerCase();
-    const matchesSearch = !q || product.name.toLowerCase().includes(q) || product.variants.some((variant) => variant.sku.toLowerCase().includes(q));
+    const matchesSearch = !q || product.name.toLowerCase().includes(q) || product.variants.some((variant) => variant.sku.toLowerCase().includes(q) || (variant.barcode || '').toLowerCase().includes(q));
     return matchesSearch && (!categoryFilter || product.category === categoryFilter);
   });
   const activeCount = products.filter((product) => product.isActive).length;
 
-  const handleCreate = async () => {
+  const handleCreate = useCallback(async (scannedBarcode = '') => {
     setModalMode('create');
     setInitialStock('0');
     setInitialStockStoreId('');
@@ -144,7 +144,7 @@ export default function ProductsPage() {
       description: '',
       category: '',
       sku: '',
-      barcode: '',
+      barcode: scannedBarcode,
       price: '',
       cost: '',
       casePrice: '',
@@ -154,7 +154,17 @@ export default function ProductsPage() {
     });
     setFormError(null);
     setShowModal(true);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const url = new URL(window.location.href);
+    const scannedBarcode = url.searchParams.get('newBarcode');
+    if (!scannedBarcode) return;
+    url.searchParams.delete('newBarcode');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    queueMicrotask(() => void handleCreate(scannedBarcode));
+  }, [user, handleCreate]);
 
   const handleEdit = (product: Product) => {
     setModalMode('edit');
@@ -411,7 +421,7 @@ export default function ProductsPage() {
             </div>
             <div className="flex items-center gap-2">
               {returnToOnboarding && <Button variant="outline" onClick={() => router.push('/onboarding?step=products')}>Retour à l&apos;assistant</Button>}
-              <Button onClick={handleCreate}>+ Nouveau produit</Button>
+              <Button onClick={() => void handleCreate()}>+ Nouveau produit</Button>
             </div>
           </div>
         </header>
@@ -422,7 +432,7 @@ export default function ProductsPage() {
               title="Votre catalogue est prêt à commencer"
               description="Ajoutez votre premier produit pour construire votre catalogue et pouvoir passer vos premières ventes."
               actionLabel="Créer un produit"
-              onAction={handleCreate}
+              onAction={() => void handleCreate()}
               icon="box"
               tone="primary"
             />
@@ -630,8 +640,8 @@ export default function ProductsPage() {
 
               <div>
                 <label htmlFor="barcode" className="block text-sm font-medium text-foreground mb-1">Code-barres (facultatif)</label>
-                <Input id="barcode" value={formData.barcode} onChange={(e) => setFormData({ ...formData, barcode: e.target.value })} placeholder="Scanner ou saisir le code-barres" autoComplete="off" />
-                <p className="mt-1 text-xs text-muted">Le produit peut être enregistré sans code-barres. Vous pourrez l’ajouter plus tard.</p>
+                <Input id="barcode" value={formData.barcode} onChange={(e) => setFormData({ ...formData, barcode: e.target.value })} onKeyDown={(event) => { if (event.key === 'Enter') event.preventDefault(); }} placeholder="Scanner ou saisir le code-barres" autoComplete="off" autoFocus={modalMode === 'create'} />
+                <p className="mt-1 text-xs text-muted">Scannez ici le code-barres (scanner USB/Bluetooth en mode clavier), puis complétez les informations avant d’enregistrer. Entrée ne soumet pas le formulaire.</p>
               </div>
               <div>
                 <label htmlFor="price" className="block text-sm font-medium text-foreground mb-1">

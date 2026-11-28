@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@omnikes/components/ui/button';
 import { Input } from '@omnikes/components/ui/input';
@@ -92,6 +92,8 @@ export default function HomePage() {
   const [serverTotals, setServerTotals] = useState<{ subtotal: number; tax: number; total: number } | null>(null);
   const [applyTax, setApplyTax] = useState(false);
   const [pendingScaleReading, setPendingScaleReading] = useState<{ weightGrams: number; stable: boolean } | null>(null);
+  const barcodeLookupInProgress = useRef(false);
+  const barcodeQueueRef = useRef<string[]>([]);
 
   const generateOrderNumber = useCallback(() => `SALE-${Date.now()}`, []);
   const generatePaymentReference = useCallback(() => `PAY-${Date.now()}`, []);
@@ -251,6 +253,12 @@ export default function HomePage() {
     }
   }, [storesValidated, pendingScaleReading, cart, currentSaleId, currentStoreId, generateOrderNumber, selectedCustomer, applyTax]);
 
+  // Keep queued scanner events bound to the latest cart/sale state after React rerenders.
+  const addToCartRef = useRef(addToCart);
+  useEffect(() => {
+    addToCartRef.current = addToCart;
+  }, [addToCart]);
+
   useEffect(() => {
     if (!user) return;
     const controller = new AbortController();
@@ -380,52 +388,96 @@ export default function HomePage() {
   }, [stores, currentStoreId, currentStore, setCurrentStore, clearCurrentStore]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F1') {
-        e.preventDefault();
-        const searchInput = document.getElementById('product-search') as HTMLInputElement;
-        searchInput?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'F1') {
+        event.preventDefault();
+        document.getElementById('product-search')?.focus();
       }
-      if (e.key === 'F12') {
-        e.preventDefault();
+      if (event.key === 'F12') {
+        event.preventDefault();
         handlePayment();
       }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        if (showPaymentModal) setShowPaymentModal(false);
+      if (event.key === 'Escape' && showPaymentModal) {
+        event.preventDefault();
+        setShowPaymentModal(false);
       }
-      if (e.key === 'Enter' && document.activeElement?.id === 'product-search') {
-        const scannedBarcode = searchTerm.trim();
-        if (!scannedBarcode) return;
-        e.preventDefault();
-        void (async () => {
-          try {
-            const response = await fetch(`/api/products?barcode=${encodeURIComponent(scannedBarcode)}`, { cache: 'no-store' });
-            if (!response.ok) {
-              window.alert(response.status === 404 ? 'Code-barres inconnu. Aucun produit ajouté.' : 'Impossible de vérifier ce code-barres.');
-              return;
+
+      const activeElement = document.activeElement;
+      if (event.key !== 'Enter' || !(activeElement instanceof HTMLInputElement) || activeElement.id !== 'product-search') return;
+
+      const scannedBarcode = activeElement.value.trim();
+      if (!scannedBarcode) return;
+
+      event.preventDefault();
+      // Clear the controlled input immediately. If another scan arrives while the
+      // current lookup/cart update is pending, its Enter event queues the full code.
+      activeElement.value = '';
+      setSearchTerm('');
+
+      if (barcodeLookupInProgress.current) {
+        barcodeQueueRef.current.push(scannedBarcode);
+        return;
+      }
+
+      barcodeLookupInProgress.current = true;
+      void (async () => {
+        let nextBarcode: string | undefined = scannedBarcode;
+        try {
+          while (nextBarcode) {
+            const currentBarcode = nextBarcode;
+            nextBarcode = undefined;
+
+            try {
+              const response = await fetch(`/api/products?barcode=${encodeURIComponent(currentBarcode)}`, { cache: 'no-store' });
+
+              if (response.status === 404) {
+                const createProduct = window.confirm('Code-barres inconnu. Voulez-vous créer un produit avec ce code-barres ?');
+                if (createProduct) {
+                  barcodeQueueRef.current = [];
+                  router.push(`/products?newBarcode=${encodeURIComponent(currentBarcode)}`);
+                  break;
+                }
+                nextBarcode = barcodeQueueRef.current.shift();
+                continue;
+              }
+
+              if (!response.ok) {
+                window.alert(response.status === 401 || response.status === 403 || response.status === 402
+                  ? 'Vous n’êtes pas autorisé à consulter ce produit ou cette fonctionnalité.'
+                  : 'Impossible de vérifier ce code-barres. Réessayez.');
+                nextBarcode = barcodeQueueRef.current.shift();
+                continue;
+              }
+
+              const data = await response.json();
+              const product = data.product as Product | undefined;
+              const variant = product?.variants?.[0];
+              if (!product || !variant) {
+                window.alert('Aucune variante disponible ne correspond à ce code-barres.');
+                nextBarcode = barcodeQueueRef.current.shift();
+                continue;
+              }
+
+              await addToCartRef.current(variant.id, product.id, product.name, variant.name, variant.sku, variant.unitPrice ?? variant.price, variant.saleUnit);
+              nextBarcode = barcodeQueueRef.current.shift();
+            } catch (err) {
+              console.error('Barcode lookup failed:', err);
+              window.alert('Impossible de vérifier ce code-barres. Vérifiez la connexion puis réessayez.');
+              nextBarcode = barcodeQueueRef.current.shift();
             }
-            const data = await response.json();
-            const product = data.product as Product | undefined;
-            const variant = product?.variants?.[0];
-            if (!product || !variant) {
-              window.alert('Aucune variante active ne correspond à ce code-barres.');
-              return;
-            }
-            await addToCart(variant.id, product.id, product.name, variant.name, variant.sku, (variant.unitPrice ?? variant.price), variant.saleUnit);
-            setSearchTerm('');
-            window.setTimeout(() => document.getElementById('product-search')?.focus(), 100);
-          } catch (err) {
-            console.error('Barcode lookup failed:', err);
-            window.alert('Impossible de vérifier ce code-barres.');
           }
-        })();
-      }
+        } finally {
+          barcodeLookupInProgress.current = false;
+          if (document.getElementById('product-search')) {
+            window.setTimeout(() => document.getElementById('product-search')?.focus(), 0);
+          }
+        }
+      })();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlePayment, searchTerm, showPaymentModal, addToCart]);
+  }, [handlePayment, showPaymentModal, addToCart, router]);
 
   if (authLoading || storeLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><p className="text-muted">Chargement...</p></div>;
@@ -785,7 +837,7 @@ export default function HomePage() {
           )}
         </div>
 
-        <div className="w-full lg:w-[390px] xl:w-[430px] bg-[var(--surface)] border-t lg:border-t-0 lg:border-l border-[var(--border)] flex flex-col shrink-0">
+        <div data-testid="pos-cart" className="w-full lg:w-[390px] xl:w-[430px] bg-[var(--surface)] border-t lg:border-t-0 lg:border-l border-[var(--border)] flex flex-col shrink-0">
           <div className="p-4 md:p-5 border-b border-[var(--border)]">
             <h2 className="text-lg font-bold text-[var(--foreground)]">Panier</h2>
             <p className="text-sm text-[var(--muted)]">{cart.length} article(s)</p>

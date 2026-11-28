@@ -6,7 +6,7 @@ const password = process.env.E2E_PASSWORD;
 test.describe('Barcode workflow', () => {
   test.skip(!email || !password, 'E2E_EMAIL and E2E_PASSWORD are required');
 
-  test('creates without barcode, adds it later, then scans the exact variant in POS', async ({ page }) => {
+  test('scans an unknown barcode, creates the product from that scan, then scans it into POS', async ({ page }) => {
     const suffix = Date.now();
     const productName = `Barcode workflow ${suffix}`;
     const sku = `BC-SKU-${suffix}`;
@@ -22,45 +22,88 @@ test.describe('Barcode workflow', () => {
     const { user: authUser } = await meResponse.json();
     const currencyLabel = authUser.currencySymbol || authUser.currency || 'USD';
 
-    await page.goto('/products');
-    await page.getByRole('button', { name: /nouveau produit/i }).click();
+    // A real keyboard-wedge scanner types quickly into the focused POS search field and sends Enter.
+    await page.goto('/');
+    const search = page.locator('#product-search');
+    await search.focus();
+    page.once('dialog', async (dialog) => {
+      expect(dialog.type()).toBe('confirm');
+      expect(dialog.message()).toContain('Code-barres inconnu');
+      await dialog.accept();
+    });
+    await search.pressSequentially(barcode, { delay: 8 });
+    await search.press('Enter');
+
+    // The page consumes newBarcode and removes it after opening the creation form.
+    await expect(page).toHaveURL(/\/products(?:\?.*)?$/);
+    await expect(page).not.toHaveURL(/newBarcode=/);
+    await expect(page.getByRole('heading', { name: /créer un produit/i })).toBeVisible();
+    const barcodeField = page.getByLabel(/code-barres/i);
+    await expect(barcodeField).toHaveValue(barcode);
+
+    // Enter from the scanner must not submit an incomplete product form.
+    await barcodeField.focus();
+    await barcodeField.press('Enter');
+    await expect(page.getByRole('heading', { name: /créer un produit/i })).toBeVisible();
+
     await page.getByLabel(/nom du produit/i).fill(productName);
     await page.getByLabel(/^sku/i).fill(sku);
     await page.locator('#price').fill('125');
     await page.getByLabel(/coût d’acquisition unitaire/i).fill('75');
-    await expect(page.getByLabel(/code-barres/i)).toBeVisible();
-    await expect(page.getByLabel(/code-barres/i)).toHaveValue('');
     await page.getByRole('button', { name: /^créer$/i }).click();
-    await expect(page.getByText(productName)).toBeVisible();
 
     const productRow = page.getByRole('row').filter({ hasText: productName });
+    await expect(productRow).toBeVisible();
+    await expect(productRow).toContainText(barcode);
+    await expect(productRow).toContainText(`125.00 ${currencyLabel}`);
+    await expect(productRow).toContainText(`75.00 ${currencyLabel}`);
     await expect(productRow.getByRole('cell').nth(5)).toHaveText('0');
-    await productRow.getByRole('button', { name: /modifier/i }).click();
-    await page.locator('#price').fill('175.50');
-    await page.getByLabel(/coût d’acquisition unitaire/i).fill('82.25');
-    await page.getByLabel(/code-barres/i).fill(barcode);
-    await page.getByRole('button', { name: /enregistrer/i }).click();
-    await expect(productRow.getByText(barcode)).toBeVisible();
-    await expect(productRow).toContainText(`175.50 ${currencyLabel}`);
-    await expect(productRow).toContainText(`82.25 ${currencyLabel}`);
 
-    await productRow.getByRole('button', { name: /modifier/i }).click();
-    await page.getByRole('button', { name: /gérer la quantité/i }).click();
-    await expect(page).toHaveURL(new RegExp('/inventory\\?sku=' + encodeURIComponent(sku)));
-    await expect(page.getByPlaceholder(/rechercher produit ou sku/i)).toHaveValue(sku);
+    // A cashier can also start a product manually and scan directly into the barcode field.
+    const secondProductName = `Direct scanner product ${suffix}`;
+    const secondSku = `BC-DIRECT-${suffix}`;
+    const secondBarcode = `DIRECTBC${suffix}`;
+    await page.getByRole('button', { name: /nouveau produit/i }).click();
+    const directBarcodeField = page.getByLabel(/code-barres/i);
+    await expect(directBarcodeField).toBeFocused();
+    await directBarcodeField.pressSequentially(secondBarcode, { delay: 8 });
+    await directBarcodeField.press('Enter');
+    await expect(directBarcodeField).toHaveValue(secondBarcode);
+    await expect(page.getByRole('heading', { name: /créer un produit/i })).toBeVisible();
+    await page.getByLabel(/nom du produit/i).fill(secondProductName);
+    await page.getByLabel(/^sku/i).fill(secondSku);
+    await page.locator('#price').fill('95');
+    await page.getByLabel(/coût d’acquisition unitaire/i).fill('50');
+    await page.getByRole('button', { name: /^créer$/i }).click();
+    const secondProductRow = page.getByRole('row').filter({ hasText: secondProductName });
+    await expect(secondProductRow).toContainText(secondBarcode);
 
+    // Both scanned barcodes must resolve in POS and add the corresponding product to the cart.
     await page.goto('/');
-    const search = page.locator('#product-search');
-    await search.fill(barcode);
-    await search.press('Enter');
-    await expect(page.getByText(productName)).toHaveCount(2);
+    const posSearch = page.locator('#product-search');
+    await posSearch.focus();
+    await posSearch.pressSequentially(barcode, { delay: 8 });
+    await posSearch.press('Enter');
+    const cartPanel = page.getByTestId('pos-cart');
+    await expect(cartPanel.getByText(productName)).toBeVisible();
+    await expect(cartPanel.getByText('1 article(s)')).toBeVisible();
+    await posSearch.focus();
+    await posSearch.pressSequentially(secondBarcode, { delay: 8 });
+    await posSearch.press('Enter');
+    await expect(cartPanel.getByText(secondProductName)).toBeVisible();
+    await expect(cartPanel.getByText('2 article(s)')).toBeVisible();
 
+    // Cancelling creation for a third unknown code must not add anything to the cart.
     page.once('dialog', async (dialog) => {
-      expect(dialog.message()).toContain('Code-barres inconnu');
-      await dialog.accept();
+      expect(dialog.type()).toBe('confirm');
+      await dialog.dismiss();
     });
-    await search.fill(`UNKNOWN-${suffix}`);
-    await search.press('Enter');
-    await expect(page.getByText(productName)).toHaveCount(2);
+    await posSearch.focus();
+    await posSearch.pressSequentially(`UNKNOWN-${suffix}`, { delay: 8 });
+    await posSearch.press('Enter');
+    await expect(page).toHaveURL('/');
+    await expect(cartPanel.getByText(productName)).toBeVisible();
+    await expect(cartPanel.getByText(secondProductName)).toBeVisible();
+    await expect(cartPanel.getByText('2 article(s)')).toBeVisible();
   });
 });
