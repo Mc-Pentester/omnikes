@@ -855,7 +855,9 @@ export default function HomePage() {
                       <p className="text-xs md:text-sm text-muted truncate">{item.variantName}</p>
                       <p className="text-xs text-muted">{item.sku}</p>
                       <p className="text-xs font-semibold text-primary">{item.packaging === 'CASE' ? `Caisse (${item.baseUnits} unités)` : item.packaging === 'DOZEN' ? 'Douzaine' : item.packaging === 'PACK3' ? 'Lot de 3' : 'Unité'}</p>
-                      <p className="text-sm font-medium text-foreground">{(item.unitPrice * SALE_UNIT_TO_GRAMS[item.saleUnit]).toFixed(2)} HTG/{item.saleUnit === 'UNIT' ? 'unité' : item.saleUnit}</p>
+                      <p className="text-sm font-medium text-foreground">{item.saleUnit === 'UNIT'
+                        ? `${item.unitPrice.toFixed(2)} HTG / ${item.packaging === 'CASE' ? 'caisse' : item.packaging === 'DOZEN' ? 'douzaine' : item.packaging === 'PACK3' ? 'lot de 3' : 'unité'}`
+                        : `${(item.unitPrice * SALE_UNIT_TO_GRAMS[item.saleUnit]).toFixed(2)} HTG / ${item.saleUnit}`}</p>
                     </div>
                     
                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -864,12 +866,6 @@ export default function HomePage() {
                         className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-surface-muted rounded-lg hover:bg-border text-lg md:text-xl font-bold transition-colors focus:ring-2 focus:ring-primary focus:outline-none"
                         aria-label={`Réduire la quantité de ${item.productName}`}
                         tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            updateQuantity(item.variantId, item.quantity - 1);
-                          }
-                        }}
                       >
                         -
                       </button>
@@ -879,12 +875,6 @@ export default function HomePage() {
                         className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-surface-muted rounded-lg hover:bg-border text-lg md:text-xl font-bold transition-colors focus:ring-2 focus:ring-primary focus:outline-none"
                         aria-label={`Augmenter la quantité de ${item.productName}`}
                         tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            updateQuantity(item.variantId, item.quantity + 1);
-                          }
-                        }}
                       >
                         +
                       </button>
@@ -897,12 +887,6 @@ export default function HomePage() {
                         className="text-xs md:text-sm text-danger hover:text-danger font-medium py-1 px-2 rounded hover:bg-danger-soft transition-colors focus:ring-2 focus:ring-danger focus:outline-none"
                         aria-label={`Supprimer ${item.productName} du panier`}
                         tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            removeFromCart(item.variantId, item.packaging);
-                          }
-                        }}
                       >
                         Supprimer
                       </button>
