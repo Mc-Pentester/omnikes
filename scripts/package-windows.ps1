@@ -80,6 +80,12 @@ Copy-Item "package.json" (Join-Path $app "package.json") -Force
 Copy-Item "package-lock.json" (Join-Path $app "package-lock.json") -Force
 Copy-Item "prisma.config.ts" (Join-Path $app "prisma.config.ts") -Force
 
+$stagedPackage = Get-Content (Join-Path $app "package.json") -Raw | ConvertFrom-Json
+$stagedLock = Get-Content (Join-Path $app "package-lock.json") -Raw | ConvertFrom-Json
+if ($stagedPackage.version -ne $appVersion -or $stagedLock.version -ne $appVersion -or $stagedLock.packages."".version -ne $appVersion) {
+  throw "Staged application npm metadata does not match release version $appVersion."
+}
+
 
 # Remove repository-only documentation and audit artifacts copied by Next standalone tracing.
 $documentationDirectories = @("docs", "audit", "reports", "report", "rapports", "rapport")
@@ -232,4 +238,9 @@ Write-Host "Native Windows launcher built: $launcherExe"
 & $iscc "installer\OmniKes.iss"
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
 
+$expectedInstaller = Join-Path $root "dist\installer\OmniKes-Setup-$appVersion-x64.exe"
+if (-not (Test-Path $expectedInstaller)) {
+  throw "Versioned installer was not produced. Expected: $expectedInstaller"
+}
+Write-Host "Verified application, npm metadata, and Windows installer version: $appVersion"
 Write-Host "OmniKes Windows offline Setup: PASS"
