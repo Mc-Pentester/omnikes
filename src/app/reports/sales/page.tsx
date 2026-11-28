@@ -69,6 +69,8 @@ export default function SalesReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<SummaryData | null>(null);
+  const [advancedLocked, setAdvancedLocked] = useState(false);
+  const [advancedError, setAdvancedError] = useState<string | null>(null);
   const [byPeriod, setByPeriod] = useState<PeriodData[]>([]);
   const [byPaymentMethod, setByPaymentMethod] = useState<PaymentMethodData[]>([]);
   const [byStore, setByStore] = useState<StoreData[]>([]);
@@ -120,6 +122,8 @@ export default function SalesReportPage() {
   const fetchReports = async () => {
     setLoading(true);
     setError(null);
+    setAdvancedError(null);
+    setAdvancedLocked(false);
 
     try {
       const params = new URLSearchParams();
@@ -127,28 +131,60 @@ export default function SalesReportPage() {
       if (endDate) params.append('endDate', endDate);
       if (storeId) params.append('storeId', storeId);
 
-      const [summaryRes, periodRes, paymentRes, storeRes] = await Promise.all([
-        fetch(`/api/reports/sales/summary?${params.toString()}`),
+      // The standard summary is independently available with report.read.
+      // A missing advanced entitlement must never hide this core report.
+      const summaryRes = await fetch(`/api/reports/sales/summary?${params.toString()}`);
+      if (!summaryRes.ok) {
+        const message = summaryRes.status === 401
+          ? 'Votre session a expiré. Reconnectez-vous pour consulter le rapport.'
+          : summaryRes.status === 403
+            ? "Vous n'avez pas la permission de consulter les rapports de ventes."
+            : `Le résumé des ventes n'a pas pu être chargé (HTTP ${summaryRes.status}).`;
+        throw new Error(message);
+      }
+
+      const summaryData = await summaryRes.json();
+      setSummary(summaryData);
+
+      const [periodRes, paymentRes, storeRes] = await Promise.all([
         fetch(`/api/reports/sales/by-period?${params.toString()}&granularity=${granularity}`),
         fetch(`/api/reports/sales/by-payment-method?${params.toString()}`),
         fetch(`/api/reports/sales/by-store?${params.toString()}`),
       ]);
 
-      if (!summaryRes.ok || !periodRes.ok || !paymentRes.ok || !storeRes.ok) {
-        throw new Error('Erreur lors du chargement des rapports');
+      const advancedResponses = [periodRes, paymentRes, storeRes];
+      const failedResponse = advancedResponses.find(
+        response => !response.ok && response.status !== 402,
+      );
+      if (failedResponse) {
+        setAdvancedError(
+          `Le résumé est disponible, mais les analyses détaillées n'ont pas pu être chargées (HTTP ${failedResponse.status}).`,
+        );
+        setByPeriod([]);
+        setByPaymentMethod([]);
+        setByStore([]);
+        return;
       }
 
-      const summaryData = await summaryRes.json();
-      const periodData = await periodRes.json();
-      const paymentData = await paymentRes.json();
-      const storeData = await storeRes.json();
+      if (advancedResponses.some(response => response.status === 402)) {
+        setAdvancedLocked(true);
+        setByPeriod([]);
+        setByPaymentMethod([]);
+        setByStore([]);
+        return;
+      }
 
-      setSummary(summaryData);
+      const [periodData, paymentData, storeData] = await Promise.all([
+        periodRes.json(),
+        paymentRes.json(),
+        storeRes.json(),
+      ]);
+
       setByPeriod(periodData);
       setByPaymentMethod(paymentData);
       setByStore(storeData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue');
+      setError(err instanceof Error ? err.message : 'Une erreur inconnue est survenue lors du chargement du résumé.');
     } finally {
       setLoading(false);
     }
@@ -419,6 +455,17 @@ export default function SalesReportPage() {
               </>
             )}
 
+            {advancedLocked ? (
+              <div className="bg-warning-soft border border-warning rounded-[var(--radius-lg)] p-6 mb-8" role="status">
+                <h2 className="font-semibold mb-2">Analyses avancées non incluses</h2>
+                <p>Le résumé des ventes reste accessible. L&apos;évolution des ventes et les répartitions détaillées nécessitent l&apos;option de rapport avancé de votre abonnement.</p>
+              </div>
+            ) : advancedError ? (
+              <div className="bg-danger-soft border border-danger text-danger px-4 py-3 rounded mb-8" role="alert">
+                {advancedError}
+              </div>
+            ) : (
+              <>
             {/* Évolution des ventes */}
             <div className="bg-surface border rounded-[var(--radius-lg)] p-6 mb-8 shadow-sm">
               <h2 className="text-lg font-semibold mb-4">Évolution des Ventes</h2>
@@ -508,6 +555,9 @@ export default function SalesReportPage() {
                 )}
               </div>
             </div>
+
+              </>
+            )}
 
             {/* Liste des ventes */}
             <div className="bg-surface border rounded-[var(--radius-lg)] p-6 mb-8">
