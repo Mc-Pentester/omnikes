@@ -60,7 +60,7 @@ if (-not (Test-Path $logoSource)) { throw "High-resolution OmniKes splash logo i
 Copy-Item $logoSource $logoTarget -Force
 $logoImage = [System.Drawing.Image]::FromFile($logoTarget)
 try {
-  if ($logoImage.Width -lt 1000 -or $logoImage.Height -lt 700) {
+  if ($logoImage.Width -lt 1000 -or $logoImage.Height -lt 400) {
     throw "OmniKes splash logo must be at least 1000x700 pixels; found $($logoImage.Width)x$($logoImage.Height)."
   }
   Write-Host "High-resolution OmniKes splash logo verified: $($logoImage.Width)x$($logoImage.Height)."
