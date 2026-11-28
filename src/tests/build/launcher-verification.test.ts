@@ -37,6 +37,7 @@ describe('Windows Launcher Verification', () => {
     expect(packaging).toContain('omnikes.exe');
     expect(packaging).toContain('Microsoft.Web.WebView2');
     expect(packaging).toContain('MicrosoftEdgeWebView2RuntimeInstallerX64.exe');
+    expect(packaging).toContain('Copy-Item "installer\\ensure-postgres-service.ps1" $installer -Force');
     expect(packaging).toContain('WebView2Loader.dll');
     expect(packaging).toContain('$nodeVersion = "22.22.2"');
     expect(packaging).toContain('node-v$nodeVersion-win-x64');
