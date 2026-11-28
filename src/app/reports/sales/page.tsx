@@ -153,19 +153,21 @@ export default function SalesReportPage() {
       ]);
 
       const advancedResponses = [periodRes, paymentRes, storeRes];
-      if (advancedResponses.some(response => response.status === 402)) {
-        setAdvancedLocked(true);
+      const failedResponse = advancedResponses.find(
+        response => !response.ok && response.status !== 402,
+      );
+      if (failedResponse) {
+        setAdvancedError(
+          `Le résumé est disponible, mais les analyses détaillées n'ont pas pu être chargées (HTTP ${failedResponse.status}).`,
+        );
         setByPeriod([]);
         setByPaymentMethod([]);
         setByStore([]);
         return;
       }
 
-      const failedResponse = advancedResponses.find(response => !response.ok);
-      if (failedResponse) {
-        setAdvancedError(
-          `Le résumé est disponible, mais les analyses détaillées n'ont pas pu être chargées (HTTP ${failedResponse.status}).`,
-        );
+      if (advancedResponses.some(response => response.status === 402)) {
+        setAdvancedLocked(true);
         setByPeriod([]);
         setByPaymentMethod([]);
         setByStore([]);
