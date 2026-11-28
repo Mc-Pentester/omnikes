@@ -10,6 +10,7 @@ describe('Windows Launcher Verification', () => {
   const installerPath = path.join(root, 'installer');
   const launcherPath = path.join(installerPath, 'OmniKesLauncher.cmd');
   const runtimeInstallerPath = path.join(installerPath, 'install-runtime.cjs');
+  const recoveryScriptPath = path.join(installerPath, 'ensure-postgres-service.ps1');
   const issPath = path.join(installerPath, 'OmniKes.iss');
   const uninstall = readFileSync(path.join(installerPath, 'uninstall-runtime.ps1'), 'utf8');
 
@@ -106,6 +107,8 @@ describe('Windows Launcher Verification', () => {
     const content = readFileSync(runtimeInstallerPath, 'utf8');
     expect(content).toContain("['register', '-D', data, '-N', serviceName, '-S', 'auto'");
     expect(content).toContain("['start', serviceName]");
+    expect(content).toContain("['config', serviceName, 'start=', 'delayed-auto']");
+    expect(content).toContain("['failure', serviceName, 'reset=', '86400', 'actions=', 'restart/5000/restart/15000/restart/30000']");
     expect(content).toContain('waitForPostgres(password, port)');
     expect(content).toContain('serviceState()');
   });
@@ -179,6 +182,21 @@ describe('Windows Launcher Verification', () => {
 
   it('should retain the first-launch environment preparation script', () => {
     expect(existsSync(path.join(installerPath, 'prepare-user-env.cjs'))).toBe(true);
+  });
+
+  it('should recover PostgreSQL without depending on localized Windows service output', () => {
+    const recovery = readFileSync(recoveryScriptPath, 'utf8');
+    expect(recovery).toContain("Get-Service -Name $serviceName");
+    for (const state of ['Running', 'Stopped', 'StartPending', 'StopPending']) expect(recovery).toContain(state);
+    expect(recovery).toContain('Start-Service -Name $serviceName');
+    expect(recovery).toContain('existing database files are preserved');
+  });
+
+  it('should configure automatic launch at Windows sign-in and remove it on uninstall', () => {
+    const content = readFileSync(issPath, 'utf8');
+    expect(content).toContain('[Registry]');
+    expect(content).toContain('ValueName: "OmniKes"');
+    expect(content).toContain('Flags: uninsdeletevalue');
   });
 
   it('should retain the Inno Setup launcher and runtime installation configuration', () => {
