@@ -57,6 +57,9 @@ export async function PATCH(
     if (error instanceof Error && (error.message === 'Invalid expiration date' || error.message === 'Expiration date must be in the future')) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+    if (error instanceof Error && error.message === 'Only a free license can be revoked') {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     if (error instanceof Error && error.message === 'Organization not found') {
       return NextResponse.json({ error: error.message }, { status: 404 });
     }
