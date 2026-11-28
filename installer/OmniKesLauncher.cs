@@ -201,11 +201,30 @@ internal sealed class OmniKesSplash : Form
         top.BackColor = Color.FromArgb(0, 91, 205);
         Controls.Add(top);
 
+        // Render the packaged brand artwork at splash size; keep the ICO as a safe fallback.
         PictureBox mark = new PictureBox();
-        mark.Location = new Point(54, 62);
-        mark.Size = new Size(126, 126);
+        mark.Location = new Point(220, 18);
+        mark.Size = new Size(320, 190);
         mark.SizeMode = PictureBoxSizeMode.Zoom;
-        try { mark.Image = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath).ToBitmap(); } catch { }
+        mark.BackColor = Color.White;
+        string logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "omnikes-logo.jpeg");
+        try
+        {
+            if (File.Exists(logoPath))
+            {
+                using (Image sourceLogo = Image.FromFile(logoPath))
+                    mark.Image = new Bitmap(sourceLogo);
+            }
+        }
+        catch
+        {
+            // A damaged or unsupported optional logo must not prevent the POS from starting.
+        }
+        if (mark.Image == null)
+        {
+            try { mark.Image = System.Drawing.Icon.ExtractAssociatedIcon(Application.ExecutablePath).ToBitmap(); } catch { }
+        }
+        mark.Disposed += delegate { if (mark.Image != null) mark.Image.Dispose(); };
         Controls.Add(mark);
 
         Label brand = new Label();
@@ -226,7 +245,7 @@ internal sealed class OmniKesSplash : Form
 
         Panel separator = new Panel();
         separator.BackColor = Color.FromArgb(0, 115, 220);
-        separator.Location = new Point(205, 184);
+        separator.Location = new Point(165, 208);
         separator.Size = new Size(430, 2);
         Controls.Add(separator);
 
@@ -236,7 +255,7 @@ internal sealed class OmniKesSplash : Form
         spinner.Font = new Font("Segoe UI Symbol", 24F, FontStyle.Regular);
         spinner.ForeColor = Color.FromArgb(0, 105, 220);
         spinner.TextAlign = ContentAlignment.MiddleCenter;
-        spinner.Location = new Point(355, 181);
+        spinner.Location = new Point(355, 205);
         spinner.Size = new Size(50, 40);
         Controls.Add(spinner);
 
@@ -244,7 +263,7 @@ internal sealed class OmniKesSplash : Form
         wait.Font = new Font("Segoe UI", 21F, FontStyle.Bold);
         wait.ForeColor = Color.FromArgb(8, 36, 91);
         wait.TextAlign = ContentAlignment.MiddleCenter;
-        wait.Location = new Point(105, 220);
+        wait.Location = new Point(105, 245);
         wait.Size = new Size(550, 42);
         Controls.Add(wait);
 
@@ -253,12 +272,12 @@ internal sealed class OmniKesSplash : Form
         status.Font = new Font("Segoe UI", 11F, FontStyle.Regular);
         status.ForeColor = Color.FromArgb(55, 75, 110);
         status.TextAlign = ContentAlignment.MiddleCenter;
-        status.Location = new Point(70, 269);
+        status.Location = new Point(70, 294);
         status.Size = new Size(620, 30);
         Controls.Add(status);
 
         progress = new ProgressBar();
-        progress.Location = new Point(72, 318);
+        progress.Location = new Point(72, 340);
         progress.Size = new Size(616, 16);
         progress.Minimum = 0;
         progress.Maximum = 100;
@@ -271,7 +290,7 @@ internal sealed class OmniKesSplash : Form
         percentLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         percentLabel.ForeColor = Color.FromArgb(8, 36, 91);
         percentLabel.TextAlign = ContentAlignment.MiddleRight;
-        percentLabel.Location = new Point(620, 340);
+        percentLabel.Location = new Point(620, 362);
         percentLabel.Size = new Size(68, 22);
         Controls.Add(percentLabel);
 
@@ -280,7 +299,7 @@ internal sealed class OmniKesSplash : Form
         tagline.Font = new Font("Segoe UI", 12F, FontStyle.Regular);
         tagline.ForeColor = Color.FromArgb(8, 36, 91);
         tagline.TextAlign = ContentAlignment.MiddleCenter;
-        tagline.Location = new Point(100, 377);
+        tagline.Location = new Point(100, 390);
         tagline.Size = new Size(560, 28);
         Controls.Add(tagline);
 
