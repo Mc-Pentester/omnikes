@@ -54,7 +54,7 @@ if ((Get-Item $launcherIcon).Length -lt 1000) { throw "OmniKes Windows icon asse
 
 # Ship the full-resolution logo separately from the small Windows ICO.
 # The splash screen renders this original artwork at a larger size for crisp branding.
-$logoSource = Join-Path $root "public\\branding\\omnikes-logo.jpeg"
+$logoSource = Join-Path $root "public/branding/omnikes-logo.jpeg"
 $logoTarget = Join-Path $installer "omnikes-logo.jpeg"
 if (-not (Test-Path $logoSource)) { throw "High-resolution OmniKes splash logo is missing: $logoSource" }
 Copy-Item $logoSource $logoTarget -Force
