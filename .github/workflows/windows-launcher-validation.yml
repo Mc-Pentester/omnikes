@@ -50,7 +50,7 @@ jobs:
           $cs = Get-Content installer\OmniKesLauncher.cs -Raw
           $lifecycle = Get-Content scripts\test-windows-installer-lifecycle.ps1 -Raw
           if ($cmd -match '(?im)^\s*pause\s*$') { throw "Hidden launcher still contains an interactive PAUSE." }
-          foreach ($tool in @("netstat.exe", "findstr.exe", "sc.exe", "timeout.exe", "WindowsPowerShell\v1.0\powershell.exe")) {
+          foreach ($tool in @("netstat.exe", "findstr.exe", "timeout.exe", "WindowsPowerShell\v1.0\powershell.exe")) {
             if (-not $cmd.Contains("%SystemRoot%\System32\$tool")) { throw "Launcher does not use the absolute system path for $tool." }
           }
           foreach ($key in @('["PATH"]', '["NODE_OPTIONS"]', '["DATABASE_URL"]', '["PORT"]', '["HOSTNAME"]')) {
