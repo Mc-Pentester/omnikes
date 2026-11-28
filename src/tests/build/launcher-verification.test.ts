@@ -45,7 +45,7 @@ describe('Windows Launcher Verification', () => {
     const packaging = readFileSync(path.join(root, 'scripts', 'package-windows.ps1'), 'utf8');
     expect(packaging).toContain('target:winexe');
     expect(packaging).toContain('omnikes.exe');
-    expect(packaging).toContain('public\\branding\\omnikes-logo.jpeg');
+    expect(packaging).toContain('public/branding/omnikes-logo.jpeg');
     expect(packaging).toContain('High-resolution OmniKes splash logo verified');
     expect(packaging).toContain('$logoImage.Width -lt 1000');
     expect(packaging).toContain('$logoImage.Height -lt 700');
